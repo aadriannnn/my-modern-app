@@ -33,3 +33,11 @@ class FiltreEchivalente(SQLModel, table=True):
     type: str = Field(primary_key=True)
     term_canonic_original: str = Field(primary_key=True)
     term_preferat: str
+
+
+class Case(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    title: str
+    summary: str = ""
+    materie: str = ""
+    obiect: str = ""
