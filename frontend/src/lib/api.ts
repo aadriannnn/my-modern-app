@@ -1,61 +1,66 @@
-const API = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
-export async function getCases() {
-  const res = await fetch(`${API}/cases/`);
-  if (!res.ok) throw new Error("Eroare la încărcarea spețelor");
-  return res.json();
-}
+export const getFilters = async () => {
+  const [tipSpeta, parte, menuData] = await Promise.all([
+    fetch(`${API_URL}/filters/tip_speta`).then((res) => res.json()),
+    fetch(`${API_URL}/filters/parte`).then((res) => res.json()),
+    fetch(`${API_URL}/filters/menu`).then((res) => res.json()),
+  ]);
+  return { tipSpeta, parte, menuData };
+};
 
-export async function createCase(data: {
-  title: string;
-  summary: string;
-  materie: string;
-  obiect: string;
-}) {
-  const res = await fetch(`${API}/cases/`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+export const refreshFilters = async () => {
+  const response = await fetch(`${API_URL}/filters/refresh`, { method: 'POST' });
+  if (!response.ok) {
+    throw new Error('Filter refresh failed');
+  }
+  return response.json();
+};
+
+export const search = async (text: string, filters: Record<string, string[]>) => {
+  const response = await fetch(`${API_URL}/search/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, filters }),
   });
-  if (!res.ok) throw new Error("Eroare la adăugarea speței");
-  return res.json();
-}
+  if (!response.ok) {
+    throw new Error('Search failed');
+  }
+  return response.json();
+};
 
-export async function searchCases(queryText: string, filters: any) {
-    const res = await fetch(`${API}/search/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query_text: queryText, filters }),
-    });
-    if (!res.ok) throw new Error("Eroare la căutarea spețelor");
-    return res.json();
-}
+export const exportEquivalents = async () => {
+  const response = await fetch(`${API_URL}/equivalents/export`);
+  if (!response.ok) {
+    throw new Error('Export failed');
+  }
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'equivalents.csv';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+};
 
-export async function getFilters() {
-    const res = await fetch(`${API}/filters/`);
-    if (!res.ok) throw new Error("Eroare la încărcarea filtrelor");
-    return res.json();
-}
+export const importEquivalents = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await fetch(`${API_URL}/equivalents/import`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    throw new Error('Import failed');
+  }
+  return response.json();
+};
 
-export async function refreshFilters() {
-    const res = await fetch(`${API}/filters/refresh`, { method: "POST" });
-    if (!res.ok) throw new Error("Eroare la actualizarea filtrelor");
-    return res.json();
-}
-
-export async function exportEquivalences() {
-    const res = await fetch(`${API}/filters/equivalences/export`);
-    if (!res.ok) throw new Error("Eroare la exportul echivalențelor");
-    return res.blob();
-}
-
-export async function importEquivalences(file: File) {
-    const formData = new FormData();
-    formData.append("file", file);
-    const res = await fetch(`${API}/filters/equivalences/import`, {
-        method: "POST",
-        body: formData,
-    });
-    if (!res.ok) throw new Error("Eroare la importul echivalențelor");
-    return res.json();
-}
+export const getEquivalentsHelp = async () => {
+  const response = await fetch(`${API_URL}/equivalents/help`);
+  if (!response.ok) {
+    throw new Error('Failed to get help text');
+  }
+  return response.json();
+};

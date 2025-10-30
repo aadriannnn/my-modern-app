@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .db import init_db
-from .routers import cases, search, filters
+from .routers import search as main_router, equivalents
 
 settings = get_settings()
 app = FastAPI(title=settings.APP_NAME)
@@ -21,9 +21,8 @@ def on_startup():
     init_db()
 
 
-app.include_router(cases.router)
-app.include_router(search.router)
-app.include_router(filters.router)
+app.include_router(main_router.router)
+app.include_router(equivalents.router)
 
 
 @app.get("/health")
