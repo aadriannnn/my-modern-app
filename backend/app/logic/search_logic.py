@@ -14,8 +14,6 @@ settings = get_settings()
 
 menu_cache = {"menu_data": None, "materii_map": None, "obiecte_map": None}
 
-# ===================== UTILITY FUNCTIONS & CONSTANTS =====================
-
 def normalize_text(text, remove_spaces=False):
     if not text or text.lower() == 'null': return ""
     text = str(text).lower()
@@ -26,6 +24,8 @@ def normalize_text(text, remove_spaces=False):
     if remove_spaces: text = text.replace(" ", "")
     else: text = ' '.join(text.split())
     return text
+
+# ===================== UTILITY FUNCTIONS & CONSTANTS =====================
 
 CANONICAL_KEYS_MATERII = [
     "Legea 8/1996", "Legea 7/1996", "Legea 10/2001", "Legea 11/1991", "Legea 14/2003",

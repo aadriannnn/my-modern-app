@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import ResultDetail from './ResultDetail'; // Import the new component
 
 interface Result {
   id: number;
@@ -10,6 +11,7 @@ interface Result {
   score: number;
   match_count: number;
   situatia_de_fapt_full: string;
+  data: Record<string, any>; // Ensure the 'data' object is part of the type
 }
 
 interface ResultsProps {
@@ -41,7 +43,11 @@ const Results: React.FC<ResultsProps> = ({ results }) => {
               </thead>
               <tbody className="divide-y">
                 {results.map((result) => (
-                  <tr key={result.id} className="hover:bg-gray-50 cursor-pointer" onClick={() => setSelectedResult(result)}>
+                  <tr
+                    key={result.id}
+                    className={`cursor-pointer ${selectedResult?.id === result.id ? 'bg-blue-100' : 'hover:bg-gray-50'}`}
+                    onClick={() => setSelectedResult(result)}
+                  >
                     <td className="px-4 py-2">{result.denumire}</td>
                     <td className="px-4 py-2">{result.tip_speta}</td>
                     <td className="px-4 py-2">{result.materie}</td>
@@ -61,16 +67,8 @@ const Results: React.FC<ResultsProps> = ({ results }) => {
         </div>
       </div>
 
-      {selectedResult && (
-        <div className="bg-white rounded-lg shadow-md">
-          <div className="p-4 border-b">
-            <h3 className="text-lg font-bold text-gray-700">Detalii Situația de Fapt</h3>
-          </div>
-          <div className="p-4">
-            <p className="text-gray-600 whitespace-pre-wrap">{selectedResult.situatia_de_fapt_full}</p>
-          </div>
-        </div>
-      )}
+      {/* Replace the old detail view with the new ResultDetail component */}
+      <ResultDetail result={selectedResult} />
     </div>
   );
 };
