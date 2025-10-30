@@ -9,12 +9,12 @@ const App = () => {
   const [selectedResult, setSelectedResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [filters, setFilters] = useState({});
 
   const handleSearch = async (query) => {
     setLoading(true);
     setError(null);
     try {
-      const filters = {}; // Will be implemented later
       const data = await searchCases(query, filters);
       setResults(data);
     } catch (err) {
@@ -28,11 +28,15 @@ const App = () => {
     setSelectedResult(result);
   };
 
+  const handleFilterChange = (newFilters) => {
+    setFilters(newFilters);
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 p-4">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="col-span-1">
-          <SearchPanel onSearch={handleSearch} />
+          <SearchPanel onSearch={handleSearch} onFilterChange={handleFilterChange} />
         </div>
         <div className="col-span-2">
           {loading && <p>Loading...</p>}

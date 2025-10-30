@@ -9,7 +9,10 @@ const ResultsDisplay = ({ results, onSelect }) => {
             <th className="text-left">Denumire</th>
             <th className="text-left">Tip speță</th>
             <th className="text-left">Materie</th>
-            <th className="text-left">Scor</th>
+            <th className="text-left">Data Soluției</th>
+            <th className="text-left">Instanța</th>
+            <th className="text-left">Scor Hibrid</th>
+            <th className="text-left">Match-uri</th>
           </tr>
         </thead>
         <tbody>
@@ -22,7 +25,10 @@ const ResultsDisplay = ({ results, onSelect }) => {
               <td>{result.denumire}</td>
               <td>{result.tip_speta}</td>
               <td>{result.materie}</td>
+              <td>{result.data_solutiei}</td>
+              <td>{result.tip_instanta}</td>
               <td>{result.score.toFixed(5)}</td>
+              <td>{result.match_count}</td>
             </tr>
           ))}
         </tbody>
