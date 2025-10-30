@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .db import init_db
+from .logic.search_logic import load_menu_cache
 from .routers import search as main_router, equivalents
 
 settings = get_settings()
@@ -19,6 +20,7 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     init_db()
+    load_menu_cache()
 
 
 app.include_router(main_router.router)

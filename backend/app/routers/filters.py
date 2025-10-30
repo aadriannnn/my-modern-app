@@ -21,7 +21,7 @@ async def refresh_filters(session: Session = Depends(get_session)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/")
+@router.get("/menu")
 async def get_filters(session: Session = Depends(get_session)):
     menu = session.get(FiltreCacheMenu, 1)
     if not menu:

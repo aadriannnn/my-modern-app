@@ -250,9 +250,11 @@ def load_menu_cache():
                     menu_cache["obiecte_map"] = row['obiecte_map']
                     print("Menu data successfully loaded into cache.")
                 else:
-                    print("No pre-calculated menu found in DB. Cache remains empty.")
+                    print("No pre-calculated menu found in DB. Forcing a refresh.")
+                    refresh_menu_cache()
     except Exception as e:
         print(f"Failed to load menu data into cache: {e}")
+
 
 def get_cached_menu_data():
     return menu_cache["menu_data"], menu_cache["materii_map"], menu_cache["obiecte_map"]

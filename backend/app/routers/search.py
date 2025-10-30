@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from ..schemas import SearchQuery
-from ..logic.search_logic import embed_text, search_similar, get_db_connection, PARTI_FIXE, get_cached_menu_data
+from ..logic.search_logic import embed_text, search_similar, get_db_connection, PARTI_FIXE, get_cached_menu_data, refresh_menu_cache
 import psycopg2
 import psycopg2.extras
 from typing import List
@@ -47,9 +47,15 @@ def get_parte_filters():
 @router.get("/filters/menu")
 def get_menu_filters():
     menu_data, _, _ = get_cached_menu_data()
-    if menu_data:
-        return menu_data
-    raise HTTPException(status_code=404, detail="Meniul nu este generat.")
+    return menu_data or {}
+
+@router.post("/filters/menu/refresh")
+def refresh_filters():
+    try:
+        refresh_menu_cache()
+        return {"status": "success", "message": "Cache-ul a fost actualizat."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/cases/", response_model=Case)
 def create_case(case: Case, session: Session = Depends(get_session)):
