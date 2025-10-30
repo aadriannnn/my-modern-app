@@ -14,139 +14,18 @@ settings = get_settings()
 
 menu_cache = {"menu_data": None, "materii_map": None, "obiecte_map": None}
 
-def load_and_build_menu_data():
-    # This function contains the original logic to build the menu from the database
-    # It has been moved here from the original script
-    print("START PROCESARE: Se încarcă și se procesează perechile materie-obiect...")
+# ===================== UTILITY FUNCTIONS & CONSTANTS =====================
 
-    eq_map_materii = {}
-    eq_map_obiecte = {}
-    try:
-        with get_db_connection() as conn:
-            with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-                cur.execute("SELECT type, term_canonic_original, term_preferat FROM filtre_echivalente")
-                for row in cur:
-                    if row['type'] == 'materie':
-                        eq_map_materii[row['term_canonic_original']] = row['term_preferat']
-                    elif row['type'] == 'obiect':
-                        eq_map_obiecte[row['term_canonic_original']] = row['term_preferat']
-    except Exception as e:
-        print(f"Avertisment: Nu s-au putut încărca echivalențele: {e}")
-
-    sql = """
-    SELECT DISTINCT
-    NULLIF(TRIM(COALESCE(b.data->>'materie', b.data->>'materia', b.data->>'materie_principala')), '') as materie_orig,
-    NULLIF(TRIM(b.data->>'obiect'), '') as obiect_orig
-    FROM blocuri b;
-    """
-    mapare_materii_originale = {}
-    mapare_obiecte_originale = {}
-
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql)
-            rows = cur.fetchall()
-
-    for materie_orig, obiect_orig in rows:
-        if materie_orig not in mapare_materii_originale:
-            mapare_materii_originale[materie_orig] = find_canonical_key(materie_orig, CANONICAL_MAP_MATERII)
-        if obiect_orig not in mapare_obiecte_originale:
-            canon_key = find_canonical_key(obiect_orig, CANONICAL_MAP_OBIECTE)
-            mapare_obiecte_originale[obiect_orig] = canon_key if canon_key else extract_base_obiect(obiect_orig)
-
-    for orig, cod_canon in mapare_materii_originale.items():
-        if cod_canon in eq_map_materii:
-            mapare_materii_originale[orig] = eq_map_materii[cod_canon]
-
-    for orig, cod_canon in mapare_obiecte_originale.items():
-        if cod_canon in eq_map_obiecte:
-            mapare_obiecte_originale[orig] = eq_map_obiecte[cod_canon]
-
-    menu_data = defaultdict(set)
-    for materie_orig, obiect_orig in rows:
-        materie_canon = mapare_materii_originale.get(materie_orig)
-        obiect_canon = mapare_obiecte_originale.get(obiect_orig)
-
-        # Deduction logic from original script
-        if not materie_canon and obiect_canon:
-            if obiect_canon in OBIECT_DEDUCTION_PROCEDURAL: materie_canon = "Procedural"
-            elif obiect_canon in OBIECT_DEDUCTION_FAMILIE: materie_canon = "Minori si familie"
-            elif obiect_canon in OBIECT_DEDUCTION_PENAL: materie_canon = "Penal"
-            else: materie_canon = "Civil"
-
-        materie_canon = eq_map_materii.get(materie_canon, materie_canon)
-        if materie_canon and not obiect_canon: obiect_canon = "(fără obiect specific)"
-        obiect_canon = eq_map_obiecte.get(obiect_canon, obiect_canon)
-        if not materie_canon: materie_canon = "Necunoscut"
-        materie_canon = eq_map_materii.get(materie_canon, materie_canon)
-        if not obiect_canon: obiect_canon = "(fără obiect)"
-        obiect_canon = eq_map_obiecte.get(obiect_canon, obiect_canon)
-
-        menu_data[materie_canon].add(obiect_canon)
-
-    menu_final = {materie: sorted(list(obiecte)) for materie, obiecte in sorted(menu_data.items())}
-
-    materii_canon_to_orig = defaultdict(set)
-    for orig, canon in mapare_materii_originale.items():
-        if canon: materii_canon_to_orig[canon].add(orig)
-    obiecte_canon_to_orig = defaultdict(set)
-    for orig, canon in mapare_obiecte_originale.items():
-        if canon: obiecte_canon_to_orig[canon].add(orig)
-
-    materii_canon_to_orig = {k: list(v) for k, v in materii_canon_to_orig.items()}
-    obiecte_canon_to_orig = {k: list(v) for k, v in obiecte_canon_to_orig.items()}
-
-    return menu_final, materii_canon_to_orig, obiecte_canon_to_orig
-
-
-def save_menu_data_to_db(menu_data, materii_map, obiecte_map):
-    sql = """
-    INSERT INTO filtre_cache_menu (id, menu_data, materii_map, obiecte_map, last_updated)
-    VALUES (1, %s, %s, %s, NOW())
-    ON CONFLICT (id) DO UPDATE SET
-    menu_data = EXCLUDED.menu_data,
-    materii_map = EXCLUDED.materii_map,
-    obiecte_map = EXCLUDED.obiecte_map,
-    last_updated = NOW();
-    """
-    params = (json.dumps(menu_data), json.dumps(materii_map), json.dumps(obiecte_map))
-    with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
-        conn.commit()
-
-
-def refresh_menu_cache():
-    menu_data, materii_map, obiecte_map = load_and_build_menu_data()
-    save_menu_data_to_db(menu_data, materii_map, obiecte_map)
-    load_menu_cache()
-
-
-def load_menu_cache():
-    # Same as before
-    print("Loading menu data into cache...")
-    try:
-        sql = "SELECT menu_data, materii_map, obiecte_map FROM filtre_cache_menu WHERE id = 1;"
-        with get_db_connection() as conn:
-            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute(sql)
-                row = cur.fetchone()
-                if row:
-                    menu_cache["menu_data"] = row['menu_data']
-                    menu_cache["materii_map"] = row['materii_map']
-                    menu_cache["obiecte_map"] = row['obiecte_map']
-                    print("Menu data successfully loaded into cache.")
-                else:
-                    print("No pre-calculated menu found in DB. Cache remains empty.")
-    except Exception as e:
-        print(f"Failed to load menu data into cache: {e}")
-
-def get_cached_menu_data():
-    return menu_cache["menu_data"], menu_cache["materii_map"], menu_cache["obiecte_map"]
-
-# ... rest of the file (normalize_text, _overlap, etc.) is the same
-# ... CANONICAL_KEYS_MATERII, OBIECT_DEDUCTION_FAMILIE, etc. are also the same
-# ... The search_similar function is also the same
+def normalize_text(text, remove_spaces=False):
+    if not text or text.lower() == 'null': return ""
+    text = str(text).lower()
+    text = text.replace('ă', 'a').replace('â', 'a').replace('î', 'i')
+    text = text.replace('ș', 's').replace('ț', 't').replace('ş', 's').replace('ţ', 't')
+    text = text.replace(" la infractiunea de ", " de ").replace(" la infractiunii ", " de ").replace(" la ", " de ")
+    text = re.sub(r'[^a-z0-9 /]', ' ', text)
+    if remove_spaces: text = text.replace(" ", "")
+    else: text = ' '.join(text.split())
+    return text
 
 CANONICAL_KEYS_MATERII = [
     "Legea 8/1996", "Legea 7/1996", "Legea 10/2001", "Legea 11/1991", "Legea 14/2003",
@@ -234,17 +113,6 @@ PARTI_FIXE = [
     "Spital"
 ]
 
-def normalize_text(text, remove_spaces=False):
-    if not text or text.lower() == 'null': return ""
-    text = str(text).lower()
-    text = text.replace('ă', 'a').replace('â', 'a').replace('î', 'i')
-    text = text.replace('ș', 's').replace('ț', 't').replace('ş', 's').replace('ţ', 't')
-    text = text.replace(" la infractiunea de ", " de ").replace(" la infractiunii ", " de ").replace(" la ", " de ")
-    text = re.sub(r'[^a-z0-9 /]', ' ', text)
-    if remove_spaces: text = text.replace(" ", "")
-    else: text = ' '.join(text.split())
-    return text
-
 def find_canonical_key(subject, canonical_map_normalized):
     if not subject: return None
     norm_subject = normalize_text(subject)
@@ -290,6 +158,104 @@ def embed_text(text: str) -> list[float]:
 
 def vector_to_literal(vec: list[float]) -> str:
     return "[" + ",".join(map(str, vec)) + "]"
+
+# ===================== LOGIC FUNCTIONS =====================
+
+def load_and_build_menu_data():
+    print("START PROCESARE: Se încarcă și se procesează perechile materie-obiect...")
+    eq_map_materii = {}
+    eq_map_obiecte = {}
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+                cur.execute("SELECT type, term_canonic_original, term_preferat FROM filtre_echivalente")
+                for row in cur:
+                    if row['type'] == 'materie':
+                        eq_map_materii[row['term_canonic_original']] = row['term_preferat']
+                    elif row['type'] == 'obiect':
+                        eq_map_obiecte[row['term_canonic_original']] = row['term_preferat']
+    except Exception as e:
+        print(f"Avertisment: Nu s-au putut încărca echivalențele: {e}")
+    sql = "SELECT DISTINCT NULLIF(TRIM(COALESCE(b.data->>'materie', b.data->>'materia', b.data->>'materie_principala')), '') as materie_orig, NULLIF(TRIM(b.data->>'obiect'), '') as obiect_orig FROM blocuri b;"
+    mapare_materii_originale = {}
+    mapare_obiecte_originale = {}
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            rows = cur.fetchall()
+    for materie_orig, obiect_orig in rows:
+        if materie_orig not in mapare_materii_originale:
+            mapare_materii_originale[materie_orig] = find_canonical_key(materie_orig, CANONICAL_MAP_MATERII)
+        if obiect_orig not in mapare_obiecte_originale:
+            canon_key = find_canonical_key(obiect_orig, CANONICAL_MAP_OBIECTE)
+            mapare_obiecte_originale[obiect_orig] = canon_key if canon_key else extract_base_obiect(obiect_orig)
+    for orig, cod_canon in mapare_materii_originale.items():
+        if cod_canon in eq_map_materii:
+            mapare_materii_originale[orig] = eq_map_materii[cod_canon]
+    for orig, cod_canon in mapare_obiecte_originale.items():
+        if cod_canon in eq_map_obiecte:
+            mapare_obiecte_originale[orig] = eq_map_obiecte[cod_canon]
+    menu_data = defaultdict(set)
+    for materie_orig, obiect_orig in rows:
+        materie_canon = mapare_materii_originale.get(materie_orig)
+        obiect_canon = mapare_obiecte_originale.get(obiect_orig)
+        if not materie_canon and obiect_canon:
+            if obiect_canon in OBIECT_DEDUCTION_PROCEDURAL: materie_canon = "Procedural"
+            elif obiect_canon in OBIECT_DEDUCTION_FAMILIE: materie_canon = "Minori si familie"
+            elif obiect_canon in OBIECT_DEDUCTION_PENAL: materie_canon = "Penal"
+            else: materie_canon = "Civil"
+        materie_canon = eq_map_materii.get(materie_canon, materie_canon)
+        if materie_canon and not obiect_canon: obiect_canon = "(fără obiect specific)"
+        obiect_canon = eq_map_obiecte.get(obiect_canon, obiect_canon)
+        if not materie_canon: materie_canon = "Necunoscut"
+        materie_canon = eq_map_materii.get(materie_canon, materie_canon)
+        if not obiect_canon: obiect_canon = "(fără obiect)"
+        obiect_canon = eq_map_obiecte.get(obiect_canon, obiect_canon)
+        menu_data[materie_canon].add(obiect_canon)
+    menu_final = {materie: sorted(list(obiecte)) for materie, obiecte in sorted(menu_data.items())}
+    materii_canon_to_orig = defaultdict(set)
+    for orig, canon in mapare_materii_originale.items():
+        if canon: materii_canon_to_orig[canon].add(orig)
+    obiecte_canon_to_orig = defaultdict(set)
+    for orig, canon in mapare_obiecte_originale.items():
+        if canon: obiecte_canon_to_orig[canon].add(orig)
+    materii_canon_to_orig = {k: list(v) for k, v in materii_canon_to_orig.items()}
+    obiecte_canon_to_orig = {k: list(v) for k, v in obiecte_canon_to_orig.items()}
+    return menu_final, materii_canon_to_orig, obiecte_canon_to_orig
+
+def save_menu_data_to_db(menu_data, materii_map, obiecte_map):
+    sql = "INSERT INTO filtre_cache_menu (id, menu_data, materii_map, obiecte_map, last_updated) VALUES (1, %s, %s, %s, NOW()) ON CONFLICT (id) DO UPDATE SET menu_data = EXCLUDED.menu_data, materii_map = EXCLUDED.materii_map, obiecte_map = EXCLUDED.obiecte_map, last_updated = NOW();"
+    params = (json.dumps(menu_data), json.dumps(materii_map), json.dumps(obiecte_map))
+    with get_db_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+        conn.commit()
+
+def refresh_menu_cache():
+    menu_data, materii_map, obiecte_map = load_and_build_menu_data()
+    save_menu_data_to_db(menu_data, materii_map, obiecte_map)
+    load_menu_cache()
+
+def load_menu_cache():
+    print("Loading menu data into cache...")
+    try:
+        sql = "SELECT menu_data, materii_map, obiecte_map FROM filtre_cache_menu WHERE id = 1;"
+        with get_db_connection() as conn:
+            with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+                cur.execute(sql)
+                row = cur.fetchone()
+                if row:
+                    menu_cache["menu_data"] = row['menu_data']
+                    menu_cache["materii_map"] = row['materii_map']
+                    menu_cache["obiecte_map"] = row['obiecte_map']
+                    print("Menu data successfully loaded into cache.")
+                else:
+                    print("No pre-calculated menu found in DB. Cache remains empty.")
+    except Exception as e:
+        print(f"Failed to load menu data into cache: {e}")
+
+def get_cached_menu_data():
+    return menu_cache["menu_data"], menu_cache["materii_map"], menu_cache["obiecte_map"]
 
 def search_similar(user_text: str, embedding: list[float], filters: dict):
     emb = vector_to_literal(embedding)
