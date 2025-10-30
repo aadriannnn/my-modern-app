@@ -7,9 +7,10 @@ engine = create_engine(settings.DATABASE_URL, echo=False)
 
 
 def init_db():
-    with Session(engine) as session:
-        session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))
-        session.commit()
+    if "postgresql" in settings.DATABASE_URL:
+        with Session(engine) as session:
+            session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            session.commit()
     SQLModel.metadata.create_all(engine)
 
 

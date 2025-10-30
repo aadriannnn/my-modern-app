@@ -1,12 +1,17 @@
 from typing import Optional, List, Any
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.types import JSON
 from pgvector.sqlalchemy import Vector
+from .config import get_settings
+
+settings = get_settings()
+db_specific_json = JSONB if "postgresql" in settings.DATABASE_URL else JSON
 
 
 class Blocuri(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    data: dict = Field(sa_column=Column(JSONB))
+    data: dict = Field(sa_column=Column(db_specific_json))
 
 
 class Vectori(SQLModel, table=True):
@@ -23,9 +28,9 @@ class FiltreCache(SQLModel, table=True):
 class FiltreCacheMenu(SQLModel, table=True):
     __tablename__ = 'filtre_cache_menu'
     id: int = Field(primary_key=True)
-    menu_data: dict = Field(sa_column=Column(JSONB))
-    materii_map: dict = Field(sa_column=Column(JSONB))
-    obiecte_map: dict = Field(sa_column=Column(JSONB))
+    menu_data: dict = Field(sa_column=Column(db_specific_json))
+    materii_map: dict = Field(sa_column=Column(db_specific_json))
+    obiecte_map: dict = Field(sa_column=Column(db_specific_json))
 
 
 class FiltreEchivalente(SQLModel, table=True):
