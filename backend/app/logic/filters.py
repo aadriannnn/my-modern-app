@@ -151,12 +151,12 @@ def load_and_build_menu_data(session: Session):
     # --- Pas 2: Extrage toate perechile unice ---
     query = text("""
     SELECT DISTINCT
-        NULLIF(TRIM(COALESCE(data->>'materie', data->>'materia', data->>'materie_principala')), '') as materie_orig,
-        NULLIF(TRIM(data->>'obiect'), '') as obiect_orig
+        NULLIF(TRIM(COALESCE(obj->>'materie', obj->>'materia', obj->>'materie_principala')), '') as materie_orig,
+        NULLIF(TRIM(obj->>'obiect'), '') as obiect_orig
     FROM blocuri
     WHERE
-        NULLIF(TRIM(COALESCE(data->>'materie', data->>'materia', data->>'materie_principala')), '') IS NOT NULL
-        OR NULLIF(TRIM(data->>'obiect'), '') IS NOT NULL;
+        NULLIF(TRIM(COALESCE(obj->>'materie', obj->>'materia', obj->>'materie_principala')), '') IS NOT NULL
+        OR NULLIF(TRIM(obj->>'obiect'), '') IS NOT NULL;
     """)
     rows = session.exec(query).all()
 

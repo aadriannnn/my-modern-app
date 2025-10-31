@@ -60,11 +60,11 @@ async def search_similar(
             :obiecte_orig AS obiecte_orig,
             :tipuri_orig AS tipuri_orig
     ), base AS (
-        SELECT v.speta_id, v.embedding, b.data,
-        NULLIF(TRIM(COALESCE(b.data->>'materie',b.data->>'materia',b.data->>'materie_principala')),'') AS materie,
-        NULLIF(TRIM(b.data->>'obiect'),'') AS obiect,
-        NULLIF(TRIM(COALESCE(b.data->>'tip_speta',b.data->>'tip',b.data->>'categorie_speta')),'') AS tip_speta,
-        NULLIF(TRIM(COALESCE(b.data->>'parte',b.data->>'nume_parte')),'') AS parte
+        SELECT v.speta_id, v.embedding, b.obj,
+        NULLIF(TRIM(COALESCE(b.obj->>'materie',b.obj->>'materia',b.obj->>'materie_principala')),'') AS materie,
+        NULLIF(TRIM(b.obj->>'obiect'),'') AS obiect,
+        NULLIF(TRIM(COALESCE(b.obj->>'tip_speta',b.obj->>'tip',b.obj->>'categorie_speta')),'') AS tip_speta,
+        NULLIF(TRIM(COALESCE(b.obj->>'parte',b.obj->>'nume_parte')),'') AS parte
         FROM vectori v JOIN blocuri b ON b.id=v.speta_id
     ), matches AS (
         SELECT f.*, p.materii_orig, p.obiecte_orig, p.tipuri_orig,
@@ -81,22 +81,22 @@ async def search_similar(
         FROM base f CROSS JOIN params p
     )
     SELECT f.speta_id,
-    (f.data->>'denumire') denumire_orig,
+    (f.obj->>'denumire') denumire_orig,
     COALESCE(
-        NULLIF(TRIM(f.data->>'text_situatia_de_fapt'), ''),
-        NULLIF(TRIM(f.data->>'situatia_de_fapt'), ''),
-        NULLIF(TRIM(f.data->>'situatie'), ''),
-        NULLIF(TRIM(f.data->>'solutia'), '')
+        NULLIF(TRIM(f.obj->>'text_situatia_de_fapt'), ''),
+        NULLIF(TRIM(f.obj->>'situatia_de_fapt'), ''),
+        NULLIF(TRIM(f.obj->>'situatie'), ''),
+        NULLIF(TRIM(f.obj->>'solutia'), '')
     ) AS situatia_de_fapt_text,
     f.tip_speta,
     f.materie,
     (f.embedding <=> :embedding) semantic_distance,
-    f.data,
+    f.obj,
     f.match_count,
     f.total_active_filters,
-    f.data->>'tip_instanta' AS tip_instanta,
-    f.data->>'data_solutiei' AS data_solutiei,
-    f.data->>'numar_dosar' AS numar_dosar
+    f.obj->>'tip_instanta' AS tip_instanta,
+    f.obj->>'data_solutiei' AS data_solutiei,
+    f.obj->>'numar_dosar' AS numar_dosar
     FROM matches f
     ORDER BY (f.embedding <=> :embedding) ASC
     LIMIT :top_k;
@@ -123,7 +123,7 @@ async def search_similar(
             tip_speta,
             materie,
             semantic_distance,
-            data,
+            obj,
             match_count,
             total_active_filters,
             tip_instanta,
@@ -152,7 +152,7 @@ async def search_similar(
             )
         else:
             den_finala = (
-                data.get("titlu")
+                obj.get("titlu")
                 or denumire_orig
                 or f"{tip_speta or 'Speță'} - {materie or 'Fără materie'} (ID {speta_id})"
             )
@@ -166,7 +166,7 @@ async def search_similar(
                 "materie": materie or "—",
                 "score": final_score,
                 "match_count": int(match_count),
-                "data": data,
+                "obj": obj,
                 "tip_instanta": tip_instanta or "—",
                 "data_solutiei": data_solutiei or "—",
                 "numar_dosar": numar_dosar or "—",

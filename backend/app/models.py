@@ -11,7 +11,7 @@ db_specific_json = JSONB if "postgresql" in settings.DATABASE_URL else JSON
 
 class Blocuri(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    data: dict = Field(sa_column=Column(db_specific_json))
+    obj: dict = Field(sa_column=Column(db_specific_json))
 
 
 class Vectori(SQLModel, table=True):

@@ -176,7 +176,7 @@ def load_and_build_menu_data():
                         eq_map_obiecte[row['term_canonic_original']] = row['term_preferat']
     except Exception as e:
         print(f"Avertisment: Nu s-au putut încărca echivalențele: {e}")
-    sql = "SELECT DISTINCT NULLIF(TRIM(COALESCE(b.data->>'materie', b.data->>'materia', b.data->>'materie_principala')), '') as materie_orig, NULLIF(TRIM(b.data->>'obiect'), '') as obiect_orig FROM blocuri b;"
+    sql = "SELECT DISTINCT NULLIF(TRIM(COALESCE(b.obj->>'materie', b.obj->>'materia', b.obj->>'materie_principala')), '') as materie_orig, NULLIF(TRIM(b.obj->>'obiect'), '') as obiect_orig FROM blocuri b;"
     mapare_materii_originale = {}
     mapare_obiecte_originale = {}
     with get_db_connection() as conn:
@@ -286,19 +286,19 @@ def search_similar(user_text: str, embedding: list[float], filters: dict):
     params = []
 
     if materii_orig:
-        like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.data->>'materie',b.data->>'materia',b.data->>'materie_principala')),'') ILIKE %s" for _ in materii_orig])
+        like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.obj->>'materie',b.obj->>'materia',b.obj->>'materie_principala')),'') ILIKE %s" for _ in materii_orig])
         where_clauses.append(f"({like_conditions})")
         params.extend([f"%{m}%" for m in materii_orig])
     if obiecte_orig:
-        like_conditions = " OR ".join(["NULLIF(TRIM(b.data->>'obiect'),'') ILIKE %s" for _ in obiecte_orig])
+        like_conditions = " OR ".join(["NULLIF(TRIM(b.obj->>'obiect'),'') ILIKE %s" for _ in obiecte_orig])
         where_clauses.append(f"({like_conditions})")
         params.extend([f"%{o}%" for o in obiecte_orig])
     if tipuri_orig:
-        like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.data->>'tip_speta',b.data->>'tip',b.data->>'categorie_speta')),'') ILIKE %s" for _ in tipuri_orig])
+        like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.obj->>'tip_speta',b.obj->>'tip',b.obj->>'categorie_speta')),'') ILIKE %s" for _ in tipuri_orig])
         where_clauses.append(f"({like_conditions})")
         params.extend([f"%{t}%" for t in tipuri_orig])
     if parti_selectate:
-        like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.data->>'parte',b.data->>'nume_parte')),'') ILIKE %s" for _ in parti_selectate])
+        like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.obj->>'parte',b.obj->>'nume_parte')),'') ILIKE %s" for _ in parti_selectate])
         where_clauses.append(f"({like_conditions})")
         params.extend([f"%{p}%" for p in parti_selectate])
 
@@ -309,7 +309,7 @@ def search_similar(user_text: str, embedding: list[float], filters: dict):
     sql = f"""
     SELECT
         v.speta_id,
-        b.data,
+        b.obj,
         (v.embedding <=> %s::vector) AS semantic_distance
     FROM vectori v
     JOIN blocuri b ON b.id = v.speta_id
@@ -329,16 +329,16 @@ def search_similar(user_text: str, embedding: list[float], filters: dict):
     results_processed = []
     for row in rows:
         semantic_sim = 1.0 - (float(row['semantic_distance']) if row['semantic_distance'] is not None else 1.0)
-        data = row['data']
-        tip_speta = data.get('tip_speta') or data.get('tip') or data.get('categorie_speta') or "—"
-        materie = data.get('materie') or data.get('materia') or data.get('materie_principala') or "—"
-        situatia_de_fapt_text = (data.get('text_situatia_de_fapt') or data.get('situatia_de_fapt') or
-                                 data.get('situatie') or data.get('solutia') or "")
-        denumire_orig = data.get('denumire')
+        obj = row['obj']
+        tip_speta = obj.get('tip_speta') or obj.get('tip') or obj.get('categorie_speta') or "—"
+        materie = obj.get('materie') or obj.get('materia') or obj.get('materie_principala') or "—"
+        situatia_de_fapt_text = (obj.get('text_situatia_de_fapt') or obj.get('situatia_de_fapt') or
+                                 obj.get('situatie') or obj.get('solutia') or "")
+        denumire_orig = obj.get('denumire')
 
         den_finala = (situatia_de_fapt_text.strip().replace("\n", " ").replace("\r", " ")
                       if situatia_de_fapt_text else
-                      data.get("titlu") or denumire_orig or f"{tip_speta} - {materie} (ID {row['speta_id']})")
+                      obj.get("titlu") or denumire_orig or f"{tip_speta} - {materie} (ID {row['speta_id']})")
 
         results_processed.append({
             "id": row['speta_id'],
@@ -348,10 +348,10 @@ def search_similar(user_text: str, embedding: list[float], filters: dict):
             "materie": materie,
             "score": semantic_sim,
             "match_count": 0,
-            "data": data,
-            "tip_instanta": data.get('tip_instanta') or "—",
-            "data_solutiei": data.get('data_solutiei') or "—",
-            "numar_dosar": data.get('numar_dosar') or "—"
+            "obj": obj,
+            "tip_instanta": obj.get('tip_instanta') or "—",
+            "data_solutiei": obj.get('data_solutiei') or "—",
+            "numar_dosar": obj.get('numar_dosar') or "—"
         })
 
     BETA = 0.15

@@ -19,7 +19,7 @@ def refresh_filters():
 @router.get("/equivalents/export", response_class=Response)
 def export_equivalents():
     try:
-        sql = "SELECT DISTINCT NULLIF(TRIM(COALESCE(b.data->>'materie', b.data->>'materia', b.data->>'materie_principala')), '') as materie_orig, NULLIF(TRIM(b.data->>'obiect'), '') as obiect_orig FROM blocuri b"
+        sql = "SELECT DISTINCT NULLIF(TRIM(COALESCE(b.obj->>'materie', b.obj->>'materia', b.obj->>'materie_principala')), '') as materie_orig, NULLIF(TRIM(b.obj->>'obiect'), '') as obiect_orig FROM blocuri b"
         map_materii_orig = {}
         map_obiecte_orig = {}
 
