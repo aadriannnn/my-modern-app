@@ -6,7 +6,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     expose:
-      - "8000"
+      - "8000"  # ✅ doar expunem portul intern, nu îl mapăm la host
     environment:
       - DATABASE_URL=${DATABASE_URL}
       - CORS_ORIGINS=${CORS_ORIGINS}
@@ -15,8 +15,8 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    ports:
-      - "80:80"
+    expose:
+      - "80"  # ✅ doar intern — fără "80:80"
     depends_on:
       - backend
 
