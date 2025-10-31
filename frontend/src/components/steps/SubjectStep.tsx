@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Tree from "rc-tree";
-import type { DataNode, EventDataNode } from "rc-tree/lib/interface"; // ✅ import corect pentru versiunile actuale
+import type { DataNode, EventDataNode } from "rc-tree/lib/interface";
 import "rc-tree/assets/index.css";
 
 interface SubjectStepProps {
@@ -91,7 +91,8 @@ const SubjectStep: React.FC<SubjectStepProps> = ({
             expandedKeys={expandedKeys}
             autoExpandParent={autoExpandParent}
             treeData={treeData}
-            filterTreeNode={(node: EventDataNode) => {
+            // ✅ fix final: adăugat <any> generic argument
+            filterTreeNode={(node: EventDataNode<any>) => {
               if (typeof node.title !== "string" || !searchValue) return false;
               return node.title.toLowerCase().includes(searchValue.toLowerCase());
             }}
