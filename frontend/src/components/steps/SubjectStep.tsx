@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import Tree, { DataNode, EventDataNode } from "rc-tree";
+import Tree from "rc-tree";
+import type { DataNode, EventDataNode } from "rc-tree/lib/interface"; // ✅ import corect pentru versiunile actuale
 import "rc-tree/assets/index.css";
 
 interface SubjectStepProps {
@@ -24,10 +25,12 @@ const SubjectStep: React.FC<SubjectStepProps> = ({
     const data: DataNode[] = Object.keys(menuData).map((materie) => ({
       title: materie,
       key: `materie:${materie}`,
-      children: menuData[materie].map((obiect) => ({
-        title: obiect,
-        key: `obiect:${materie}:${obiect}`,
-      })),
+      children: menuData[materie].map(
+        (obiect): DataNode => ({
+          title: obiect,
+          key: `obiect:${materie}:${obiect}`,
+        })
+      ),
     }));
     setTreeData(data);
   }, [menuData]);
@@ -39,6 +42,7 @@ const SubjectStep: React.FC<SubjectStepProps> = ({
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { value } = e.target;
+
     const newExpandedKeys = treeData
       .map((item) => {
         if (
@@ -70,6 +74,7 @@ const SubjectStep: React.FC<SubjectStepProps> = ({
         <h3 className="font-semibold text-xl mb-3 text-gray-700">
           Meniu Materie și Obiect
         </h3>
+
         <input
           type="search"
           placeholder="Caută în meniu..."
@@ -86,7 +91,6 @@ const SubjectStep: React.FC<SubjectStepProps> = ({
             expandedKeys={expandedKeys}
             autoExpandParent={autoExpandParent}
             treeData={treeData}
-            // ✅ fix critical TS error: must return boolean, not string | boolean
             filterTreeNode={(node: EventDataNode) => {
               if (typeof node.title !== "string" || !searchValue) return false;
               return node.title.toLowerCase().includes(searchValue.toLowerCase());
