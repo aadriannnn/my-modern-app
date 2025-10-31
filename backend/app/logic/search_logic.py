@@ -282,88 +282,73 @@ def search_similar(user_text: str, embedding: list[float], filters: dict):
     else:
         obiecte_orig = obiecte_canon
 
-    parte_match_sql = "0"
-    parti_like_params = []
-    if parti_selectate:
-        like_conditions_sql = " OR ".join(["f.parte ILIKE %s" for _ in parti_selectate])
-        parti_like_params = [f"%{p}%" for p in parti_selectate]
-        parte_match_sql = f"(CASE WHEN ({like_conditions_sql}) THEN 1 ELSE 0 END)"
+    where_clauses = []
+    params = []
 
-    parte_filter_active = 1 if parti_selectate else 0
+    if materii_orig:
+        where_clauses.append("NULLIF(TRIM(COALESCE(b.data->>'materie',b.data->>'materia',b.data->>'materie_principala')),'') = ANY(%s)")
+        params.append(materii_orig)
+    if obiecte_orig:
+        where_clauses.append("NULLIF(TRIM(b.data->>'obiect'),'') = ANY(%s)")
+        params.append(obiecte_orig)
+    if tipuri_orig:
+        where_clauses.append("NULLIF(TRIM(COALESCE(b.data->>'tip_speta',b.data->>'tip',b.data->>'categorie_speta')),'') = ANY(%s)")
+        params.append(tipuri_orig)
+    if parti_selectate:
+        like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.data->>'parte',b.data->>'nume_parte')),'') ILIKE %s" for _ in parti_selectate])
+        where_clauses.append(f"({like_conditions})")
+        params.extend([f"%{p}%" for p in parti_selectate])
+
+    where_sql = ""
+    if where_clauses:
+        where_sql = "WHERE " + " AND ".join(where_clauses)
 
     sql = f"""
-    WITH params AS (
-        SELECT %s::text[] AS materii_orig, %s::text[] AS obiecte_orig, %s::text[] AS tipuri_orig
-    ), base AS (
-        SELECT v.speta_id, v.embedding, b.data,
-            NULLIF(TRIM(COALESCE(b.data->>'materie',b.data->>'materia',b.data->>'materie_principala')),'') AS materie,
-            NULLIF(TRIM(b.data->>'obiect'),'') AS obiect,
-            NULLIF(TRIM(COALESCE(b.data->>'tip_speta',b.data->>'tip',b.data->>'categorie_speta')),'') AS tip_speta,
-            NULLIF(TRIM(COALESCE(b.data->>'parte',b.data->>'nume_parte')),'') AS parte
-        FROM vectori v JOIN blocuri b ON b.id=v.speta_id
-    ), matches AS (
-        SELECT f.*, p.materii_orig, p.obiecte_orig, p.tipuri_orig,
-            (CASE WHEN array_length(p.materii_orig,1)>0 AND f.materie=ANY(p.materii_orig) THEN 1 ELSE 0 END) +
-            (CASE WHEN array_length(p.obiecte_orig,1)>0 AND f.obiect=ANY(p.obiecte_orig) THEN 1 ELSE 0 END) +
-            (CASE WHEN array_length(p.tipuri_orig,1)>0 AND f.tip_speta=ANY(p.tipuri_orig) THEN 1 ELSE 0 END) +
-            ({parte_match_sql}) AS match_count,
-            (CASE WHEN array_length(p.materii_orig,1)>0 THEN 1 ELSE 0 END) +
-            (CASE WHEN array_length(p.obiecte_orig,1)>0 THEN 1 ELSE 0 END) +
-            (CASE WHEN array_length(p.tipuri_orig,1)>0 THEN 1 ELSE 0 END) +
-            ({parte_filter_active}) AS total_active_filters
-        FROM base f CROSS JOIN params p
-    )
-    SELECT f.speta_id, (f.data->>'denumire') denumire_orig,
-        COALESCE(
-            NULLIF(TRIM(f.data->>'text_situatia_de_fapt'), ''),
-            NULLIF(TRIM(f.data->>'situatia_de_fapt'), ''),
-            NULLIF(TRIM(f.data->>'situatie'), ''),
-            NULLIF(TRIM(f.data->>'solutia'), '')
-        ) AS situatia_de_fapt_text,
-        f.tip_speta, f.materie, (f.embedding <=> %s::vector) semantic_distance,
-        f.data, f.match_count, f.total_active_filters,
-        f.data->>'tip_instanta' AS tip_instanta, f.data->>'data_solutiei' AS data_solutiei,
-        f.data->>'numar_dosar' AS numar_dosar
-    FROM matches f
-    ORDER BY (f.embedding <=> %s::vector) ASC
+    SELECT
+        v.speta_id,
+        b.data,
+        (v.embedding <=> %s::vector) AS semantic_distance
+    FROM vectori v
+    JOIN blocuri b ON b.id = v.speta_id
+    {where_sql}
+    ORDER BY semantic_distance ASC
     LIMIT %s;
     """
 
-    params_list = [materii_orig, obiecte_orig, tipuri_orig]
-    params_list.extend(parti_like_params)
-    params_list.extend([emb, emb, settings.TOP_K])
-    params = tuple(params_list)
+    params.insert(0, emb)
+    params.append(settings.TOP_K)
 
     with get_db_connection() as conn:
-        with conn.cursor() as cur:
-            cur.execute(sql, params)
+        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
+            cur.execute(sql, tuple(params))
             rows = cur.fetchall()
 
     results_processed = []
-    for r in rows:
-        speta_id, denumire_orig, situatia_de_fapt_text, tip_speta, materie, \
-        semantic_distance, data, match_count, total_active_filters, \
-        tip_instanta, data_solutiei, numar_dosar = r
-
-        semantic_sim = 1.0 - (float(semantic_distance) if semantic_distance is not None else 1.0)
-        keyword_score = (match_count / total_active_filters) if total_active_filters > 0 else 0.0
-
-        if total_active_filters == 0:
-            final_score = semantic_sim
-        else:
-            final_score = (settings.ALPHA_SCORE * semantic_sim) + ((1 - settings.ALPHA_SCORE) * keyword_score)
+    for row in rows:
+        semantic_sim = 1.0 - (float(row['semantic_distance']) if row['semantic_distance'] is not None else 1.0)
+        data = row['data']
+        tip_speta = data.get('tip_speta') or data.get('tip') or data.get('categorie_speta') or "—"
+        materie = data.get('materie') or data.get('materia') or data.get('materie_principala') or "—"
+        situatia_de_fapt_text = (data.get('text_situatia_de_fapt') or data.get('situatia_de_fapt') or
+                                 data.get('situatie') or data.get('solutia') or "")
+        denumire_orig = data.get('denumire')
 
         den_finala = (situatia_de_fapt_text.strip().replace("\n", " ").replace("\r", " ")
                       if situatia_de_fapt_text else
-                      data.get("titlu") or denumire_orig or f"{tip_speta or 'Speță'} - {materie or 'Fără materie'} (ID {speta_id})")
+                      data.get("titlu") or denumire_orig or f"{tip_speta} - {materie} (ID {row['speta_id']})")
 
         results_processed.append({
-            "id": speta_id, "denumire": den_finala,
-            "situatia_de_fapt_full": situatia_de_fapt_text or "",
-            "tip_speta": tip_speta or "—", "materie": materie or "—",
-            "score": final_score, "match_count": int(match_count),
-            "data": data, "tip_instanta": tip_instanta or "—",
-            "data_solutiei": data_solutiei or "—", "numar_dosar": numar_dosar or "—"
+            "id": row['speta_id'],
+            "denumire": den_finala,
+            "situatia_de_fapt_full": situatia_de_fapt_text,
+            "tip_speta": tip_speta,
+            "materie": materie,
+            "score": semantic_sim,
+            "match_count": 0,
+            "data": data,
+            "tip_instanta": data.get('tip_instanta') or "—",
+            "data_solutiei": data.get('data_solutiei') or "—",
+            "numar_dosar": data.get('numar_dosar') or "—"
         })
 
     BETA = 0.15

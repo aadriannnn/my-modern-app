@@ -28,7 +28,8 @@ def search(query: SearchQuery):
         results = search_similar(query.text, embedding, query.filters)
         return results
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        import traceback
+        return {"error": str(e), "traceback": traceback.format_exc()}
 
 @router.get("/filters/tip_speta", response_model=List[str])
 def get_tip_speta_filters():

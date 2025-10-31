@@ -46,20 +46,36 @@ const Filters: React.FC<FiltersProps> = ({
   }, [menuData]);
 
   const handleApplyFilters = () => {
-    const selectedMenu: Record<string, string[]> = { materie: [], obiect: [] };
+    const selectedMaterii = new Set<string>();
+    const selectedObiecte = new Set<string>();
+
+    const explicitlySelectedMaterii = new Set<string>();
     selectedMenuKeys.forEach((key) => {
-      const parts = (key as string).split(':');
-      if (parts[0] === 'materie') {
-        selectedMenu.materie.push(parts[1]);
-      } else if (parts[0] === 'obiect') {
-        selectedMenu.obiect.push(parts[2]);
-      }
+        const parts = (key as string).split(':');
+        if (parts[0] === 'materie') {
+            explicitlySelectedMaterii.add(parts[1]);
+        }
+    });
+
+    selectedMenuKeys.forEach((key) => {
+        const parts = (key as string).split(':');
+        if (parts[0] === 'materie') {
+            selectedMaterii.add(parts[1]);
+        } else if (parts[0] === 'obiect') {
+            const materie = parts[1];
+            const obiect = parts[2];
+            if (!explicitlySelectedMaterii.has(materie)) {
+                selectedObiecte.add(obiect);
+            }
+            selectedMaterii.add(materie);
+        }
     });
 
     onFilterChange({
-      tip_speta: selectedTipSpeta,
-      parte: selectedParte,
-      ...selectedMenu,
+        tip_speta: selectedTipSpeta,
+        parte: selectedParte,
+        materie: Array.from(selectedMaterii),
+        obiect: Array.from(selectedObiecte),
     });
   };
 

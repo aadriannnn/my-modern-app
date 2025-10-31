@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import ResultDetail from './ResultDetail'; // Import the new component
+import CaseDetailModal from './CaseDetailModal';
 
 interface Result {
   id: number;
@@ -20,6 +20,17 @@ interface ResultsProps {
 
 const Results: React.FC<ResultsProps> = ({ results }) => {
   const [selectedResult, setSelectedResult] = useState<Result | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleRowClick = (result: Result) => {
+    setSelectedResult(result);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    setSelectedResult(null);
+  };
 
   return (
     <div className="space-y-6">
@@ -46,7 +57,7 @@ const Results: React.FC<ResultsProps> = ({ results }) => {
                   <tr
                     key={result.id}
                     className={`cursor-pointer ${selectedResult?.id === result.id ? 'bg-blue-100' : 'hover:bg-gray-50'}`}
-                    onClick={() => setSelectedResult(result)}
+                    onClick={() => handleRowClick(result)}
                   >
                     <td className="px-4 py-2">{result.denumire}</td>
                     <td className="px-4 py-2">{result.tip_speta}</td>
@@ -67,8 +78,7 @@ const Results: React.FC<ResultsProps> = ({ results }) => {
         </div>
       </div>
 
-      {/* Replace the old detail view with the new ResultDetail component */}
-      <ResultDetail result={selectedResult} />
+      {isModalOpen && <CaseDetailModal result={selectedResult} onClose={handleCloseModal} />}
     </div>
   );
 };
