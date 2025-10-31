@@ -286,14 +286,17 @@ def search_similar(user_text: str, embedding: list[float], filters: dict):
     params = []
 
     if materii_orig:
-        where_clauses.append("NULLIF(TRIM(COALESCE(b.data->>'materie',b.data->>'materia',b.data->>'materie_principala')),'') = ANY(%s)")
-        params.append(materii_orig)
+        like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.data->>'materie',b.data->>'materia',b.data->>'materie_principala')),'') ILIKE %s" for _ in materii_orig])
+        where_clauses.append(f"({like_conditions})")
+        params.extend([f"%{m}%" for m in materii_orig])
     if obiecte_orig:
-        where_clauses.append("NULLIF(TRIM(b.data->>'obiect'),'') = ANY(%s)")
-        params.append(obiecte_orig)
+        like_conditions = " OR ".join(["NULLIF(TRIM(b.data->>'obiect'),'') ILIKE %s" for _ in obiecte_orig])
+        where_clauses.append(f"({like_conditions})")
+        params.extend([f"%{o}%" for o in obiecte_orig])
     if tipuri_orig:
-        where_clauses.append("NULLIF(TRIM(COALESCE(b.data->>'tip_speta',b.data->>'tip',b.data->>'categorie_speta')),'') = ANY(%s)")
-        params.append(tipuri_orig)
+        like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.data->>'tip_speta',b.data->>'tip',b.data->>'categorie_speta')),'') ILIKE %s" for _ in tipuri_orig])
+        where_clauses.append(f"({like_conditions})")
+        params.extend([f"%{t}%" for t in tipuri_orig])
     if parti_selectate:
         like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.data->>'parte',b.data->>'nume_parte')),'') ILIKE %s" for _ in parti_selectate])
         where_clauses.append(f"({like_conditions})")

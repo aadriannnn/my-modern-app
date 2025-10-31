@@ -121,6 +121,18 @@ const Filters: React.FC<FiltersProps> = ({
     }
   };
 
+  const handleTipSpetaChange = (item: string) => {
+    setSelectedTipSpeta(prev =>
+      prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
+    );
+  };
+
+  const handleParteChange = (item: string) => {
+    setSelectedParte(prev =>
+      prev.includes(item) ? prev.filter(i => i !== item) : [...prev, item]
+    );
+  };
+
   return (
     <div className="p-4 bg-white rounded-lg shadow-md">
       <div className="flex justify-between items-center mb-4">
@@ -133,15 +145,37 @@ const Filters: React.FC<FiltersProps> = ({
       <div className="space-y-4">
         <div>
           <h3 className="font-semibold mb-2 text-gray-600">Tip speță</h3>
-          <select multiple value={selectedTipSpeta} className="w-full h-32 border rounded p-1 text-sm" onChange={(e) => setSelectedTipSpeta(Array.from(e.target.selectedOptions, (option) => option.value))}>
-            {tipSpeta.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
+          <div className="w-full h-32 border rounded p-1 text-sm overflow-y-auto">
+            {tipSpeta.map((item) => (
+              <div key={item} className="flex items-center">
+                <input
+                  type="checkbox"
+                  id={`tip-speta-${item}`}
+                  checked={selectedTipSpeta.includes(item)}
+                  onChange={() => handleTipSpetaChange(item)}
+                  className="mr-2"
+                />
+                <label htmlFor={`tip-speta-${item}`}>{item}</label>
+              </div>
+            ))}
+          </div>
         </div>
         <div>
           <h3 className="font-semibold mb-2 text-gray-600">Parte</h3>
-          <select multiple value={selectedParte} className="w-full h-32 border rounded p-1 text-sm" onChange={(e) => setSelectedParte(Array.from(e.target.selectedOptions, (option) => option.value))}>
-            {parte.map((item) => <option key={item} value={item}>{item}</option>)}
-          </select>
+          <div className="w-full h-32 border rounded p-1 text-sm overflow-y-auto">
+            {parte.map((item) => (
+              <div key={item} className="flex items-center">
+                <input
+                  type="checkbox"
+                  id={`parte-${item}`}
+                  checked={selectedParte.includes(item)}
+                  onChange={() => handleParteChange(item)}
+                  className="mr-2"
+                />
+                <label htmlFor={`parte-${item}`}>{item}</label>
+              </div>
+            ))}
+          </div>
         </div>
         <div>
           <h3 className="font-semibold mb-2 text-gray-600">Meniu Materie și Obiect</h3>
