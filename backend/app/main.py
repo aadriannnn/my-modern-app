@@ -1,6 +1,6 @@
 import logging
 import traceback
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, APIRouter
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.middleware.cors import CORSMiddleware
@@ -48,16 +48,22 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
+    logger.info("Starting up and initializing database.")
     init_db()
     with next(get_session()) as session:
         setup_filtre_cache(session)
         load_menu_cache(session)
+    logger.info("Startup complete.")
 
 
-app.include_router(main_router.router)
-app.include_router(equivalents.router)
-app.include_router(filters_router.router)
-app.include_router(test_router.router)
+# API router
+api_router = APIRouter(prefix="/api")
+api_router.include_router(main_router.router)
+api_router.include_router(equivalents.router)
+api_router.include_router(filters_router.router)
+api_router.include_router(test_router.router)
+
+app.include_router(api_router)
 
 
 @app.get("/health")

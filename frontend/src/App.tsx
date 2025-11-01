@@ -7,6 +7,7 @@ const App = () => {
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState('Gata.');
   const [filters, setFilters] = useState({ tipSpeta: [], parte: [], menuData: {} });
+  const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
@@ -21,6 +22,8 @@ const App = () => {
       setStatus('Opțiunile au fost încărcate din cache.');
     } catch (error) {
       setStatus('Eroare la încărcarea filtrelor din cache.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -108,14 +111,18 @@ const App = () => {
       </header>
 
       <main className="w-full flex-grow flex items-center justify-center">
-        <MultiStepForm
-          filters={filters}
-          results={results}
-          status={status}
-          onSearch={handleSearch}
-          onRefreshFilters={handleRefreshFilters}
-          isRefreshing={isRefreshing}
-        />
+        {isLoading ? (
+          <p>Loading...</p>
+        ) : (
+          <MultiStepForm
+            filters={filters}
+            results={results}
+            status={status}
+            onSearch={handleSearch}
+            onRefreshFilters={handleRefreshFilters}
+            isRefreshing={isRefreshing}
+          />
+        )}
       </main>
 
       <Status message={status} />

@@ -21,3 +21,6 @@ Thumbs.db
 frontend/.env
 backend/.env
 docker-compose.prod.yml
+
+# Log files
+*.log
