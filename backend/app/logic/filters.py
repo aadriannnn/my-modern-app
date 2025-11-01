@@ -3,7 +3,7 @@ import re
 import json
 from collections import defaultdict
 from sqlmodel import Session, select, text
-from ..models import Blocuri, FiltreEchivalente, FiltreCacheMenu
+from ..models import Blocuri, FiltreEchivalente, FiltreCacheMenu, FiltreCache
 from .normalization import normalize_text, find_canonical_key, extract_base_obiect
 
 # --- Chei Canonice pentru MATERII ---
@@ -96,19 +96,6 @@ CANONICAL_MAP_OBIECTE = {
     for key in CANONICAL_KEYS_OBIECTE
 }
 
-PARTI_FIXE = [
-    "ANAF", "Administratia Fondului pentru Mediu", "Administratia Nationala a Penitenciarelor",
-    "Agentia de Plati si Interventie pentru Agricultura", "Autoritatea Nationala pentru Persoane cu Dizabilitati",
-    "Autoritatea Nationala pentru Restituirea Proprietatilor", "Bancă", "Casă de pensii",
-    "Comisie pentru Stabilirea Dreptului de Proprietate Privata Asupra Terenurilor", "Consiliu Judetean",
-    "Consiliu Local", "Consiliul National pentru Combaterea Discriminarii", "Curtea de Conturi a Romaniei",
-    "Directia Silvica", "Executor judecătoresc", "Furnizor utilitati", "IFN", "Instanta de judecată",
-    "Instituție de stat", "Minister", "Ministerul Finanțelor Publice", "Ministerul Public",
-    "Oficiul National al Registrului Comertului", "Persoană fizică", "Poliție", "Primar", "Primarie",
-    "Primarie/Primar", "Regia Nationala a Padurilor Romsilva", "Societate comercială", "Societate de asigurare",
-    "Spital"
-]
-
 logger = logging.getLogger(__name__)
 
 def load_and_build_menu_data(session: Session):
@@ -128,13 +115,13 @@ def load_and_build_menu_data(session: Session):
 
     # --- Pas 2: Extrage toate perechile unice ---
     query = text("""
-    SELECT DISTINCT
-        NULLIF(TRIM(COALESCE(obj->>'materie', obj->>'materia', obj->>'materie_principala')), '') as materie_orig,
-        NULLIF(TRIM(obj->>'obiect'), '') as obiect_orig
-    FROM blocuri
-    WHERE
-        NULLIF(TRIM(COALESCE(obj->>'materie', obj->>'materia', obj->>'materie_principala')), '') IS NOT NULL
-        OR NULLIF(TRIM(obj->>'obiect'), '') IS NOT NULL;
+        SELECT DISTINCT
+            NULLIF(TRIM(obj->>'materie'), '') AS materie_orig,
+            NULLIF(TRIM(obj->>'obiect'), '') AS obiect_orig
+        FROM blocuri
+        WHERE
+            NULLIF(TRIM(obj->>'materie'), '') IS NOT NULL
+            OR NULLIF(TRIM(obj->>'obiect'), '') IS NOT NULL;
     """)
     rows = session.exec(query).all()
 
@@ -244,16 +231,39 @@ def save_menu_data_to_db(session: Session, menu_data, materii_map, obiecte_map):
 
 
 def refresh_filtre_cache_simple(session: Session):
-    """Rulează funcția SQL pentru a reîmprospăta 'tip_speta' și 'parte'."""
-    logger.info("Refreshing simple filters cache...")
+    """Calculează și inserează filtrele simple (tip_speta, parte, etc.)."""
+    logger.info("Refreshing simple filters cache from 'blocuri' table...")
     try:
-        # Folosim o funcție SQL, așa cum era în scriptul original
-        # Asigură-te că funcția `refresh_filtre_cache_simple` există în DB
-        session.execute(text("SELECT refresh_filtre_cache_simple();"))
+        # Șterge cache-ul vechi
+        session.execute(text("DELETE FROM filtre_cache"))
+
+        # Definește filtrele de extras
+        filtre_de_extras = [
+            ("tip_speta", "obj->>'tip_speta'"),
+            ("parte", "obj->>'parte'"),
+            ("instanta", "obj->>'instanta'"),
+            ("tip_solutie", "obj->>'tip_solutie'"),
+            ("tip_cale_atac", "obj->>'tip_cale_atac'"),
+            ("tip_act_juridic", "obj->>'tip_act_juridic'"),
+        ]
+
+        for nume_filtru, json_field in filtre_de_extras:
+            query = text(f"""
+                SELECT DISTINCT NULLIF(TRIM({json_field}), '')
+                FROM blocuri
+                WHERE NULLIF(TRIM({json_field}), '') IS NOT NULL
+                ORDER BY 1;
+            """)
+            valori = session.execute(query).scalars().all()
+
+            for valoare in valori:
+                cache_entry = FiltreCache(tip=nume_filtru, valoare=valoare)
+                session.add(cache_entry)
+
         session.commit()
         logger.info("Successfully refreshed simple filters cache.")
     except Exception as e:
-        logger.error(f"Error refreshing simple filters cache: {e}")
+        logger.error(f"Error refreshing simple filters cache: {e}", exc_info=True)
         session.rollback()
         raise
 

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from ..schemas import SearchQuery
 from ..logic.search_logic import embed_text, search_similar, get_db_connection, get_cached_menu_data
-from ..logic.filters import refresh_and_reload, PARTI_FIXE
+from ..logic.filters import refresh_and_reload
 import psycopg2
 import psycopg2.extras
 from typing import List
@@ -44,7 +44,13 @@ def get_tip_speta_filters():
 
 @router.get("/filters/parte", response_model=List[str])
 def get_parte_filters():
-    return PARTI_FIXE
+    try:
+        with get_db_connection() as conn:
+            with conn.cursor() as cur:
+                cur.execute("SELECT valoare FROM filtre_cache WHERE tip=%s ORDER BY valoare;", ('parte',))
+                return [row[0] for row in cur.fetchall()]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/filters/menu")
 def get_menu_filters():

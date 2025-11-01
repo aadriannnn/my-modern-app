@@ -98,21 +98,31 @@ def search_similar(user_text: str, embedding: list[float], filters: dict):
     where_clauses = []
     params = []
 
+    # Helper function to build ILIKE conditions
+    def build_ilike(field, values):
+        conditions = " OR ".join([f"NULLIF(TRIM(b.obj->>'{field}'),'') ILIKE %s" for _ in values])
+        return f"({conditions})"
+
     if materii_orig:
-        like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.obj->>'materie',b.obj->>'materia',b.obj->>'materie_principala')),'') ILIKE %s" for _ in materii_orig])
+        # Special handling for materie to check canonical AND original values
+        materii_to_check = set(materii_canon) | set(materii_orig)
+        like_conditions = " OR ".join(["NULLIF(TRIM(b.obj->>'materie'),'') ILIKE %s" for _ in materii_to_check])
         where_clauses.append(f"({like_conditions})")
-        params.extend([f"%{m}%" for m in materii_orig])
+        params.extend([f"%{m}%" for m in materii_to_check])
+
     if obiecte_orig:
-        like_conditions = " OR ".join(["NULLIF(TRIM(b.obj->>'obiect'),'') ILIKE %s" for _ in obiecte_orig])
+         # Special handling for obiect to check canonical AND original values
+        obiecte_to_check = set(obiecte_canon) | set(obiecte_orig)
+        like_conditions = " OR ".join(["NULLIF(TRIM(b.obj->>'obiect'),'') ILIKE %s" for _ in obiecte_to_check])
         where_clauses.append(f"({like_conditions})")
-        params.extend([f"%{o}%" for o in obiecte_orig])
+        params.extend([f"%{o}%" for o in obiecte_to_check])
+
     if tipuri_orig:
-        like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.obj->>'tip_speta',b.obj->>'tip',b.obj->>'categorie_speta')),'') ILIKE %s" for _ in tipuri_orig])
-        where_clauses.append(f"({like_conditions})")
+        where_clauses.append(build_ilike('tip_speta', tipuri_orig))
         params.extend([f"%{t}%" for t in tipuri_orig])
+
     if parti_selectate:
-        like_conditions = " OR ".join(["NULLIF(TRIM(COALESCE(b.obj->>'parte',b.obj->>'nume_parte')),'') ILIKE %s" for _ in parti_selectate])
-        where_clauses.append(f"({like_conditions})")
+        where_clauses.append(build_ilike('parte', parti_selectate))
         params.extend([f"%{p}%" for p in parti_selectate])
 
     where_sql = ""
@@ -143,14 +153,18 @@ def search_similar(user_text: str, embedding: list[float], filters: dict):
     for row in rows:
         semantic_sim = 1.0 - (float(row['semantic_distance']) if row['semantic_distance'] is not None else 1.0)
         obj = row['obj']
-        tip_speta = obj.get('tip_speta') or obj.get('tip') or obj.get('categorie_speta') or "—"
-        materie = obj.get('materie') or obj.get('materia') or obj.get('materie_principala') or "—"
-        situatia_de_fapt_text = (obj.get('text_situatia_de_fapt') or obj.get('situatia_de_fapt') or
-                                 obj.get('situatie') or obj.get('solutia') or "")
+        tip_speta = obj.get('tip_speta', "—")
+        materie = obj.get('materie', "—")
+
+        # Updated logic to find the best text content
+        situatia_de_fapt_text = obj.get('text_situatia_de_fapt') or obj.get('situatia_de_fapt') or ""
+        solutia_text = obj.get('solutia') or ""
+        text_content_for_den = situatia_de_fapt_text if situatia_de_fapt_text else solutia_text
+
         denumire_orig = obj.get('denumire')
 
-        den_finala = (situatia_de_fapt_text.strip().replace("\n", " ").replace("\r", " ")
-                      if situatia_de_fapt_text else
+        den_finala = (text_content_for_den.strip().replace("\n", " ").replace("\r", " ")
+                      if text_content_for_den else
                       obj.get("titlu") or denumire_orig or f"{tip_speta} - {materie} (ID {row['speta_id']})")
 
         results_processed.append({
