@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlmodel import Session, select
 from ..db import get_session, init_db
 from ..logic.filters import refresh_and_reload
-from ..models import FiltreEchivalente, FiltreCacheMenu
+from ..models import FiltreCache, FiltreEchivalente, FiltreCacheMenu
 import csv
 import codecs
 from fastapi.responses import StreamingResponse
@@ -27,10 +27,17 @@ async def refresh_filters(session: Session = Depends(get_session)):
 
 @router.get("/menu")
 async def get_filters(session: Session = Depends(get_session)):
-    menu = session.get(FiltreCacheMenu, 1)
-    if not menu:
-        raise HTTPException(status_code=404, detail="Filter menu not found. Please refresh filters.")
-    return menu.menu_data
+    menu_cache = session.get(FiltreCacheMenu, 1)
+    menu_data = menu_cache.menu_data if menu_cache else {}
+
+    tip_speta_rows = session.exec(select(FiltreCache).where(FiltreCache.tip == "tip_speta")).all()
+    parte_rows = session.exec(select(FiltreCache).where(FiltreCache.tip == "parte")).all()
+
+    return {
+        "menuData": menu_data,
+        "tipSpeta": [row.valoare for row in tip_speta_rows],
+        "parte": [row.valoare for row in parte_rows]
+    }
 
 
 @router.get("/equivalences/export")

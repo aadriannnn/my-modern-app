@@ -1,12 +1,15 @@
 const API_URL = '/api';
 
 export const getFilters = async () => {
-  const [tipSpeta, parte, menuData] = await Promise.all([
-    fetch(`${API_URL}/filters/tip_speta`).then((res) => res.json()),
-    fetch(`${API_URL}/filters/parte`).then((res) => res.json()),
-    fetch(`${API_URL}/filters/menu`).then((res) => res.json()),
-  ]);
-  return { tipSpeta, parte, menuData };
+  const response = await fetch(`${API_URL}/filters/menu`);
+  if (!response.ok) {
+    if (response.status === 404) {
+      // If the cache is empty, the backend might 404. Return empty filters.
+      return { tipSpeta: [], parte: [], menuData: {} };
+    }
+    throw new Error('Failed to fetch filters');
+  }
+  return response.json();
 };
 
 export const refreshFilters = async () => {
