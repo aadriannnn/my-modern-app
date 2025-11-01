@@ -239,19 +239,15 @@ def refresh_filtre_cache_simple(session: Session):
 
         # Definește filtrele de extras
         filtre_de_extras = [
-            ("tip_speta", "obj->>'tip_speta'"),
-            ("parte", "obj->>'parte'"),
-            ("instanta", "obj->>'instanta'"),
-            ("tip_solutie", "obj->>'tip_solutie'"),
-            ("tip_cale_atac", "obj->>'tip_cale_atac'"),
-            ("tip_act_juridic", "obj->>'tip_act_juridic'"),
+            ("tip_speta", "COALESCE(obj->>'tip_speta', obj->>'tip', obj->>'categorie_speta')"),
+            ("parte", "COALESCE(obj->>'parte', obj->>'nume_parte')"),
         ]
 
-        for nume_filtru, json_field in filtre_de_extras:
+        for nume_filtru, json_fields in filtre_de_extras:
             query = text(f"""
-                SELECT DISTINCT NULLIF(TRIM({json_field}), '')
+                SELECT DISTINCT NULLIF(TRIM({json_fields}), '')
                 FROM blocuri
-                WHERE NULLIF(TRIM({json_field}), '') IS NOT NULL
+                WHERE NULLIF(TRIM({json_fields}), '') IS NOT NULL
                 ORDER BY 1;
             """)
             valori = session.execute(query).scalars().all()
@@ -272,7 +268,15 @@ def refresh_and_reload(session: Session):
     Rulează procesul COMPLET de actualizare.
     """
     logger.info("Starting the full refresh and reload process...")
-    refresh_filtre_cache_simple(session)
+    is_postgres = session.bind.dialect.name == "postgresql"
+
+    if is_postgres:
+        # For PostgreSQL, we can use the dedicated SQL function
+        session.execute(text("SELECT refresh_filtre_cache_simple();"))
+    else:
+        # For SQLite, run the Python equivalent
+        refresh_filtre_cache_simple(session)
+
     logger.info("Simple filters refreshed.")
     menu_data, materii_map, obiecte_map = load_and_build_menu_data(session)
     logger.info("Menu data built.")

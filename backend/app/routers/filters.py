@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlmodel import Session, select
 from ..db import get_session, init_db
 from ..logic.filters import refresh_and_reload
-from ..models import FiltreCache, FiltreEchivalente, FiltreCacheMenu
+from ..models import Blocuri, FiltreCache, FiltreEchivalente, FiltreCacheMenu
 import csv
 import codecs
 from fastapi.responses import StreamingResponse
@@ -27,15 +27,22 @@ async def refresh_filters(session: Session = Depends(get_session)):
 
 @router.get("/menu")
 async def get_filters(session: Session = Depends(get_session)):
-    row = session.get(FiltreCacheMenu, 1)
-    if not row:
+    menu_row = session.get(FiltreCacheMenu, 1)
+    if not menu_row:
         raise HTTPException(404, "Menu not generated yet. Run POST /api/filters/refresh first.")
 
+    # Preluare filtre simple din cache
+    tip_speta_query = select(FiltreCache.valoare).where(FiltreCache.tip == "tip_speta")
+    parte_query = select(FiltreCache.valoare).where(FiltreCache.tip == "parte")
+
+    tip_speta = session.exec(tip_speta_query).scalars().all()
+    parte = session.exec(parte_query).scalars().all()
+
     return {
-        "menu": row.menu_data,
-        "materii_map": row.materii_map,
-        "obiecte_map": row.obiecte_map,
-        "last_updated": row.last_updated
+        "menuData": menu_row.menu_data,
+        "tipSpeta": tip_speta,
+        "parte": parte,
+        "last_updated": menu_row.last_updated
     }
 
 

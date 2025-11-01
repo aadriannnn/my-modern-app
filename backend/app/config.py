@@ -9,25 +9,31 @@ class Settings(BaseSettings):
     CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:5178"]
 
     # PostgreSQL settings
-    PG_HOST: str
-    PG_PORT: int
-    PG_USER: str
-    PG_PASS: str
-    PG_DB: str
+    PG_HOST: Optional[str] = None
+    PG_PORT: Optional[int] = None
+    PG_USER: Optional[str] = None
+    PG_PASS: Optional[str] = None
+    PG_DB: Optional[str] = None
     DATABASE_URL: Optional[str] = None
     DATABASE_URL_INTERNAL: Optional[str] = None
 
     @model_validator(mode='before')
     @classmethod
     def build_database_url(cls, values):
-        if not values.get('DATABASE_URL'):
-            values['DATABASE_URL'] = "postgresql://{PG_USER}:{PG_PASS}@{PG_HOST}:{PG_PORT}/{PG_DB}".format(
-                PG_USER=values.get('PG_USER'),
-                PG_PASS=values.get('PG_PASS'),
-                PG_HOST=values.get('PG_HOST'),
-                PG_PORT=values.get('PG_PORT'),
-                PG_DB=values.get('PG_DB')
-            )
+        db_url = values.get('DATABASE_URL')
+        if db_url:
+            return values # Respect DATABASE_URL if it's already set.
+
+        # Only build the URL if all the PG components are present.
+        pg_user = values.get('PG_USER')
+        pg_pass = values.get('PG_PASS')
+        pg_host = values.get('PG_HOST')
+        pg_port = values.get('PG_PORT')
+        pg_db = values.get('PG_DB')
+
+        if all([pg_user, pg_pass, pg_host, pg_port, pg_db]):
+            values['DATABASE_URL'] = f"postgresql://{pg_user}:{pg_pass}@{pg_host}:{pg_port}/{pg_db}"
+
         return values
 
     OLLAMA_URL: str

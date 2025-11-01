@@ -2,6 +2,7 @@ import logging
 from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy import text
 from .config import get_settings
+from .models import Blocuri
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -19,6 +20,16 @@ engine = create_engine(db_url, echo=False)
 
 
 def init_db():
+    is_postgres = "postgresql" in settings.DATABASE_URL
+
+    # Conditionally remove the 'vector' column for SQLite
+    if not is_postgres and 'vector' in Blocuri.model_fields:
+        # This is a bit of a hack, but it's the cleanest way to handle this
+        # without creating a separate model for SQLite.
+        Blocuri.model_fields.pop('vector')
+        Blocuri.model_rebuild(force=True)
+
+
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         # Use a more robust check for PostgreSQL
@@ -26,25 +37,48 @@ def init_db():
             session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))
 
         # Create the SQL function for refreshing simple filters
-        refresh_function_sql = text("""
-        CREATE OR REPLACE FUNCTION refresh_filtre_cache_simple()
-        RETURNS void AS $$
-        BEGIN
-            DELETE FROM filtre_cache;
+        if engine.url.drivername == "postgresql":
+            refresh_function_sql = text("""
+            CREATE OR REPLACE FUNCTION refresh_filtre_cache_simple()
+            RETURNS void AS $$
+            BEGIN
+                DELETE FROM filtre_cache;
 
-            INSERT INTO filtre_cache (tip, valoare)
-            SELECT DISTINCT 'tip_speta',
-            NULLIF(TRIM(COALESCE(b.obj->>'tip_speta', b.obj->>'tip', b.obj->>'categorie_speta')), '')
-            FROM blocuri b WHERE NULLIF(TRIM(COALESCE(b.obj->>'tip_speta', b.obj->>'tip', b.obj->>'categorie_speta')), '') IS NOT NULL;
+                INSERT INTO filtre_cache (tip, valoare)
+                SELECT DISTINCT 'tip_speta',
+                NULLIF(TRIM(COALESCE(b.obj->>'tip_speta', b.obj->>'tip', b.obj->>'categorie_speta')), '')
+                FROM blocuri b WHERE NULLIF(TRIM(COALESCE(b.obj->>'tip_speta', b.obj->>'tip', b.obj->>'categorie_speta')), '') IS NOT NULL;
 
-            INSERT INTO filtre_cache (tip, valoare)
-            SELECT DISTINCT 'parte',
-            NULLIF(TRIM(COALESCE(b.obj->>'parte', b.obj->>'nume_parte')), '')
-            FROM blocuri b WHERE NULLIF(TRIM(COALESCE(b.obj->>'parte', b.obj->>'nume_parte')), '') IS NOT NULL;
-        END;
-        $$ LANGUAGE plpgsql;
-        """)
-        session.exec(refresh_function_sql)
+                INSERT INTO filtre_cache (tip, valoare)
+                SELECT DISTINCT 'parte',
+                NULLIF(TRIM(COALESCE(b.obj->>'parte', b.obj->>'nume_parte')), '')
+                FROM blocuri b WHERE NULLIF(TRIM(COALESCE(b.obj->>'parte', b.obj->>'nume_parte')), '') IS NOT NULL;
+            END;
+            $$ LANGUAGE plpgsql;
+            """)
+            session.exec(refresh_function_sql)
+
+        # Seed data for testing if the blocuri table is empty
+        result = session.execute(text("SELECT COUNT(*) FROM blocuri")).scalar()
+        if result == 0:
+            logger.info("Blocuri table is empty. Seeding with sample data...")
+            if engine.url.drivername == "postgresql":
+                session.execute(text(
+                    """
+                    INSERT INTO blocuri (id, obj, vector) VALUES
+                    (1, '{"tip_speta": "Litigiu de muncă", "parte": "Angajator", "materie": "Dreptul muncii", "obiect": "Contestație decizie de concediere"}', NULL),
+                    (2, '{"tip_speta": "Civil", "parte": "Reclamant", "materie": "Drept civil", "obiect": "Pretenții"}', NULL)
+                    """
+                ))
+            else:
+                session.execute(text(
+                    """
+                    INSERT INTO blocuri (id, obj) VALUES
+                    (1, '{"tip_speta": "Litigiu de muncă", "parte": "Angajator", "materie": "Dreptul muncii", "obiect": "Contestație decizie de concediere"}'),
+                    (2, '{"tip_speta": "Civil", "parte": "Reclamant", "materie": "Drept civil", "obiect": "Pretenții"}')
+                    """
+                ))
+
         session.commit()
 
 

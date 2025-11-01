@@ -18,6 +18,7 @@ const App = () => {
     setStatus('Încărc opțiuni din cache...');
     try {
       const filterData = await getFilters();
+      console.log("Received filter data:", filterData);
       setFilters({
         tipSpeta: filterData.tipSpeta || [],
         parte: filterData.parte || [],
