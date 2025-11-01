@@ -30,8 +30,8 @@ class Settings(BaseSettings):
         return values
 
     OLLAMA_URL: str
-    MODEL_NAME: str = "nomic-embed-text"
-    VECTOR_DIM: int = 768
+    MODEL_NAME: str = "rjmalagon/gte-qwen2-1.5b-instruct-embed-f16"
+    VECTOR_DIM: int = 1536
     ALPHA_SCORE: float = 0.8
     TOP_K: int = 100
 

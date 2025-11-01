@@ -150,8 +150,13 @@ def embed_text(text: str) -> list[float]:
         )
         r.raise_for_status()
         emb = r.json().get("embedding")
-        if not emb or len(emb) != settings.VECTOR_DIM:
-            raise RuntimeError(f"Embedding invalid: size {len(emb) if emb else 0}")
+        if not emb:
+            raise RuntimeError("Embedding gol returnat de Ollama.")
+        if len(emb) != settings.VECTOR_DIM:
+            raise RuntimeError(
+                f"Eroare dimensiune embedding! Așteptam {settings.VECTOR_DIM}, dar modelul '{settings.MODEL_NAME}' a returnat {len(emb)}.\n"
+                f"Verificați dacă modelul este corect configurat în Ollama."
+            )
         return emb
     except requests.exceptions.RequestException as e:
         raise RuntimeError(f"Eroare la contactarea Ollama: {e}")
