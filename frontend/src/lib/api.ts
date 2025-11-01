@@ -9,7 +9,13 @@ export const getFilters = async () => {
     }
     throw new Error('Failed to fetch filters');
   }
-  return response.json();
+  const data = await response.json();
+  // Ensure the response has the expected shape, providing defaults for missing keys.
+  return {
+    tipSpeta: data.tipSpeta || [],
+    parte: data.parte || [],
+    menuData: data.menuData || {},
+  };
 };
 
 export const refreshFilters = async () => {

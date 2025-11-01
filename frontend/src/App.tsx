@@ -18,7 +18,11 @@ const App = () => {
     setStatus('Încărc opțiuni din cache...');
     try {
       const filterData = await getFilters();
-      setFilters(filterData);
+      setFilters({
+        tipSpeta: filterData.tipSpeta || [],
+        parte: filterData.parte || [],
+        menuData: filterData.menuData || {},
+      });
       setStatus('Opțiunile au fost încărcate din cache.');
     } catch (error) {
       setStatus('Eroare la încărcarea filtrelor din cache.');
