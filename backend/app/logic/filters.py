@@ -220,7 +220,13 @@ def load_and_build_menu_data(session: Session):
             obiect_canon = "(fără obiect)"
             obiect_canon = eq_map_obiecte.get(obiect_canon, obiect_canon)
 
-        menu_data[materie_canon].add(obiect_canon)
+        final_materie = materie_canon if materie_canon else materie_orig
+        final_obiect = obiect_canon if obiect_canon else obiect_orig
+
+        if final_materie and final_obiect:
+            menu_data[final_materie].add(final_obiect)
+        elif final_materie:
+            menu_data[final_materie].add("(fără obiect specific)")
 
     # --- Pas 6: Generează mapările inverse ---
     menu_final = {

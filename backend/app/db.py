@@ -1,8 +1,17 @@
+import logging
 from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy import text
 from .config import get_settings
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 settings = get_settings()
+
+# Log the database URL to verify it's correct
+logger.info(f"DATABASE_URL={settings.DATABASE_URL}")
+
 engine = create_engine(settings.DATABASE_URL, echo=False)
 
 

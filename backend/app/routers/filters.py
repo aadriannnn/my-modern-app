@@ -30,6 +30,9 @@ async def get_filters(session: Session = Depends(get_session)):
     menu_cache = session.get(FiltreCacheMenu, 1)
     menu_data = menu_cache.menu_data if menu_cache else {}
 
+    # Log the menu_data to inspect its contents
+    logger.info(f"Menu data from cache: {menu_data}")
+
     tip_speta_rows = session.exec(select(FiltreCache).where(FiltreCache.tip == "tip_speta")).all()
     parte_rows = session.exec(select(FiltreCache).where(FiltreCache.tip == "parte")).all()
 
