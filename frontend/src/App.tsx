@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import MultiStepForm from './components/MultiStepForm';
 import Status from './components/Status';
-import { getFilters, search } from './lib/api';
+import { getFilters, search, refreshFilters } from './lib/api';
 
 const App = () => {
   const [results, setResults] = useState([]);
   const [status, setStatus] = useState('Gata.');
   const [filters, setFilters] = useState({ tipSpeta: [], parte: [], menuData: {} });
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     loadFilters();
@@ -20,6 +21,26 @@ const App = () => {
       setStatus('Opțiunile au fost încărcate din cache.');
     } catch (error) {
       setStatus('Eroare la încărcarea filtrelor din cache.');
+    }
+  };
+
+  const handleRefreshFilters = async () => {
+    console.log('Attempting to refresh filters...');
+    setIsRefreshing(true);
+    setStatus('Actualizez filtrele...');
+    try {
+      console.log('Calling refreshFilters API...');
+      await refreshFilters();
+      console.log('refreshFilters API call successful.');
+      console.log('Calling loadFilters...');
+      await loadFilters();
+      console.log('loadFilters successful.');
+      setStatus('Filtrele au fost actualizate cu succes.');
+    } catch (error) {
+      console.error('Filter refresh failed:', error);
+      setStatus('Eroare la actualizarea filtrelor.');
+    } finally {
+      setIsRefreshing(false);
     }
   };
 
@@ -92,6 +113,8 @@ const App = () => {
           results={results}
           status={status}
           onSearch={handleSearch}
+          onRefreshFilters={handleRefreshFilters}
+          isRefreshing={isRefreshing}
         />
       </main>
 

@@ -1,7 +1,8 @@
+import logging
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlmodel import Session, select
-from ..db import get_session
-from ..logic.filters import load_and_build_menu_data, save_menu_data_to_db
+from ..db import get_session, init_db
+from ..logic.filters import refresh_and_reload
 from ..models import FiltreEchivalente, FiltreCacheMenu
 import csv
 import codecs
@@ -9,15 +10,18 @@ from fastapi.responses import StreamingResponse
 import io
 
 router = APIRouter(prefix="/filters", tags=["filters"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/refresh")
 async def refresh_filters(session: Session = Depends(get_session)):
+    logger.info("Received request to refresh filters.")
     try:
-        menu_data, materii_map, obiecte_map = load_and_build_menu_data(session)
-        save_menu_data_to_db(session, menu_data, materii_map, obiecte_map)
+        refresh_and_reload(session)
+        logger.info("Filter refresh process completed successfully.")
         return {"message": "Filters refreshed successfully"}
     except Exception as e:
+        logger.error(f"Error refreshing filters: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

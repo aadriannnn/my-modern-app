@@ -1,3 +1,4 @@
+import logging
 import re
 import json
 from collections import defaultdict
@@ -133,8 +134,10 @@ def extract_base_obiect(obiect_orig):
     if not base_term: return None
     return base_term
 
+logger = logging.getLogger(__name__)
+
 def load_and_build_menu_data(session: Session):
-    print("START PROCESARE: Se încarcă și se procesează perechile materie-obiect...")
+    logger.info("Starting to load and build menu data...")
 
     eq_map_materii = {} # {"cod_canon": "user_pref"}
     eq_map_obiecte = {} # {"cod_canon": "user_pref"}
@@ -145,7 +148,7 @@ def load_and_build_menu_data(session: Session):
             eq_map_materii[eq.term_canonic_original] = eq.term_preferat
         elif eq.type == 'obiect':
             eq_map_obiecte[eq.term_canonic_original] = eq.term_preferat
-    print(f"S-au încărcat {len(eq_map_materii)} echivalențe materii, {len(eq_map_obiecte)} echivalențe obiecte.")
+    logger.info(f"Loaded {len(eq_map_materii)} materii and {len(eq_map_obiecte)} obiecte equivalences.")
 
 
     # --- Pas 2: Extrage toate perechile unice ---
@@ -160,7 +163,7 @@ def load_and_build_menu_data(session: Session):
     """)
     rows = session.exec(query).all()
 
-    print(f"S-au găsit {len(rows)} perechi unice materie-obiect. Se simplifică...")
+    logger.info(f"Found {len(rows)} unique materie-obiect pairs. Starting simplification...")
 
     mapare_materii_originale = {} # {"text raw": "cod_canon"}
     mapare_obiecte_originale = {} # {"text raw": "cod_canon"}
@@ -238,11 +241,11 @@ def load_and_build_menu_data(session: Session):
     materii_canon_to_orig = {k: list(v) for k, v in materii_canon_to_orig.items()}
     obiecte_canon_to_orig = {k: list(v) for k, v in obiecte_canon_to_orig.items()}
 
-    print("Simplificare finalizată.")
+    logger.info("Simplification complete.")
     return menu_final, materii_canon_to_orig, obiecte_canon_to_orig
 
 def save_menu_data_to_db(session: Session, menu_data, materii_map, obiecte_map):
-    print("Se salvează meniul simplificat în baza de date...")
+    logger.info("Saving simplified menu to the database...")
 
     menu_cache = session.get(FiltreCacheMenu, 1)
     if not menu_cache:
@@ -254,4 +257,31 @@ def save_menu_data_to_db(session: Session, menu_data, materii_map, obiecte_map):
 
     session.add(menu_cache)
     session.commit()
-    print("Salvare meniu finalizată.")
+    logger.info("Menu data saved successfully.")
+
+
+def refresh_filtre_cache_simple(session: Session):
+    """Rulează funcția SQL pentru a reîmprospăta 'tip_speta' și 'parte'."""
+    logger.info("Refreshing simple filters cache...")
+    try:
+        # Folosim o funcție SQL, așa cum era în scriptul original
+        # Asigură-te că funcția `refresh_filtre_cache_simple` există în DB
+        session.execute(text("SELECT refresh_filtre_cache_simple();"))
+        session.commit()
+        logger.info("Successfully refreshed simple filters cache.")
+    except Exception as e:
+        logger.error(f"Error refreshing simple filters cache: {e}")
+        session.rollback()
+        raise
+
+def refresh_and_reload(session: Session):
+    """
+    Rulează procesul COMPLET de actualizare.
+    """
+    logger.info("Starting the full refresh and reload process...")
+    refresh_filtre_cache_simple(session)
+    logger.info("Simple filters refreshed.")
+    menu_data, materii_map, obiecte_map = load_and_build_menu_data(session)
+    logger.info("Menu data built.")
+    save_menu_data_to_db(session, menu_data, materii_map, obiecte_map)
+    logger.info("Full refresh and reload process complete.")

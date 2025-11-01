@@ -8,3 +8,4 @@ psycopg2-binary
 pgvector
 httpx
 python-multipart
+requests

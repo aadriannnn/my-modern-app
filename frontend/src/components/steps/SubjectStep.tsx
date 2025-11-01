@@ -8,6 +8,8 @@ interface SubjectStepProps {
   selectedMenuKeys: React.Key[];
   setSelectedMenuKeys: (keys: React.Key[]) => void;
   onSearch: () => void;
+  onRefreshFilters: () => void;
+  isRefreshing: boolean;
 }
 
 const SubjectStep: React.FC<SubjectStepProps> = ({
@@ -15,6 +17,8 @@ const SubjectStep: React.FC<SubjectStepProps> = ({
   selectedMenuKeys,
   setSelectedMenuKeys,
   onSearch,
+  onRefreshFilters,
+  isRefreshing,
 }) => {
   const [treeData, setTreeData] = useState<DataNode[]>([]);
   const [expandedKeys, setExpandedKeys] = useState<React.Key[]>([]);
@@ -106,6 +110,13 @@ const SubjectStep: React.FC<SubjectStepProps> = ({
           onClick={onSearch}
         >
           Caută spețe similare
+        </button>
+        <button
+          className="w-full px-4 py-3 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition text-lg mt-2"
+          onClick={onRefreshFilters}
+          disabled={isRefreshing}
+        >
+          {isRefreshing ? 'Actualizare în curs...' : 'Actualizează filtrele'}
         </button>
       </div>
     </div>

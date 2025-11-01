@@ -5,9 +5,10 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
-from .db import init_db
+from .db import init_db, get_session, Session
 from .logic.search_logic import load_menu_cache
-from .routers import search as main_router, equivalents
+from .logic.setup_cache import setup_filtre_cache
+from .routers import search as main_router, equivalents, filters as filters_router, test as test_router
 
 # Configure logging
 logging.basicConfig(
@@ -48,11 +49,15 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     init_db()
-    load_menu_cache()
+    with next(get_session()) as session:
+        setup_filtre_cache(session)
+        load_menu_cache(session)
 
 
 app.include_router(main_router.router)
 app.include_router(equivalents.router)
+app.include_router(filters_router.router)
+app.include_router(test_router.router)
 
 
 @app.get("/health")

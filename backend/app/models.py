@@ -25,12 +25,14 @@ class FiltreCache(SQLModel, table=True):
     valoare: str = Field(primary_key=True)
 
 
+from datetime import datetime
 class FiltreCacheMenu(SQLModel, table=True):
     __tablename__ = 'filtre_cache_menu'
     id: int = Field(primary_key=True)
     menu_data: dict = Field(sa_column=Column(db_specific_json))
     materii_map: dict = Field(sa_column=Column(db_specific_json))
     obiecte_map: dict = Field(sa_column=Column(db_specific_json))
+    last_updated: Optional[datetime] = Field(default=None)
 
 
 class FiltreEchivalente(SQLModel, table=True):

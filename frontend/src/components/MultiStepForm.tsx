@@ -18,9 +18,18 @@ interface MultiStepFormProps {
     selectedParte: string[];
     selectedMenuKeys: React.Key[];
   }) => void;
+  onRefreshFilters: () => void;
+  isRefreshing: boolean;
 }
 
-const MultiStepForm: React.FC<MultiStepFormProps> = ({ filters, results, status, onSearch }) => {
+const MultiStepForm: React.FC<MultiStepFormProps> = ({
+  filters,
+  results,
+  status,
+  onSearch,
+  onRefreshFilters,
+  isRefreshing,
+}) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [situation, setSituation] = useState('');
   const [selectedTipSpeta, setSelectedTipSpeta] = useState<string[]>([]);
@@ -62,6 +71,8 @@ const MultiStepForm: React.FC<MultiStepFormProps> = ({ filters, results, status,
             selectedMenuKeys={selectedMenuKeys}
             setSelectedMenuKeys={setSelectedMenuKeys}
             onSearch={handleSearch}
+            onRefreshFilters={onRefreshFilters}
+            isRefreshing={isRefreshing}
           />
         );
       case 4:
