@@ -1,17 +1,19 @@
 import csv
 from io import StringIO
-from fastapi import APIRouter, HTTPException, UploadFile, File
+from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import Response
 import psycopg2
 import psycopg2.extras
-from ..logic.search_logic import get_db_connection, find_canonical_key, CANONICAL_MAP_MATERII, extract_base_obiect, CANONICAL_MAP_OBIECTE, refresh_menu_cache
-
+from sqlmodel import Session
+from ..db import get_session
+from ..logic.search_logic import get_db_connection, find_canonical_key, CANONICAL_MAP_MATERII, extract_base_obiect, CANONICAL_MAP_OBIECTE
+from ..logic.filters import refresh_and_reload
 router = APIRouter()
 
 @router.post("/filters/refresh")
-def refresh_filters():
+def refresh_filters(session: Session = Depends(get_session)):
     try:
-        refresh_menu_cache()
+        refresh_and_reload(session)
         return {"message": "Cache-ul filtrelor a fost actualizat cu succes."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"A apărut o eroare la actualizarea cache-ului: {e}")

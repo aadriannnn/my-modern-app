@@ -1,6 +1,4 @@
-import json
 import re
-import socket
 from collections import defaultdict
 from functools import lru_cache
 

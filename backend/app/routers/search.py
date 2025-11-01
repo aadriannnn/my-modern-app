@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from ..schemas import SearchQuery
-from ..logic.search_logic import embed_text, search_similar, get_db_connection, PARTI_FIXE, get_cached_menu_data, refresh_menu_cache
+from ..logic.search_logic import embed_text, search_similar, get_db_connection, PARTI_FIXE, get_cached_menu_data
+from ..logic.filters import refresh_and_reload
 import psycopg2
 import psycopg2.extras
 from typing import List
@@ -51,9 +52,9 @@ def get_menu_filters():
     return menu_data or {}
 
 @router.post("/filters/menu/refresh")
-def refresh_filters():
+def refresh_filters(session: Session = Depends(get_session)):
     try:
-        refresh_menu_cache()
+        refresh_and_reload(session)
         return {"status": "success", "message": "Cache-ul a fost actualizat."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
