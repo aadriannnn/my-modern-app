@@ -27,19 +27,15 @@ async def refresh_filters(session: Session = Depends(get_session)):
 
 @router.get("/menu")
 async def get_filters(session: Session = Depends(get_session)):
-    menu_cache = session.get(FiltreCacheMenu, 1)
-    menu_data = menu_cache.menu_data if menu_cache else {}
-
-    # Log the menu_data to inspect its contents
-    logger.info(f"Menu data from cache: {menu_data}")
-
-    tip_speta_rows = session.exec(select(FiltreCache).where(FiltreCache.tip == "tip_speta")).all()
-    parte_rows = session.exec(select(FiltreCache).where(FiltreCache.tip == "parte")).all()
+    row = session.get(FiltreCacheMenu, 1)
+    if not row:
+        raise HTTPException(404, "Menu not generated yet. Run POST /api/filters/refresh first.")
 
     return {
-        "menuData": menu_data,
-        "tipSpeta": [row.valoare for row in tip_speta_rows],
-        "parte": [row.valoare for row in parte_rows]
+        "menu": row.menu_data,
+        "materii_map": row.materii_map,
+        "obiecte_map": row.obiecte_map,
+        "last_updated": row.last_updated
     }
 
 

@@ -9,16 +9,20 @@ logger = logging.getLogger(__name__)
 
 settings = get_settings()
 
-# Log the database URL to verify it's correct
-logger.info(f"DATABASE_URL={settings.DATABASE_URL}")
+# Determine which database URL to use
+db_url = settings.DATABASE_URL_INTERNAL if settings.DATABASE_URL_INTERNAL else settings.DATABASE_URL
 
-engine = create_engine(settings.DATABASE_URL, echo=False)
+# Log the database URL to verify it's correct
+logger.info(f"Using database URL: {db_url}")
+
+engine = create_engine(db_url, echo=False)
 
 
 def init_db():
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
-        if "postgresql" in settings.DATABASE_URL:
+        # Use a more robust check for PostgreSQL
+        if engine.url.drivername == "postgresql":
             session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))
 
         # Create the SQL function for refreshing simple filters

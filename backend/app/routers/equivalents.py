@@ -6,8 +6,9 @@ import psycopg2
 import psycopg2.extras
 from sqlmodel import Session
 from ..db import get_session
-from ..logic.search_logic import get_db_connection, find_canonical_key, CANONICAL_MAP_MATERII, extract_base_obiect, CANONICAL_MAP_OBIECTE
-from ..logic.filters import refresh_and_reload
+from ..logic.search_logic import get_db_connection
+from ..logic.normalization import find_canonical_key, extract_base_obiect
+from ..logic.filters import refresh_and_reload, CANONICAL_MAP_MATERII, CANONICAL_MAP_OBIECTE
 router = APIRouter()
 
 @router.post("/filters/refresh")

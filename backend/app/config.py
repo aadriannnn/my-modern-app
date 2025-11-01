@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     PG_PASS: str
     PG_DB: str
     DATABASE_URL: Optional[str] = None
+    DATABASE_URL_INTERNAL: Optional[str] = None
 
     @model_validator(mode='before')
     @classmethod
