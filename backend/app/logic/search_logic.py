@@ -175,7 +175,7 @@ def search_similar(user_text: str, embedding: list[float], filters: dict):
             "materie": materie,
             "score": semantic_sim,
             "match_count": 0,
-            "obj": obj,
+            "data": obj,
             "tip_instanta": obj.get('tip_instanta') or "—",
             "data_solutiei": obj.get('data_solutiei') or "—",
             "numar_dosar": obj.get('numar_dosar') or "—"
@@ -188,4 +188,9 @@ def search_similar(user_text: str, embedding: list[float], filters: dict):
             r["score"] = (1 - BETA) * r["score"] + BETA * text_boost
 
     results_processed.sort(key=lambda x: x["score"], reverse=True)
+
+    print(f"DEBUG: Returning {len(results_processed)} search results.")
+    if results_processed:
+        print(f"DEBUG: Sample result: {results_processed[0]}")
+
     return results_processed

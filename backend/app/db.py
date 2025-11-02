@@ -20,45 +20,44 @@ engine = create_engine(db_url, echo=False)
 
 
 def init_db():
-    is_postgres = "postgresql" in settings.DATABASE_URL
+    logger.info("--- Database Initialization Started ---")
 
-    # Conditionally remove the 'vector' column for SQLite
+    is_postgres = "postgresql" in settings.DATABASE_URL
+    logger.info(f"PostgreSQL detected: {is_postgres}")
+
     if not is_postgres and 'vector' in Blocuri.model_fields:
-        # This is a bit of a hack, but it's the cleanest way to handle this
-        # without creating a separate model for SQLite.
+        logger.warning("SQLite detected, removing 'vector' field from Blocuri model for this session.")
         Blocuri.model_fields.pop('vector')
         Blocuri.model_rebuild(force=True)
 
-
+    logger.info("Creating all tables from SQLModel metadata...")
     SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        # Use a more robust check for PostgreSQL
-        if engine.url.drivername == "postgresql":
-            session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+    logger.info("All tables created.")
 
-        # Create the SQL function for refreshing simple filters
+    with Session(engine) as session:
         if engine.url.drivername == "postgresql":
+            logger.info("Ensuring 'vector' extension exists for PostgreSQL...")
+            session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            logger.info("'vector' extension checked/created.")
+
+            logger.info("Creating/updating PostgreSQL function 'refresh_filtre_cache_simple'...")
             refresh_function_sql = text("""
             CREATE OR REPLACE FUNCTION refresh_filtre_cache_simple()
             RETURNS void AS $$
             BEGIN
                 DELETE FROM filtre_cache;
-
                 INSERT INTO filtre_cache (tip, valoare)
-                SELECT DISTINCT 'tip_speta',
-                NULLIF(TRIM(COALESCE(b.obj->>'tip_speta', b.obj->>'tip', b.obj->>'categorie_speta')), '')
+                SELECT DISTINCT 'tip_speta', NULLIF(TRIM(COALESCE(b.obj->>'tip_speta', b.obj->>'tip', b.obj->>'categorie_speta')), '')
                 FROM blocuri b WHERE NULLIF(TRIM(COALESCE(b.obj->>'tip_speta', b.obj->>'tip', b.obj->>'categorie_speta')), '') IS NOT NULL;
-
                 INSERT INTO filtre_cache (tip, valoare)
-                SELECT DISTINCT 'parte',
-                NULLIF(TRIM(COALESCE(b.obj->>'parte', b.obj->>'nume_parte')), '')
+                SELECT DISTINCT 'parte', NULLIF(TRIM(COALESCE(b.obj->>'parte', b.obj->>'nume_parte')), '')
                 FROM blocuri b WHERE NULLIF(TRIM(COALESCE(b.obj->>'parte', b.obj->>'nume_parte')), '') IS NOT NULL;
             END;
             $$ LANGUAGE plpgsql;
             """)
             session.exec(refresh_function_sql)
+            logger.info("PostgreSQL function 'refresh_filtre_cache_simple' is up to date.")
 
-        # Seed data for testing if the blocuri table is empty
         result = session.execute(text("SELECT COUNT(*) FROM blocuri")).scalar()
         if result == 0:
             logger.info("Blocuri table is empty. Seeding with sample data...")

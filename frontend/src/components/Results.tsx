@@ -23,8 +23,16 @@ const Results: React.FC<ResultsProps> = ({ results }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handleRowClick = (result: Result) => {
+    console.log('[Results] Row clicked. Preparing to open modal.');
+    console.log('[Results] Data for selected result (ID:', result.id, '):', result);
+
+    if (!result.data) {
+      console.warn('[Results] The selected result is missing the detailed `data` object.');
+    }
+
     setSelectedResult(result);
     setIsModalOpen(true);
+    console.log('[Results] Modal should now be open.');
   };
 
   const handleCloseModal = () => {

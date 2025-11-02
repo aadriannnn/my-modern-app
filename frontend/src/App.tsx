@@ -16,19 +16,34 @@ const App = () => {
 
   const loadFilters = async () => {
     setStatus('Încărc opțiuni din cache...');
+    console.log('[loadFilters] Attempting to fetch filter data from API...');
     try {
       const filterData = await getFilters();
-      console.log("Received filter data:", filterData);
+      console.log('[loadFilters] API call successful. Received data:', filterData);
+
+      if (!filterData || typeof filterData !== 'object') {
+        console.error('[loadFilters] Invalid data received from API:', filterData);
+        throw new Error('Invalid data format');
+      }
+
+      console.log(`[loadFilters] Received ${filterData.tipSpeta?.length || 0} 'tipSpeta' items.`);
+      console.log(`[loadFilters] Received ${filterData.parte?.length || 0} 'parte' items.`);
+      console.log(`[loadFilters] Menu data has ${Object.keys(filterData.menuData || {}).length} keys.`);
+
       setFilters({
         tipSpeta: filterData.tipSpeta || [],
         parte: filterData.parte || [],
         menuData: filterData.menuData || {},
       });
+
+      console.log('[loadFilters] State updated with new filter data.');
       setStatus('Opțiunile au fost încărcate din cache.');
     } catch (error) {
+      console.error('[loadFilters] An error occurred:', error);
       setStatus('Eroare la încărcarea filtrelor din cache.');
     } finally {
       setIsLoading(false);
+      console.log('[loadFilters] Finished loading process.');
     }
   };
 

@@ -99,33 +99,35 @@ CANONICAL_MAP_OBIECTE = {
 logger = logging.getLogger(__name__)
 
 def load_and_build_menu_data(session: Session):
-    logger.info("Starting to load and build menu data...")
+    logger.info("--- Menu Data Build Process Started ---")
 
-    eq_map_materii = {} # {"cod_canon": "user_pref"}
-    eq_map_obiecte = {} # {"cod_canon": "user_pref"}
-
+    logger.info("Step A: Loading term equivalences from 'filtre_echivalente'...")
+    eq_map_materii = {}
+    eq_map_obiecte = {}
     equivalences = session.exec(select(FiltreEchivalente)).all()
     for eq in equivalences:
         if eq.type == 'materie':
             eq_map_materii[eq.term_canonic_original] = eq.term_preferat
         elif eq.type == 'obiect':
             eq_map_obiecte[eq.term_canonic_original] = eq.term_preferat
-    logger.info(f"Loaded {len(eq_map_materii)} materii and {len(eq_map_obiecte)} obiecte equivalences.")
+    logger.info(f"Loaded {len(eq_map_materii)} 'materie' and {len(eq_map_obiecte)} 'obiect' equivalences.")
 
-
-    # --- Pas 2: Extrage toate perechile unice ---
+    logger.info("Step B: Extracting unique materie-obiect pairs from 'blocuri' table...")
     query = text("""
         SELECT DISTINCT
             NULLIF(TRIM(obj->>'materie'), '') AS materie_orig,
             NULLIF(TRIM(obj->>'obiect'), '') AS obiect_orig
         FROM blocuri
-        WHERE
-            NULLIF(TRIM(obj->>'materie'), '') IS NOT NULL
-            OR NULLIF(TRIM(obj->>'obiect'), '') IS NOT NULL;
+        WHERE NULLIF(TRIM(obj->>'materie'), '') IS NOT NULL OR NULLIF(TRIM(obj->>'obiect'), '') IS NOT NULL;
     """)
     rows = session.exec(query).all()
+    logger.info(f"Found {len(rows)} unique materie-obiect pairs.")
 
-    logger.info(f"Found {len(rows)} unique materie-obiect pairs. Starting simplification...")
+    if not rows:
+        logger.warning("No materie-obiect pairs found. The menu will be empty.")
+        return {}, {}, {}
+
+    logger.info("Step C: Starting simplification and canonicalization process...")
 
     mapare_materii_originale = {} # {"text raw": "cod_canon"}
     mapare_obiecte_originale = {} # {"text raw": "cod_canon"}
@@ -203,11 +205,15 @@ def load_and_build_menu_data(session: Session):
     materii_canon_to_orig = {k: list(v) for k, v in materii_canon_to_orig.items()}
     obiecte_canon_to_orig = {k: list(v) for k, v in obiecte_canon_to_orig.items()}
 
-    logger.info("Simplification complete.")
+    logger.info("Step C: Simplification and canonicalization complete.")
+    logger.info("--- Menu Data Build Process Finished ---")
     return menu_final, materii_canon_to_orig, obiecte_canon_to_orig
 
 def save_menu_data_to_db(session: Session, menu_data, materii_map, obiecte_map):
-    logger.info("Saving simplified menu to the database...")
+    logger.info("--- Saving Menu Data to Database ---")
+    logger.info(f"Menu data contains {len(menu_data)} materii.")
+    logger.info(f"Materii map contains {len(materii_map)} entries.")
+    logger.info(f"Obiecte map contains {len(obiecte_map)} entries.")
 
     sql = text("""
     INSERT INTO filtre_cache_menu (id, menu_data, materii_map, obiecte_map, last_updated)
@@ -227,37 +233,50 @@ def save_menu_data_to_db(session: Session, menu_data, materii_map, obiecte_map):
 
     session.execute(sql, params)
     session.commit()
-    logger.info("Menu data saved successfully.")
+    logger.info("--- Menu Data Saved Successfully ---")
 
 
 def refresh_filtre_cache_simple(session: Session):
     """Calculează și inserează filtrele simple (tip_speta, parte, etc.)."""
-    logger.info("Refreshing simple filters cache from 'blocuri' table...")
+    logger.info("--- Simple Filters Cache Refresh Started ---")
     try:
-        # Șterge cache-ul vechi
+        logger.info("Step 1: Deleting old data from 'filtre_cache'.")
         session.execute(text("DELETE FROM filtre_cache"))
 
-        # Definește filtrele de extras
         filtre_de_extras = [
             ("tip_speta", "COALESCE(obj->>'tip_speta', obj->>'tip', obj->>'categorie_speta')"),
             ("parte", "COALESCE(obj->>'parte', obj->>'nume_parte')"),
         ]
 
         for nume_filtru, json_fields in filtre_de_extras:
+            logger.info(f"Step 2: Extracting distinct values for '{nume_filtru}'...")
             query = text(f"""
                 SELECT DISTINCT NULLIF(TRIM({json_fields}), '')
                 FROM blocuri
-                WHERE NULLIF(TRIM({json_fields}), '') IS NOT NULL
-                ORDER BY 1;
+                WHERE NULLIF(TRIM({json_fields}), '') IS NOT NULL;
             """)
             valori = session.execute(query).scalars().all()
+            logger.info(f"Found {len(valori)} raw values for '{nume_filtru}'.")
 
-            for valoare in valori:
+            if nume_filtru == 'parte':
+                parti_unice = set()
+                for item in valori:
+                    parti_split = re.split(r'\s*[,/]\s*', item)
+                    for parte in parti_split:
+                        if parte:
+                            parti_unice.add(parte.strip())
+                valori_procesate = sorted(list(parti_unice))
+                logger.info(f"Processed into {len(valori_procesate)} unique, split values for 'parte'.")
+            else:
+                valori_procesate = sorted(valori)
+
+            for valoare in valori_procesate:
                 cache_entry = FiltreCache(tip=nume_filtru, valoare=valoare)
                 session.add(cache_entry)
 
+        logger.info("Step 3: Committing new simple filter data to the database.")
         session.commit()
-        logger.info("Successfully refreshed simple filters cache.")
+        logger.info("--- Simple Filters Cache Refresh Finished Successfully ---")
     except Exception as e:
         logger.error(f"Error refreshing simple filters cache: {e}", exc_info=True)
         session.rollback()
@@ -267,18 +286,15 @@ def refresh_and_reload(session: Session):
     """
     Rulează procesul COMPLET de actualizare.
     """
-    logger.info("Starting the full refresh and reload process...")
-    is_postgres = session.bind.dialect.name == "postgresql"
+    logger.info("--- Full Filter Refresh and Reload Process Started ---")
 
-    if is_postgres:
-        # For PostgreSQL, we can use the dedicated SQL function
-        session.execute(text("SELECT refresh_filtre_cache_simple();"))
-    else:
-        # For SQLite, run the Python equivalent
-        refresh_filtre_cache_simple(session)
+    logger.info("Executing Python function 'refresh_filtre_cache_simple' for all DB types.")
+    refresh_filtre_cache_simple(session)
 
-    logger.info("Simple filters refreshed.")
+    logger.info("Simple filters cache has been refreshed.")
+
+    logger.info("Proceeding to build and save the main menu data...")
     menu_data, materii_map, obiecte_map = load_and_build_menu_data(session)
-    logger.info("Menu data built.")
     save_menu_data_to_db(session, menu_data, materii_map, obiecte_map)
-    logger.info("Full refresh and reload process complete.")
+
+    logger.info("--- Full Filter Refresh and Reload Process Finished ---")

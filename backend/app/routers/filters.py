@@ -27,23 +27,37 @@ async def refresh_filters(session: Session = Depends(get_session)):
 
 @router.get("/menu")
 async def get_filters(session: Session = Depends(get_session)):
+    logger.info("--- Request received for GET /api/filters/menu ---")
+
+    logger.info("Step 1: Fetching main menu data from 'filtre_cache_menu'.")
     menu_row = session.get(FiltreCacheMenu, 1)
     if not menu_row:
+        logger.error("Menu data not found in 'filtre_cache_menu'. Raising 404.")
         raise HTTPException(404, "Menu not generated yet. Run POST /api/filters/refresh first.")
+    logger.info("Main menu data fetched successfully.")
 
-    # Preluare filtre simple din cache
-    tip_speta_query = select(FiltreCache.valoare).where(FiltreCache.tip == "tip_speta")
-    parte_query = select(FiltreCache.valoare).where(FiltreCache.tip == "parte")
+    logger.info("Step 2: Fetching simple filters from 'filtre_cache'.")
+    tip_speta_query = select(FiltreCache.valoare).where(FiltreCache.tip == "tip_speta").order_by(FiltreCache.valoare)
+    parte_query = select(FiltreCache.valoare).where(FiltreCache.tip == "parte").order_by(FiltreCache.valoare)
 
     tip_speta = session.exec(tip_speta_query).scalars().all()
     parte = session.exec(parte_query).scalars().all()
+    logger.info(f"Found {len(tip_speta)} 'tip_speta' values.")
+    logger.info(f"Found {len(parte)} 'parte' values.")
 
-    return {
+    response_data = {
         "menuData": menu_row.menu_data,
         "tipSpeta": tip_speta,
         "parte": parte,
         "last_updated": menu_row.last_updated
     }
+
+    logger.info("Successfully assembled filter data. Returning response.")
+    # Optional: Log the first few items of each list to avoid huge log entries
+    logger.debug(f"Returning tipSpeta (sample): {tip_speta[:5]}")
+    logger.debug(f"Returning parte (sample): {parte[:5]}")
+
+    return response_data
 
 
 @router.get("/equivalences/export")

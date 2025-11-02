@@ -48,12 +48,26 @@ app.add_middleware(
 
 @app.on_event("startup")
 def on_startup():
-    logger.info("Starting up and initializing database.")
+    logger.info("--- Backend Startup Sequence Initiated ---")
+
+    logger.info("Step 1: Initializing database...")
     init_db()
-    with next(get_session()) as session:
-        setup_filtre_cache(session)
-        load_menu_cache(session)
-    logger.info("Startup complete.")
+    logger.info("Step 1: Database initialization complete.")
+
+    try:
+        with next(get_session()) as session:
+            logger.info("Step 2: Setting up filtre cache...")
+            setup_filtre_cache(session)
+            logger.info("Step 2: Filtre cache setup complete.")
+
+            logger.info("Step 3: Loading menu data into memory...")
+            load_menu_cache(session)
+            logger.info("Step 3: Menu data loaded successfully.")
+
+    except Exception as e:
+        logger.error(f"An error occurred during startup sequence: {e}", exc_info=True)
+
+    logger.info("--- Backend Startup Sequence Finished ---")
 
 
 # API router
