@@ -244,8 +244,8 @@ def refresh_filtre_cache_simple(session: Session):
         session.execute(text("DELETE FROM filtre_cache"))
 
         filtre_de_extras = [
-            ("tip_speta", "COALESCE(obj->>'tip_speta', obj->>'tip', obj->>'categorie_speta')"),
-            ("parte", "COALESCE(obj->>'parte', obj->>'nume_parte')"),
+            ("tip_speta", "COALESCE(obj->>'tip_speta', obj->>'tip', obj->>'categorie_speta', obj->>'tip_cauza', obj->>'categorie')"),
+            ("parte", "COALESCE(obj->>'parte', obj->>'nume_parte', obj->>'parti', obj->>'reclamant')"),
         ]
 
         for nume_filtru, json_fields in filtre_de_extras:

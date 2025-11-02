@@ -1,9 +1,10 @@
 import logging
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
-from sqlmodel import Session, select
-from ..db import get_session, init_db
+from sqlmodel import Session
+from ..db import get_session
 from ..logic.filters import refresh_and_reload
-from ..models import Blocuri, FiltreCache, FiltreEchivalente, FiltreCacheMenu
+from ..models import FiltreEchivalente
+from ..cache import get_cached_filters, load_all_filters_into_memory
 import csv
 import codecs
 from fastapi.responses import StreamingResponse
@@ -15,47 +16,49 @@ logger = logging.getLogger(__name__)
 
 @router.post("/refresh")
 async def refresh_filters(session: Session = Depends(get_session)):
+    """
+    Forces a full refresh of the database cache tables and then reloads
+    the in-memory cache from that data.
+    """
     logger.info("Received request to refresh filters.")
     try:
+        # 1. Refresh the underlying database tables
         refresh_and_reload(session)
-        logger.info("Filter refresh process completed successfully.")
-        return {"message": "Filters refreshed successfully"}
+        logger.info("Database filter tables have been refreshed.")
+
+        # 2. Reload the in-memory cache from the newly populated DB tables
+        load_all_filters_into_memory(session)
+        logger.info("In-memory filter cache has been reloaded.")
+
+        return {"message": "Filters refreshed and reloaded successfully"}
     except Exception as e:
-        logger.error(f"Error refreshing filters: {e}", exc_info=True)
+        logger.error(f"Error during filter refresh and reload: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/menu")
-async def get_filters(session: Session = Depends(get_session)):
+async def get_filters():
+    """
+    Returns the filter data from the pre-populated in-memory cache.
+    This is fast and consistent.
+    """
     logger.info("--- Request received for GET /api/filters/menu ---")
 
-    logger.info("Step 1: Fetching main menu data from 'filtre_cache_menu'.")
-    menu_row = session.get(FiltreCacheMenu, 1)
-    if not menu_row:
-        logger.error("Menu data not found in 'filtre_cache_menu'. Raising 404.")
-        raise HTTPException(404, "Menu not generated yet. Run POST /api/filters/refresh first.")
-    logger.info("Main menu data fetched successfully.")
+    cached_data = get_cached_filters()
 
-    logger.info("Step 2: Fetching simple filters from 'filtre_cache'.")
-    tip_speta_query = select(FiltreCache.valoare).where(FiltreCache.tip == "tip_speta").order_by(FiltreCache.valoare)
-    parte_query = select(FiltreCache.valoare).where(FiltreCache.tip == "parte").order_by(FiltreCache.valoare)
+    # The cache should always be loaded by the startup event.
+    # If it's not, it indicates a server startup problem.
+    if not cached_data.get("is_loaded"):
+        logger.error("CRITICAL: Filter cache is not loaded. Server startup may have failed.")
+        raise HTTPException(
+            status_code=503,
+            detail="Filter data is not available at the moment. Please try again later."
+        )
 
-    tip_speta = session.exec(tip_speta_query).scalars().all()
-    parte = session.exec(parte_query).scalars().all()
-    logger.info(f"Found {len(tip_speta)} 'tip_speta' values.")
-    logger.info(f"Found {len(parte)} 'parte' values.")
+    logger.info(f"Returning {len(cached_data['tipSpeta'])} 'tipSpeta' and {len(cached_data['parte'])} 'parte' items from cache.")
 
-    response_data = {
-        "menuData": menu_row.menu_data,
-        "tipSpeta": tip_speta,
-        "parte": parte,
-        "last_updated": menu_row.last_updated
-    }
-
-    logger.info("Successfully assembled filter data. Returning response.")
-    # Optional: Log the first few items of each list to avoid huge log entries
-    logger.debug(f"Returning tipSpeta (sample): {tip_speta[:5]}")
-    logger.debug(f"Returning parte (sample): {parte[:5]}")
+    # Don't return the 'is_loaded' flag to the client
+    response_data = {k: v for k, v in cached_data.items() if k != 'is_loaded'}
 
     return response_data
 

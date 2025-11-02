@@ -9,7 +9,7 @@ interface CaseDetailModalProps {
 }
 
 const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) => {
-  if (!result) {
+  if (!result || !result.data) {
     return null;
   }
 

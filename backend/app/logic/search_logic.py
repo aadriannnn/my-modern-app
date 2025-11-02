@@ -7,10 +7,9 @@ from ..config import get_settings
 from ..models import FiltreCacheMenu
 from .filters import refresh_and_reload
 from .normalization import normalize_text
+from ..cache import get_cached_filters
 
 settings = get_settings()
-
-menu_cache = {"menu_data": None, "materii_map": None, "obiecte_map": None}
 
 def _overlap(a, b):
     if not a or not b: return 0.0
@@ -46,32 +45,6 @@ def vector_to_literal(vec: list[float]) -> str:
 
 # ===================== LOGIC FUNCTIONS =====================
 
-def load_menu_cache(session: Session):
-    print("Loading menu data into cache...")
-    try:
-        menu = session.get(FiltreCacheMenu, 1)
-        if menu and menu.menu_data:
-            menu_cache["menu_data"] = menu.menu_data
-            menu_cache["materii_map"] = menu.materii_map
-            menu_cache["obiecte_map"] = menu.obiecte_map
-            print("Menu data successfully loaded into cache from DB.")
-        else:
-            print("No pre-calculated menu found in DB. Forcing a refresh.")
-            refresh_and_reload(session)
-            # After refresh, try loading again
-            menu = session.get(FiltreCacheMenu, 1)
-            if menu:
-                menu_cache["menu_data"] = menu.menu_data
-                menu_cache["materii_map"] = menu.materii_map
-                menu_cache["obiecte_map"] = menu.obiecte_map
-                print("Menu data successfully loaded into cache after refresh.")
-    except Exception as e:
-        print(f"Failed to load menu data into cache: {e}")
-
-
-def get_cached_menu_data():
-    return menu_cache["menu_data"], menu_cache["materii_map"], menu_cache["obiecte_map"]
-
 def search_similar(user_text: str, embedding: list[float], filters: dict):
     emb = vector_to_literal(embedding)
     materii_canon = filters.get("materie") or []
@@ -79,7 +52,9 @@ def search_similar(user_text: str, embedding: list[float], filters: dict):
     tipuri_orig = filters.get("tip_speta") or []
     parti_selectate = filters.get("parte") or []
 
-    _, materii_map, obiecte_map = get_cached_menu_data()
+    cached_filters = get_cached_filters()
+    materii_map = cached_filters.get("materii_map", {})
+    obiecte_map = cached_filters.get("obiecte_map", {})
 
     materii_orig = []
     if materii_map:
@@ -188,9 +163,4 @@ def search_similar(user_text: str, embedding: list[float], filters: dict):
             r["score"] = (1 - BETA) * r["score"] + BETA * text_boost
 
     results_processed.sort(key=lambda x: x["score"], reverse=True)
-
-    print(f"DEBUG: Returning {len(results_processed)} search results.")
-    if results_processed:
-        print(f"DEBUG: Sample result: {results_processed[0]}")
-
     return results_processed
