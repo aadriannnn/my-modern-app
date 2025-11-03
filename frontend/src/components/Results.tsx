@@ -6,10 +6,6 @@ interface Result {
   denumire: string;
   tip_speta: string;
   materie: string;
-  data_solutiei: string;
-  tip_instanta: string;
-  score: number;
-  match_count: number;
   situatia_de_fapt_full: string;
   data: {
     [key: string]: any;
@@ -24,7 +20,7 @@ interface ResultsProps {
   results: Result[];
 }
 
-type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'rezumat_generat_ai';
+type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare';
 
 const Results: React.FC<ResultsProps> = ({ results }) => {
   const [selectedResult, setSelectedResult] = useState<Result | null>(null);
@@ -35,6 +31,7 @@ const Results: React.FC<ResultsProps> = ({ results }) => {
   const handleRowClick = (result: Result) => {
     console.log('[Results] Row clicked. Preparing to open modal.');
     console.log('[Results] Data for selected result (ID:', result.id, '):', result);
+    console.log('Full result object:', result);
 
     if (!result.data) {
       console.warn('[Results] The selected result is missing the detailed `data` object.');
@@ -54,7 +51,6 @@ const Results: React.FC<ResultsProps> = ({ results }) => {
     { key: 'situatia_de_fapt_full', label: 'Situație de fapt' },
     { key: 'argumente_instanta', label: 'Argumente instanță' },
     { key: 'text_individualizare', label: 'Text individualizare' },
-    { key: 'rezumat_generat_ai', label: 'Rezumat generat de AI (Cod)' },
 ];
 
 const getDisplayContent = (result: Result, view: ViewType) => {
@@ -64,7 +60,7 @@ const getDisplayContent = (result: Result, view: ViewType) => {
   } else {
     content = result.data[view] || '';
   }
-  return content.length > 250 ? `${content.substring(0, 250)}...` : content;
+  return content.length > 1000 ? `${content.substring(0, 250)}...` : content;
 };
 
 
@@ -100,10 +96,6 @@ const getDisplayContent = (result: Result, view: ViewType) => {
                   <th className="py-2 px-4 text-left font-semibold text-gray-600">{viewOptions.find(opt => opt.key === activeView)?.label}</th>
                   <th className="py-2 px-4 text-left font-semibold text-gray-600">Tip speță</th>
                   <th className="py-2 px-4 text-left font-semibold text-gray-600">Materie</th>
-                  <th className="py-2 px-4 text-left font-semibold text-gray-600">Data Soluției</th>
-                  <th className="py-2 px-4 text-left font-semibold text-gray-60.0">Instanța</th>
-                  <th className="py-2 px-4 text-right font-semibold text-gray-600">Scor Hibrid</th>
-                  <th className="py-2 px-4 text-center font-semibold text-gray-600">Match-uri</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -116,10 +108,6 @@ const getDisplayContent = (result: Result, view: ViewType) => {
                     <td className="px-4 py-2">{getDisplayContent(result, activeView)}</td>
                     <td className="px-4 py-2">{result.data.tip_speta || result.tip_speta}</td>
                     <td className="px-4 py-2">{result.data.materie || result.materie}</td>
-                    <td className="px-4 py-2">{result.data.data_solutiei || result.data_solutiei}</td>
-                    <td className="px-4 py-2">{result.data.tip_instanta || result.tip_instanta}</td>
-                    <td className="px-4 py-2 text-right">{result.score.toFixed(4)}</td>
-                    <td className="px-4 py-2 text-center">{result.match_count}</td>
                   </tr>
                 ))}
               </tbody>
