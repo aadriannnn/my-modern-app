@@ -3,6 +3,7 @@ import IntroductionStep from './steps/IntroductionStep';
 import CaseTypeStep from './steps/CaseTypeStep';
 import SubjectStep from './steps/SubjectStep';
 import ResultsStep from './steps/ResultsStep';
+import ContribuieModal from './ContribuieModal';
 
 interface MultiStepFormProps {
   filters: {
@@ -35,6 +36,7 @@ const MultiStepForm: React.FC<MultiStepFormProps> = ({
   const [selectedTipSpeta, setSelectedTipSpeta] = useState<string[]>([]);
   const [selectedParte, setSelectedParte] = useState<string[]>([]);
   const [selectedMenuKeys, setSelectedMenuKeys] = useState<React.Key[]>([]);
+  const [isContribuieModalOpen, setIsContribuieModalOpen] = useState(false);
 
   const nextStep = () => setCurrentStep(currentStep + 1);
   const prevStep = () => setCurrentStep(currentStep - 1);
@@ -104,6 +106,12 @@ const MultiStepForm: React.FC<MultiStepFormProps> = ({
             </button>
           )}
         </div>
+        <div className="fixed bottom-4 right-4">
+            <button onClick={() => setIsContribuieModalOpen(true)} className="bg-white p-2 rounded-full shadow-lg hover:shadow-xl transition-shadow">
+                <img src="/assets/donez.png" alt="Contribuie cu o speță" className="h-12 w-auto" />
+            </button>
+        </div>
+        {isContribuieModalOpen && <ContribuieModal onClose={() => setIsContribuieModalOpen(false)} />}
       </div>
     </div>
   );

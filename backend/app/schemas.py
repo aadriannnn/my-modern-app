@@ -23,3 +23,7 @@ class Equivalent(BaseModel):
     type: str
     term_canonic_original: str
     term_preferat: str
+
+class ContributieCreate(BaseModel):
+    denumire: str
+    sursa: str

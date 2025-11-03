@@ -49,3 +49,11 @@ class Case(SQLModel, table=True):
     summary: str = ""
     materie: str = ""
     obiect: str = ""
+
+
+class Contributii(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    denumire: str
+    sursa: str
+    file_path: str
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
