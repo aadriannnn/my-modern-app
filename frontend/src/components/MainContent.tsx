@@ -8,7 +8,7 @@ interface MainContentProps {
   onViewCase: (caseData: any) => void;
 }
 
-type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'solutia' | 'text_individualizare';
+type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare';
 
 const MainContent: React.FC<MainContentProps> = ({ results, status, isLoading, onViewCase }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
@@ -16,7 +16,6 @@ const MainContent: React.FC<MainContentProps> = ({ results, status, isLoading, o
   const viewButtons: { key: ViewType; label: string }[] = [
     { key: 'situatia_de_fapt_full', label: 'Situație de fapt' },
     { key: 'argumente_instanta', label: 'Argumente instanță' },
-    { key: 'solutia', label: 'Soluție' },
     { key: 'text_individualizare', label: 'Text individualizare' },
   ];
 
