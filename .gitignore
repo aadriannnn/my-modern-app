@@ -4,8 +4,10 @@ frontend/.vite/
 frontend/dist/
 
 # Python / FastAPI
+.venv/
 backend/.venv/
 backend/__pycache__/
+*.pyc
 backend/*.db
 backend/.pytest_cache/
 

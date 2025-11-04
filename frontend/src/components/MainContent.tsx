@@ -1,0 +1,69 @@
+import React, { useState } from 'react';
+import ResultItem from './ResultItem';
+
+interface MainContentProps {
+  results: any[];
+  status: string;
+  isLoading: boolean;
+  onViewCase: (caseData: any) => void;
+}
+
+type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'solutia' | 'text_individualizare';
+
+const MainContent: React.FC<MainContentProps> = ({ results, status, isLoading, onViewCase }) => {
+  const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
+
+  const viewButtons: { key: ViewType; label: string }[] = [
+    { key: 'situatia_de_fapt_full', label: 'Situație de fapt' },
+    { key: 'argumente_instanta', label: 'Argumente instanță' },
+    { key: 'solutia', label: 'Soluție' },
+    { key: 'text_individualizare', label: 'Text individualizare' },
+  ];
+
+  const renderContent = () => {
+    if (isLoading) {
+      return <div className="text-center py-10"><p className="text-gray-500">{status}...</p></div>;
+    }
+
+    if (results.length === 0) {
+      return <div className="text-center py-10"><p className="text-gray-500">{status}</p></div>;
+    }
+
+    return (
+      <div className="space-y-4">
+        {results.map((result) => (
+          <ResultItem
+            key={result.id}
+            result={result}
+            activeView={activeView}
+            onViewCase={() => onViewCase(result)}
+          />
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <main className="flex-1 p-6 bg-white overflow-y-auto">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-xl font-bold text-green-700">Rezultatele căutării</h1>
+        <div className="bg-gray-100 p-1 rounded-lg">
+          {viewButtons.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setActiveView(key)}
+              className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                activeView === key ? 'bg-white shadow' : 'text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {renderContent()}
+    </main>
+  );
+};
+
+export default MainContent;

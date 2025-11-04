@@ -1,28 +1,30 @@
-from fastapi import APIRouter, HTTPException
-from ..schemas import SearchQuery
-from ..logic.search_logic import embed_text, search_similar
-from typing import List
-from ..models import Case
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session
+from ..db import get_session
+from ..schemas import SearchRequest
+from ..logic.search_logic import search_cases
+import logging
 
-router = APIRouter()
+router = APIRouter(prefix="/search", tags=["search"])
+logger = logging.getLogger(__name__)
 
-@router.post("/search/")
-def search(query: SearchQuery):
+@router.post("/")
+async def search(
+    request: SearchRequest,
+    session: Session = Depends(get_session)
+):
+    """
+    Performs a consolidated search for legal cases based on a text query
+    and multiple optional filters.
+    """
+    logger.info(f"Received search request with situation: '{request.situatie[:50]}...' and filters: {request.dict(exclude={'situatie'})}")
     try:
-        query_parts = [query.text]
-        if query.filters.get("materie"):
-            query_parts.append(f"Materie: {', '.join(query.filters['materie'])}")
-        if query.filters.get("obiect"):
-            query_parts.append(f"Obiect: {', '.join(query.filters['obiect'])}")
-        if query.filters.get("tip_speta"):
-            query_parts.append(f"Tip speță: {', '.join(query.filters['tip_speta'])}")
-        if query.filters.get("parte"):
-            query_parts.append(f"Părți: {', '.join(query.filters['parte'])}")
-
-        query_text = " | ".join(query_parts)
-        embedding = embed_text(query_text[:8000])
-        results = search_similar(query.text, embedding, query.filters)
+        results = search_cases(session, request)
+        logger.info(f"Search completed successfully, returning {len(results)} results.")
         return results
     except Exception as e:
-        import traceback
-        return {"error": str(e), "traceback": traceback.format_exc()}
+        logger.error(f"An unexpected error occurred during search: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred during the search process."
+        )

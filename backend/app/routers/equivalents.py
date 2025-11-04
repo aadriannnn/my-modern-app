@@ -2,50 +2,42 @@ import csv
 from io import StringIO
 from fastapi import APIRouter, HTTPException, UploadFile, File, Depends
 from fastapi.responses import Response
-import psycopg2
-import psycopg2.extras
-from sqlmodel import Session
+from sqlmodel import Session, text
 from ..db import get_session
-from ..logic.search_logic import get_db_connection
 from ..logic.normalization import find_canonical_key, extract_base_obiect
-from ..logic.filters import refresh_and_reload, CANONICAL_MAP_MATERII, CANONICAL_MAP_OBIECTE
-router = APIRouter()
+from ..logic.filters import CANONICAL_MAP_MATERII, CANONICAL_MAP_OBIECTE
+from ..models import FiltreEchivalente
 
-@router.post("/filters/refresh")
-def refresh_filters(session: Session = Depends(get_session)):
-    try:
-        refresh_and_reload(session)
-        return {"message": "Cache-ul filtrelor a fost actualizat cu succes."}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"A apărut o eroare la actualizarea cache-ului: {e}")
+router = APIRouter(prefix="/equivalents", tags=["equivalents"])
 
-@router.get("/equivalents/export", response_class=Response)
-def export_equivalents():
+@router.get("/export", response_class=Response)
+def export_equivalents(session: Session = Depends(get_session)):
     try:
-        sql = "SELECT DISTINCT NULLIF(TRIM(COALESCE(b.obj->>'materie', b.obj->>'materia', b.obj->>'materie_principala')), '') as materie_orig, NULLIF(TRIM(b.obj->>'obiect'), '') as obiect_orig FROM blocuri b"
+        # Step 1: Extract unique raw materie and obiect terms from the database
+        query_terms = text("SELECT DISTINCT obj->>'materie' as materie_orig, obj->>'obiect' as obiect_orig FROM blocuri")
+        rows = session.execute(query_terms).mappings().all()
+
         map_materii_orig = {}
         map_obiecte_orig = {}
 
-        with get_db_connection() as conn, conn.cursor() as cur:
-            cur.execute(sql)
-            rows = cur.fetchall()
-
-        for materie_orig, obiect_orig in rows:
-            if materie_orig not in map_materii_orig:
+        for row in rows:
+            materie_orig, obiect_orig = row['materie_orig'], row['obiect_orig']
+            if materie_orig and materie_orig not in map_materii_orig:
                 map_materii_orig[materie_orig] = find_canonical_key(materie_orig, CANONICAL_MAP_MATERII)
-            if obiect_orig not in map_obiecte_orig:
+            if obiect_orig and obiect_orig not in map_obiecte_orig:
                 key = find_canonical_key(obiect_orig, CANONICAL_MAP_OBIECTE)
                 map_obiecte_orig[obiect_orig] = key if key else extract_base_obiect(obiect_orig)
 
         materii_canonice = set(m for m in map_materii_orig.values() if m)
         obiecte_canonice = set(o for o in map_obiecte_orig.values() if o)
 
+        # Step 2: Get existing preferences from the equivalents table
         existing_prefs = {}
-        with get_db_connection() as conn, conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            cur.execute("SELECT type, term_canonic_original, term_preferat FROM filtre_echivalente")
-            for row in cur:
-                existing_prefs[(row['type'], row['term_canonic_original'])] = row['term_preferat']
+        eq_rows = session.query(FiltreEchivalente).all()
+        for row in eq_rows:
+            existing_prefs[(row.type, row.term_canonic_original)] = row.term_preferat
 
+        # Step 3: Generate the CSV content
         output = StringIO()
         writer = csv.writer(output)
         writer.writerow(['type', 'term_canonic_original', 'term_preferat'])
@@ -64,8 +56,8 @@ def export_equivalents():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"A apărut o eroare la export: {e}")
 
-@router.post("/equivalents/import")
-async def import_equivalents(file: UploadFile = File(...)):
+@router.post("/import")
+async def import_equivalents(session: Session = Depends(get_session), file: UploadFile = File(...)):
     if file.content_type != 'text/csv':
         raise HTTPException(status_code=400, detail="Tip de fișier invalid. Vă rugăm să încărcați un fișier CSV.")
 
@@ -83,24 +75,22 @@ async def import_equivalents(file: UploadFile = File(...)):
             if not row or len(row) < 3: continue
             type_val, term_orig, term_pref = row[0].strip(), row[1].strip(), row[2].strip()
             if not type_val or not term_orig: continue
-            to_insert.append((type_val, term_orig, term_pref or term_orig))
+            to_insert.append(FiltreEchivalente(type=type_val, term_canonic_original=term_orig, term_preferat=term_pref or term_orig))
 
         if not to_insert:
             raise HTTPException(status_code=400, detail="Fișierul CSV este gol sau invalid.")
 
-        with get_db_connection() as conn:
-            with conn.cursor() as cur:
-                cur.execute("DELETE FROM filtre_echivalente")
-                sql_insert = "INSERT INTO filtre_echivalente (type, term_canonic_original, term_preferat) VALUES (%s, %s, %s)"
-                psycopg2.extras.execute_batch(cur, sql_insert, to_insert)
-            conn.commit()
+        # Delete old entries and add new ones
+        session.execute(text("DELETE FROM filtre_echivalente"))
+        session.add_all(to_insert)
+        session.commit()
 
-        return {"message": f"S-au importat {len(to_insert)} echivalențe."}
+        return {"message": f"S-au importat {len(to_insert)} echivalențe. Vă rugăm să reîncărcați filtrele."}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"A apărut o eroare la import: {e}")
 
-@router.get("/equivalents/help", response_model=dict)
+@router.get("/help", response_model=dict)
 def get_equivalents_help():
     help_text = """
     1. Apăsați 'Export Echivalențe' pentru a genera un fișier .csv.
@@ -124,6 +114,6 @@ def get_equivalents_help():
     -------------------------
     5. Salvați fișierul .csv.
     6. Apăsați 'Import Echivalențe' și selectați fișierul salvat.
-    7. **CRITIC: Apăsați 'Actualizează filtre'** pentru a re-genera meniul cu noile denumiri.
+    7. **CRITIC: Apăsați 'Actualizează filtre'** (din meniul principal) pentru a re-genera meniul cu noile denumiri.
     """
     return {"title": "Cum se modifică Echivalențele", "message": help_text}

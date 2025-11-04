@@ -1,169 +1,187 @@
-import psycopg2
-import psycopg2.extras
+import logging
 import requests
-from sqlmodel import Session
+from sqlmodel import Session, text
+from typing import List, Dict, Any
 
 from ..config import get_settings
-from ..models import FiltreCacheMenu
-from .filters import refresh_and_reload
-from .normalization import normalize_text
+from ..schemas import SearchRequest
 from ..cache import get_cached_filters
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
-def _overlap(a, b):
-    if not a or not b: return 0.0
-    A, B = set(normalize_text(a).split()), set(normalize_text(b).split())
-    if not A: return 0.0
-    return len(A & B) / len(A)
+def embed_text(text_to_embed: str) -> List[float]:
+    """
+    Embeds the given text using the Ollama service.
+    Returns a zero-filled vector if embedding fails for any reason.
+    """
+    if not text_to_embed or not text_to_embed.strip():
+        logger.warning("Embed text called with empty string. Returning zero vector.")
+        return [0.0] * settings.VECTOR_DIM
 
-def get_db_connection():
-    return psycopg2.connect(settings.DATABASE_URL)
-
-def embed_text(text: str) -> list[float]:
     try:
         r = requests.post(
             f"{settings.OLLAMA_URL}/api/embeddings",
-            json={"model": settings.MODEL_NAME, "prompt": text},
-            timeout=60
+            json={"model": settings.MODEL_NAME, "prompt": text_to_embed},
+            timeout=15  # seconds
         )
         r.raise_for_status()
-        emb = r.json().get("embedding")
-        if not emb:
-            raise RuntimeError("Embedding gol returnat de Ollama.")
-        if len(emb) != settings.VECTOR_DIM:
-            raise RuntimeError(
-                f"Eroare dimensiune embedding! Așteptam {settings.VECTOR_DIM}, dar modelul '{settings.MODEL_NAME}' a returnat {len(emb)}.\n"
-                f"Verificați dacă modelul este corect configurat în Ollama."
+        embedding = r.json().get("embedding")
+
+        if not embedding:
+            raise ValueError("Ollama returned an empty embedding.")
+        if len(embedding) != settings.VECTOR_DIM:
+            raise ValueError(
+                f"Embedding dimension mismatch. Expected {settings.VECTOR_DIM}, "
+                f"got {len(embedding)} from model '{settings.MODEL_NAME}'."
             )
-        return emb
-    except requests.exceptions.RequestException as e:
-        raise RuntimeError(f"Eroare la contactarea Ollama: {e}")
+        return embedding
+    except (requests.RequestException, ValueError) as e:
+        logger.warning(f"Failed to get embedding, returning zero vector. Error: {e}")
+        return [0.0] * settings.VECTOR_DIM
 
-def vector_to_literal(vec: list[float]) -> str:
-    return "[" + ",".join(map(str, vec)) + "]"
-
-# ===================== LOGIC FUNCTIONS =====================
-
-def search_similar(user_text: str, embedding: list[float], filters: dict):
-    emb = vector_to_literal(embedding)
-    materii_canon = filters.get("materie") or []
-    obiecte_canon = filters.get("obiect") or []
-    tipuri_orig = filters.get("tip_speta") or []
-    parti_selectate = filters.get("parte") or []
+def _build_common_where_clause(req: SearchRequest) -> (str, Dict[str, Any]):
+    """Builds the filter part of the WHERE clause, common to both dialects."""
+    where_clauses = []
+    params = {}
 
     cached_filters = get_cached_filters()
     materii_map = cached_filters.get("materii_map", {})
     obiecte_map = cached_filters.get("obiecte_map", {})
 
-    materii_orig = []
-    if materii_map:
-        for m_canon in materii_canon:
-            materii_orig.extend(materii_map.get(m_canon, [m_canon]))
-    else:
-        materii_orig = materii_canon
+    def get_original_terms(canonical_terms: List[str], term_map: Dict[str, List[str]]) -> List[str]:
+        original_terms = set(canonical_terms)
+        for term in canonical_terms:
+            original_terms.update(term_map.get(term, []))
+        return list(original_terms)
 
-    obiecte_orig = []
-    if obiecte_map:
-        for o_canon in obiecte_canon:
-            obiecte_orig.extend(obiecte_map.get(o_canon, [o_canon]))
-    else:
-        obiecte_orig = obiecte_canon
+    if req.materie:
+        materii_to_check = get_original_terms(req.materie, materii_map)
+        conditions = []
+        for i, term in enumerate(materii_to_check):
+            param_name = f"materie_{i}"
+            conditions.append(f"b.obj->>'materie' ILIKE :{param_name}")
+            params[param_name] = f"%{term}%"
+        where_clauses.append(f"({' OR '.join(conditions)})")
 
-    where_clauses = []
-    params = []
+    if req.obiect:
+        obiecte_to_check = get_original_terms(req.obiect, obiecte_map)
+        conditions = []
+        for i, term in enumerate(obiecte_to_check):
+            param_name = f"obiect_{i}"
+            conditions.append(f"b.obj->>'obiect' ILIKE :{param_name}")
+            params[param_name] = f"%{term}%"
+        where_clauses.append(f"({' OR '.join(conditions)})")
 
-    # Helper function to build ILIKE conditions
-    def build_ilike(field, values):
-        conditions = " OR ".join([f"NULLIF(TRIM(b.obj->>'{field}'),'') ILIKE %s" for _ in values])
-        return f"({conditions})"
+    if req.tip_speta:
+        conditions = []
+        for i, term in enumerate(req.tip_speta):
+            param_name = f"tip_speta_{i}"
+            conditions.append(f"b.obj->>'tip_speta' ILIKE :{param_name}")
+            params[param_name] = f"%{term}%"
+        where_clauses.append(f"({' OR '.join(conditions)})")
 
-    if materii_orig:
-        # Special handling for materie to check canonical AND original values
-        materii_to_check = set(materii_canon) | set(materii_orig)
-        like_conditions = " OR ".join(["NULLIF(TRIM(b.obj->>'materie'),'') ILIKE %s" for _ in materii_to_check])
-        where_clauses.append(f"({like_conditions})")
-        params.extend([f"%{m}%" for m in materii_to_check])
+    if req.parte:
+        conditions = []
+        for i, term in enumerate(req.parte):
+            param_name = f"parte_{i}"
+            conditions.append(f"b.obj->>'parte' ILIKE :{param_name}")
+            params[param_name] = f"%{term}%"
+        where_clauses.append(f"({' OR '.join(conditions)})")
 
-    if obiecte_orig:
-         # Special handling for obiect to check canonical AND original values
-        obiecte_to_check = set(obiecte_canon) | set(obiecte_orig)
-        like_conditions = " OR ".join(["NULLIF(TRIM(b.obj->>'obiect'),'') ILIKE %s" for _ in obiecte_to_check])
-        where_clauses.append(f"({like_conditions})")
-        params.extend([f"%{o}%" for o in obiecte_to_check])
+    return " AND ".join(where_clauses), params
 
-    if tipuri_orig:
-        where_clauses.append(build_ilike('tip_speta', tipuri_orig))
-        params.extend([f"%{t}%" for t in tipuri_orig])
-
-    if parti_selectate:
-        where_clauses.append(build_ilike('parte', parti_selectate))
-        params.extend([f"%{p}%" for p in parti_selectate])
-
-    where_sql = ""
-    if where_clauses:
-        where_sql = "WHERE " + " AND ".join(where_clauses)
-
-    sql = f"""
-    SELECT
-        v.speta_id,
-        b.obj,
-        (v.embedding <=> %s::vector) AS semantic_distance
-    FROM vectori v
-    JOIN blocuri b ON b.id = v.speta_id
-    {where_sql}
-    ORDER BY semantic_distance ASC
-    LIMIT %s;
-    """
-
-    params.insert(0, emb)
-    params.append(settings.TOP_K)
-
-    with get_db_connection() as conn:
-        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            cur.execute(sql, tuple(params))
-            rows = cur.fetchall()
-
-    results_processed = []
+def _process_results(rows: List[Dict], distance_metric: str = "semantic_distance") -> List[Dict]:
+    """Processes raw DB rows into the final result format."""
+    results = []
     for row in rows:
-        semantic_sim = 1.0 - (float(row['semantic_distance']) if row['semantic_distance'] is not None else 1.0)
-        obj = row['obj']
-        tip_speta = obj.get('tip_speta', "—")
-        materie = obj.get('materie', "—")
+        obj = row.get('obj', {})
+        score = 0.0
+        if distance_metric in row and row[distance_metric] is not None:
+            score = 1.0 - float(row[distance_metric])
 
-        # Updated logic to find the best text content
-        situatia_de_fapt_text = obj.get('text_situatia_de_fapt') or obj.get('situatia_de_fapt') or ""
-        solutia_text = obj.get('solutia') or ""
-        text_content_for_den = situatia_de_fapt_text if situatia_de_fapt_text else solutia_text
-
-        denumire_orig = obj.get('denumire')
-
-        den_finala = (text_content_for_den.strip().replace("\n", " ").replace("\r", " ")
-                      if text_content_for_den else
-                      obj.get("titlu") or denumire_orig or f"{tip_speta} - {materie} (ID {row['speta_id']})")
-
-        results_processed.append({
-            "id": row['speta_id'],
-            "denumire": den_finala,
-            "situatia_de_fapt_full": situatia_de_fapt_text,
+        results.append({
+            "id": row['id'],
+            "denumire": obj.get("denumire", f"Caz #{row['id']}"),
+            "situatia_de_fapt_full": obj.get('text_situatia_de_fapt') or obj.get('situatia_de_fapt') or "",
             "argumente_instanta": obj.get('argumente_instanta') or "",
             "text_individualizare": obj.get('text_individualizare') or "",
-            "rezumat_generat_ai": obj.get('rezumat_generat_ai') or "",
-            "tip_speta": tip_speta,
-            "materie": materie,
-            "score": semantic_sim,
-            "match_count": 0,
-            "data": obj,
-            "tip_instanta": obj.get('tip_instanta') or "—",
-            "data_solutiei": obj.get('data_solutiei') or "—",
-            "numar_dosar": obj.get('numar_dosar') or "—"
+            "solutia": obj.get("solutia", ""),
+            "tip_speta": obj.get('tip_speta', "—"),
+            "materie": obj.get('materie', "—"),
+            "score": score,
+            "data": obj
         })
+    return results
 
-    BETA = 0.15
-    if user_text:
-        for r in results_processed:
-            text_boost = _overlap(user_text, r["situatia_de_fapt_full"])
-            r["score"] = (1 - BETA) * r["score"] + BETA * text_boost
+def _search_postgres(session: Session, req: SearchRequest, embedding: List[float]) -> List[Dict]:
+    """Performs semantic search on PostgreSQL using pgvector."""
+    logger.info("Executing PostgreSQL vector search")
+    filter_clause, params = _build_common_where_clause(req)
 
-    results_processed.sort(key=lambda x: x["score"], reverse=True)
-    return results_processed
+    params["embedding"] = str(embedding)
+    params["top_k"] = settings.TOP_K
+
+    where_sql = f"WHERE {filter_clause}" if filter_clause else ""
+
+    query = text(f"""
+        SELECT
+            b.id,
+            b.obj,
+            (v.embedding <=> :embedding) AS semantic_distance
+        FROM blocuri b
+        JOIN vectori v ON b.id = v.speta_id
+        {where_sql}
+        ORDER BY semantic_distance ASC
+        LIMIT :top_k;
+    """)
+
+    result = session.execute(query, params)
+    return _process_results(result.mappings().all())
+
+def _search_sqlite(session: Session, req: SearchRequest) -> List[Dict]:
+    """Performs a simple fallback search on SQLite using LIKE."""
+    logger.info("Executing SQLite fallback search")
+    filter_clause, params = _build_common_where_clause(req)
+
+    # Add text search for 'situatie'
+    situatie_clause = ""
+    if req.situatie and req.situatie.strip():
+        # Using json_extract for text search in SQLite
+        situatie_clause = """
+        (json_extract(b.obj, '$.text_situatia_de_fapt') LIKE :situatie OR
+         json_extract(b.obj, '$.situatia_de_fapt') LIKE :situatie)
+        """
+        params["situatie"] = f"%{req.situatie}%"
+
+    # Combine all clauses
+    all_clauses = [c for c in [filter_clause, situatie_clause] if c]
+    where_sql = f"WHERE {' AND '.join(all_clauses)}" if all_clauses else ""
+
+    params["top_k"] = settings.TOP_K
+
+    # In SQLite, ILIKE is case-insensitive by default for ASCII
+    # We replace it for compatibility, though the behavior is the same.
+    query_str = f"""
+        SELECT id, obj
+        FROM blocuri b
+        {where_sql}
+        LIMIT :top_k;
+    """.replace("ILIKE", "LIKE")
+
+    result = session.execute(text(query_str), params)
+    # No semantic distance in this case
+    return _process_results(result.mappings().all(), distance_metric=None)
+
+def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
+    """
+    Main search function that dispatches to the correct implementation
+    based on the database dialect.
+    """
+    embedding = embed_text(search_request.situatie)
+    dialect = session.bind.dialect.name
+
+    if dialect == 'postgresql':
+        return _search_postgres(session, search_request, embedding)
+    else:
+        return _search_sqlite(session, search_request)

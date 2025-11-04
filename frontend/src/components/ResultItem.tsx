@@ -1,0 +1,78 @@
+import React from 'react';
+import eyeIcon from '@/assets/icons/eye.png';
+import printIcon from '@/assets/icons/print.png';
+import justiceIcon from '@/assets/icons/justice.png';
+import calendarIcon from '@/assets/icons/calendar.png';
+import addToDossierIcon from '@/assets/icons/addToDossier.png';
+
+interface ResultItemProps {
+  result: any;
+  activeView: 'situatia_de_fapt_full' | 'argumente_instanta' | 'solutia' | 'text_individualizare';
+  onViewCase: () => void;
+}
+
+const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase }) => {
+  const content = result[activeView] || 'Acest conținut nu este disponibil.';
+  const title = result.denumire || `Caz #${result.id}`;
+
+  const highlightText = (text: string, highlight: string) => {
+    if (!highlight) return text;
+    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === highlight.toLowerCase() ? (
+            <span key={i} className="bg-yellow-200">
+              {part}
+            </span>
+          ) : (
+            part
+          )
+        )}
+      </>
+    );
+  };
+
+  return (
+    <div className="bg-white p-5 border rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
+      <div className="flex justify-between items-start">
+        <h3 className="text-lg font-semibold text-gray-800 flex-1 cursor-pointer" onClick={onViewCase}>
+          {highlightText(title, '')}
+        </h3>
+        <div className="flex items-center space-x-3 ml-4">
+          <IconButton icon={addToDossierIcon} alt="Dosar" />
+          <IconButton icon={printIcon} alt="Print" />
+          <IconButton icon={eyeIcon} alt="Vezi" onClick={onViewCase} />
+        </div>
+      </div>
+
+      <div className="text-sm text-gray-700 mt-3" onClick={onViewCase}>
+        {content.substring(0, 400)}...
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-gray-500 mt-4">
+        <div className="flex items-center space-x-4">
+          <InfoItem icon={justiceIcon} text={result.data?.tip_instanta || 'N/A'} />
+          <InfoItem icon={calendarIcon} text={result.data?.data_solutiei || 'N/A'} />
+        </div>
+        <span className="font-mono text-blue-500">Score: {result.score.toFixed(3)}</span>
+      </div>
+    </div>
+  );
+};
+
+// Helper components for icons and info items
+const IconButton: React.FC<{ icon: string; alt: string; onClick?: () => void }> = ({ icon, alt, onClick }) => (
+  <button onClick={onClick} className="p-1 rounded-full hover:bg-gray-100 transition-colors">
+    <img src={icon} alt={alt} className="h-5 w-5" />
+  </button>
+);
+
+const InfoItem: React.FC<{ icon: string; text: string }> = ({ icon, text }) => (
+  <div className="flex items-center">
+    <img src={icon} alt="" className="h-4 w-4 mr-1.5" />
+    <span>{text}</span>
+  </div>
+);
+
+export default ResultItem;

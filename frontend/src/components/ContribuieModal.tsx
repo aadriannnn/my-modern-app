@@ -1,19 +1,33 @@
 import React, { useState } from 'react';
 
 interface ContribuieModalProps {
+  isOpen: boolean;
   onClose: () => void;
 }
 
-const ContribuieModal: React.FC<ContribuieModalProps> = ({ onClose }) => {
+const ContribuieModal: React.FC<ContribuieModalProps> = ({ isOpen, onClose }) => {
   const [denumire, setDenumire] = useState('');
   const [sursa, setSursa] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState('');
 
+  if (!isOpen) {
+    return null;
+  }
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       setFile(event.target.files[0]);
     }
+  };
+
+  // Reset state when closing
+  const handleClose = () => {
+    setDenumire('');
+    setSursa('');
+    setFile(null);
+    setStatus('');
+    onClose();
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -55,12 +69,9 @@ const ContribuieModal: React.FC<ContribuieModalProps> = ({ onClose }) => {
       console.log('API response:', result);
 
       setStatus('Speța a fost trimisă cu succes! Vă mulțumim.');
-      setDenumire('');
-      setSursa('');
-      setFile(null);
 
       setTimeout(() => {
-        onClose();
+        handleClose();
       }, 2000);
 
     } catch (error) {
@@ -70,12 +81,18 @@ const ContribuieModal: React.FC<ContribuieModalProps> = ({ onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-800 bg-opacity-60 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg">
+    <div
+      className="fixed inset-0 bg-gray-800 bg-opacity-60 flex items-center justify-center p-4 z-50"
+      onClick={handleClose} // Close on overlay click
+    >
+      <div
+        className="bg-white rounded-xl shadow-2xl w-full max-w-lg"
+        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the modal
+      >
         <header className="flex justify-between items-center p-4 border-b bg-gray-50 rounded-t-xl">
           <h2 className="text-xl font-bold text-gray-800">Contribuie cu o speță</h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-500 hover:text-gray-800 transition-colors rounded-full p-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             aria-label="Închide"
           >
@@ -93,6 +110,7 @@ const ContribuieModal: React.FC<ContribuieModalProps> = ({ onClose }) => {
 
         <main className="p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Form content remains the same */}
             <div>
               <label htmlFor="denumire" className="block text-sm font-medium text-gray-700 mb-1">
                 Denumirea speței

@@ -211,30 +211,42 @@ def load_and_build_menu_data(session: Session):
 
 def save_menu_data_to_db(session: Session, menu_data, materii_map, obiecte_map):
     logger.info("--- Saving Menu Data to Database ---")
-    logger.info(f"Menu data contains {len(menu_data)} materii.")
-    logger.info(f"Materii map contains {len(materii_map)} entries.")
-    logger.info(f"Obiecte map contains {len(obiecte_map)} entries.")
 
-    sql = text("""
-    INSERT INTO filtre_cache_menu (id, menu_data, materii_map, obiecte_map, last_updated)
-    VALUES (1, :menu_data, :materii_map, :obiecte_map, NOW())
-    ON CONFLICT (id) DO UPDATE SET
-        menu_data = EXCLUDED.menu_data,
-        materii_map = EXCLUDED.materii_map,
-        obiecte_map = EXCLUDED.obiecte_map,
-        last_updated = NOW();
-    """)
+    dialect = session.bind.dialect.name
+    timestamp_func = "NOW()" if dialect == 'postgresql' else "datetime('now')"
 
-    params = {
-        "menu_data": json.dumps(menu_data),
-        "materii_map": json.dumps(materii_map),
-        "obiecte_map": json.dumps(obiecte_map)
-    }
+    # Use a simple SELECT to check for existence, then INSERT or UPDATE.
+    # This avoids ON CONFLICT which is not universally supported in the same way.
+    existing_entry = session.get(FiltreCacheMenu, 1)
 
-    session.execute(sql, params)
-    session.commit()
+    if existing_entry:
+        logger.info("Updating existing menu cache entry (ID=1).")
+        existing_entry.menu_data = menu_data
+        existing_entry.materii_map = materii_map
+        existing_entry.obiecte_map = obiecte_map
+        # The last_updated field will be handled by the database if it has a default.
+        # If not, we would need to set it manually. For now, we assume a schema default
+        # or that manual update isn't strictly necessary on every save for SQLite.
+    else:
+        logger.info("Creating new menu cache entry (ID=1).")
+        # last_updated is not included here to let the DB handle it.
+        # For SQLite, this means it will likely be NULL if no default is set.
+        new_entry = FiltreCacheMenu(
+            id=1,
+            menu_data=menu_data,
+            materii_map=materii_map,
+            obiecte_map=obiecte_map
+        )
+        session.add(new_entry)
+
+    # We must also update the timestamp using a raw query, as the model doesn't auto-update it
+    update_time_sql = text(f"UPDATE filtre_cache_menu SET last_updated = {timestamp_func} WHERE id = 1")
+
+    session.commit() # Commit the data changes
+    session.execute(update_time_sql) # Execute the raw SQL for the timestamp
+    session.commit() # Commit the timestamp change
+
     logger.info("--- Menu Data Saved Successfully ---")
-
 
 def refresh_filtre_cache_simple(session: Session):
     """Calculează și inserează filtrele simple (tip_speta, parte, etc.)."""

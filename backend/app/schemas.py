@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import List, Dict
+from pydantic import BaseModel, Field
+from typing import List, Dict, Optional
 
 class CaseCreate(BaseModel):
     title: str
@@ -10,9 +10,12 @@ class CaseCreate(BaseModel):
 class CaseRead(CaseCreate):
     id: int
 
-class SearchQuery(BaseModel):
-    text: str
-    filters: Dict[str, List[str]]
+class SearchRequest(BaseModel):
+    situatie: str
+    materie: Optional[List[str]] = Field(default_factory=list)
+    obiect: Optional[List[str]] = Field(default_factory=list)
+    tip_speta: Optional[List[str]] = Field(default_factory=list)
+    parte: Optional[List[str]] = Field(default_factory=list)
 
 class FilterOptions(BaseModel):
     tip_speta: List[str]
