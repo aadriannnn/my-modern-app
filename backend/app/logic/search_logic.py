@@ -185,3 +185,20 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
         return _search_postgres(session, search_request, embedding)
     else:
         return _search_sqlite(session, search_request)
+
+def get_case_by_id(session: Session, case_id: int) -> Dict[str, Any] | None:
+    """
+    Retrieves a single case by its ID from the database.
+    """
+    logger.info(f"Fetching case with ID: {case_id}")
+    query = text("SELECT id, obj FROM blocuri WHERE id = :case_id")
+    result = session.execute(query, {"case_id": case_id}).mappings().first()
+
+    if not result:
+        logger.warning(f"Case with ID {case_id} not found.")
+        return None
+
+    # Process the single result to match the structure of search results
+    processed_result = _process_results([result], distance_metric=None)
+    logger.info(f"Successfully fetched and processed case ID {case_id}.")
+    return processed_result[0] if processed_result else None
