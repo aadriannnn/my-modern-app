@@ -1,16 +1,34 @@
 import React, { useState } from 'react';
 import ResultItem from './ResultItem';
+import SelectedFilters from './SelectedFilters'; // Import the new component
+import './SelectedFilters.css'; // Import the CSS
 
 interface MainContentProps {
   results: any[];
   status: string;
   isLoading: boolean;
   onViewCase: (caseData: any) => void;
+  searchParams: {
+    materie?: string;
+    obiect?: string[];
+    tip_speta?: string[];
+    parte?: string[];
+  };
+  onRemoveFilter: (filterType: string, value: string) => void;
+  onClearFilters: () => void;
 }
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
 
-const MainContent: React.FC<MainContentProps> = ({ results, status, isLoading, onViewCase }) => {
+const MainContent: React.FC<MainContentProps> = ({
+  results,
+  status,
+  isLoading,
+  onViewCase,
+  searchParams,
+  onRemoveFilter,
+  onClearFilters,
+}) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
 
   const viewButtons: { key: ViewType; label: string }[] = [
@@ -99,6 +117,11 @@ const MainContent: React.FC<MainContentProps> = ({ results, status, isLoading, o
           ))}
         </div>
       </div>
+      <SelectedFilters
+        filters={searchParams}
+        onRemoveFilter={onRemoveFilter}
+        onClearFilters={onClearFilters}
+      />
       {renderContent()}
     </main>
   );

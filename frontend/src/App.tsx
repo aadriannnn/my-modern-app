@@ -123,6 +123,33 @@ const App: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const handleRemoveFilter = useCallback((filterType: keyof SearchParams, valueToRemove: string) => {
+    setSearchParams(prevParams => {
+      const newParams = { ...prevParams };
+      const currentValue = newParams[filterType];
+
+      if (Array.isArray(currentValue)) {
+        // @ts-ignore
+        newParams[filterType] = currentValue.filter(item => item !== valueToRemove);
+      } else if (typeof currentValue === 'string') {
+        // @ts-ignore
+        newParams[filterType] = '';
+      }
+
+      return newParams;
+    });
+  }, []);
+
+  const handleClearFilters = useCallback(() => {
+    setSearchParams(prevParams => ({
+      ...prevParams,
+      materie: '',
+      obiect: [],
+      tip_speta: [],
+      parte: [],
+    }));
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen bg-gray-100 font-sans">
       <Header
@@ -147,6 +174,9 @@ const App: React.FC = () => {
               status={status}
               isLoading={isLoading}
               onViewCase={handleViewCase}
+              searchParams={searchParams}
+              onRemoveFilter={handleRemoveFilter}
+              onClearFilters={handleClearFilters}
             />
           </>
         )}
