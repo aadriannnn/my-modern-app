@@ -86,7 +86,7 @@ const App: React.FC = () => {
     }
   };
 
-  const handleFilterChange = useCallback((filterType: keyof SearchParams, value: string | string[]) => {
+  const handleFilterChange = useCallback((filterType: keyof SearchParams, value: string | string[] | boolean) => {
     setSearchParams(prevParams => {
       const newParams = { ...prevParams, [filterType]: value };
       // If materie changes, reset obiect
@@ -110,7 +110,7 @@ const App: React.FC = () => {
         onSearch={handleSearch}
       />
       <div className="flex flex-1 overflow-hidden">
-        {isLoading && !filters ? (
+        {!filters ? (
           <div className="flex-1 flex items-center justify-center">
             <p>{status}</p>
           </div>

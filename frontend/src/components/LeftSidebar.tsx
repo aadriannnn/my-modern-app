@@ -17,7 +17,7 @@ interface SelectedFilters {
 interface LeftSidebarProps {
   filters: Filters | null;
   selectedFilters: SelectedFilters;
-  onFilterChange: (filterType: keyof SelectedFilters, value: string | string[]) => void;
+  onFilterChange: (filterType: keyof SelectedFilters, value: string | string[] | boolean) => void;
 }
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onFilterChange }) => {

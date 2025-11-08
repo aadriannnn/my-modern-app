@@ -10,13 +10,13 @@ VECTOR_DIM = settings.VECTOR_DIM
 async def embed_text(text: str) -> list[float]:
     async with httpx.AsyncClient() as client:
         r = await client.post(
-            f"{OLLAMA_URL}/api/embeddings",
-            json={"model": MODEL_NAME, "prompt": text},
+            f"{OLLAMA_URL}/api/embed",
+            json={"model": MODEL_NAME, "input": text},
             timeout=60,
         )
         r.raise_for_status()
 
-    emb = r.json().get("embedding")
+    emb = r.json().get("embeddings", [[]])[0]
     if not emb:
         raise RuntimeError("Embedding gol.")
     if len(emb) != VECTOR_DIM:

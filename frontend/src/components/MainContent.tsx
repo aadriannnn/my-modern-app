@@ -8,7 +8,7 @@ interface MainContentProps {
   onViewCase: (caseData: any) => void;
 }
 
-type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare';
+type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina';
 
 const MainContent: React.FC<MainContentProps> = ({ results, status, isLoading, onViewCase }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
@@ -17,6 +17,7 @@ const MainContent: React.FC<MainContentProps> = ({ results, status, isLoading, o
     { key: 'situatia_de_fapt_full', label: 'Situație de fapt' },
     { key: 'argumente_instanta', label: 'Argumente instanță' },
     { key: 'text_individualizare', label: 'Text individualizare' },
+    { key: 'text_doctrina', label: 'Doctrină' },
   ];
 
   const renderContent = () => {
@@ -28,9 +29,18 @@ const MainContent: React.FC<MainContentProps> = ({ results, status, isLoading, o
       return <div className="text-center py-10"><p className="text-gray-500">{status}</p></div>;
     }
 
+    const filteredResults = results.filter(result => {
+      const content = result[activeView];
+      return content && content.trim() !== '' && !content.trim().toLowerCase().startsWith('null');
+    });
+
+    if (filteredResults.length === 0) {
+        return <div className="text-center py-10"><p className="text-gray-500">Nu sunt rezultate care sa corespunda vederii selectate.</p></div>;
+    }
+
     return (
       <div className="space-y-4">
-        {results.map((result) => (
+        {filteredResults.map((result) => (
           <ResultItem
             key={result.id}
             result={result}

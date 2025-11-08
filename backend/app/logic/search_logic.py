@@ -40,10 +40,17 @@ def embed_text(text_to_embed: str) -> List[float]:
         logger.warning(f"Failed to get embedding, returning zero vector. Error: {e}")
         return [0.0] * settings.VECTOR_DIM
 
-def _build_common_where_clause(req: SearchRequest) -> (str, Dict[str, Any]):
-    """Builds the filter part of the WHERE clause, common to both dialects."""
+def _build_common_where_clause(req: SearchRequest, dialect: str) -> (str, Dict[str, Any]):
+    """Builds the filter part of the WHERE clause, aware of SQL dialect."""
     where_clauses = []
     params = {}
+
+    # Helper to get the correct JSON access syntax
+    def json_accessor(field: str) -> str:
+        if dialect == 'postgresql':
+            return f"b.obj->>'{field}'"
+        else:  # sqlite
+            return f"json_extract(b.obj, '$.{field}')"
 
     cached_filters = get_cached_filters()
     materii_map = cached_filters.get("materii_map", {})
@@ -55,12 +62,13 @@ def _build_common_where_clause(req: SearchRequest) -> (str, Dict[str, Any]):
             original_terms.update(term_map.get(term, []))
         return list(original_terms)
 
+    # Each filter now uses the json_accessor helper
     if req.materie:
         materii_to_check = get_original_terms(req.materie, materii_map)
         conditions = []
         for i, term in enumerate(materii_to_check):
             param_name = f"materie_{i}"
-            conditions.append(f"b.obj->>'materie' ILIKE :{param_name}")
+            conditions.append(f"{json_accessor('materie')} ILIKE :{param_name}")
             params[param_name] = f"%{term}%"
         where_clauses.append(f"({' OR '.join(conditions)})")
 
@@ -69,7 +77,7 @@ def _build_common_where_clause(req: SearchRequest) -> (str, Dict[str, Any]):
         conditions = []
         for i, term in enumerate(obiecte_to_check):
             param_name = f"obiect_{i}"
-            conditions.append(f"b.obj->>'obiect' ILIKE :{param_name}")
+            conditions.append(f"{json_accessor('obiect')} ILIKE :{param_name}")
             params[param_name] = f"%{term}%"
         where_clauses.append(f"({' OR '.join(conditions)})")
 
@@ -77,7 +85,7 @@ def _build_common_where_clause(req: SearchRequest) -> (str, Dict[str, Any]):
         conditions = []
         for i, term in enumerate(req.tip_speta):
             param_name = f"tip_speta_{i}"
-            conditions.append(f"b.obj->>'tip_speta' ILIKE :{param_name}")
+            conditions.append(f"{json_accessor('tip_speta')} ILIKE :{param_name}")
             params[param_name] = f"%{term}%"
         where_clauses.append(f"({' OR '.join(conditions)})")
 
@@ -85,7 +93,7 @@ def _build_common_where_clause(req: SearchRequest) -> (str, Dict[str, Any]):
         conditions = []
         for i, term in enumerate(req.parte):
             param_name = f"parte_{i}"
-            conditions.append(f"b.obj->>'parte' ILIKE :{param_name}")
+            conditions.append(f"{json_accessor('parte')} ILIKE :{param_name}")
             params[param_name] = f"%{term}%"
         where_clauses.append(f"({' OR '.join(conditions)})")
 
@@ -106,6 +114,7 @@ def _process_results(rows: List[Dict], distance_metric: str = "semantic_distance
             "situatia_de_fapt_full": obj.get('text_situatia_de_fapt') or obj.get('situatia_de_fapt') or "",
             "argumente_instanta": obj.get('argumente_instanta') or "",
             "text_individualizare": obj.get('text_individualizare') or "",
+            "text_doctrina": obj.get('text_doctrina') or "",
             "solutia": obj.get("solutia", ""),
             "tip_speta": obj.get('tip_speta', "—"),
             "materie": obj.get('materie', "—"),
@@ -117,7 +126,7 @@ def _process_results(rows: List[Dict], distance_metric: str = "semantic_distance
 def _search_postgres(session: Session, req: SearchRequest, embedding: List[float]) -> List[Dict]:
     """Performs semantic search on PostgreSQL using pgvector."""
     logger.info("Executing PostgreSQL vector search")
-    filter_clause, params = _build_common_where_clause(req)
+    filter_clause, params = _build_common_where_clause(req, 'postgresql')
 
     params["embedding"] = str(embedding)
     params["top_k"] = settings.TOP_K
@@ -142,7 +151,7 @@ def _search_postgres(session: Session, req: SearchRequest, embedding: List[float
 def _search_sqlite(session: Session, req: SearchRequest) -> List[Dict]:
     """Performs a simple fallback search on SQLite using LIKE."""
     logger.info("Executing SQLite fallback search")
-    filter_clause, params = _build_common_where_clause(req)
+    filter_clause, params = _build_common_where_clause(req, 'sqlite')
 
     # Add text search for 'situatie'
     situatie_clause = ""
