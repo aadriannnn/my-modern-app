@@ -39,7 +39,12 @@ const Header: React.FC<HeaderProps> = ({ situatie, onSituatieChange, onSearch })
           </button>
         </div>
 
-        <div className="w-24"></div>
+        <div className="flex items-center">
+          <span className="text-sm font-semibold text-gray-700 mr-2">Produs al grupului</span>
+          <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+            VerdictLine
+          </span>
+        </div>
       </header>
       <SearchModal
         isOpen={isModalOpen}
