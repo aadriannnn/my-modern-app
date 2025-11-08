@@ -13,7 +13,24 @@ interface ResultItemProps {
 
 const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase }) => {
   const content = result[activeView] || 'Acest conținut nu este disponibil.';
-  const title = result.denumire || `Caz #${result.id}`;
+
+  const generateTitle = (result: any): string => {
+    const titlu = result.data?.titlu;
+    const denumireArticol = result.data?.text_denumire_articol;
+
+    if (titlu && denumireArticol) {
+      return `${titlu} - ${denumireArticol}`;
+    }
+    if (titlu) {
+      return titlu;
+    }
+    if (denumireArticol) {
+      return denumireArticol;
+    }
+    return result.denumire || `Caz #${result.id}`;
+  };
+
+  const title = generateTitle(result);
 
   const highlightText = (text: string, highlight: string) => {
     if (!highlight) return text;
@@ -35,7 +52,7 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase 
 
   return (
     <div className="bg-white p-5 border rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start pb-4 mb-4 border-b border-gray-200">
         <h3 className="text-lg font-semibold text-gray-800 flex-1 cursor-pointer" onClick={onViewCase}>
           {highlightText(title, '')}
         </h3>
@@ -46,7 +63,7 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase 
         </div>
       </div>
 
-      <div className="text-sm text-gray-700 mt-3" onClick={onViewCase}>
+      <div className="text-sm text-gray-700" onClick={onViewCase}>
         {content.substring(0, 400)}...
       </div>
 
