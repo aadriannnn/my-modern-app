@@ -115,6 +115,8 @@ def _process_results(rows: List[Dict], distance_metric: str = "semantic_distance
             "argumente_instanta": obj.get('argumente_instanta') or "",
             "text_individualizare": obj.get('text_individualizare') or "",
             "text_doctrina": obj.get('text_doctrina') or "",
+            "text_ce_invatam": obj.get('text_ce_invatam') or "",
+            "Rezumat_generat_de_AI_Cod": obj.get('Rezumat_generat_de_AI_Cod') or "",
             "solutia": obj.get("solutia", ""),
             "tip_speta": obj.get('tip_speta', "—"),
             "materie": obj.get('materie', "—"),
