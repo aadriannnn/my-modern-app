@@ -33,7 +33,10 @@ const MainContent: React.FC<MainContentProps> = ({ results, status, isLoading, o
 
     const filteredResults = results.filter(result => {
       const content = result[activeView];
-      return content && content.trim() !== '' && !content.trim().toLowerCase().startsWith('null');
+      if (typeof content !== 'string') {
+        return false;
+      }
+      return content.trim() !== '' && !content.trim().toLowerCase().startsWith('null');
     });
 
     if (filteredResults.length === 0) {
