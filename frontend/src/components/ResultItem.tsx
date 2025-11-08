@@ -64,7 +64,7 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase 
       </div>
 
       <div className="text-sm text-gray-700" onClick={onViewCase}>
-        {content.substring(0, 400)}...
+        {content}
       </div>
 
       <div className="flex items-center justify-between text-xs text-gray-500 mt-4">
