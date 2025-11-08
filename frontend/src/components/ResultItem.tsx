@@ -69,10 +69,9 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase 
 
       <div className="flex items-center justify-between text-xs text-gray-500 mt-4">
         <div className="flex items-center space-x-4">
-          <InfoItem icon={justiceIcon} text={result.data?.tip_instanta || 'N/A'} />
-          <InfoItem icon={calendarIcon} text={result.data?.data_solutiei || 'N/A'} />
+          <InfoItem icon={justiceIcon} text={result.data?.materie || 'N/A'} />
+          <InfoItem icon={calendarIcon} text={result.data?.sursa || 'N/A'} />
         </div>
-        <span className="font-mono text-blue-500">Score: {result.score.toFixed(3)}</span>
       </div>
     </div>
   );
