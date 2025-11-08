@@ -21,16 +21,35 @@ export const getFilters = async () => {
   };
 };
 
+export class ApiError extends Error {
+  public readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.status = status;
+    // Set the prototype explicitly.
+    Object.setPrototypeOf(this, ApiError.prototype);
+  }
+}
+
 export const search = async (payload: SearchParams) => {
   const response = await fetch(`${API_URL}/search/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
+
   if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(errorData.detail || 'Search failed');
+    let detail = `Request failed with status ${response.status}`;
+    try {
+      const errorData = await response.json();
+      detail = errorData.detail || detail;
+    } catch (e) {
+      // The response body was not JSON. The default detail is fine.
+    }
+    throw new ApiError(detail, response.status);
   }
+
   return response.json();
 };
 

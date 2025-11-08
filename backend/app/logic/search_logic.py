@@ -99,14 +99,27 @@ def _build_common_where_clause(req: SearchRequest, dialect: str) -> (str, Dict[s
 
     return " AND ".join(where_clauses), params
 
+import math
+
 def _process_results(rows: List[Dict], distance_metric: str = "semantic_distance") -> List[Dict]:
     """Processes raw DB rows into the final result format."""
     results = []
     for row in rows:
         obj = row.get('obj', {})
         score = 0.0
-        if distance_metric in row and row[distance_metric] is not None:
-            score = 1.0 - float(row[distance_metric])
+        distance = row.get(distance_metric)
+
+        if distance is not None:
+            try:
+                # Ensure the distance is a valid float before calculation
+                float_distance = float(distance)
+                # Check for NaN or infinity before calculating the score
+                if not math.isnan(float_distance) and math.isfinite(float_distance):
+                    score = 1.0 - float_distance
+                else:
+                    logger.warning(f"Invalid float value for distance: {distance}. Defaulting score to 0.")
+            except (ValueError, TypeError):
+                logger.warning(f"Could not convert distance '{distance}' to float. Defaulting score to 0.")
 
         results.append({
             "id": row['id'],
@@ -120,7 +133,7 @@ def _process_results(rows: List[Dict], distance_metric: str = "semantic_distance
             "solutia": obj.get("solutia", ""),
             "tip_speta": obj.get('tip_speta', "—"),
             "materie": obj.get('materie', "—"),
-            "score": score,
+            "score": score if not math.isnan(score) else 0.0,
             "data": obj
         })
     return results

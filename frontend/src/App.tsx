@@ -5,7 +5,7 @@ import MainContent from './components/MainContent';
 import RightSidebar from './components/RightSidebar';
 import CaseDetailModal from './components/CaseDetailModal';
 import ContribuieModal from './components/ContribuieModal';
-import { getFilters, search as apiSearch } from './lib/api';
+import { getFilters, search as apiSearch, ApiError } from './lib/api';
 
 // Define types for our state
 interface Filters {
@@ -67,23 +67,44 @@ const App: React.FC = () => {
     setStatus('Căutare în curs...');
     setIsLoading(true);
 
-    // Construct the payload, ensuring materie is an array if it's selected
     const payload = {
       ...searchParams,
       materie: searchParams.materie ? [searchParams.materie] : [],
     };
 
-    try {
-      const results = await apiSearch(payload);
-      setSearchResults(results);
-      setStatus(`Au fost găsite ${results.length} rezultate.`);
-    } catch (error) {
-      console.error('Search failed:', error);
-      setStatus('Eroare la căutare.');
-      setSearchResults([]);
-    } finally {
-      setIsLoading(false);
+    const MAX_RETRIES = 3;
+    const RETRY_DELAY_MS = 3000;
+
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const results = await apiSearch(payload);
+        setSearchResults(results);
+        setStatus(`Au fost găsite ${results.length} rezultate.`);
+        setIsLoading(false);
+        return; // Success, exit the function
+      } catch (error) {
+        console.error(`Search attempt ${attempt} failed:`, error);
+
+        if (error instanceof ApiError && error.status >= 500 && attempt < MAX_RETRIES) {
+          // This is a server error, so we can retry.
+          setStatus(
+            `Serverul este momentan suprasolicitat. Se reîncearcă automat... (${attempt}/${MAX_RETRIES})`
+          );
+          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
+        } else {
+          // This is a client error or the last retry failed.
+          const errorMessage = error instanceof Error ? error.message : 'Eroare necunoscută';
+          setStatus(`Eroare la căutare: ${errorMessage}`);
+          setSearchResults([]);
+          setIsLoading(false);
+          return; // Failure, exit the function
+        }
+      }
     }
+
+    // This point is reached only if all retries have failed.
+    setStatus('Serverul nu a putut procesa cererea. Vă rugăm să încercați din nou mai târziu.');
+    setIsLoading(false);
   };
 
   const handleFilterChange = useCallback((filterType: keyof SearchParams, value: string | string[] | boolean) => {
