@@ -7,7 +7,7 @@ import addToDossierIcon from '@/assets/icons/addToDossier.png';
 
 interface ResultItemProps {
   result: any;
-  activeView: 'situatia_de_fapt_full' | 'argumente_instanta' | 'solutia' | 'text_individualizare' | 'text_doctrina';
+  activeView: 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
   onViewCase: () => void;
 }
 

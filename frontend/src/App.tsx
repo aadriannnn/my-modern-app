@@ -155,9 +155,8 @@ const App: React.FC = () => {
 
       {isModalOpen && selectedCase && (
         <CaseDetailModal
-          isOpen={isModalOpen}
+          result={selectedCase}
           onClose={() => setIsModalOpen(false)}
-          caseData={selectedCase}
         />
       )}
 
