@@ -36,7 +36,26 @@ class Settings(BaseSettings):
 
         return values
 
-    OLLAMA_URL: str
+    # Ollama settings
+    DEFAULT_OLLAMA_HOST: Optional[str] = None
+    DEFAULT_OLLAMA_PORT: Optional[int] = None
+    OLLAMA_URL: Optional[str] = None
+
+    @model_validator(mode='before')
+    @classmethod
+    def build_ollama_url(cls, values):
+        ollama_url = values.get('OLLAMA_URL')
+        if ollama_url:
+            return values
+
+        ollama_host = values.get('DEFAULT_OLLAMA_HOST')
+        ollama_port = values.get('DEFAULT_OLLAMA_PORT')
+
+        if all([ollama_host, ollama_port]):
+            values['OLLAMA_URL'] = f"http://{ollama_host}:{ollama_port}"
+
+        return values
+
     MODEL_NAME: str = "rjmalagon/gte-qwen2-1.5b-instruct-embed-f16"
     VECTOR_DIM: int = 1536
     ALPHA_SCORE: float = 0.8

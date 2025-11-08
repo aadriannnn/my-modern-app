@@ -19,14 +19,17 @@ def embed_text(text_to_embed: str) -> List[float]:
         logger.warning("Embed text called with empty string. Returning zero vector.")
         return [0.0] * settings.VECTOR_DIM
 
+    logger.info("Calling Ollama API for embedding...")
     try:
         r = requests.post(
-            f"{settings.OLLAMA_URL}/api/embeddings",
-            json={"model": settings.MODEL_NAME, "prompt": text_to_embed},
-            timeout=15  # seconds
+            f"{settings.OLLAMA_URL}/api/embed",
+            json={"model": settings.MODEL_NAME, "input": text_to_embed},
+            timeout=60  # seconds
         )
         r.raise_for_status()
-        embedding = r.json().get("embedding")
+
+        # Correctly parse the new response structure
+        embedding = r.json().get("embeddings", [[]])[0]
 
         if not embedding:
             raise ValueError("Ollama returned an empty embedding.")
@@ -35,6 +38,8 @@ def embed_text(text_to_embed: str) -> List[float]:
                 f"Embedding dimension mismatch. Expected {settings.VECTOR_DIM}, "
                 f"got {len(embedding)} from model '{settings.MODEL_NAME}'."
             )
+
+        logger.info(f"Embedding generated successfully ({len(embedding)} dims)")
         return embedding
     except (requests.RequestException, ValueError) as e:
         logger.warning(f"Failed to get embedding, returning zero vector. Error: {e}")
