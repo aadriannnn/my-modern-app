@@ -100,12 +100,22 @@ def _build_common_where_clause(req: SearchRequest, dialect: str) -> (str, Dict[s
     return " AND ".join(where_clauses), params
 
 import math
+import json
 
 def _process_results(rows: List[Dict], distance_metric: str = "semantic_distance") -> List[Dict]:
     """Processes raw DB rows into the final result format."""
     results = []
     for row in rows:
-        obj = row.get('obj', {})
+        obj_data = row.get('obj', '{}')
+        if isinstance(obj_data, str):
+            try:
+                obj = json.loads(obj_data)
+            except json.JSONDecodeError:
+                logger.warning(f"Could not decode JSON for row {row.get('id')}. Skipping.")
+                continue
+        else:
+            obj = obj_data
+
         score = 0.0
         distance = row.get(distance_metric)
 
@@ -174,7 +184,11 @@ def _search_sqlite(session: Session, req: SearchRequest) -> List[Dict]:
         # Using json_extract for text search in SQLite
         situatie_clause = """
         (json_extract(b.obj, '$.text_situatia_de_fapt') LIKE :situatie OR
-         json_extract(b.obj, '$.situatia_de_fapt') LIKE :situatie)
+         json_extract(b.obj, '$.situatia_de_fapt') LIKE :situatie OR
+         json_extract(b.obj, '$.tip_speta') LIKE :situatie OR
+         json_extract(b.obj, '$.parte') LIKE :situatie OR
+         json_extract(b.obj, '$.materie') LIKE :situatie OR
+         json_extract(b.obj, '$.obiect') LIKE :situatie)
         """
         params["situatie"] = f"%{req.situatie}%"
 
