@@ -1,5 +1,6 @@
 import logging
 import requests
+import unicodedata
 from sqlmodel import Session, text
 from typing import List, Dict, Any
 
@@ -178,6 +179,78 @@ def _search_postgres(session: Session, req: SearchRequest, embedding: List[float
     result = session.execute(query, params)
     return _process_results(result.mappings().all())
 
+def _normalize_text(text: str) -> str:
+    """
+    Normalizes text by lowercasing and removing diacritics.
+    Ensures consistent matching against pre-normalized database fields.
+    """
+    if not text:
+        return ""
+    # NFD normalization decomposes characters into base characters and diacritics
+    # e.g., 'é' becomes 'e' + '´'
+    # We then filter out the diacritics.
+    nfkd_form = unicodedata.normalize('NFD', text)
+    ascii_text = "".join([c for c in nfkd_form if not unicodedata.combining(c)])
+    return ascii_text.lower()
+
+def _search_by_keywords_postgres(session: Session, req: SearchRequest) -> List[Dict]:
+    """Performs keyword search on PostgreSQL using trigram similarity."""
+    logger.info("Executing PostgreSQL keyword search")
+    filter_clause, params = _build_common_where_clause(req, 'postgresql')
+
+    # Normalize search query
+    normalized_situatie = _normalize_text(req.situatie)
+    params["situatie"] = normalized_situatie
+    params["top_k"] = settings.TOP_K
+
+    # Use similarity function for keyword matching
+    # Assumes pg_trgm extension is enabled and an index is created on 'keywords'
+    similarity_clause = "similarity(b.obj->>'keywords', :situatie) > 0.1" # Adjust threshold as needed
+
+    all_clauses = [c for c in [filter_clause, similarity_clause] if c]
+    where_sql = f"WHERE {' AND '.join(all_clauses)}" if all_clauses else ""
+
+    query = text(f"""
+        SELECT
+            b.id,
+            b.obj,
+            similarity(b.obj->>'keywords', :situatie) AS keyword_similarity
+        FROM blocuri b
+        {where_sql}
+        ORDER BY keyword_similarity DESC
+        LIMIT :top_k;
+    """)
+
+    result = session.execute(query, params)
+    return _process_results(result.mappings().all(), distance_metric="keyword_similarity")
+
+def _search_by_keywords_sqlite(session: Session, req: SearchRequest) -> List[Dict]:
+    """Performs a simple keyword search on SQLite using LIKE."""
+    logger.info("Executing SQLite keyword search")
+    filter_clause, params = _build_common_where_clause(req, 'sqlite')
+
+    # Normalize and prepare the search term for LIKE query
+    normalized_situatie = _normalize_text(req.situatie)
+    params["situatie"] = f"%{normalized_situatie}%"
+
+    # Simple LIKE search on keywords
+    keyword_clause = "json_extract(b.obj, '$.keywords') LIKE :situatie"
+
+    all_clauses = [c for c in [filter_clause, keyword_clause] if c]
+    where_sql = f"WHERE {' AND '.join(all_clauses)}" if all_clauses else ""
+
+    params["top_k"] = settings.TOP_K
+
+    query_str = f"""
+        SELECT id, obj
+        FROM blocuri b
+        {where_sql}
+        LIMIT :top_k;
+    """.replace("ILIKE", "LIKE")
+
+    result = session.execute(text(query_str), params)
+    return _process_results(result.mappings().all(), distance_metric=None)
+
 def _search_sqlite(session: Session, req: SearchRequest) -> List[Dict]:
     """Performs a simple fallback search on SQLite using LIKE."""
     logger.info("Executing SQLite fallback search")
@@ -221,13 +294,26 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
     Main search function that dispatches to the correct implementation
     based on the database dialect.
     """
-    embedding = embed_text(search_request.situatie)
     dialect = session.bind.dialect.name
 
-    if dialect == 'postgresql':
-        return _search_postgres(session, search_request, embedding)
+    # Check word count in 'situatie'
+    word_count = len(search_request.situatie.split())
+
+    if word_count <= 3:
+        # Use keyword search for short queries
+        if dialect == 'postgresql':
+            # Placeholder for the new keyword search function
+            return _search_by_keywords_postgres(session, search_request)
+        else:
+            # Placeholder for the new keyword search function
+            return _search_by_keywords_sqlite(session, search_request)
     else:
-        return _search_sqlite(session, search_request)
+        # Use embedding search for longer queries
+        embedding = embed_text(search_request.situatie)
+        if dialect == 'postgresql':
+            return _search_postgres(session, search_request, embedding)
+        else:
+            return _search_sqlite(session, search_request)
 
 def get_case_by_id(session: Session, case_id: int) -> Dict[str, Any] | None:
     """
