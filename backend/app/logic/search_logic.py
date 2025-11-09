@@ -1,6 +1,7 @@
 import logging
 import requests
 import unicodedata
+import re
 from sqlmodel import Session, text
 from typing import List, Dict, Any
 
@@ -108,8 +109,11 @@ def _build_common_where_clause(req: SearchRequest, dialect: str) -> (str, Dict[s
 import math
 import json
 
-def _process_results(rows: List[Dict], distance_metric: str = "semantic_distance") -> List[Dict]:
-    """Processes raw DB rows into the final result format."""
+def _process_results(rows: List[Dict], score_metric: str = "semantic_distance") -> List[Dict]:
+    """
+    Processes raw DB rows into the final result format.
+    Handles both distance-based scores (lower is better) and similarity-based scores (higher is better).
+    """
     results = []
     for row in rows:
         obj_data = row.get('obj', '{}')
@@ -123,19 +127,22 @@ def _process_results(rows: List[Dict], distance_metric: str = "semantic_distance
             obj = obj_data
 
         score = 0.0
-        distance = row.get(distance_metric)
+        metric_value = row.get(score_metric)
 
-        if distance is not None:
+        if metric_value is not None:
             try:
-                # Ensure the distance is a valid float before calculation
-                float_distance = float(distance)
-                # Check for NaN or infinity before calculating the score
-                if not math.isnan(float_distance) and math.isfinite(float_distance):
-                    score = 1.0 - float_distance
+                float_metric = float(metric_value)
+                if not math.isnan(float_metric) and math.isfinite(float_metric):
+                    if "distance" in score_metric:
+                        # For distance metrics, score is 1 - distance
+                        score = 1.0 - float_metric
+                    else:
+                        # For similarity metrics, score is the value itself
+                        score = float_metric
                 else:
-                    logger.warning(f"Invalid float value for distance: {distance}. Defaulting score to 0.")
+                    logger.warning(f"Invalid float value for metric '{score_metric}': {metric_value}. Defaulting score to 0.")
             except (ValueError, TypeError):
-                logger.warning(f"Could not convert distance '{distance}' to float. Defaulting score to 0.")
+                logger.warning(f"Could not convert metric '{score_metric}' ('{metric_value}') to float. Defaulting score to 0.")
 
         results.append({
             "id": row['id'],
@@ -177,7 +184,7 @@ def _search_postgres(session: Session, req: SearchRequest, embedding: List[float
     """)
 
     result = session.execute(query, params)
-    return _process_results(result.mappings().all())
+    return _process_results(result.mappings().all(), score_metric="semantic_distance")
 
 def _normalize_text(text: str) -> str:
     """
@@ -194,35 +201,86 @@ def _normalize_text(text: str) -> str:
     return ascii_text.lower()
 
 def _search_by_keywords_postgres(session: Session, req: SearchRequest) -> List[Dict]:
-    """Performs keyword search on PostgreSQL using trigram similarity."""
-    logger.info("Executing PostgreSQL keyword search")
+    """
+    Keyword-oriented search for short queries (<=3 words), tuned for recall + relevance.
+    - Scanează atât keywords (array JSON → text) cât și textul situației de fapt.
+    - Folosește scor agregat (pondere mai mare pe keywords).
+    - Fără filtru dur cu '%' (crește recall); poți seta un prag moale din .env.
+    """
+    logger.info("[search] using keyword mode (<=3 words)")
     filter_clause, params = _build_common_where_clause(req, 'postgresql')
 
-    # Normalize search query
-    normalized_situatie = _normalize_text(req.situatie)
-    params["situatie"] = normalized_situatie
+    q_norm = normalize_query(req.situatie)
+    params["q"] = q_norm
     params["top_k"] = settings.TOP_K
+    min_sim = float(getattr(settings, "MIN_TRGM_SIMILARITY", 0.02))  # prag moale foarte mic
+    params["min_sim"] = min_sim
 
-    # Use similarity function for keyword matching
-    # Assumes pg_trgm extension is enabled and an index is created on 'keywords'
-    similarity_clause = "similarity(b.obj->>'keywords', :situatie) > 0.1" # Adjust threshold as needed
+    # Concatenează keywords (array JSON) într-un text
+    keywords_text_expr = """
+        COALESCE(
+          array_to_string(
+            ARRAY(SELECT jsonb_array_elements_text(b.obj->'keywords')),
+            ' '
+          ),
+          ''
+        )
+    """
 
-    all_clauses = [c for c in [filter_clause, similarity_clause] if c]
-    where_sql = f"WHERE {' AND '.join(all_clauses)}" if all_clauses else ""
+    # Text lung pentru fallback/semnal secundar
+    long_text_expr = """
+        COALESCE(
+          NULLIF(b.obj->>'text_situatia_de_fapt',''),
+          b.obj->>'situatia_de_fapt'
+        )
+    """
 
+    # Boost simplu pe tokeni (max 3). Construim parametri dinamici pentru ILIKE.
+    tokens = [t for t in q_norm.split() if t]
+    token_params = {}
+    token_clauses = []
+    for i, t in enumerate(tokens[:3]):
+        pname = f"tok_{i}"
+        token_params[pname] = f"%{t}%"
+        # Dacă vreun token apare în vreun keyword, acordăm un mic boost
+        token_clauses.append(f"EXISTS (SELECT 1 FROM jsonb_array_elements_text(b.obj->'keywords') kw WHERE kw ILIKE :{pname})")
+
+    params.update(token_params)
+    token_boost_sql = f"CASE WHEN {' OR '.join(token_clauses)} THEN 0.05 ELSE 0 END" if token_clauses else "0"
+
+    # WHERE combinat cu filtrele existente + asigurăm că avem ceva text de comparat
+    where_bits = []
+    if filter_clause:
+        where_bits.append(filter_clause)
+    where_bits.append(f"(length({keywords_text_expr}) > 0 OR length(COALESCE({long_text_expr},'')) > 0)")
+
+    # Adăugăm și filtrul de similaritate minimă la clauzele WHERE
+    where_bits.append(f"""(
+        similarity({keywords_text_expr}, :q) >= :min_sim
+        OR similarity(COALESCE({long_text_expr},''), :q) >= :min_sim
+    )""")
+
+    where_sql = "WHERE " + " AND ".join(where_bits)
+
+    # Scor agregat: 70% keywords, 30% text lung + un boost mic dacă apar tokeni în keywords
     query = text(f"""
         SELECT
             b.id,
             b.obj,
-            similarity(b.obj->>'keywords', :situatie) AS keyword_similarity
+            (
+              0.70 * similarity({keywords_text_expr}, :q) +
+              0.30 * similarity(COALESCE({long_text_expr},''), :q) +
+              {token_boost_sql}
+            ) AS keyword_similarity
         FROM blocuri b
         {where_sql}
         ORDER BY keyword_similarity DESC
         LIMIT :top_k;
     """)
 
-    result = session.execute(query, params)
-    return _process_results(result.mappings().all(), distance_metric="keyword_similarity")
+    rows = session.execute(query, params).mappings().all()
+    logger.info(f"[search] trigram results count: {len(rows)}")
+    return _process_results(rows, score_metric="keyword_similarity")
 
 def _search_by_keywords_sqlite(session: Session, req: SearchRequest) -> List[Dict]:
     """Performs a simple keyword search on SQLite using LIKE."""
@@ -249,7 +307,7 @@ def _search_by_keywords_sqlite(session: Session, req: SearchRequest) -> List[Dic
     """.replace("ILIKE", "LIKE")
 
     result = session.execute(text(query_str), params)
-    return _process_results(result.mappings().all(), distance_metric=None)
+    return _process_results(result.mappings().all(), score_metric=None)
 
 def _search_sqlite(session: Session, req: SearchRequest) -> List[Dict]:
     """Performs a simple fallback search on SQLite using LIKE."""
@@ -287,33 +345,52 @@ def _search_sqlite(session: Session, req: SearchRequest) -> List[Dict]:
 
     result = session.execute(text(query_str), params)
     # No semantic distance in this case
-    return _process_results(result.mappings().all(), distance_metric=None)
+    return _process_results(result.mappings().all(), score_metric=None)
+
+def normalize_query(text: str) -> str:
+    """
+    Normalizes a search query by lowercasing, removing punctuation, and trimming spaces.
+    """
+    if not text:
+        return ""
+    text = text.lower()
+    text = re.sub(r'[^\w\s]', '', text)
+    text = text.strip()
+    return text
 
 def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
     """
-    Main search function that dispatches to the correct implementation
-    based on the database dialect.
+    Main search function that orchestrates the search logic.
+    - Routes to keyword search for short queries (<= 3 words).
+    - Routes to semantic/vector search for longer queries.
+    - Handles embedding failures by falling back to keyword search.
     """
     dialect = session.bind.dialect.name
-
-    # Check word count in 'situatie'
     word_count = len(search_request.situatie.split())
+    use_keyword_search = True
 
-    if word_count <= 3:
-        # Use keyword search for short queries
+    if word_count > 3:
+        logger.info("[search] using embedding mode (>3 words)")
+        embedding = embed_text(search_request.situatie)
+
+        # Check if embedding failed (indicated by a zero vector)
+        if any(v != 0.0 for v in embedding):
+            use_keyword_search = False
+            if dialect == 'postgresql':
+                return _search_postgres(session, search_request, embedding)
+            else:
+                # Fallback for SQLite when embedding is successful but platform is not PG
+                return _search_sqlite(session, search_request)
+        else:
+            logger.warning("[search] embedding failed, falling back to keyword search.")
+            # Fallback to keyword search is implicitly handled below
+
+    # This block is executed if word_count <= 3 OR if embedding failed
+    if use_keyword_search:
         if dialect == 'postgresql':
-            # Placeholder for the new keyword search function
             return _search_by_keywords_postgres(session, search_request)
         else:
-            # Placeholder for the new keyword search function
             return _search_by_keywords_sqlite(session, search_request)
-    else:
-        # Use embedding search for longer queries
-        embedding = embed_text(search_request.situatie)
-        if dialect == 'postgresql':
-            return _search_postgres(session, search_request, embedding)
-        else:
-            return _search_sqlite(session, search_request)
 
 def get_case_by_id(session: Session, case_id: int) -> Dict[str, Any] | None:
     """
@@ -328,6 +405,6 @@ def get_case_by_id(session: Session, case_id: int) -> Dict[str, Any] | None:
         return None
 
     # Process the single result to match the structure of search results
-    processed_result = _process_results([result], distance_metric=None)
+    processed_result = _process_results([result], score_metric=None)
     logger.info(f"Successfully fetched and processed case ID {case_id}.")
     return processed_result[0] if processed_result else None
