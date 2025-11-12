@@ -1,4 +1,6 @@
 import React from 'react';
+import { generatePdf } from '@/lib/pdf';
+import type { PdfSablonData } from '@/lib/pdf';
 import eyeIcon from '@/assets/icons/eye.png';
 import printIcon from '@/assets/icons/print.png';
 import justiceIcon from '@/assets/icons/justice.png';
@@ -13,6 +15,26 @@ interface ResultItemProps {
 
 const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase }) => {
   const content = result[activeView] || 'Acest conținut nu este disponibil.';
+
+  const handleDownload = async () => {
+    const caseData = result.data;
+    const pdfData: PdfSablonData = {
+      titlu: caseData.titlu || "Fără titlu",
+      numarDosar: caseData.numar_dosar,
+      sectiuni: [
+        {
+          title: "Parte Introductivă",
+          paragraphs: caseData.parte_introductiva ? [{ text: caseData.parte_introductiva }] : [],
+        },
+        {
+          title: "Considerente",
+          paragraphs: caseData.considerente ? [{ text: caseData.considerente }] : [],
+        },
+      ],
+      dispozitiv: caseData.dispozitiv ? [{ text: caseData.dispozitiv }] : [],
+    };
+    await generatePdf(pdfData);
+  };
 
   const generateTitle = (result: any): string => {
     const titlu = result.data?.titlu;
@@ -58,7 +80,7 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase 
         </h3>
         <div className="flex items-center space-x-3 ml-4">
           <IconButton icon={addToDossierIcon} alt="Dosar" />
-          <IconButton icon={printIcon} alt="Print" />
+          <IconButton icon={printIcon} alt="Print" onClick={handleDownload} />
           <IconButton icon={eyeIcon} alt="Vezi" onClick={onViewCase} />
         </div>
       </div>

@@ -2,6 +2,8 @@ import React from "react";
 import LongTextField from "./LongTextField";
 import Tabs from "./Tabs";
 import { Download, X } from "lucide-react";
+import { generatePdf } from "@/lib/pdf";
+import type { PdfSablonData } from "@/lib/pdf";
 
 interface CaseDetailModalProps {
   result: {
@@ -16,6 +18,25 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
     return null;
   }
   const caseData = result.data;
+
+  const handleDownload = async () => {
+    const pdfData: PdfSablonData = {
+      titlu: caseData.titlu || "Fără titlu",
+      numarDosar: caseData.numar_dosar,
+      sectiuni: [
+        {
+          title: "Parte Introductivă",
+          paragraphs: caseData.parte_introductiva ? [{ text: caseData.parte_introductiva }] : [],
+        },
+        {
+          title: "Considerente",
+          paragraphs: caseData.considerente ? [{ text: caseData.considerente }] : [],
+        },
+      ],
+      dispozitiv: caseData.dispozitiv ? [{ text: caseData.dispozitiv }] : [],
+    };
+    await generatePdf(pdfData);
+  };
 
   const renderField = (label: string, value: any) => {
     if (!value || value === "null" || (Array.isArray(value) && value.length === 0)) {
@@ -107,7 +128,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
           </h2>
           <div className="flex items-center space-x-3">
             <button
-              onClick={() => alert("Funcționalitatea de export va fi implementată în curând.")}
+              onClick={handleDownload}
               className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               aria-label="Exportă speța"
             >
