@@ -123,17 +123,18 @@ const App: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleRemoveFilter = useCallback((filterType: keyof SearchParams, valueToRemove: string) => {
+  const handleRemoveFilter = useCallback((filterType: string, valueToRemove: string) => {
     setSearchParams(prevParams => {
       const newParams = { ...prevParams };
-      const currentValue = newParams[filterType];
+      const key = filterType as keyof SearchParams;
+      const currentValue = newParams[key];
 
       if (Array.isArray(currentValue)) {
         // @ts-ignore
-        newParams[filterType] = currentValue.filter(item => item !== valueToRemove);
+        newParams[key] = currentValue.filter(item => item !== valueToRemove);
       } else if (typeof currentValue === 'string') {
         // @ts-ignore
-        newParams[filterType] = '';
+        newParams[key] = '';
       }
 
       return newParams;
