@@ -41,9 +41,11 @@ const Header: React.FC<HeaderProps> = ({ situatie, onSituatieChange, onSearch })
 
         <div className="flex items-center">
           <span className="text-sm font-semibold text-gray-700 mr-2">Produs al grupului</span>
-          <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
-            VerdictLine
-          </span>
+          <a href="https://app.verdictline.com/login" target="_blank" rel="noopener noreferrer">
+            <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+              VerdictLine.com
+            </span>
+          </a>
         </div>
       </header>
       <SearchModal
