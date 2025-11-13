@@ -4,9 +4,7 @@ import "@/assets/fonts/DejaVuSans-Bold-normal.js";
 import logo from "@/assets/icons/logo.png";
 
 /* ================= Helpers ================= */
-type Align = "left" | "center" | "right" | "justify";
 const safe = (v?: any) => (v ? String(v) : "");
-const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 /* ================= Tipuri ================= */
 export type PdfSablonData = {

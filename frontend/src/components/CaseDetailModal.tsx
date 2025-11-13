@@ -17,7 +17,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
   if (!result) {
     return null;
   }
-  const caseData = { ...(result.data || {}), ...result };
+  const caseData = result.data;
 
   const handleDownload = async () => {
     const pdfData: PdfSablonData = {
