@@ -16,6 +16,7 @@ interface MainContentProps {
   };
   onRemoveFilter: (filterType: string, value: string) => void;
   onClearFilters: () => void;
+  isLeftSidebarCollapsed: boolean;
 }
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
@@ -28,6 +29,7 @@ const MainContent: React.FC<MainContentProps> = ({
   searchParams,
   onRemoveFilter,
   onClearFilters,
+  isLeftSidebarCollapsed,
 }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
 
@@ -100,7 +102,7 @@ const MainContent: React.FC<MainContentProps> = ({
   };
 
   return (
-    <main className="flex-1 p-6 bg-white overflow-y-auto">
+    <main className={`flex-1 p-6 bg-white overflow-y-auto transition-all duration-300 ${isLeftSidebarCollapsed ? 'ml-0' : 'ml-0'} main-content`}>
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold text-green-700">Rezultatele căutării</h1>
         <div className="bg-gray-100 p-1 rounded-lg">

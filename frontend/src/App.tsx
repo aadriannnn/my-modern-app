@@ -39,6 +39,11 @@ const App: React.FC = () => {
   const [selectedCase, setSelectedCase] = useState<any | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isContribuieModalOpen, setIsContribuieModalOpen] = useState(false);
+  const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
+
+  const toggleLeftSidebar = () => {
+    setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
+  };
 
   // Fetch initial filter data on component mount
   useEffect(() => {
@@ -169,6 +174,8 @@ const App: React.FC = () => {
               filters={filters}
               selectedFilters={searchParams}
               onFilterChange={handleFilterChange}
+              isCollapsed={isLeftSidebarCollapsed}
+              onToggleCollapse={toggleLeftSidebar}
             />
             <MainContent
               results={searchResults}
@@ -178,6 +185,7 @@ const App: React.FC = () => {
               searchParams={searchParams}
               onRemoveFilter={handleRemoveFilter}
               onClearFilters={handleClearFilters}
+              isLeftSidebarCollapsed={isLeftSidebarCollapsed}
             />
           </>
         )}
