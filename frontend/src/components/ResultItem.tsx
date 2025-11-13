@@ -2,7 +2,7 @@ import React from 'react';
 import { generatePdf } from '@/lib/pdf';
 import type { PdfSablonData } from '@/lib/pdf';
 import eyeIcon from '@/assets/icons/eye.png';
-import printIcon from '@/assets/icons/print.png';
+import { Printer } from 'lucide-react';
 import justiceIcon from '@/assets/icons/justice.png';
 import calendarIcon from '@/assets/icons/calendar.png';
 import addToDossierIcon from '@/assets/icons/addToDossier.png';
@@ -20,20 +20,28 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase 
     const caseData = result.data;
     const pdfData: PdfSablonData = {
       titlu: caseData.titlu || "Fără titlu",
-      numarDosar: caseData.numar_dosar,
-      sectiuni: [
-        {
-          title: "Parte Introductivă",
-          paragraphs: caseData.parte_introductiva ? [{ text: caseData.parte_introductiva }] : [],
-        },
-        {
-          title: "Considerente",
-          paragraphs: caseData.considerente ? [{ text: caseData.considerente }] : [],
-        },
-      ],
-      dispozitiv: caseData.dispozitiv ? [{ text: caseData.dispozitiv }] : [],
+      materie: caseData.materie || "",
+      obiect: caseData.obiect || "",
+      instanta: caseData.instanta || "",
+      parte_introductiva: caseData.parte_introductiva || "",
+      considerente_speta: caseData.considerente_speta || "",
+      dispozitiv_speta: caseData.dispozitiv_speta || "",
     };
     await generatePdf(pdfData);
+  };
+
+  const handlePrint = async () => {
+    const caseData = result.data;
+    const pdfData: PdfSablonData = {
+      titlu: caseData.titlu || "Fără titlu",
+      materie: caseData.materie || "",
+      obiect: caseData.obiect || "",
+      instanta: caseData.instanta || "",
+      parte_introductiva: caseData.parte_introductiva || "",
+      considerente_speta: caseData.considerente_speta || "",
+      dispozitiv_speta: caseData.dispozitiv_speta || "",
+    };
+    await generatePdf(pdfData, { autoPrint: true });
   };
 
   const generateTitle = (result: any): string => {
@@ -80,7 +88,9 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase 
         </h3>
         <div className="flex items-center space-x-3 ml-4">
           <IconButton icon={addToDossierIcon} alt="Dosar" />
-          <IconButton icon={printIcon} alt="Print" onClick={handleDownload} />
+          <button onClick={handlePrint} className="p-1 rounded-full hover:bg-gray-100 transition-colors">
+            <Printer size={20} />
+          </button>
           <IconButton icon={eyeIcon} alt="Vezi" onClick={onViewCase} />
         </div>
       </div>

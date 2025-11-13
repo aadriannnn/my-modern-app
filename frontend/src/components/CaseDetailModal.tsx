@@ -1,9 +1,9 @@
 import React from "react";
 import LongTextField from "./LongTextField";
 import Tabs from "./Tabs";
-import { Download, X } from "lucide-react";
+import { Download, X, Printer } from "lucide-react";
 import { generatePdf } from "../lib/pdf";
-import type { PdfData } from "../lib/pdf";
+import type { PdfSablonData } from "../lib/pdf";
 
 interface CaseDetailModalProps {
   result: {
@@ -20,7 +20,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
   const caseData = result.data;
 
   const handleDownload = async () => {
-    const pdfData: PdfData = {
+    const pdfData: PdfSablonData = {
       titlu: caseData.titlu || "Fără titlu",
       materie: caseData.materie || "",
       obiect: caseData.obiect || "",
@@ -30,6 +30,19 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
       dispozitiv_speta: caseData.dispozitiv_speta || "",
     };
     await generatePdf(pdfData);
+  };
+
+  const handlePrint = async () => {
+    const pdfData: PdfSablonData = {
+      titlu: caseData.titlu || "Fără titlu",
+      materie: caseData.materie || "",
+      obiect: caseData.obiect || "",
+      instanta: caseData.instanta || "",
+      parte_introductiva: caseData.parte_introductiva || "",
+      considerente_speta: caseData.considerente_speta || "",
+      dispozitiv_speta: caseData.dispozitiv_speta || "",
+    };
+    await generatePdf(pdfData, { autoPrint: true });
   };
 
   const renderField = (label: string, value: any) => {
@@ -121,6 +134,13 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
             {caseData.titlu || `Detalii Speță`}
           </h2>
           <div className="flex items-center space-x-3">
+            <button
+              onClick={handlePrint}
+              className="p-2 bg-gray-200 text-gray-700 rounded-full hover:bg-gray-300 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400"
+              aria-label="Printează speța"
+            >
+              <Printer size={20} />
+            </button>
             <button
               onClick={handleDownload}
               className="p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
