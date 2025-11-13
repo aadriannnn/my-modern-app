@@ -9,7 +9,14 @@ const LongTextField: React.FC<LongTextFieldProps> = ({ label, text }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   if (!text) {
-    return null;
+    return (
+        <div className="mb-4">
+            <h4 className="font-semibold text-gray-700 mb-1">{label}</h4>
+            <div className="bg-gray-50 p-3 rounded-md text-gray-500 italic">
+                Nu sunt informații.
+            </div>
+        </div>
+    );
   }
 
   const toggleExpansion = () => {

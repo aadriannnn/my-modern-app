@@ -47,7 +47,12 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
 
   const renderField = (label: string, value: any) => {
     if (!value || value === "null" || (Array.isArray(value) && value.length === 0)) {
-      return null;
+        return (
+            <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-1">{label}</h3>
+                <p className="text-gray-500 italic">Nu sunt informații.</p>
+            </div>
+        );
     }
     return (
       <div className="mb-4">
@@ -75,8 +80,8 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
 
   const faptContent = (
     <div className="p-4 bg-white rounded-lg shadow-inner">
-      {caseData.situatia_de_fapt && <LongTextField label="Situația de fapt" text={caseData.situatia_de_fapt} />}
-      {caseData.probele_retinute && renderField("Probele reținute", caseData.probele_retinute)}
+      <LongTextField label="Situația de fapt" text={caseData.situatia_de_fapt_full} />
+      {renderField("Probele reținute", caseData.probele_retinute)}
     </div>
   );
 
@@ -89,7 +94,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
         "Text Doctrină": caseData.text_doctrina,
         "Tip Act Juridic": caseData.tip_act_juridic,
       }).map(([label, value]) =>
-        value && <LongTextField key={label} label={label} text={value} />
+        <LongTextField key={label} label={label} text={value} />
       )}
     </div>
   );
@@ -101,7 +106,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
         { label: "Cereri Accesorii", value: caseData.cereri_accesorii },
         { label: "Dispozitiv Speță", value: caseData.dispozitiv_speta },
       ].map(field =>
-        field.value && <LongTextField key={field.label} label={field.label} text={field.value} />
+        <LongTextField key={field.label} label={field.label} text={field.value} />
       )}
     </div>
   );
@@ -113,7 +118,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
         "Ce învățăm": caseData.text_ce_invatam,
         "Individualizare": caseData.text_individualizare,
       }).map(([label, value]) =>
-        value && <LongTextField key={label} label={label} text={value} />
+        <LongTextField key={label} label={label} text={value} />
       )}
     </div>
   );

@@ -144,10 +144,11 @@ def _process_results(rows: List[Dict], score_metric: str = "semantic_distance") 
             except (ValueError, TypeError):
                 logger.warning(f"Could not convert metric '{score_metric}' ('{metric_value}') to float. Defaulting score to 0.")
 
-        results.append({
+        data = {
             "id": row['id'],
+            **obj,
             "denumire": obj.get("denumire", f"Caz #{row['id']}"),
-            "situatia_de_fapt_full": obj.get('text_situatia_de_fapt') or obj.get('situatia_de_fapt') or "",
+            "situatia_de_fapt": obj.get('text_situatia_de_fapt') or obj.get('situatia_de_fapt') or "",
             "argumente_instanta": obj.get('argumente_instanta') or "",
             "text_individualizare": obj.get('text_individualizare') or "",
             "text_doctrina": obj.get('text_doctrina') or "",
@@ -156,8 +157,21 @@ def _process_results(rows: List[Dict], score_metric: str = "semantic_distance") 
             "solutia": obj.get("solutia", ""),
             "tip_speta": obj.get('tip_speta', "—"),
             "materie": obj.get('materie', "—"),
+        }
+        results.append({
+            "id": row['id'],
+            "denumire": data['denumire'],
+            "situatia_de_fapt_full": data['situatia_de_fapt'],
+            "argumente_instanta": data['argumente_instanta'],
+            "text_individualizare": data['text_individualizare'],
+            "text_doctrina": data['text_doctrina'],
+            "text_ce_invatam": data['text_ce_invatam'],
+            "Rezumat_generat_de_AI_Cod": data['Rezumat_generat_de_AI_Cod'],
+            "solutia": data['solutia'],
+            "tip_speta": data['tip_speta'],
+            "materie": data['materie'],
             "score": score if not math.isnan(score) else 0.0,
-            "data": obj
+            "data": data
         })
     return results
 
