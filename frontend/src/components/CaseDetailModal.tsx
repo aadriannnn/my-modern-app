@@ -66,7 +66,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
     <div className="p-4 bg-white rounded-lg shadow-inner">
       {Object.entries({
         "Titlu": caseData.titlu,
-        "Număr Dosar": caseData.numar_dosar,
+        "Număr Dosar": caseData.număr_dosar,
         "Tip Speță": caseData.tip_speta,
         "Tip Soluție": caseData.tip_solutie,
         "Tip Cale Atac": caseData.tip_cale_atac,
