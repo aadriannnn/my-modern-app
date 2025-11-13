@@ -1,4 +1,5 @@
 import { jsPDF } from "jspdf";
+import "@/assets/fonts/DejaVuSans.js";
 import logo from "@/assets/icons/logo.png";
 
 /* ================= Helpers ================= */
@@ -61,7 +62,7 @@ const drawHeader = (doc: jsPDF, ctx: LayoutCtx) => {
 
   // Data (sub logo)
   const today = new Date().toLocaleDateString("ro-RO");
-  doc.setFont("times", "normal");
+  doc.setFont("DejaVuSans", "normal");
   doc.setFontSize(10);
   doc.text(today, xRight + 40, ctx.margin + 20, { align: "right" });
 
@@ -75,7 +76,7 @@ const drawHeader = (doc: jsPDF, ctx: LayoutCtx) => {
 
 /* ================= META INFO ================= */
 const drawMetaInfo = (doc: jsPDF, ctx: LayoutCtx, data: PdfSablonData) => {
-  doc.setFont("times", "normal");
+  doc.setFont("DejaVuSans", "normal");
   doc.setFontSize(12);
   doc.setTextColor(20);
 
@@ -98,7 +99,7 @@ const drawMetaInfo = (doc: jsPDF, ctx: LayoutCtx, data: PdfSablonData) => {
 const drawTitle = (doc: jsPDF, ctx: LayoutCtx, data: PdfSablonData) => {
   const title = safe(data.titlu);
 
-  doc.setFont("times", "bold");
+  doc.setFont("DejaVuSans", "bold");
   doc.setFontSize(15);
 
   const lines = doc.splitTextToSize(title, ctx.maxW);
@@ -108,7 +109,7 @@ const drawTitle = (doc: jsPDF, ctx: LayoutCtx, data: PdfSablonData) => {
   ctx.y += lines.length * 6 + 10;
 
   if (data.numarDosar) {
-    doc.setFont("times", "italic");
+    doc.setFont("DejaVuSans", "italic");
     doc.setFontSize(11);
     doc.text(`Dosar nr. ${data.numarDosar}`, ctx.pageW / 2, ctx.y, { align: "center" });
     ctx.y += 10;
@@ -119,7 +120,7 @@ const drawTitle = (doc: jsPDF, ctx: LayoutCtx, data: PdfSablonData) => {
 const drawParagraphJustified = (doc: jsPDF, ctx: LayoutCtx, text: string, bold = false) => {
   const chunks = safe(text).split("\n");
 
-  doc.setFont("times", bold ? "bold" : "normal");
+  doc.setFont("DejaVuSans", bold ? "bold" : "normal");
   doc.setFontSize(12);
   doc.setTextColor(30);
 
@@ -137,7 +138,7 @@ const drawParagraphJustified = (doc: jsPDF, ctx: LayoutCtx, text: string, bold =
 /* ================= SECȚIUNE GENERICĂ ================= */
 const drawSectionTitle = (doc: jsPDF, ctx: LayoutCtx, title: string) => {
   ensureSpace(doc, ctx, 10);
-  doc.setFont("times", "bold");
+  doc.setFont("DejaVuSans", "bold");
   doc.setFontSize(13);
   doc.text(title, ctx.margin, ctx.y);
   ctx.y += 8;
@@ -167,7 +168,7 @@ const drawFooterAllPages = (doc: jsPDF, ctx: LayoutCtx) => {
     doc.setPage(i);
     const y = ctx.pageH - 8;
 
-    doc.setFont("times", "italic");
+    doc.setFont("DejaVuSans", "italic");
     doc.setFontSize(10);
     doc.text(`Pagina ${i} din ${total}`, ctx.pageW / 2, y, { align: "center" });
   }
@@ -178,6 +179,7 @@ export const generatePdf = async (data: PdfSablonData, opts: PdfOptions = {}): P
   const margin = opts.margin ?? DEF_MARGIN;
 
   const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
+  doc.setFont("DejaVuSans", "normal");
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
 
