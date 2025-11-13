@@ -14,10 +14,10 @@ interface CaseDetailModalProps {
 }
 
 const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) => {
-  if (!result || !result.data) {
+  if (!result) {
     return null;
   }
-  const caseData = result.data;
+  const caseData = { ...(result.data || {}), ...result };
 
   const handleDownload = async () => {
     const pdfData: PdfSablonData = {
@@ -66,7 +66,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
     <div className="p-4 bg-white rounded-lg shadow-inner">
       {Object.entries({
         "Titlu": caseData.titlu,
-        "Număr Dosar": caseData.numar_dosar,
+        "Număr Dosar": caseData.număr_dosar,
         "Tip Speță": caseData.tip_speta,
         "Tip Soluție": caseData.tip_solutie,
         "Tip Cale Atac": caseData.tip_cale_atac,
@@ -114,7 +114,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
   const utileContent = (
     <div className="p-4 bg-white rounded-lg shadow-inner">
       {Object.entries({
-        "Rezumat AI": caseData.rezumat_ai,
+        "Rezumat AI": caseData.Rezumat_generat_de_AI_Cod,
         "Ce învățăm": caseData.text_ce_invatam,
         "Individualizare": caseData.text_individualizare,
       }).map(([label, value]) =>
