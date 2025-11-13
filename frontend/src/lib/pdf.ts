@@ -3,9 +3,7 @@ import "@/assets/fonts/DejaVuSans.js";
 import logo from "@/assets/icons/logo.png";
 
 /* ================= Helpers ================= */
-type Align = "left" | "center" | "right" | "justify";
 const safe = (v?: any) => (v ? String(v) : "");
-const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 /* ================= Tipuri ================= */
 export type PdfSablonData = {
@@ -26,6 +24,7 @@ export type PdfOptions = {
   margin?: number;
   openInNewWindow?: boolean;
   returnBlob?: boolean;
+  autoPrint?: boolean;
 };
 
 /* ================= Layout ================= */
@@ -202,6 +201,13 @@ export const generatePdf = async (data: PdfSablonData, opts: PdfOptions = {}): P
   drawFooterAllPages(doc, ctx);
 
   if (opts.returnBlob) return doc.output("blob");
+
+  if (opts.autoPrint) {
+    doc.autoPrint();
+    const url = doc.output("bloburl");
+    window.open(url, "_blank", "noopener,noreferrer");
+    return;
+  }
 
   if (opts.openInNewWindow) {
     const url = doc.output("bloburl");
