@@ -123,12 +123,26 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
     </div>
   );
 
+  const coduriContent = (
+      <div className="p-4 bg-white rounded-lg shadow-inner">
+          <p>Informații despre coduri vor fi afișate aici.</p>
+      </div>
+  );
+
+  const modeleActeContent = (
+      <div className="p-4 bg-white rounded-lg shadow-inner">
+          <p>Informații despre modele de acte vor fi afișate aici.</p>
+      </div>
+  );
+
   const tabs = [
     { label: "Metadate speță", content: metadataContent },
     { label: "Situația in fapt", content: faptContent },
     { label: "Situația in drept", content: dreptContent },
     { label: "Hotărârea instanței", content: hotarareContent },
     { label: "Elemente utile", content: utileContent },
+    { label: "Coduri", content: coduriContent },
+    { label: "Modele acte", content: modeleActeContent },
   ];
 
   return (
