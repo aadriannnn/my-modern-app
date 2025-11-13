@@ -2,8 +2,8 @@ import React from "react";
 import LongTextField from "./LongTextField";
 import Tabs from "./Tabs";
 import { Download, X } from "lucide-react";
-import { generatePdf } from "@/lib/pdf";
-import type { PdfSablonData } from "@/lib/pdf";
+import { generatePdf } from "../lib/pdf";
+import type { PdfData } from "../lib/pdf";
 
 interface CaseDetailModalProps {
   result: {
@@ -20,20 +20,14 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
   const caseData = result.data;
 
   const handleDownload = async () => {
-    const pdfData: PdfSablonData = {
+    const pdfData: PdfData = {
       titlu: caseData.titlu || "Fără titlu",
-      numarDosar: caseData.numar_dosar,
-      sectiuni: [
-        {
-          title: "Parte Introductivă",
-          paragraphs: caseData.parte_introductiva ? [{ text: caseData.parte_introductiva }] : [],
-        },
-        {
-          title: "Considerente",
-          paragraphs: caseData.considerente ? [{ text: caseData.considerente }] : [],
-        },
-      ],
-      dispozitiv: caseData.dispozitiv ? [{ text: caseData.dispozitiv }] : [],
+      materie: caseData.materie || "",
+      obiect: caseData.obiect || "",
+      instanta: caseData.instanta || "",
+      parte_introductiva: caseData.parte_introductiva || "",
+      considerente_speta: caseData.considerente_speta || "",
+      dispozitiv_speta: caseData.dispozitiv_speta || "",
     };
     await generatePdf(pdfData);
   };
