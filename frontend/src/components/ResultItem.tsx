@@ -16,20 +16,6 @@ interface ResultItemProps {
 const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase }) => {
   const content = result[activeView] || 'Acest conținut nu este disponibil.';
 
-  const handleDownload = async () => {
-    const caseData = result.data;
-    const pdfData: PdfSablonData = {
-      titlu: caseData.titlu || "Fără titlu",
-      materie: caseData.materie || "",
-      obiect: caseData.obiect || "",
-      instanta: caseData.instanta || "",
-      parte_introductiva: caseData.parte_introductiva || "",
-      considerente_speta: caseData.considerente_speta || "",
-      dispozitiv_speta: caseData.dispozitiv_speta || "",
-    };
-    await generatePdf(pdfData);
-  };
-
   const handlePrint = async () => {
     const caseData = result.data;
     const pdfData: PdfSablonData = {
