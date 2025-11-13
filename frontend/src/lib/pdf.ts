@@ -1,5 +1,6 @@
 import { jsPDF } from "jspdf";
 import "@/assets/fonts/DejaVuSans.js";
+import "@/assets/fonts/DejaVuSans-Bold-normal.js";
 import logo from "@/assets/icons/logo.png";
 
 /* ================= Helpers ================= */
@@ -121,7 +122,7 @@ const drawTitle = (doc: jsPDF, ctx: LayoutCtx, data: PdfSablonData) => {
 const drawParagraphJustified = (doc: jsPDF, ctx: LayoutCtx, text: string, bold = false) => {
   const chunks = safe(text).split("\n");
 
-  doc.setFont("DejaVuSans", bold ? "bold" : "normal");
+  doc.setFont(bold ? "DejaVuSans-Bold" : "DejaVuSans", "normal");
   doc.setFontSize(12);
   doc.setTextColor(30);
 
