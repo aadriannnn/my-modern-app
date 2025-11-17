@@ -9,17 +9,35 @@ interface SearchParams {
 
 const API_URL = '/api';
 
-export const getFilters = async () => {
-  const response = await fetch(`${API_URL}/filters/menu`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch filters');
+import type { Filters } from '../types';
+
+export const getFilters = async (): Promise<Filters> => {
+  try {
+    const response = await fetch(`${API_URL}/filters/menu`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch filters');
+    }
+    const data = await response.json();
+
+    // Asigură fallback-uri sigure pentru fiecare câmp
+    return {
+      materii: data.menuData?.materii ?? [],
+      obiecte: data.menuData?.obiecte ?? [],
+      details: data.menuData?.details ?? {},
+      tipSpeta: data.tipSpeta ?? [],
+      parte: data.parte ?? [],
+    };
+  } catch (error) {
+    console.error("Error in getFilters:", error);
+    // Returnează o structură goală validă în caz de eroare
+    return {
+      materii: [],
+      obiecte: [],
+      details: {},
+      tipSpeta: [],
+      parte: [],
+    };
   }
-  const data = await response.json();
-  return {
-    tipSpeta: data.tipSpeta || [],
-    parte: data.parte || [],
-    menuData: data.menuData || {},
-  };
 };
 
 export class ApiError extends Error {
