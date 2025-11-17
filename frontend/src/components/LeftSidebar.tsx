@@ -1,18 +1,6 @@
 import React from 'react';
 
-// Define types from App.tsx
-interface Filters {
-  menuData: { [key: string]: string[] };
-  tipSpeta: string[];
-  parte: string[];
-}
-
-interface SelectedFilters {
-  materie: string;
-  obiect: string[];
-  tip_speta: string[];
-  parte: string[];
-}
+import type { Filters, SelectedFilters, FilterItem } from '../types';
 
 interface LeftSidebarProps {
   filters: Filters | null;
@@ -31,8 +19,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onF
     );
   }
 
-  const { menuData, tipSpeta, parte } = filters;
-  const availableObiecte = selectedFilters.materie ? menuData[selectedFilters.materie] || [] : [];
+  const { materii = [], obiecte = [], details = {}, tipSpeta = [], parte = [] } = filters ?? {};
+
+  const availableObiecte = selectedFilters.materie ? details[selectedFilters.materie] ?? [] : obiecte;
 
   const handleCheckboxChange = (filterType: 'obiect' | 'tip_speta' | 'parte', value: string) => {
     const currentValues = selectedFilters[filterType];
@@ -56,22 +45,23 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onF
         {!isCollapsed && (
           <div>
             <div className="space-y-2">
-              {Object.keys(menuData).map(materie => (
+              {materii.map(materie => (
                 <button
-                key={materie}
-                onClick={() => onFilterChange('materie', selectedFilters.materie === materie ? '' : materie)}
-                className={`w-full text-left px-3 py-2 rounded-md text-sm ${
-                  selectedFilters.materie === materie
-                    ? 'bg-green-600 text-white font-semibold'
-                    : 'bg-white hover:bg-gray-100 text-gray-700'
-                }`}
-              >
-                {materie}
-              </button>
-            ))}
+                  key={materie.name}
+                  onClick={() => onFilterChange('materie', selectedFilters.materie === materie.name ? '' : materie.name)}
+                  className={`w-full flex justify-between items-center text-left px-3 py-2 rounded-md text-sm ${
+                    selectedFilters.materie === materie.name
+                      ? 'bg-green-600 text-white font-semibold'
+                      : 'bg-white hover:bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  <span>{materie.name}</span>
+                  <span className="text-xs text-gray-500">{materie.count}</span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
-      )} 
+        )}
         {/* Dynamic Filters */}
         {!isCollapsed && (
           <div>
@@ -91,7 +81,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onF
 // Helper component for a group of checkboxes
 interface FilterGroupProps {
   title: string;
-  items: string[];
+  items: FilterItem[];
   selected: string[];
   onChange: (value: string) => void;
   disabled?: boolean;
@@ -102,16 +92,21 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, items, selected, onCha
     <h4 className="font-semibold text-gray-600 mb-2">{title}</h4>
     {disabled && <p className="text-xs text-gray-400 mb-2">Selectați o categorie mai întâi.</p>}
     <div className={`space-y-2 ${disabled ? 'opacity-50' : ''}`}>
-      {items.map(item => (
-        <label key={item} className="flex items-center space-x-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={selected.includes(item)}
-            onChange={() => onChange(item)}
-            disabled={disabled}
-            className="rounded text-green-600 focus:ring-green-500"
-          />
-          <span className="text-sm text-gray-800">{item}</span>
+      {(items ?? []).map((item, index) => (
+        <label key={`${item.name}-${index}`} className="flex items-center justify-between space-x-2 cursor-pointer">
+          <div className="flex items-center">
+            <input
+              type="checkbox"
+              checked={selected.includes(item.name)}
+              onChange={() => onChange(item.name)}
+              disabled={disabled}
+              className="rounded text-green-600 focus:ring-green-500"
+            />
+            <span className="ml-2 text-sm text-gray-800">{item.name}</span>
+          </div>
+          {item.count !== null && (
+            <span className="text-sm text-gray-500">{item.count}</span>
+          )}
         </label>
       ))}
     </div>

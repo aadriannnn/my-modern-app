@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 # In-memory cache
 _in_memory_cache = {
-    "menuData": {},
+    "menuData": {"materii": [], "obiecte": [], "details": {}},
     "tipSpeta": [],
     "parte": [],
     "materii_map": {},
@@ -42,14 +42,14 @@ def load_all_filters_into_memory(session: Session):
         menu_row = session.get(FiltreCacheMenu, 1)
 
     if menu_row:
-        _in_memory_cache["menuData"] = menu_row.menu_data or {}
+        _in_memory_cache["menuData"] = menu_row.menu_data or {"materii": [], "obiecte": [], "details": {}}
         _in_memory_cache["materii_map"] = menu_row.materii_map or {}
         _in_memory_cache["obiecte_map"] = menu_row.obiecte_map or {}
         _in_memory_cache["last_updated"] = menu_row.last_updated
-        logger.info(f"Successfully loaded {len(_in_memory_cache['menuData'])} materii into memory.")
+        logger.info(f"Successfully loaded menu data with {len(_in_memory_cache['menuData'].get('materii', []))} materii into memory.")
     else:
         logger.error("Failed to load menu data even after a refresh. The menu will be empty.")
-        _in_memory_cache["menuData"] = {}
+        _in_memory_cache["menuData"] = {"materii": [], "obiecte": [], "details": {}}
         _in_memory_cache["materii_map"] = {}
         _in_memory_cache["obiecte_map"] = {}
 
@@ -60,11 +60,8 @@ def load_all_filters_into_memory(session: Session):
         tip_speta_query = select(FiltreCache.valoare).where(FiltreCache.tip == "tip_speta").order_by(FiltreCache.valoare)
         parte_query = select(FiltreCache.valoare).where(FiltreCache.tip == "parte").order_by(FiltreCache.valoare)
 
-        tip_speta_result = session.exec(tip_speta_query).all()
-        parte_result = session.exec(parte_query).all()
-
-        _in_memory_cache["tipSpeta"] = tip_speta_result
-        _in_memory_cache["parte"] = parte_result
+        _in_memory_cache["tipSpeta"] = session.exec(tip_speta_query).all()
+        _in_memory_cache["parte"] = session.exec(parte_query).all()
 
         logger.info(f"Loaded {len(tip_speta_result)} 'tipSpeta' values into memory.")
         logger.info(f"Loaded {len(parte_result)} 'parte' values into memory.")
