@@ -7,20 +7,7 @@ import CaseDetailModal from '../components/CaseDetailModal';
 import ContribuieModal from '../components/ContribuieModal';
 import { getFilters, search as apiSearch, ApiError } from '../lib/api';
 
-// Define types for our state
-interface Filters {
-  menuData: { [key: string]: string[] };
-  tipSpeta: string[];
-  parte: string[];
-}
-
-interface SearchParams {
-  situatie: string;
-  materie: string; // Only one materie can be selected
-  obiect: string[];
-  tip_speta: string[];
-  parte: string[];
-}
+import type { Filters, SelectedFilters } from '../types';
 
 const SearchPage: React.FC = () => {
     const [filters, setFilters] = useState<Filters | null>(null);
@@ -30,8 +17,8 @@ const SearchPage: React.FC = () => {
     const [offset, setOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
 
-    const [searchParams, setSearchParams] = useState<SearchParams>({
-      situatie: '',
+    const [situatie, setSituatie] = useState('');
+    const [searchParams, setSearchParams] = useState<SelectedFilters>({
       materie: '',
       obiect: [],
       tip_speta: [],
@@ -92,7 +79,7 @@ const SearchPage: React.FC = () => {
     };
 
     const handleSearch = async () => {
-      if (!searchParams.situatie.trim() && searchParams.obiect.length === 0) {
+      if (!situatie.trim() && searchParams.obiect.length === 0) {
         setStatus("Pentru a efectua o căutare, vă rugăm să introduceți un text în câmpul 'Situație de fapt' sau să selectați cel puțin un 'Obiect' din filtre.");
         return;
       }
@@ -151,8 +138,8 @@ const SearchPage: React.FC = () => {
     return (
       <div className="flex flex-col min-h-screen bg-gray-100 font-sans">
         <Header
-          situatie={searchParams.situatie}
-          onSituatieChange={(value) => setSearchParams(p => ({ ...p, situatie: value }))}
+          situatie={situatie}
+          onSituatieChange={setSituatie}
           onSearch={handleSearch}
         />
         <div className="flex flex-1 overflow-hidden">
