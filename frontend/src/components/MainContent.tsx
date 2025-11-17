@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters'; // Import the new component
 import './SelectedFilters.css'; // Import the CSS
@@ -17,6 +17,8 @@ interface MainContentProps {
   onRemoveFilter: (filterType: string, value: string) => void;
   onClearFilters: () => void;
   isLeftSidebarCollapsed: boolean;
+  onLoadMore: () => void;
+  hasMore: boolean;
 }
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
@@ -30,8 +32,21 @@ const MainContent: React.FC<MainContentProps> = ({
   onRemoveFilter,
   onClearFilters,
   isLeftSidebarCollapsed,
+  onLoadMore,
+  hasMore,
 }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
+  const observer = useRef<IntersectionObserver>();
+  const lastResultElementRef = useCallback(node => {
+    if (isLoading) return;
+    if (observer.current) observer.current.disconnect();
+    observer.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && hasMore) {
+        onLoadMore();
+      }
+    });
+    if (node) observer.current.observe(node);
+  }, [isLoading, hasMore, onLoadMore]);
 
   const viewButtons: { key: ViewType; label: string }[] = [
     { key: 'situatia_de_fapt_full', label: 'Situație de fapt' },
@@ -43,7 +58,7 @@ const MainContent: React.FC<MainContentProps> = ({
   ];
 
   const renderContent = () => {
-    if (isLoading) {
+    if (isLoading && results.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center text-center py-10">
           <svg
@@ -77,26 +92,37 @@ const MainContent: React.FC<MainContentProps> = ({
 
     const filteredResults = results.filter(result => {
       const content = result[activeView];
-      if (typeof content !== 'string') {
-        return false;
-      }
-      return content.trim() !== '' && !content.trim().toLowerCase().startsWith('null');
+      return typeof content === 'string' && content.trim() !== '' && !content.trim().toLowerCase().startsWith('null');
     });
 
-    if (filteredResults.length === 0) {
-        return <div className="text-center py-10"><p className="text-gray-500">Nu sunt rezultate care sa corespunda vederii selectate.</p></div>;
+    if (filteredResults.length === 0 && !isLoading) {
+      return <div className="text-center py-10"><p className="text-gray-500">Nu sunt rezultate care sa corespunda vederii selectate.</p></div>;
     }
 
     return (
       <div className="space-y-4">
-        {filteredResults.map((result) => (
-          <ResultItem
-            key={result.id}
-            result={result}
-            activeView={activeView}
-            onViewCase={() => onViewCase(result)}
-          />
-        ))}
+        {filteredResults.map((result, index) => {
+          const isLastElement = filteredResults.length === index + 1;
+          return (
+            <div ref={isLastElement ? lastResultElementRef : null} key={result.id}>
+              <ResultItem
+                result={result}
+                activeView={activeView}
+                onViewCase={() => onViewCase(result)}
+              />
+            </div>
+          );
+        })}
+        {isLoading && (
+          <div className="text-center py-4">
+            <p className="text-gray-500">Se încarcă...</p>
+          </div>
+        )}
+        {!hasMore && (
+          <div className="text-center py-4">
+            <p className="text-gray-500">Ați ajuns la sfârșitul listei.</p>
+          </div>
+        )}
       </div>
     );
   };

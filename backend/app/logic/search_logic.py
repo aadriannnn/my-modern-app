@@ -181,7 +181,12 @@ def _search_postgres(session: Session, req: SearchRequest, embedding: List[float
     filter_clause, params = _build_common_where_clause(req, 'postgresql')
 
     params["embedding"] = str(embedding)
-    params["top_k"] = settings.TOP_K
+
+    # Use request's limit and offset, falling back to settings for top_k if not provided
+    limit = req.limit if req.limit is not None else settings.TOP_K
+    offset = req.offset if req.offset is not None else 0
+    params["limit"] = limit
+    params["offset"] = offset
 
     where_sql = f"WHERE {filter_clause}" if filter_clause else ""
 
@@ -194,7 +199,7 @@ def _search_postgres(session: Session, req: SearchRequest, embedding: List[float
         JOIN vectori v ON b.id = v.speta_id
         {where_sql}
         ORDER BY semantic_distance ASC
-        LIMIT :top_k;
+        LIMIT :limit OFFSET :offset;
     """)
 
     result = session.execute(query, params)
@@ -226,7 +231,12 @@ def _search_by_keywords_postgres(session: Session, req: SearchRequest) -> List[D
 
     q_norm = normalize_query(req.situatie)
     params["q"] = q_norm
-    params["top_k"] = settings.TOP_K
+
+    limit = req.limit if req.limit is not None else settings.TOP_K
+    offset = req.offset if req.offset is not None else 0
+    params["limit"] = limit
+    params["offset"] = offset
+
     min_sim = float(getattr(settings, "MIN_TRGM_SIMILARITY", 0.02))  # prag moale foarte mic
     params["min_sim"] = min_sim
 
@@ -289,7 +299,7 @@ def _search_by_keywords_postgres(session: Session, req: SearchRequest) -> List[D
         FROM blocuri b
         {where_sql}
         ORDER BY keyword_similarity DESC
-        LIMIT :top_k;
+        LIMIT :limit OFFSET :offset;
     """)
 
     rows = session.execute(query, params).mappings().all()
@@ -311,13 +321,16 @@ def _search_by_keywords_sqlite(session: Session, req: SearchRequest) -> List[Dic
     all_clauses = [c for c in [filter_clause, keyword_clause] if c]
     where_sql = f"WHERE {' AND '.join(all_clauses)}" if all_clauses else ""
 
-    params["top_k"] = settings.TOP_K
+    limit = req.limit if req.limit is not None else settings.TOP_K
+    offset = req.offset if req.offset is not None else 0
+    params["limit"] = limit
+    params["offset"] = offset
 
     query_str = f"""
         SELECT id, obj
         FROM blocuri b
         {where_sql}
-        LIMIT :top_k;
+        LIMIT :limit OFFSET :offset;
     """.replace("ILIKE", "LIKE")
 
     result = session.execute(text(query_str), params)
@@ -346,7 +359,10 @@ def _search_sqlite(session: Session, req: SearchRequest) -> List[Dict]:
     all_clauses = [c for c in [filter_clause, situatie_clause] if c]
     where_sql = f"WHERE {' AND '.join(all_clauses)}" if all_clauses else ""
 
-    params["top_k"] = settings.TOP_K
+    limit = req.limit if req.limit is not None else settings.TOP_K
+    offset = req.offset if req.offset is not None else 0
+    params["limit"] = limit
+    params["offset"] = offset
 
     # In SQLite, ILIKE is case-insensitive by default for ASCII
     # We replace it for compatibility, though the behavior is the same.
@@ -354,7 +370,7 @@ def _search_sqlite(session: Session, req: SearchRequest) -> List[Dict]:
         SELECT id, obj
         FROM blocuri b
         {where_sql}
-        LIMIT :top_k;
+        LIMIT :limit OFFSET :offset;
     """.replace("ILIKE", "LIKE")
 
     result = session.execute(text(query_str), params)
@@ -387,13 +403,18 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
     if not search_request.situatie.strip() and search_request.obiect:
         logger.info("[search] using 'obiect' only mode")
         filter_clause, params = _build_common_where_clause(search_request, dialect)
-        params["top_k"] = settings.TOP_K
+
+        limit = search_request.limit if search_request.limit is not None else settings.TOP_K
+        offset = search_request.offset if search_request.offset is not None else 0
+        params["limit"] = limit
+        params["offset"] = offset
+
         where_sql = f"WHERE {filter_clause}" if filter_clause else ""
         query_str = f"""
             SELECT id, obj
             FROM blocuri b
             {where_sql}
-            LIMIT :top_k;
+            LIMIT :limit OFFSET :offset;
         """.replace("ILIKE", "LIKE")
         result = session.execute(text(query_str), params)
         return _process_results(result.mappings().all(), score_metric=None)
