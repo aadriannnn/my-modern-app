@@ -64,8 +64,8 @@ const App: React.FC = () => {
   }, []);
 
   const handleSearch = async () => {
-    if (!searchParams.situatie.trim()) {
-      setStatus('Introduceți text pentru a căuta.');
+    if (!searchParams.situatie.trim() && searchParams.obiect.length === 0) {
+      setStatus("Pentru a efectua o căutare, vă rugăm să introduceți un text în câmpul 'Situație de fapt' sau să selectați cel puțin un 'Obiect' din filtre.");
       return;
     }
 
