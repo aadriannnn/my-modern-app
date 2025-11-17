@@ -7,12 +7,7 @@ import CaseDetailModal from '../components/CaseDetailModal';
 import ContribuieModal from '../components/ContribuieModal';
 import { getFilters, search as apiSearch, ApiError } from '../lib/api';
 
-// Define types for our state
-interface Filters {
-  menuData: { [key: string]: string[] };
-  tipSpeta: string[];
-  parte: string[];
-}
+import { Filters } from '../types';
 
 interface SearchParams {
   situatie: string;

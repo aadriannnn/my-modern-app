@@ -18,7 +18,7 @@ export const getFilters = async () => {
   return {
     tipSpeta: data.tipSpeta || [],
     parte: data.parte || [],
-    menuData: data.menuData || {},
+    menuData: data.menuData || [],
   };
 };
 
