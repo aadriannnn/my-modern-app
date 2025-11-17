@@ -378,10 +378,25 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
     - Routes to keyword search for short queries (<= 3 words).
     - Routes to semantic/vector search for longer queries.
     - Handles embedding failures by falling back to keyword search.
+    - Handles searches with only "obiect" selected.
     """
     dialect = session.bind.dialect.name
     word_count = len(search_request.situatie.split())
     use_keyword_search = True
+
+    if not search_request.situatie.strip() and search_request.obiect:
+        logger.info("[search] using 'obiect' only mode")
+        filter_clause, params = _build_common_where_clause(search_request, dialect)
+        params["top_k"] = settings.TOP_K
+        where_sql = f"WHERE {filter_clause}" if filter_clause else ""
+        query_str = f"""
+            SELECT id, obj
+            FROM blocuri b
+            {where_sql}
+            LIMIT :top_k;
+        """.replace("ILIKE", "LIKE")
+        result = session.execute(text(query_str), params)
+        return _process_results(result.mappings().all(), score_metric=None)
 
     if word_count > 3:
         logger.info("[search] using embedding mode (>3 words)")
