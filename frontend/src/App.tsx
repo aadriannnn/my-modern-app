@@ -27,6 +27,8 @@ const App: React.FC = () => {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [status, setStatus] = useState('Așteptare căutare...');
   const [isLoading, setIsLoading] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
 
   const [searchParams, setSearchParams] = useState<SearchParams>({
     situatie: '',
@@ -63,53 +65,43 @@ const App: React.FC = () => {
     loadFilters();
   }, []);
 
+  const loadMoreResults = async (currentOffset: number) => {
+    if (isLoading || !hasMore) return;
+
+    setIsLoading(true);
+    setStatus('Se încarcă mai multe rezultate...');
+
+    const payload = {
+      ...searchParams,
+      materie: searchParams.materie ? [searchParams.materie] : [],
+      offset: currentOffset,
+    };
+
+    try {
+      const results = await apiSearch(payload);
+      setSearchResults(prev => [...prev, ...results]);
+      setOffset(currentOffset + results.length);
+      setHasMore(results.length > 0);
+      setStatus(`Au fost găsite ${searchResults.length + results.length} rezultate.`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Eroare necunoscută';
+      setStatus(`Eroare la încărcarea rezultatelor: ${errorMessage}`);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSearch = async () => {
     if (!searchParams.situatie.trim() && searchParams.obiect.length === 0) {
       setStatus("Pentru a efectua o căutare, vă rugăm să introduceți un text în câmpul 'Situație de fapt' sau să selectați cel puțin un 'Obiect' din filtre.");
       return;
     }
 
-    setStatus('Căutare în curs...');
-    setIsLoading(true);
+    setSearchResults([]);
+    setOffset(0);
+    setHasMore(true);
 
-    const payload = {
-      ...searchParams,
-      materie: searchParams.materie ? [searchParams.materie] : [],
-    };
-
-    const MAX_RETRIES = 3;
-    const RETRY_DELAY_MS = 3000;
-
-    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-      try {
-        const results = await apiSearch(payload);
-        setSearchResults(results);
-        setStatus(`Au fost găsite ${results.length} rezultate.`);
-        setIsLoading(false);
-        return; // Success, exit the function
-      } catch (error) {
-        console.error(`Search attempt ${attempt} failed:`, error);
-
-        if (error instanceof ApiError && error.status >= 500 && attempt < MAX_RETRIES) {
-          // This is a server error, so we can retry.
-          setStatus(
-            `Serverul este momentan suprasolicitat. Se reîncearcă automat... (${attempt}/${MAX_RETRIES})`
-          );
-          await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS));
-        } else {
-          // This is a client error or the last retry failed.
-          const errorMessage = error instanceof Error ? error.message : 'Eroare necunoscută';
-          setStatus(`Eroare la căutare: ${errorMessage}`);
-          setSearchResults([]);
-          setIsLoading(false);
-          return; // Failure, exit the function
-        }
-      }
-    }
-
-    // This point is reached only if all retries have failed.
-    setStatus('Serverul nu a putut procesa cererea. Vă rugăm să încercați din nou mai târziu.');
-    setIsLoading(false);
+    await loadMoreResults(0);
   };
 
   const handleFilterChange = useCallback((filterType: keyof SearchParams, value: string | string[] | boolean) => {
@@ -186,6 +178,8 @@ const App: React.FC = () => {
               onRemoveFilter={handleRemoveFilter}
               onClearFilters={handleClearFilters}
               isLeftSidebarCollapsed={isLeftSidebarCollapsed}
+              onLoadMore={() => loadMoreResults(offset)}
+              hasMore={hasMore}
             />
           </>
         )}

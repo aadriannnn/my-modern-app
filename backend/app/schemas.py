@@ -17,6 +17,8 @@ class SearchRequest(BaseModel):
     tip_speta: Optional[List[str]] = Field(default_factory=list)
     parte: Optional[List[str]] = Field(default_factory=list)
     doctrina: bool = False
+    offset: Optional[int] = 0
+    limit: Optional[int] = 20
 
 class FilterOptions(BaseModel):
     tip_speta: List[str]

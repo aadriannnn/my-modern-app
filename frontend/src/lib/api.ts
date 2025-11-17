@@ -4,6 +4,7 @@ interface SearchParams {
   obiect: string[];
   tip_speta: string[];
   parte: string[];
+  offset?: number;
 }
 
 const API_URL = '/api';
