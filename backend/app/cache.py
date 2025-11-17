@@ -46,7 +46,7 @@ def load_all_filters_into_memory(session: Session):
         _in_memory_cache["materii_map"] = menu_row.materii_map or {}
         _in_memory_cache["obiecte_map"] = menu_row.obiecte_map or {}
         _in_memory_cache["last_updated"] = menu_row.last_updated
-        logger.info(f"Successfully loaded {len(_in_memory_cache['menuData'])} materii into memory.")
+        logger.info(f"Successfully loaded menu data with {len(_in_memory_cache['menuData'].get('materii', []))} materii into memory.")
     else:
         logger.error("Failed to load menu data even after a refresh. The menu will be empty.")
         _in_memory_cache["menuData"] = {}
