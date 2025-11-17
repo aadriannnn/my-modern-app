@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 
 import type { Filters, SelectedFilters, FilterItem } from '../types';
 
@@ -87,30 +87,44 @@ interface FilterGroupProps {
   disabled?: boolean;
 }
 
-const FilterGroup: React.FC<FilterGroupProps> = ({ title, items, selected, onChange, disabled }) => (
-  <div>
-    <h4 className="font-semibold text-gray-600 mb-2">{title}</h4>
-    {disabled && <p className="text-xs text-gray-400 mb-2">Selectați o categorie mai întâi.</p>}
-    <div className={`space-y-2 ${disabled ? 'opacity-50' : ''}`}>
-      {(items ?? []).map((item, index) => (
-        <label key={`${item.name}-${index}`} className="flex items-center justify-between space-x-2 cursor-pointer">
-          <div className="flex items-center">
-            <input
-              type="checkbox"
-              checked={selected.includes(item.name)}
-              onChange={() => onChange(item.name)}
-              disabled={disabled}
-              className="rounded text-green-600 focus:ring-green-500"
-            />
-            <span className="ml-2 text-sm text-gray-800">{item.name}</span>
-          </div>
-          {item.count !== null && (
-            <span className="text-sm text-gray-500">{item.count}</span>
-          )}
-        </label>
-      ))}
+const FilterGroup: React.FC<FilterGroupProps> = ({ title, items, selected, onChange, disabled }) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const initialCount = 5;
+  const displayedItems = isExpanded ? items : (items ?? []).slice(0, initialCount);
+
+  return (
+    <div>
+      <h4 className="font-semibold text-gray-600 mb-2">{title}</h4>
+      {disabled && <p className="text-xs text-gray-400 mb-2">Selectați o categorie mai întâi.</p>}
+      <div className={`space-y-2 ${disabled ? 'opacity-50' : ''}`}>
+        {(displayedItems ?? []).map((item, index) => (
+          <label key={`${item.name}-${index}`} className="flex items-center justify-between space-x-2 cursor-pointer">
+            <div className="flex items-center">
+              <input
+                type="checkbox"
+                checked={selected.includes(item.name)}
+                onChange={() => onChange(item.name)}
+                disabled={disabled}
+                className="rounded text-green-600 focus:ring-green-500"
+              />
+              <span className="ml-2 text-sm text-gray-800">{item.name}</span>
+            </div>
+            {item.count !== null && (
+              <span className="text-sm text-gray-500">{item.count}</span>
+            )}
+          </label>
+        ))}
+      </div>
+      {(items ?? []).length > initialCount && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-sm text-green-600 hover:text-green-800 mt-2"
+        >
+          {isExpanded ? '- Mai puțin' : '+ Mai mult'}
+        </button>
+      )}
     </div>
-  </div>
-);
+  );
+};
 
 export default LeftSidebar;
