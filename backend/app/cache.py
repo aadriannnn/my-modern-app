@@ -60,8 +60,11 @@ def load_all_filters_into_memory(session: Session):
         tip_speta_query = select(FiltreCache.valoare).where(FiltreCache.tip == "tip_speta").order_by(FiltreCache.valoare)
         parte_query = select(FiltreCache.valoare).where(FiltreCache.tip == "parte").order_by(FiltreCache.valoare)
 
-        _in_memory_cache["tipSpeta"] = session.exec(tip_speta_query).all()
-        _in_memory_cache["parte"] = session.exec(parte_query).all()
+        tip_speta_result = session.exec(tip_speta_query).all()
+        parte_result = session.exec(parte_query).all()
+
+        _in_memory_cache["tipSpeta"] = tip_speta_result
+        _in_memory_cache["parte"] = parte_result
 
         logger.info(f"Loaded {len(tip_speta_result)} 'tipSpeta' values into memory.")
         logger.info(f"Loaded {len(parte_result)} 'parte' values into memory.")
