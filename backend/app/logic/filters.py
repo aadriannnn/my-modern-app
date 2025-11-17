@@ -112,16 +112,18 @@ def load_and_build_menu_data(session: Session):
             eq_map_obiecte[eq.term_canonic_original] = eq.term_preferat
     logger.info(f"Loaded {len(eq_map_materii)} 'materie' and {len(eq_map_obiecte)} 'obiect' equivalences.")
 
-    logger.info("Step B: Extracting unique materie-obiect pairs from 'blocuri' table...")
+    logger.info("Step B: Extracting unique materie-obiect pairs and their counts from 'blocuri' table...")
     query = text("""
-        SELECT DISTINCT
+        SELECT
             NULLIF(TRIM(obj->>'materie'), '') AS materie_orig,
-            NULLIF(TRIM(obj->>'obiect'), '') AS obiect_orig
+            NULLIF(TRIM(obj->>'obiect'), '') AS obiect_orig,
+            COUNT(*) AS count
         FROM blocuri
-        WHERE NULLIF(TRIM(obj->>'materie'), '') IS NOT NULL OR NULLIF(TRIM(obj->>'obiect'), '') IS NOT NULL;
+        WHERE NULLIF(TRIM(obj->>'materie'), '') IS NOT NULL OR NULLIF(TRIM(obj->>'obiect'), '') IS NOT NULL
+        GROUP BY materie_orig, obiect_orig;
     """)
     rows = session.exec(query).all()
-    logger.info(f"Found {len(rows)} unique materie-obiect pairs.")
+    logger.info(f"Found {len(rows)} unique materie-obiect pairs with counts.")
 
     if not rows:
         logger.warning("No materie-obiect pairs found. The menu will be empty.")
@@ -129,20 +131,23 @@ def load_and_build_menu_data(session: Session):
 
     logger.info("Step C: Starting simplification and canonicalization process...")
 
-    mapare_materii_originale = {} # {"text raw": "cod_canon"}
-    mapare_obiecte_originale = {} # {"text raw": "cod_canon"}
+    mapare_materii_originale = {}
+    mapare_obiecte_originale = {}
+    counts = {}
 
-    # --- Pas 3: Generează mapările canonice generate de cod ---
-    for materie_orig, obiect_orig in rows:
+    # Pas 3: Generează mapările canonice și agregă numărul de spețe
+    for materie_orig, obiect_orig, count in rows:
+        # Mapare materie
         if materie_orig not in mapare_materii_originale:
             mapare_materii_originale[materie_orig] = find_canonical_key(materie_orig, CANONICAL_MAP_MATERII)
 
+        # Mapare obiect
         if obiect_orig not in mapare_obiecte_originale:
             canon_key = find_canonical_key(obiect_orig, CANONICAL_MAP_OBIECTE)
-            if canon_key:
-                mapare_obiecte_originale[obiect_orig] = canon_key
-            else:
-                mapare_obiecte_originale[obiect_orig] = extract_base_obiect(obiect_orig)
+            mapare_obiecte_originale[obiect_orig] = canon_key if canon_key else extract_base_obiect(obiect_orig)
+
+        # Stochează numărul de spețe pentru perechea originală
+        counts[(materie_orig, obiect_orig)] = count
 
     # --- NOU: Pas 4: Aplică echivalențele peste mapările generate ---
     for orig, cod_canon in mapare_materii_originale.items():
@@ -153,43 +158,64 @@ def load_and_build_menu_data(session: Session):
         if cod_canon in eq_map_obiecte:
             mapare_obiecte_originale[orig] = eq_map_obiecte[cod_canon]
 
-    # --- Pas 5: Construiește meniul (folosind mapările actualizate) ---
-    menu_data = defaultdict(set)
-    for materie_orig, obiect_orig in rows:
-
+    # Pas 5: Construiește meniul final agregând numărul de spețe
+    menu_data = defaultdict(lambda: defaultdict(int))
+    for (materie_orig, obiect_orig), count in counts.items():
         materie_canon = mapare_materii_originale.get(materie_orig)
         obiect_canon = mapare_obiecte_originale.get(obiect_orig)
 
+        # Logica de deducere a materiei
         if not materie_canon and obiect_canon:
             if obiect_canon in OBIECT_DEDUCTION_PROCEDURAL:
                 materie_canon = "Procedural"
             elif obiect_canon in OBIECT_DEDUCTION_FAMILIE:
-                 materie_canon = "Minori si familie"
+                materie_canon = "Minori si familie"
             elif obiect_canon in OBIECT_DEDUCTION_PENAL:
-                 materie_canon = "Penal"
+                materie_canon = "Penal"
             else:
-                 materie_canon = "Civil"
-
+                materie_canon = "Civil"
             materie_canon = eq_map_materii.get(materie_canon, materie_canon)
 
-        if materie_canon and not obiect_canon:
-            obiect_canon = "(fără obiect specific)"
-            obiect_canon = eq_map_obiecte.get(obiect_canon, obiect_canon)
+        # Fallback-uri
+        materie_canon = materie_canon or eq_map_materii.get("Necunoscut", "Necunoscut")
+        obiect_canon = obiect_canon or eq_map_obiecte.get("(fără obiect)", "(fără obiect)")
 
-        if not materie_canon:
-            materie_canon = "Necunoscut"
-            materie_canon = eq_map_materii.get(materie_canon, materie_canon)
+        menu_data[materie_canon][obiect_canon] += count
 
-        if not obiect_canon:
-            obiect_canon = "(fără obiect)"
-            obiect_canon = eq_map_obiecte.get(obiect_canon, obiect_canon)
+    # Pas 6: Formatează datele conform noii structuri specificate
 
-        menu_data[materie_canon].add(obiect_canon)
+    # 6.1: Generează `details` și calculează totalurile pentru `materii`
+    details = {}
+    materii_counts = defaultdict(int)
+    for materie, obiecte_counts in menu_data.items():
+        obiecte_list_for_materie = [
+            {"name": obiect, "count": count}
+            for obiect, count in sorted(obiecte_counts.items(), key=lambda item: item[1], reverse=True)
+        ]
+        details[materie] = obiecte_list_for_materie
+        materii_counts[materie] = sum(item['count'] for item in obiecte_list_for_materie)
 
-    # --- Pas 6: Generează mapările inverse ---
+    materii_list = [
+        {"name": name, "count": count}
+        for name, count in sorted(materii_counts.items(), key=lambda item: item[1], reverse=True)
+    ]
+
+    # 6.2: Generează lista globală de `obiecte`
+    obiecte_global_counts = defaultdict(int)
+    for obiecte_counts in menu_data.values():
+        for obiect, count in obiecte_counts.items():
+            obiecte_global_counts[obiect] += count
+
+    obiecte_list = [
+        {"name": name, "count": count}
+        for name, count in sorted(obiecte_global_counts.items(), key=lambda item: item[1], reverse=True)
+    ]
+
+    # 6.3: Construiește obiectul final
     menu_final = {
-        materie: sorted(list(obiecte))
-        for materie, obiecte in sorted(menu_data.items())
+        "materii": materii_list,
+        "obiecte": obiecte_list,
+        "details": details
     }
 
     materii_canon_to_orig = defaultdict(set)
