@@ -8,8 +8,19 @@ import ContribuieModal from '../components/ContribuieModal';
 import { getFilters, search as apiSearch, ApiError } from '../lib/api';
 
 // Define types for our state
-interface Filters {
-  menuData: { [key: string]: string[] };
+export interface Obiect {
+  name: string;
+  count: number;
+}
+
+export interface Materie {
+  name: string;
+  count: number;
+  obiecte: Obiect[];
+}
+
+export interface Filters {
+  menuData: Materie[];
   tipSpeta: string[];
   parte: string[];
 }
