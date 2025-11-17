@@ -89,12 +89,29 @@ interface FilterGroupProps {
 
 const FilterGroup: React.FC<FilterGroupProps> = ({ title, items, selected, onChange, disabled }) => {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
   const initialCount = 5;
-  const displayedItems = isExpanded ? items : (items ?? []).slice(0, initialCount);
+
+  const filteredItems = (items ?? []).filter(item =>
+    searchTerm.length < 3 ? true : item.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const displayedItems = isExpanded ? filteredItems : filteredItems.slice(0, initialCount);
 
   return (
     <div>
       <h4 className="font-semibold text-gray-600 mb-2">{title}</h4>
+      {title === 'Obiect' && !disabled && (
+         <div className="hidden md:block mb-2">
+          <input
+            type="text"
+            placeholder="Cauta obiect..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-2 py-1 border border-gray-300 rounded-md text-sm"
+          />
+        </div>
+      )}
       {disabled && <p className="text-xs text-gray-400 mb-2">Selectați o categorie mai întâi.</p>}
       <div className={`space-y-2 ${disabled ? 'opacity-50' : ''}`}>
         {(displayedItems ?? []).map((item, index) => (
@@ -115,7 +132,7 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, items, selected, onCha
           </label>
         ))}
       </div>
-      {(items ?? []).length > initialCount && (
+      {filteredItems.length > initialCount && (
         <button
           onClick={() => setIsExpanded(!isExpanded)}
           className="text-sm text-green-600 hover:text-green-800 mt-2"
