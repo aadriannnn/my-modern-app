@@ -10,11 +10,11 @@ import type { Filters, SelectedFilters } from '../types';
 const SearchPage: React.FC = () => {
     const [filters, setFilters] = useState<Filters | null>(null);
     const [searchResults, setSearchResults] = useState<any[]>([]);
-    const [status, setStatus] = useState('Așteptare căutare...');
-    const [isLoading, setIsLoading] = useState(true);
+    const [status, setStatus] = useState('Introduceți un termen de căutare pentru a începe.');
+    const [isLoading, setIsLoading] = useState(false);
     const [offset, setOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
-    const [situatie, setSituatie] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
     const [searchParams, setSearchParams] = useState<SelectedFilters>({
       materie: '',
       obiect: [],
@@ -25,61 +25,65 @@ const SearchPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isContribuieModalOpen, setIsContribuieModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [hasSearched, setHasSearched] = useState(false);
 
     useEffect(() => {
       const loadFilters = async () => {
         try {
-          setStatus('Încărcare filtre...');
           const filterData = await getFilters();
           setFilters(filterData);
-          setStatus('Filtre încărcate.');
         } catch (error) {
           console.error('Failed to load filters:', error);
           setStatus('Eroare la încărcarea filtrelor.');
-        } finally {
-          setIsLoading(false);
         }
       };
       loadFilters();
     }, []);
 
-    const loadMoreResults = useCallback(async (currentOffset: number) => {
-      if (isLoading || !hasMore) return;
+    const executeSearch = useCallback(async (currentOffset: number, isNewSearch: boolean) => {
+      if (!searchQuery.trim() && searchParams.obiect.length === 0) {
+        setStatus("Introduceți un text sau selectați un obiect pentru a căuta.");
+        return;
+      }
 
       setIsLoading(true);
-      setStatus('Se încarcă mai multe rezultate...');
+      if (isNewSearch) {
+        setSearchResults([]);
+        setHasSearched(true);
+      }
+      setStatus('Căutare în curs...');
 
       const payload = {
         ...searchParams,
-        situatie,
+        situatie: searchQuery,
         materie: searchParams.materie ? [searchParams.materie] : [],
         offset: currentOffset,
       };
 
       try {
         const results = await apiSearch(payload);
-        setSearchResults(prev => [...prev, ...results]);
+        setSearchResults(prev => isNewSearch ? results : [...prev, ...results]);
         setOffset(currentOffset + results.length);
         setHasMore(results.length > 0);
-        setStatus(`Au fost găsite ${searchResults.length + results.length} rezultate.`);
+        setStatus(`Au fost găsite ${isNewSearch ? results.length : searchResults.length + results.length} rezultate.`);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Eroare necunoscută';
-        setStatus(`Eroare la încărcarea rezultatelor: ${errorMessage}`);
+        setStatus(`Eroare la căutare: ${errorMessage}`);
       } finally {
         setIsLoading(false);
       }
-    }, [isLoading, hasMore, searchParams, situatie]);
+    }, [searchQuery, searchParams]);
 
-    const handleSearch = useCallback(async () => {
-      if (!situatie.trim() && searchParams.obiect.length === 0) {
-        setStatus("Introduceți un text sau selectați un obiect pentru a căuta.");
-        return;
-      }
-      setSearchResults([]);
+    const handleSearch = () => {
       setOffset(0);
-      setHasMore(true);
-      await loadMoreResults(0);
-    }, [situatie, searchParams.obiect.length, loadMoreResults]);
+      executeSearch(0, true);
+    };
+
+    const handleLoadMore = () => {
+        if (!isLoading && hasMore) {
+            executeSearch(offset, false);
+        }
+    };
 
     const handleFilterChange = useCallback((filterType: keyof SelectedFilters, value: any) => {
       setSearchParams(prevParams => {
@@ -96,59 +100,45 @@ const SearchPage: React.FC = () => {
       setIsModalOpen(true);
     };
 
-    const handleRemoveFilter = useCallback((filterType: string, valueToRemove: string) => {
-      setSearchParams(prevParams => {
-        const newParams = { ...prevParams };
-        const key = filterType as keyof SelectedFilters;
-        const currentValue = newParams[key];
-        if (Array.isArray(currentValue)) {
-          // @ts-ignore
-          newParams[key] = currentValue.filter(item => item !== valueToRemove);
-        } else {
-          // @ts-ignore
-          newParams[key] = '';
-        }
-        return newParams;
-      });
-    }, []);
-
-    const handleClearFilters = useCallback(() => {
-      setSearchParams({
-        materie: '',
-        obiect: [],
-        tip_speta: [],
-        parte: [],
-      });
-    }, []);
-
     return (
-      <div className="flex flex-col min-h-screen bg-brand-light font-sans">
+      <div className="flex h-screen w-full flex-col bg-background font-sans">
         <Header
-          situatie={situatie}
-          onSituatieChange={setSituatie}
-          onSearch={handleSearch}
           onToggleMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           onContribuieClick={() => setIsContribuieModalOpen(true)}
         />
         <div className="flex flex-1 overflow-hidden">
-          <LeftSidebar
-            filters={filters}
-            selectedFilters={searchParams}
-            onFilterChange={handleFilterChange}
-            isOpen={isMobileMenuOpen}
-            onClose={() => setIsMobileMenuOpen(false)}
-            onContribuieClick={() => setIsContribuieModalOpen(true)}
-          />
+          {/* Desktop Sidebar */}
+          <aside className="hidden lg:block w-80 flex-shrink-0 border-r border-border-color bg-surface">
+            <LeftSidebar
+              filters={filters}
+              selectedFilters={searchParams}
+              onFilterChange={handleFilterChange}
+              isOpen={true} // Always open on desktop
+              onClose={() => {}} // No-op on desktop
+            />
+          </aside>
+
+          {/* Mobile Sidebar */}
+          <div className="lg:hidden">
+            <LeftSidebar
+              filters={filters}
+              selectedFilters={searchParams}
+              onFilterChange={handleFilterChange}
+              isOpen={isMobileMenuOpen}
+              onClose={() => setIsMobileMenuOpen(false)}
+            />
+          </div>
+
           <MainContent
             results={searchResults}
-            status={status}
+            status={hasSearched || isLoading ? status : 'Introduceți un termen de căutare pentru a începe.'}
             isLoading={isLoading}
             onViewCase={handleViewCase}
-            searchParams={searchParams}
-            onRemoveFilter={handleRemoveFilter}
-            onClearFilters={handleClearFilters}
-            onLoadMore={() => loadMoreResults(offset)}
+            onLoadMore={handleLoadMore}
             hasMore={hasMore}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            onSearch={handleSearch}
           />
         </div>
 
