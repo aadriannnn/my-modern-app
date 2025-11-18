@@ -1,6 +1,6 @@
 import React, { useState, Fragment } from 'react';
 import type { Filters, SelectedFilters, FilterItem } from '../types';
-import { ChevronDown, X, PlusCircle } from 'lucide-react';
+import { ChevronDown, X, PlusCircle, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat1 from '../assets/reclama/avocat1.jpg';
 
@@ -11,9 +11,20 @@ interface LeftSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onContribuieClick: () => void;
+  isDesktopSidebarOpen: boolean;
+  toggleDesktopSidebar: () => void;
 }
 
-const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onFilterChange, isOpen, onClose, onContribuieClick }) => {
+const LeftSidebar: React.FC<LeftSidebarProps> = ({
+  filters,
+  selectedFilters,
+  onFilterChange,
+  isOpen,
+  onClose,
+  onContribuieClick,
+  isDesktopSidebarOpen,
+  toggleDesktopSidebar
+}) => {
   const { materii = [], obiecte = [], details = {}, tipSpeta = [], parte = [] } = filters ?? {};
   const availableObiecte = selectedFilters.materie ? details[selectedFilters.materie] ?? [] : obiecte;
 
@@ -25,57 +36,66 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onF
     onFilterChange(filterType, newValues);
   };
 
-  const sidebarContent = (
-    <div className="p-4 space-y-6 flex flex-col h-full">
+  const FilterContent = () => (
+    <Fragment>
       <div>
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-brand-text">Filtre</h3>
-          <button onClick={onClose} className="md:hidden text-brand-text-secondary hover:text-brand-text">
-            <X size={24} />
-          </button>
+        <h4 className="font-semibold text-brand-text mb-2">Materie</h4>
+        <div className="space-y-2">
+          {materii.map(materie => (
+            <button
+              key={materie.name}
+              onClick={() => onFilterChange('materie', selectedFilters.materie === materie.name ? '' : materie.name)}
+              className={`w-full flex justify-between items-center text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                selectedFilters.materie === materie.name
+                  ? 'bg-brand-primary text-white font-semibold'
+                  : 'bg-white hover:bg-gray-100 text-brand-text'
+              }`}
+            >
+              <span>{materie.name}</span>
+              <span className="text-xs opacity-70">{materie.count}</span>
+            </button>
+          ))}
         </div>
+      </div>
+      <FilterGroup title="Obiect" items={availableObiecte} selected={selectedFilters.obiect as string[]} onChange={(val) => handleCheckboxChange('obiect', val)} disabled={!selectedFilters.materie} />
+      <FilterGroup title="Tip Speță" items={tipSpeta} selected={selectedFilters.tip_speta as string[]} onChange={(val) => handleCheckboxChange('tip_speta', val)} />
+      <FilterGroup title="Parte" items={parte} selected={selectedFilters.parte as string[]} onChange={(val) => handleCheckboxChange('parte', val)} />
+    </Fragment>
+  );
+
+  const DesktopSidebarContent = () => (
+    <div className="p-4 space-y-6 flex flex-col h-full">
+      <div className="flex justify-between items-center">
+        <h3 className={`text-lg font-semibold text-brand-text overflow-hidden transition-all duration-300 ${isDesktopSidebarOpen ? 'max-w-xs' : 'max-w-0'}`}>
+          Filtre
+        </h3>
+        <button
+          onClick={toggleDesktopSidebar}
+          className="hidden md:block text-brand-text-secondary hover:text-brand-text"
+          aria-label="Toggle sidebar"
+        >
+          {isDesktopSidebarOpen ? <PanelLeftClose size={24} /> : <PanelLeftOpen size={24} />}
+        </button>
+      </div>
+
+      <div className={`flex-grow overflow-hidden transition-opacity duration-300 ${isDesktopSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
+        <FilterContent />
+      </div>
+      <Advertisement imageSrc={avocat1} altText="Reclamă avocat" />
+    </div>
+  );
+
+  const MobileSidebarContent = () => (
+    <div className="p-4 space-y-6 flex flex-col h-full">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold text-brand-text">Filtre</h3>
+        <button onClick={onClose} className="md:hidden text-brand-text-secondary hover:text-brand-text">
+          <X size={24} />
+        </button>
       </div>
 
       <div className="flex-grow">
-        <div>
-          <h4 className="font-semibold text-brand-text mb-2">Materie</h4>
-          <div className="space-y-2">
-            {materii.map(materie => (
-              <button
-                key={materie.name}
-                onClick={() => onFilterChange('materie', selectedFilters.materie === materie.name ? '' : materie.name)}
-                className={`w-full flex justify-between items-center text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                  selectedFilters.materie === materie.name
-                    ? 'bg-brand-primary text-white font-semibold'
-                    : 'bg-white hover:bg-gray-100 text-brand-text'
-                }`}
-              >
-                <span>{materie.name}</span>
-                <span className="text-xs opacity-70">{materie.count}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <FilterGroup
-          title="Obiect"
-          items={availableObiecte}
-          selected={selectedFilters.obiect as string[]}
-          onChange={(val) => handleCheckboxChange('obiect', val)}
-          disabled={!selectedFilters.materie}
-        />
-        <FilterGroup
-          title="Tip Speță"
-          items={tipSpeta}
-          selected={selectedFilters.tip_speta as string[]}
-          onChange={(val) => handleCheckboxChange('tip_speta', val)}
-        />
-        <FilterGroup
-          title="Parte"
-          items={parte}
-          selected={selectedFilters.parte as string[]}
-          onChange={(val) => handleCheckboxChange('parte', val)}
-        />
+        <FilterContent />
       </div>
 
       <Advertisement imageSrc={avocat1} altText="Reclamă avocat" />
@@ -109,12 +129,12 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onF
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } overflow-y-auto`}
       >
-        {sidebarContent}
+        <MobileSidebarContent />
       </aside>
 
       {/* Desktop view */}
-      <aside className="hidden md:block w-80 bg-white border-r border-gray-200 overflow-y-auto">
-        {sidebarContent}
+      <aside className={`hidden md:fixed md:top-16 md:left-0 md:h-full md:block bg-white border-r border-gray-200 overflow-y-auto transition-all duration-300 ease-in-out ${isDesktopSidebarOpen ? 'w-80' : 'w-20'}`}>
+        <DesktopSidebarContent />
       </aside>
     </Fragment>
   );
