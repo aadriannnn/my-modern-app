@@ -22,7 +22,7 @@ interface MainContentProps {
   hasMore: boolean;
   situatie: string;
   onSituatieChange: (value: string) => void;
-  onSearch: () => void;
+  onSearch: (event?: any) => void;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
