@@ -22,7 +22,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
 
   if (!result) return null;
 
-  const caseData = result.data;
+  const caseData = result;
 
   // PDF Generation Logic
   const createPdfData = (): PdfSablonData => ({
