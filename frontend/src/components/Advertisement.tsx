@@ -7,11 +7,8 @@ interface AdvertisementProps {
 
 const Advertisement: React.FC<AdvertisementProps> = ({ imageSrc, altText }) => {
   return (
-    <div className="p-2 mt-4 border-t border-gray-200">
-      <p className="text-xs text-gray-500 mb-2 text-center">Publicitate</p>
-      <div className="border border-gray-300 rounded-lg overflow-hidden">
-        <img src={imageSrc} alt={altText} className="w-full h-auto object-cover" />
-      </div>
+    <div className="my-4 p-2 bg-white rounded-lg shadow-sm border border-gray-200">
+      <img src={imageSrc} alt={altText} className="w-full h-auto rounded-md" />
     </div>
   );
 };

@@ -8,37 +8,29 @@ interface LongTextFieldProps {
 const LongTextField: React.FC<LongTextFieldProps> = ({ label, text }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  if (!text) {
-    return (
-        <div className="mb-4">
-            <h4 className="font-semibold text-gray-700 mb-1">{label}</h4>
-            <div className="bg-gray-50 p-3 rounded-md text-gray-500 italic">
-                Nu sunt informații.
-            </div>
-        </div>
-    );
+  if (!text || typeof text !== 'string' || text.trim().toLowerCase() === 'null') {
+    return null; // Don't render if text is not available
   }
 
-  const toggleExpansion = () => {
-    setIsExpanded(!isExpanded);
-  };
+  // A simple heuristic to decide if the expand button is needed
+  const needsExpansion = text.length > 300;
 
   return (
     <div className="mb-4">
-      <h4 className="font-semibold text-gray-700 mb-1">{label}</h4>
-      <div
-        className={`bg-gray-50 p-3 rounded-md text-gray-800 whitespace-pre-wrap transition-all duration-300 ease-in-out ${
-          isExpanded ? "" : "line-clamp-4"
-        }`}
-      >
-        {text}
+      <h4 className="font-semibold text-brand-text mb-2">{label}</h4>
+      <div className="bg-gray-50 p-4 rounded-lg text-brand-text-secondary whitespace-pre-wrap text-base leading-relaxed">
+        <p className={!isExpanded && needsExpansion ? "line-clamp-6" : ""}>
+          {text}
+        </p>
       </div>
-      <button
-        onClick={toggleExpansion}
-        className="text-blue-600 hover:underline mt-2 text-sm font-medium focus:outline-none"
-      >
-        {isExpanded ? "Citește mai puțin" : "Citește mai mult"}
-      </button>
+      {needsExpansion && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="text-brand-accent hover:opacity-80 mt-2 text-sm font-semibold transition-opacity"
+        >
+          {isExpanded ? "Afișează mai puțin" : "Afișează mai mult"}
+        </button>
+      )}
     </div>
   );
 };

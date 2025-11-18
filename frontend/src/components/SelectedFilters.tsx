@@ -1,4 +1,5 @@
 import React from 'react';
+import { X } from 'lucide-react';
 
 interface SelectedFiltersProps {
   filters: {
@@ -13,9 +14,7 @@ interface SelectedFiltersProps {
 
 const SelectedFilters: React.FC<SelectedFiltersProps> = ({ filters, onRemoveFilter, onClearFilters }) => {
   const selectedFilterEntries = Object.entries(filters).filter(([, value]) => {
-    if (Array.isArray(value)) {
-      return value.length > 0;
-    }
+    if (Array.isArray(value)) return value.length > 0;
     return Boolean(value);
   });
 
@@ -23,22 +22,26 @@ const SelectedFilters: React.FC<SelectedFiltersProps> = ({ filters, onRemoveFilt
     return null;
   }
 
+  const formatFilterType = (type: string) => {
+    return type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
   return (
-    <div className="selected-filters-container">
-      <div className="filters-header">
-        <span className="criteria-label">CRITERII</span>
-        <button onClick={onClearFilters} className="clear-all-button">
-          ȘTERGE TOT
+    <div className="mb-4 p-3 bg-white rounded-lg shadow-sm border border-gray-200">
+      <div className="flex justify-between items-center mb-2">
+        <h4 className="text-sm font-semibold text-brand-text">Filtre Active</h4>
+        <button onClick={onClearFilters} className="text-sm font-semibold text-brand-accent hover:opacity-80 transition-opacity">
+          Șterge Tot
         </button>
       </div>
-      <div className="filters-list">
+      <div className="flex flex-wrap gap-2">
         {selectedFilterEntries.map(([type, value]) => {
           const displayValues = Array.isArray(value) ? value : [value];
           return displayValues.map((val) => (
-            <div key={`${type}-${val}`} className="filter-tag">
-              <span>{`${type.replace('_', ' ')}: ${val}`}</span>
-              <button onClick={() => onRemoveFilter(type, val)} className="remove-filter-button">
-                x
+            <div key={`${type}-${val}`} className="flex items-center bg-gray-100 text-brand-text-secondary text-xs font-semibold px-2 py-1 rounded-full">
+              <span>{formatFilterType(type)}: {val}</span>
+              <button onClick={() => onRemoveFilter(type, val)} className="ml-1.5 text-gray-500 hover:text-brand-text">
+                <X size={14} />
               </button>
             </div>
           ));

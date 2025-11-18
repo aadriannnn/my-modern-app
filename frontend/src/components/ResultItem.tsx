@@ -1,11 +1,7 @@
 import React from 'react';
 import { generatePdf } from '@/lib/pdf';
 import type { PdfSablonData } from '@/lib/pdf';
-import eyeIcon from '@/assets/icons/eye.png';
-import { Printer } from 'lucide-react';
-import justiceIcon from '@/assets/icons/justice.png';
-import calendarIcon from '@/assets/icons/calendar.png';
-import addToDossierIcon from '@/assets/icons/addToDossier.png';
+import { Printer, Eye, FolderPlus, Scale, Calendar } from 'lucide-react';
 
 interface ResultItemProps {
   result: any;
@@ -14,7 +10,12 @@ interface ResultItemProps {
 }
 
 const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase }) => {
-  const content = result[activeView] || 'Acest conținut nu este disponibil.';
+  const content = result[activeView];
+
+  // Don't render the component if the content for the active view is missing or just "null"
+  if (!content || typeof content !== 'string' || content.trim().toLowerCase() === 'null' || content.trim() === '') {
+    return null;
+  }
 
   const handlePrint = async () => {
     const caseData = result.data;
@@ -30,82 +31,56 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase 
     await generatePdf(pdfData, { autoPrint: true });
   };
 
-  const generateTitle = (result: any): string => {
-    const titlu = result.data?.titlu;
-    const denumireArticol = result.data?.text_denumire_articol;
-
-    if (titlu && denumireArticol) {
-      return `${titlu} - ${denumireArticol}`;
-    }
-    if (titlu) {
-      return titlu;
-    }
-    if (denumireArticol) {
-      return denumireArticol;
-    }
-    return result.denumire || `Caz #${result.id}`;
+  const generateTitle = (resultData: any): string => {
+    const { titlu, text_denumire_articol, denumire } = resultData.data || {};
+    if (titlu && text_denumire_articol) return `${titlu} - ${text_denumire_articol}`;
+    return titlu || text_denumire_articol || denumire || `Caz #${resultData.id}`;
   };
 
   const title = generateTitle(result);
 
-  const highlightText = (text: string, highlight: string) => {
-    if (!highlight) return text;
-    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
-    return (
-      <>
-        {parts.map((part, i) =>
-          part.toLowerCase() === highlight.toLowerCase() ? (
-            <span key={i} className="bg-yellow-200">
-              {part}
-            </span>
-          ) : (
-            part
-          )
-        )}
-      </>
-    );
-  };
-
   return (
-    <div className="bg-white p-5 border rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
-      <div className="flex justify-between items-start pb-4 mb-4 border-b border-gray-200">
-        <h3 className="text-lg font-semibold text-gray-800 flex-1 cursor-pointer" onClick={onViewCase}>
-          {highlightText(title, '')}
+    <div className="bg-white p-5 border border-gray-200 rounded-lg shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand-accent">
+      {/* Header Card */}
+      <div className="flex justify-between items-start pb-3 mb-3 border-b border-gray-100">
+        <h3 className="text-lg font-semibold text-brand-primary flex-1 cursor-pointer pr-4" onClick={onViewCase}>
+          {title}
         </h3>
-        <div className="flex items-center space-x-3 ml-4">
-          <IconButton icon={addToDossierIcon} alt="Dosar" />
-          <button onClick={handlePrint} className="p-1 rounded-full hover:bg-gray-100 transition-colors">
-            <Printer size={20} />
-          </button>
-          <IconButton icon={eyeIcon} alt="Vezi" onClick={onViewCase} />
+        <div className="flex items-center space-x-2">
+          <IconButton icon={<FolderPlus size={18} />} tooltip="Adaugă la dosar" />
+          <IconButton icon={<Printer size={18} />} tooltip="Printează" onClick={handlePrint} />
+          <IconButton icon={<Eye size={18} />} tooltip="Vezi detalii" onClick={onViewCase} />
         </div>
       </div>
 
-      <div className="text-sm text-gray-700" onClick={onViewCase}>
-        {content}
+      {/* Content */}
+      <div className="text-sm text-brand-text-secondary leading-relaxed cursor-pointer" onClick={onViewCase}>
+        <p className="line-clamp-4">{content}</p>
       </div>
 
-      <div className="flex items-center justify-between text-xs text-gray-500 mt-4">
-        <div className="flex items-center space-x-4">
-          <InfoItem icon={justiceIcon} text={result.data?.materie || 'N/A'} />
-          <InfoItem icon={calendarIcon} text={result.data?.sursa || 'N/A'} />
-        </div>
+      {/* Footer Card */}
+      <div className="flex items-center space-x-4 text-xs text-gray-500 mt-4">
+        <InfoItem icon={<Scale size={14} />} text={result.data?.materie || 'N/A'} />
+        <InfoItem icon={<Calendar size={14} />} text={result.data?.sursa || 'N/A'} />
       </div>
     </div>
   );
 };
 
-// Helper components for icons and info items
-const IconButton: React.FC<{ icon: string; alt: string; onClick?: () => void }> = ({ icon, alt, onClick }) => (
-  <button onClick={onClick} className="p-1 rounded-full hover:bg-gray-100 transition-colors">
-    <img src={icon} alt={alt} className="h-5 w-5" />
+// Helper components
+const IconButton: React.FC<{ icon: React.ReactNode; tooltip: string; onClick?: () => void }> = ({ icon, tooltip, onClick }) => (
+  <button onClick={onClick} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-brand-primary transition-colors relative group">
+    {icon}
+    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap bg-black text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+      {tooltip}
+    </span>
   </button>
 );
 
-const InfoItem: React.FC<{ icon: string; text: string }> = ({ icon, text }) => (
-  <div className="flex items-center">
-    <img src={icon} alt="" className="h-4 w-4 mr-1.5" />
-    <span>{text}</span>
+const InfoItem: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, text }) => (
+  <div className="flex items-center bg-gray-100 px-2 py-1 rounded-full">
+    <span className="text-gray-500">{icon}</span>
+    <span className="ml-1.5 font-medium">{text}</span>
   </div>
 );
 

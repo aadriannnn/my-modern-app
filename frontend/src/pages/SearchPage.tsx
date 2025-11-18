@@ -2,11 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
 import LeftSidebar from '../components/LeftSidebar';
 import MainContent from '../components/MainContent';
-import RightSidebar from '../components/RightSidebar';
 import CaseDetailModal from '../components/CaseDetailModal';
 import ContribuieModal from '../components/ContribuieModal';
-import { getFilters, search as apiSearch, ApiError } from '../lib/api';
-
+import { getFilters, search as apiSearch } from '../lib/api';
 import type { Filters, SelectedFilters } from '../types';
 
 const SearchPage: React.FC = () => {
@@ -16,7 +14,6 @@ const SearchPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [offset, setOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
-
     const [situatie, setSituatie] = useState('');
     const [searchParams, setSearchParams] = useState<SelectedFilters>({
       materie: '',
@@ -24,17 +21,11 @@ const SearchPage: React.FC = () => {
       tip_speta: [],
       parte: [],
     });
-
     const [selectedCase, setSelectedCase] = useState<any | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isContribuieModalOpen, setIsContribuieModalOpen] = useState(false);
-    const [isLeftSidebarCollapsed, setIsLeftSidebarCollapsed] = useState(false);
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-    const toggleLeftSidebar = () => {
-      setIsLeftSidebarCollapsed(!isLeftSidebarCollapsed);
-    };
-
-    // Fetch initial filter data on component mount
     useEffect(() => {
       const loadFilters = async () => {
         try {
@@ -52,7 +43,7 @@ const SearchPage: React.FC = () => {
       loadFilters();
     }, []);
 
-    const loadMoreResults = async (currentOffset: number) => {
+    const loadMoreResults = useCallback(async (currentOffset: number) => {
       if (isLoading || !hasMore) return;
 
       setIsLoading(true);
@@ -60,7 +51,7 @@ const SearchPage: React.FC = () => {
 
       const payload = {
         ...searchParams,
-        situatie: situatie,
+        situatie,
         materie: searchParams.materie ? [searchParams.materie] : [],
         offset: currentOffset,
       };
@@ -77,25 +68,22 @@ const SearchPage: React.FC = () => {
       } finally {
         setIsLoading(false);
       }
-    };
+    }, [isLoading, hasMore, searchParams, situatie]);
 
-    const handleSearch = async () => {
+    const handleSearch = useCallback(async () => {
       if (!situatie.trim() && searchParams.obiect.length === 0) {
-        setStatus("Pentru a efectua o căutare, vă rugăm să introduceți un text în câmpul 'Situație de fapt' sau să selectați cel puțin un 'Obiect' din filtre.");
+        setStatus("Introduceți un text sau selectați un obiect pentru a căuta.");
         return;
       }
-
       setSearchResults([]);
       setOffset(0);
       setHasMore(true);
-
       await loadMoreResults(0);
-    };
+    }, [situatie, searchParams.obiect.length, loadMoreResults]);
 
-    const handleFilterChange = useCallback((filterType: keyof SearchParams, value: string | string[] | boolean) => {
+    const handleFilterChange = useCallback((filterType: keyof SelectedFilters, value: any) => {
       setSearchParams(prevParams => {
         const newParams = { ...prevParams, [filterType]: value };
-        // If materie changes, reset obiect
         if (filterType === 'materie') {
           newParams.obiect = [];
         }
@@ -111,68 +99,58 @@ const SearchPage: React.FC = () => {
     const handleRemoveFilter = useCallback((filterType: string, valueToRemove: string) => {
       setSearchParams(prevParams => {
         const newParams = { ...prevParams };
-        const key = filterType as keyof SearchParams;
+        const key = filterType as keyof SelectedFilters;
         const currentValue = newParams[key];
-
         if (Array.isArray(currentValue)) {
           // @ts-ignore
           newParams[key] = currentValue.filter(item => item !== valueToRemove);
-        } else if (typeof currentValue === 'string') {
+        } else {
           // @ts-ignore
           newParams[key] = '';
         }
-
         return newParams;
       });
     }, []);
 
     const handleClearFilters = useCallback(() => {
-      setSearchParams(prevParams => ({
-        ...prevParams,
+      setSearchParams({
         materie: '',
         obiect: [],
         tip_speta: [],
         parte: [],
-      }));
+      });
     }, []);
 
     return (
-      <div className="flex flex-col min-h-screen bg-gray-100 font-sans">
+      <div className="flex flex-col min-h-screen bg-brand-light font-sans">
         <Header
           situatie={situatie}
           onSituatieChange={setSituatie}
           onSearch={handleSearch}
+          onToggleMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          onContribuieClick={() => setIsContribuieModalOpen(true)}
         />
         <div className="flex flex-1 overflow-hidden">
-          {!filters ? (
-            <div className="flex-1 flex items-center justify-center">
-              <p>{status}</p>
-            </div>
-          ) : (
-            <>
-              <LeftSidebar
-                filters={filters}
-                selectedFilters={searchParams}
-                onFilterChange={handleFilterChange}
-                isCollapsed={isLeftSidebarCollapsed}
-                onToggleCollapse={toggleLeftSidebar}
-              />
-              <MainContent
-                results={searchResults}
-                status={status}
-                isLoading={isLoading}
-                onViewCase={handleViewCase}
-                searchParams={searchParams}
-                onRemoveFilter={handleRemoveFilter}
-                onClearFilters={handleClearFilters}
-                isLeftSidebarCollapsed={isLeftSidebarCollapsed}
-                onLoadMore={() => loadMoreResults(offset)}
-                hasMore={hasMore}
-              />
-            </>
-          )}
+          <LeftSidebar
+            filters={filters}
+            selectedFilters={searchParams}
+            onFilterChange={handleFilterChange}
+            isOpen={isMobileMenuOpen}
+            onClose={() => setIsMobileMenuOpen(false)}
+            onContribuieClick={() => setIsContribuieModalOpen(true)}
+          />
+          <MainContent
+            results={searchResults}
+            status={status}
+            isLoading={isLoading}
+            onViewCase={handleViewCase}
+            searchParams={searchParams}
+            onRemoveFilter={handleRemoveFilter}
+            onClearFilters={handleClearFilters}
+            onLoadMore={() => loadMoreResults(offset)}
+            hasMore={hasMore}
+          />
         </div>
-        <RightSidebar onContribuieClick={() => setIsContribuieModalOpen(true)} />
 
         {isModalOpen && selectedCase && (
           <CaseDetailModal

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { X, UploadCloud } from 'lucide-react';
 
 interface ContribuieModalProps {
   isOpen: boolean;
@@ -11,17 +12,12 @@ const ContribuieModal: React.FC<ContribuieModalProps> = ({ isOpen, onClose }) =>
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState('');
 
-  if (!isOpen) {
-    return null;
-  }
+  if (!isOpen) return null;
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files) {
-      setFile(event.target.files[0]);
-    }
+    if (event.target.files) setFile(event.target.files[0]);
   };
 
-  // Reset state when closing
   const handleClose = () => {
     setDenumire('');
     setSursa('');
@@ -32,148 +28,87 @@ const ContribuieModal: React.FC<ContribuieModalProps> = ({ isOpen, onClose }) =>
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-
-    if (!file) {
-      setStatus('Vă rugăm să selectați un fișier.');
+    if (!file || !denumire.trim() || !sursa.trim()) {
+      setStatus('Toate câmpurile sunt obligatorii.');
       return;
     }
 
-    if (!denumire.trim()) {
-        setStatus('Vă rugăm să introduceți denumirea speței.');
-        return;
-    }
-
-    if (!sursa.trim()) {
-        setStatus('Vă rugăm să introduceți sursa speței.');
-        return;
-    }
-
     setStatus('Se trimite...');
-
     const formData = new FormData();
     formData.append('file', file);
     formData.append('denumire', denumire);
     formData.append('sursa', sursa);
 
     try {
-      const response = await fetch('/api/contribuie', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (!response.ok) {
-        throw new Error('Network response was not ok');
-      }
-
-      const result = await response.json();
-      console.log('API response:', result);
-
+      const response = await fetch('/api/contribuie', { method: 'POST', body: formData });
+      if (!response.ok) throw new Error('Network response was not ok');
       setStatus('Speța a fost trimisă cu succes! Vă mulțumim.');
-
-      setTimeout(() => {
-        handleClose();
-      }, 2000);
-
+      setTimeout(handleClose, 2000);
     } catch (error) {
       console.error('Eroare la trimiterea speței:', error);
-      setStatus('A apărut o eroare la trimitere. Vă rugăm să încercați din nou.');
+      setStatus('A apărut o eroare. Vă rugăm să încercați din nou.');
     }
   };
 
   return (
-    <div
-      className="fixed inset-0 bg-gray-800 bg-opacity-60 flex items-center justify-center p-4 z-50"
-      onClick={handleClose} // Close on overlay click
-    >
-      <div
-        className="bg-white rounded-xl shadow-2xl w-full max-w-lg"
-        onClick={(e) => e.stopPropagation()} // Prevent closing when clicking inside the modal
-      >
-        <header className="flex justify-between items-center p-4 border-b bg-gray-50 rounded-t-xl">
-          <h2 className="text-xl font-bold text-gray-800">Contribuie cu o speță</h2>
-          <button
-            onClick={handleClose}
-            className="text-gray-500 hover:text-gray-800 transition-colors rounded-full p-1 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            aria-label="Închide"
-          >
-            <svg
-              className="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 animate-fade-in" onClick={handleClose}>
+      <div className="bg-brand-light rounded-xl shadow-2xl w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <header className="flex justify-between items-center p-4 border-b border-gray-200">
+          <h2 className="text-lg font-bold text-brand-primary">Contribuie cu o speță</h2>
+          <button onClick={handleClose} className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors" aria-label="Închide">
+            <X size={20} />
           </button>
         </header>
 
         <main className="p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Form content remains the same */}
             <div>
-              <label htmlFor="denumire" className="block text-sm font-medium text-gray-700 mb-1">
-                Denumirea speței
-              </label>
+              <label htmlFor="denumire" className="block text-sm font-semibold text-brand-text mb-1">Denumirea speței</label>
               <input
                 type="text"
                 id="denumire"
                 value={denumire}
                 onChange={(e) => setDenumire(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent"
                 placeholder="Ex: Decizia civilă nr. 123/2023"
                 required
               />
             </div>
-
             <div>
-              <label htmlFor="sursa" className="block text-sm font-medium text-gray-700 mb-1">
-                Sursa
-              </label>
+              <label htmlFor="sursa" className="block text-sm font-semibold text-brand-text mb-1">Sursa</label>
               <input
                 type="text"
                 id="sursa"
                 value={sursa}
                 onChange={(e) => setSursa(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-accent"
                 placeholder="Ex: www.rolii.ro"
                 required
               />
             </div>
-
             <div>
-              <label htmlFor="file-upload" className="block text-sm font-medium text-gray-700 mb-1">
-                Încarcă speța
-              </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-md">
+              <label className="block text-sm font-semibold text-brand-text mb-1">Încarcă speța</label>
+              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg">
                 <div className="space-y-1 text-center">
-                  <svg className="mx-auto h-12 w-12 text-gray-400" stroke="currentColor" fill="none" viewBox="0 0 48 48" aria-hidden="true">
-                    <path d="M28 8H12a4 4 0 00-4 4v20m32-12v8m0 0v8a4 4 0 01-4 4H12a4 4 0 01-4-4v-4m32-4l-3.172-3.172a4 4 0 00-5.656 0L28 28M8 32l9.172-9.172a4 4 0 015.656 0L28 28m0 0l4 4m4-24h8m-4-4v8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  <UploadCloud className="mx-auto h-12 w-12 text-gray-400" />
                   <div className="flex text-sm text-gray-600">
-                    <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                    <label htmlFor="file-upload" className="relative cursor-pointer bg-brand-light rounded-md font-medium text-brand-accent hover:opacity-80">
                       <span>Selectează un fișier</span>
                       <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleFileChange} />
                     </label>
                     <p className="pl-1">sau trage-l aici</p>
                   </div>
-                  <p className="text-xs text-gray-500">
-                    PDF, DOCX, TXT
-                  </p>
-                  {file && <p className="text-sm text-gray-600 mt-2">Fișier selectat: {file.name}</p>}
+                  <p className="text-xs text-gray-500">PDF, DOCX, TXT</p>
+                  {file && <p className="text-sm text-gray-600 mt-2 font-semibold">{file.name}</p>}
                 </div>
               </div>
             </div>
-
             <div className="flex justify-end pt-2">
-              <button
-                type="submit"
-                className="px-6 py-2 bg-blue-600 text-white font-semibold rounded-md shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
+              <button type="submit" className="px-6 py-2 bg-brand-primary text-white font-semibold rounded-lg shadow-sm hover:opacity-90 transition-opacity">
                 Trimite
               </button>
             </div>
-            {status && <p className="text-sm text-center text-gray-600 mt-4">{status}</p>}
+            {status && <p className="text-sm text-center text-brand-text-secondary mt-4">{status}</p>}
           </form>
         </main>
       </div>
