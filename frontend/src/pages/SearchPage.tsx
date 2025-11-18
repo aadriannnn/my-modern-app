@@ -152,12 +152,11 @@ const SearchPage: React.FC = () => {
                 />
             </div>
 
-            {isModalOpen && selectedCase && (
-                <CaseDetailModal
-                    result={selectedCase}
-                    onClose={() => setIsModalOpen(false)}
-                />
-            )}
+            <CaseDetailModal
+                isOpen={isModalOpen}
+                result={selectedCase}
+                onClose={() => setIsModalOpen(false)}
+            />
 
             <ContribuieModal
                 isOpen={isContribuieModalOpen}

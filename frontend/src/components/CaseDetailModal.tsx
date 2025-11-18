@@ -1,23 +1,30 @@
-import React from "react";
-import LongTextField from "./LongTextField";
-import Tabs from "./Tabs";
+import React, { useState } from "react";
+import { Dialog, Transition } from "@headlessui/react";
+import { Fragment } from "react";
 import { Download, X, Printer } from "lucide-react";
+
 import { generatePdf } from "../lib/pdf";
 import type { PdfSablonData } from "../lib/pdf";
+import LongTextField from "./LongTextField";
 
+// Refined type definitions for clarity
 interface CaseDetailModalProps {
+  isOpen: boolean;
+  onClose: () => void;
   result: {
     id: number | string;
     data: Record<string, any>;
   } | null;
-  onClose: () => void;
 }
 
-const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) => {
+const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, result }) => {
+  const [activeTab, setActiveTab] = useState("Metadate");
+
   if (!result) return null;
 
   const caseData = result.data;
 
+  // PDF Generation Logic
   const createPdfData = (): PdfSablonData => ({
     titlu: caseData.titlu || "Fără titlu",
     materie: caseData.materie || "",
@@ -31,82 +38,150 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ result, onClose }) =>
   const handleDownload = () => generatePdf(createPdfData());
   const handlePrint = () => generatePdf(createPdfData(), { autoPrint: true });
 
+  // Navigation tabs definition
+  const navTabs = [
+    "Metadate",
+    "Situația de fapt",
+    "Argumente",
+    "Hotărâre",
+    "Elemente utile",
+  ];
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case "Metadate":
+        return (
+          <>
+            {renderField("Titlu", caseData.titlu)}
+            {renderField("Număr Dosar", caseData.număr_dosar)}
+            {renderField("Tip Speță", caseData.tip_speta)}
+            {renderField("Materie", caseData.materie)}
+            {renderField("Obiect", caseData.obiect)}
+            {renderField("Părți", caseData.parti)}
+          </>
+        );
+      case "Situația de fapt":
+        return <LongTextField label="Descriere completă" text={caseData.situatia_de_fapt_full} />;
+      case "Argumente":
+        return (
+          <>
+            <LongTextField label="Argumente Instanță" text={caseData.argumente_instanta} />
+            <LongTextField label="Analiza Judecător" text={caseData.analiza_judecator} />
+          </>
+        );
+      case "Hotărâre":
+        return (
+          <>
+            <LongTextField label="Parte Introductivă" text={caseData.parte_introductiva} />
+            <LongTextField label="Dispozitiv Speță" text={caseData.dispozitiv_speta} />
+          </>
+        );
+      case "Elemente utile":
+        return (
+          <>
+            <LongTextField label="Rezumat AI" text={caseData.Rezumat_generat_de_AI_Cod} />
+            <LongTextField label="Ce învățăm" text={caseData.text_ce_invatam} />
+            <LongTextField label="Individualizare" text={caseData.text_individualizare} />
+          </>
+        );
+      default:
+        return null;
+    }
+  };
+
   const renderField = (label: string, value: any) => {
     if (!value || value === "null" || (Array.isArray(value) && value.length === 0)) {
-      return null; // Don't render empty fields for a cleaner look
+      return null;
     }
     return (
-      <div className="mb-3">
-        <h3 className="text-sm font-semibold text-brand-text mb-1">{label}</h3>
-        <p className="text-md text-brand-text-secondary">{Array.isArray(value) ? value.join(", ") : value}</p>
+      <div className="mb-4">
+        <h3 className="text-sm font-semibold text-gray-500 mb-1">{label}</h3>
+        <p className="text-md text-gray-800">{Array.isArray(value) ? value.join(", ") : value}</p>
       </div>
     );
   };
 
-  const contentSectionClass = "p-4 bg-white rounded-lg border border-gray-200";
-
-  const tabs = [
-    { label: "Metadate", content: (
-      <div className={contentSectionClass}>
-        {renderField("Titlu", caseData.titlu)}
-        {renderField("Număr Dosar", caseData.număr_dosar)}
-        {renderField("Tip Speță", caseData.tip_speta)}
-        {renderField("Materie", caseData.materie)}
-        {renderField("Obiect", caseData.obiect)}
-        {renderField("Părți", caseData.parti)}
-      </div>
-    )},
-    { label: "Situația de fapt", content: (
-      <div className={contentSectionClass}>
-        <LongTextField label="Situația de fapt" text={caseData.situatia_de_fapt_full} />
-      </div>
-    )},
-    { label: "Argumente", content: (
-      <div className={contentSectionClass}>
-        <LongTextField label="Argumente Instanță" text={caseData.argumente_instanta} />
-        <LongTextField label="Analiza Judecător" text={caseData.analiza_judecator} />
-      </div>
-    )},
-    { label: "Hotărâre", content: (
-      <div className={contentSectionClass}>
-        <LongTextField label="Parte Introductivă" text={caseData.parte_introductiva} />
-        <LongTextField label="Dispozitiv Speță" text={caseData.dispozitiv_speta} />
-      </div>
-    )},
-    { label: "Elemente utile", content: (
-      <div className={contentSectionClass}>
-        <LongTextField label="Rezumat AI" text={caseData.Rezumat_generat_de_AI_Cod} />
-        <LongTextField label="Ce învățăm" text={caseData.text_ce_invatam} />
-        <LongTextField label="Individualizare" text={caseData.text_individualizare} />
-      </div>
-    )},
-  ];
-
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 animate-fade-in" onClick={onClose}>
-      <div className="bg-brand-light rounded-xl shadow-2xl w-full max-w-5xl max-h-[95vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        <header className="flex justify-between items-center p-4 border-b border-gray-200">
-          <h2 className="text-lg font-bold text-brand-primary truncate pr-4">
-            {caseData.titlu || `Detalii Speță`}
-          </h2>
-          <div className="flex items-center space-x-2">
-            <button onClick={handlePrint} className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors" aria-label="Printează">
-              <Printer size={20} />
-            </button>
-            <button onClick={handleDownload} className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors" aria-label="Exportă">
-              <Download size={20} />
-            </button>
-            <button onClick={onClose} className="p-2 text-gray-600 hover:bg-gray-200 rounded-full transition-colors" aria-label="Închide">
-              <X size={20} />
-            </button>
-          </div>
-        </header>
+    <Transition show={isOpen} as={Fragment}>
+      <Dialog as="div" className="relative z-50" onClose={onClose}>
+        <Transition.Child
+          as={Fragment}
+          enter="ease-out duration-300"
+          enterFrom="opacity-0"
+          enterTo="opacity-100"
+          leave="ease-in duration-200"
+          leaveFrom="opacity-100"
+          leaveTo="opacity-0"
+        >
+          <div className="fixed inset-0 bg-black bg-opacity-60" />
+        </Transition.Child>
 
-        <main className="p-4 overflow-y-auto flex-grow">
-          <Tabs tabs={tabs} />
-        </main>
-      </div>
-    </div>
+        <div className="fixed inset-0 overflow-y-auto">
+          <div className="flex min-h-full items-center justify-center p-4 text-center">
+            <Transition.Child
+              as={Fragment}
+              enter="ease-out duration-300"
+              enterFrom="opacity-0 scale-95"
+              enterTo="opacity-100 scale-100"
+              leave="ease-in duration-200"
+              leaveFrom="opacity-100 scale-100"
+              leaveTo="opacity-0 scale-95"
+            >
+              <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-gray-50 text-left align-middle shadow-xl transition-all flex flex-col max-h-[90vh]">
+                <header className="flex justify-between items-center p-5 border-b border-gray-200 bg-white sticky top-0">
+                  <Dialog.Title as="h3" className="text-xl font-bold text-brand-dark leading-6 truncate">
+                    {caseData.titlu || "Detalii Speță"}
+                  </Dialog.Title>
+                  <div className="flex items-center space-x-2">
+                    <button onClick={handlePrint} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors" aria-label="Printează">
+                      <Printer size={20} />
+                    </button>
+                    <button onClick={handleDownload} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors" aria-label="Exportă">
+                      <Download size={20} />
+                    </button>
+                    <button onClick={onClose} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors" aria-label="Închide">
+                      <X size={22} />
+                    </button>
+                  </div>
+                </header>
+
+                <div className="flex flex-1 overflow-hidden">
+                  {/* Vertical Navigation Sidebar */}
+                  <aside className="w-1/4 xl:w-1/5 p-5 border-r border-gray-200 bg-white overflow-y-auto">
+                    <nav className="flex flex-col space-y-2">
+                      {navTabs.map((tab) => (
+                        <button
+                          key={tab}
+                          onClick={() => setActiveTab(tab)}
+                          className={`
+                            px-4 py-2.5 text-sm font-medium text-left rounded-lg transition-all duration-200
+                            focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent
+                            ${
+                              activeTab === tab
+                                ? "bg-brand-accent bg-opacity-10 text-brand-accent font-semibold"
+                                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                            }
+                          `}
+                        >
+                          {tab}
+                        </button>
+                      ))}
+                    </nav>
+                  </aside>
+
+                  {/* Content Area */}
+                  <main className="flex-1 p-6 overflow-y-auto bg-gray-50">
+                    <div className="prose max-w-none">
+                      {renderContent()}
+                    </div>
+                  </main>
+                </div>
+              </Dialog.Panel>
+            </Transition.Child>
+          </div>
+        </div>
+      </Dialog>
+    </Transition>
   );
 };
 
