@@ -43,7 +43,7 @@ const MainContent: React.FC<MainContentProps> = ({
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
-      onSearch();
+      onSearch(event);
     }
   };
 
