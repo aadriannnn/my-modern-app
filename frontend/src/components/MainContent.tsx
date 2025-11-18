@@ -22,7 +22,7 @@ interface MainContentProps {
   hasMore: boolean;
   situatie: string;
   onSituatieChange: (value: string) => void;
-  onSearch: () => void;
+  onSearch: (event?: any) => void;
 }
 
 const MainContent: React.FC<MainContentProps> = ({
@@ -47,7 +47,7 @@ const MainContent: React.FC<MainContentProps> = ({
     }
   };
 
-  const lastResultElementRef = useCallback(node => {
+  const lastResultElementRef = useCallback((node: HTMLDivElement) => {
     if (isLoading) return;
     if (observer.current) observer.current.disconnect();
     observer.current = new IntersectionObserver(entries => {

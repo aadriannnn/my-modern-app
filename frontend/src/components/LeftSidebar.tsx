@@ -122,7 +122,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onF
 
 interface FilterGroupProps {
   title: string;
-  items: FilterItem[];
+  items: (FilterItem | string)[];
   selected: string[];
   onChange: (value: string) => void;
   disabled?: boolean;
@@ -132,7 +132,11 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, items, selected, onCha
   const [isExpanded, setIsExpanded] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredItems = (items ?? []).filter(item =>
+  const mappedItems = (items ?? []).map(item =>
+    typeof item === 'string' ? { name: item, count: null } : item
+  );
+
+  const filteredItems = mappedItems.filter(item =>
     item.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
