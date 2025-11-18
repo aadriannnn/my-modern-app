@@ -43,7 +43,7 @@ const MainContent: React.FC<MainContentProps> = ({
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
-      onSearch(event);
+      onSearch();
     }
   };
 
@@ -122,7 +122,7 @@ const MainContent: React.FC<MainContentProps> = ({
             </div>
           </div>
           <button
-            onClick={onSearch}
+            onClick={() => onSearch()}
             className="mt-3 w-full bg-brand-accent text-white px-6 py-2.5 rounded-xl flex items-center justify-center font-semibold hover:opacity-90 transition-opacity shadow-md"
           >
             <Search size={20} className="mr-2" />
