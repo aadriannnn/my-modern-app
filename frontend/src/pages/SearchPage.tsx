@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import type { PanelGroupInstance } from 'react-resizable-panels';
 import Header from '../components/Header';
 import LeftSidebar from '../components/LeftSidebar';
 import MainContent from '../components/MainContent';
@@ -6,10 +7,13 @@ import CaseDetailModal from '../components/CaseDetailModal';
 import ContribuieModal from '../components/ContribuieModal';
 import { getFilters, search as apiSearch } from '../lib/api';
 import type { Filters, SelectedFilters } from '../types';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import { ChevronsRight } from 'lucide-react';
+import '../styles/resizable-panels.css';
 
 const SearchPage: React.FC = () => {
     const [filters, setFilters] = useState<Filters | null>(null);
-    const [searchResults, setSearchResults] = useState<any[]>([]);
+    const [searchResults, setSearchResults] = useState<Record<string, unknown>[]>([]);
     const [status, setStatus] = useState('Așteptare căutare...');
     const [isLoading, setIsLoading] = useState(true);
     const [offset, setOffset] = useState(0);
@@ -21,10 +25,24 @@ const SearchPage: React.FC = () => {
         tip_speta: [],
         parte: [],
     });
-    const [selectedCase, setSelectedCase] = useState<any | null>(null);
+    const [selectedCase, setSelectedCase] = useState<Record<string, unknown> | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isContribuieModalOpen, setIsContribuieModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+    const panelGroupRef = useRef<PanelGroupInstance>(null);
+
+    const toggleSidebar = useCallback(() => {
+        if (panelGroupRef.current) {
+            const state = panelGroupRef.current.getLayout();
+            if (state[0] > 0) {
+                panelGroupRef.current.setLayout([0, 100]);
+            } else {
+                panelGroupRef.current.setLayout([25, 75]);
+            }
+            setIsSidebarCollapsed(state[0] === 0);
+        }
+    }, []);
 
     useEffect(() => {
         const loadFilters = async () => {
@@ -68,7 +86,7 @@ const SearchPage: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, hasMore, searchParams, situatie]);
+    }, [isLoading, hasMore, searchParams, situatie, searchResults.length]);
 
     const handleSearch = useCallback(async () => {
         if (!situatie.trim() && searchParams.obiect.length === 0) {
@@ -81,7 +99,7 @@ const SearchPage: React.FC = () => {
         await loadMoreResults(0);
     }, [situatie, searchParams.obiect.length, loadMoreResults]);
 
-    const handleFilterChange = useCallback((filterType: keyof SelectedFilters, value: any) => {
+    const handleFilterChange = useCallback((filterType: keyof SelectedFilters, value: string | string[]) => {
         setSearchParams(prevParams => {
             const newParams = { ...prevParams, [filterType]: value };
             if (filterType === 'materie') {
@@ -91,7 +109,7 @@ const SearchPage: React.FC = () => {
         });
     }, []);
 
-    const handleViewCase = (caseData: any) => {
+    const handleViewCase = (caseData: Record<string, unknown>) => {
         setSelectedCase(caseData);
         setIsModalOpen(true);
     };
@@ -102,10 +120,10 @@ const SearchPage: React.FC = () => {
             const key = filterType as keyof SelectedFilters;
             const currentValue = newParams[key];
             if (Array.isArray(currentValue)) {
-                // @ts-ignore
+                // @ts-expect-error: Type 'string | string[]' is not assignable to type 'string[]'.
                 newParams[key] = currentValue.filter(item => item !== valueToRemove);
             } else {
-                // @ts-ignore
+                // @ts-expect-error: Type 'string | string[]' is not assignable to type 'string'.
                 newParams[key] = '';
             }
             return newParams;
@@ -127,29 +145,55 @@ const SearchPage: React.FC = () => {
                 onToggleMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 onContribuieClick={() => setIsContribuieModalOpen(true)}
             />
-            <div className="flex flex-1 overflow-hidden">
-                <LeftSidebar
-                    filters={filters}
-                    selectedFilters={searchParams}
-                    onFilterChange={handleFilterChange}
-                    isOpen={isMobileMenuOpen}
-                    onClose={() => setIsMobileMenuOpen(false)}
-                    onContribuieClick={() => setIsContribuieModalOpen(true)}
-                />
-                <MainContent
-                    results={searchResults}
-                    status={status}
-                    isLoading={isLoading}
-                    onViewCase={handleViewCase}
-                    searchParams={searchParams}
-                    onRemoveFilter={handleRemoveFilter}
-                    onClearFilters={handleClearFilters}
-                    onLoadMore={() => loadMoreResults(offset)}
-                    hasMore={hasMore}
-                    situatie={situatie}
-                    onSituatieChange={setSituatie}
-                    onSearch={handleSearch}
-                />
+            <div className="flex flex-1 overflow-hidden relative">
+                <PanelGroup direction="horizontal" className="flex flex-1" ref={panelGroupRef}>
+                    <Panel
+                        collapsible
+                        id="sidebar"
+                        collapsedSize={0}
+                        minSize={15}
+                        defaultSize={25}
+                        onCollapse={(collapsed) => setIsSidebarCollapsed(collapsed)}
+                        className="hidden md:block"
+                    >
+                        <LeftSidebar
+                            filters={filters}
+                            selectedFilters={searchParams}
+                            onFilterChange={handleFilterChange}
+                            isOpen={isMobileMenuOpen}
+                            onClose={() => setIsMobileMenuOpen(false)}
+                            onContribuieClick={() => setIsContribuieModalOpen(true)}
+                            isCollapsed={isSidebarCollapsed}
+                            onToggleCollapse={toggleSidebar}
+                        />
+                    </Panel>
+                    <PanelResizeHandle className="hidden md:block w-2 bg-gray-200 hover:bg-brand-accent transition-colors duration-200 cursor-col-resize z-10" />
+                    <Panel>
+                        {isSidebarCollapsed && (
+                            <button
+                                onClick={toggleSidebar}
+                                className="absolute top-1/2 left-2 transform -translate-y-1/2 bg-gray-200 hover:bg-brand-accent text-gray-600 hover:text-white rounded-full p-1 z-20"
+                                aria-label="Extinde meniul"
+                            >
+                                <ChevronsRight size={16} />
+                            </button>
+                        )}
+                        <MainContent
+                            results={searchResults}
+                            status={status}
+                            isLoading={isLoading}
+                            onViewCase={handleViewCase}
+                            searchParams={searchParams}
+                            onRemoveFilter={handleRemoveFilter}
+                            onClearFilters={handleClearFilters}
+                            onLoadMore={() => loadMoreResults(offset)}
+                            hasMore={hasMore}
+                            situatie={situatie}
+                            onSituatieChange={setSituatie}
+                            onSearch={handleSearch}
+                        />
+                    </Panel>
+                </PanelGroup>
             </div>
 
             <CaseDetailModal

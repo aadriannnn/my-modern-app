@@ -1,123 +1,141 @@
 import React, { useState, Fragment } from 'react';
 import type { Filters, SelectedFilters, FilterItem } from '../types';
-import { ChevronDown, X, PlusCircle } from 'lucide-react';
+import { ChevronDown, X, PlusCircle, ChevronsLeft } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat1 from '../assets/reclama/avocat1.jpg';
 
 interface LeftSidebarProps {
-  filters: Filters | null;
-  selectedFilters: SelectedFilters;
-  onFilterChange: (filterType: keyof SelectedFilters, value: any) => void;
-  isOpen: boolean;
-  onClose: () => void;
-  onContribuieClick: () => void;
+    filters: Filters | null;
+    selectedFilters: SelectedFilters;
+    onFilterChange: (filterType: keyof SelectedFilters, value: string | string[]) => void;
+    isOpen: boolean;
+    onClose: () => void;
+    onContribuieClick: () => void;
+    isCollapsed: boolean;
+    onToggleCollapse: () => void;
 }
 
-const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onFilterChange, isOpen, onClose, onContribuieClick }) => {
-  const { materii = [], obiecte = [], details = {}, tipSpeta = [], parte = [] } = filters ?? {};
-  const availableObiecte = selectedFilters.materie ? details[selectedFilters.materie] ?? [] : obiecte;
+const LeftSidebar: React.FC<LeftSidebarProps> = ({
+    filters,
+    selectedFilters,
+    onFilterChange,
+    isOpen,
+    onClose,
+    onContribuieClick,
+    isCollapsed,
+    onToggleCollapse,
+}) => {
+    const { materii = [], obiecte = [], details = {}, tipSpeta = [], parte = [] } = filters ?? {};
+    const availableObiecte = selectedFilters.materie ? details[selectedFilters.materie] ?? [] : obiecte;
 
-  const handleCheckboxChange = (filterType: 'obiect' | 'tip_speta' | 'parte', value: string) => {
-    const currentValues = selectedFilters[filterType] as string[];
-    const newValues = currentValues.includes(value)
-      ? currentValues.filter(v => v !== value)
-      : [...currentValues, value];
-    onFilterChange(filterType, newValues);
-  };
+    const handleCheckboxChange = (filterType: 'obiect' | 'tip_speta' | 'parte', value: string) => {
+        const currentValues = selectedFilters[filterType] as string[];
+        const newValues = currentValues.includes(value)
+            ? currentValues.filter((v) => v !== value)
+            : [...currentValues, value];
+        onFilterChange(filterType, newValues);
+    };
 
-  const sidebarContent = (
-    <div className="p-4 space-y-6 flex flex-col h-full">
-      <div>
-        <div className="flex justify-between items-center">
-          <h3 className="text-lg font-semibold text-brand-text">Filtre</h3>
-          <button onClick={onClose} className="md:hidden text-brand-text-secondary hover:text-brand-text">
-            <X size={24} />
-          </button>
+    const sidebarContent = (
+        <div className="p-4 space-y-6 flex flex-col h-full relative">
+            {!isCollapsed && (
+                <Fragment>
+                    <div>
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-lg font-semibold text-brand-text">Filtre</h3>
+                            <button
+                                onClick={onToggleCollapse}
+                                className="p-1 hover:bg-gray-200 rounded-md hidden md:block"
+                                aria-label="Restrânge meniul"
+                            >
+                                <ChevronsLeft size={20} />
+                            </button>
+                            <button onClick={onClose} className="md:hidden text-brand-text-secondary hover:text-brand-text">
+                                <X size={24} />
+                            </button>
+                        </div>
+                    </div>
+                    <div className="flex-grow overflow-y-auto">
+                        <div>
+                            <h4 className="font-semibold text-brand-text mb-2">Materie</h4>
+                            <div className="space-y-2">
+                                {(materii || []).map((materie) => (
+                                    <button
+                                        key={materie.name}
+                                        onClick={() => onFilterChange('materie', selectedFilters.materie === materie.name ? '' : materie.name)}
+                                        className={`w-full flex justify-between items-center text-left px-3 py-2 rounded-lg text-sm transition-colors ${
+                                            selectedFilters.materie === materie.name
+                                                ? 'bg-brand-primary text-white font-semibold'
+                                                : 'bg-white hover:bg-gray-100 text-brand-text'
+                                        }`}
+                                    >
+                                        <span>{materie.name}</span>
+                                        <span className="text-xs opacity-70">{materie.count}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <FilterGroup
+                            title="Obiect"
+                            items={availableObiecte}
+                            selected={selectedFilters.obiect as string[]}
+                            onChange={(val) => handleCheckboxChange('obiect', val)}
+                            disabled={!selectedFilters.materie}
+                        />
+                        <FilterGroup
+                            title="Tip Speță"
+                            items={tipSpeta}
+                            selected={selectedFilters.tip_speta as string[]}
+                            onChange={(val) => handleCheckboxChange('tip_speta', val)}
+                        />
+                        <FilterGroup
+                            title="Parte"
+                            items={parte}
+                            selected={selectedFilters.parte as string[]}
+                            onChange={(val) => handleCheckboxChange('parte', val)}
+                        />
+                    </div>
+                    <Advertisement imageSrc={avocat1} altText="Reclamă avocat" />
+                    <div className="md:hidden border-t border-gray-200 pt-4">
+                        <button
+                            onClick={() => {
+                                onContribuieClick();
+                                onClose();
+                            }}
+                            className="w-full flex items-center justify-center text-sm font-semibold text-brand-primary hover:opacity-80 transition-opacity p-2 rounded-lg bg-gray-200"
+                        >
+                            <PlusCircle size={18} className="mr-1.5" />
+                            Contribuie
+                        </button>
+                    </div>
+                </Fragment>
+            )}
         </div>
-      </div>
+    );
 
-      <div className="flex-grow">
-        <div>
-          <h4 className="font-semibold text-brand-text mb-2">Materie</h4>
-          <div className="space-y-2">
-            {materii.map(materie => (
-              <button
-                key={materie.name}
-                onClick={() => onFilterChange('materie', selectedFilters.materie === materie.name ? '' : materie.name)}
-                className={`w-full flex justify-between items-center text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                  selectedFilters.materie === materie.name
-                    ? 'bg-brand-primary text-white font-semibold'
-                    : 'bg-white hover:bg-gray-100 text-brand-text'
+    return (
+        <Fragment>
+            {/* Mobile view (unchanged) */}
+            <div
+                className={`fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden transition-opacity ${
+                    isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
                 }`}
-              >
-                <span>{materie.name}</span>
-                <span className="text-xs opacity-70">{materie.count}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+                onClick={onClose}
+            />
+            <aside
+                className={`fixed top-0 left-0 h-full bg-brand-light w-72 shadow-xl z-50 transform transition-transform md:hidden ${
+                    isOpen ? 'translate-x-0' : '-translate-x-full'
+                } overflow-y-auto`}
+            >
+                {sidebarContent}
+            </aside>
 
-        <FilterGroup
-          title="Obiect"
-          items={availableObiecte}
-          selected={selectedFilters.obiect as string[]}
-          onChange={(val) => handleCheckboxChange('obiect', val)}
-          disabled={!selectedFilters.materie}
-        />
-        <FilterGroup
-          title="Tip Speță"
-          items={tipSpeta}
-          selected={selectedFilters.tip_speta as string[]}
-          onChange={(val) => handleCheckboxChange('tip_speta', val)}
-        />
-        <FilterGroup
-          title="Parte"
-          items={parte}
-          selected={selectedFilters.parte as string[]}
-          onChange={(val) => handleCheckboxChange('parte', val)}
-        />
-      </div>
-
-      <Advertisement imageSrc={avocat1} altText="Reclamă avocat" />
-
-      <div className="md:hidden border-t border-gray-200 pt-4">
-        <button
-          onClick={() => {
-            onContribuieClick();
-            onClose();
-          }}
-          className="w-full flex items-center justify-center text-sm font-semibold text-brand-primary hover:opacity-80 transition-opacity p-2 rounded-lg bg-gray-200"
-        >
-          <PlusCircle size={18} className="mr-1.5" />
-          Contribuie
-        </button>
-      </div>
-    </div>
-  );
-
-  return (
-    <Fragment>
-      {/* Mobile view */}
-      <div
-        className={`fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden transition-opacity ${
-          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-        onClick={onClose}
-      />
-      <aside
-        className={`fixed top-0 left-0 h-full bg-brand-light w-72 shadow-xl z-50 transform transition-transform md:hidden ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        } overflow-y-auto`}
-      >
-        {sidebarContent}
-      </aside>
-
-      {/* Desktop view */}
-      <aside className="hidden md:block w-80 bg-white border-r border-gray-200 overflow-y-auto">
-        {sidebarContent}
-      </aside>
-    </Fragment>
-  );
+            {/* Desktop view */}
+            <aside className="h-full bg-white border-r border-gray-200 overflow-y-auto">
+                {sidebarContent}
+            </aside>
+        </Fragment>
+    );
 };
 
 interface FilterGroupProps {

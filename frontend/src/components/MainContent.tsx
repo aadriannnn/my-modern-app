@@ -6,41 +6,41 @@ import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
 
 interface MainContentProps {
-  results: any[];
-  status: string;
-  isLoading: boolean;
-  onViewCase: (caseData: any) => void;
-  searchParams: {
-    materie?: string;
-    obiect?: string[];
-    tip_speta?: string[];
-    parte?: string[];
-  };
-  onRemoveFilter: (filterType: string, value: string) => void;
-  onClearFilters: () => void;
-  onLoadMore: () => void;
-  hasMore: boolean;
-  situatie: string;
-  onSituatieChange: (value: string) => void;
-  onSearch: () => void;
+    results: Record<string, unknown>[];
+    status: string;
+    isLoading: boolean;
+    onViewCase: (caseData: Record<string, unknown>) => void;
+    searchParams: {
+        materie?: string;
+        obiect?: string[];
+        tip_speta?: string[];
+        parte?: string[];
+    };
+    onRemoveFilter: (filterType: string, value: string) => void;
+    onClearFilters: () => void;
+    onLoadMore: () => void;
+    hasMore: boolean;
+    situatie: string;
+    onSituatieChange: (value: string) => void;
+    onSearch: () => void;
 }
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
 
 
 const MainContent: React.FC<MainContentProps> = ({
-  results,
-  status,
-  isLoading,
-  onViewCase,
-  searchParams,
-  onRemoveFilter,
-  onClearFilters,
-  onLoadMore,
-  hasMore,
-  situatie,
-  onSituatieChange,
-  onSearch
+    results,
+    status,
+    isLoading,
+    onViewCase,
+    searchParams,
+    onRemoveFilter,
+    onClearFilters,
+    onLoadMore,
+    hasMore,
+    situatie,
+    onSituatieChange,
+    onSearch,
 }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
   const observer = useRef<IntersectionObserver | null>(null)
@@ -119,7 +119,7 @@ const MainContent: React.FC<MainContentProps> = ({
   };
 
   return (
-    <main className="flex-1 p-4 md:p-6 bg-brand-light overflow-y-auto">
+    <main className="flex-1 p-4 md:p-6 bg-brand-light overflow-y-auto relative">
       <div className="max-w-4xl mx-auto">
         {/* Search Bar */}
         <div className="mb-6">
