@@ -12,7 +12,7 @@ interface ResultItemProps {
 }
 
 const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView }) => {
-  const content = result.data?.[activeView] || 'Nu există descriere disponibilă.';
+  const content = result?.[activeView] || 'Nu există descriere disponibilă.';
 
   // Don't render the component if the content for the active view is missing or just "null"
   if (!content || typeof content !== 'string' || content.trim().toLowerCase() === 'null' || content.trim() === '') {
