@@ -158,6 +158,7 @@ def _process_results(rows: List[Dict], score_metric: str = "semantic_distance") 
             "tip_speta": obj.get('tip_speta', "—"),
             "materie": obj.get('materie', "—"),
         }
+        data['situatia_de_fapt_full'] = data.get('situatia_de_fapt', '')
         results.append({
             "id": row['id'],
             "denumire": data['denumire'],
