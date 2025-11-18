@@ -1,22 +1,15 @@
-import React from 'react';
+import React, { Fragment } from 'react';
 import { generatePdf } from '@/lib/pdf';
 import type { PdfSablonData } from '@/lib/pdf';
-import { Printer, Eye, FolderPlus, Scale, Calendar } from 'lucide-react';
+import { Printer, Eye, FolderPlus, Scale, Calendar, ChevronRight } from 'lucide-react';
+import { Tab } from '@headlessui/react';
 
 interface ResultItemProps {
   result: any;
-  activeView: 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
   onViewCase: () => void;
 }
 
-const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase }) => {
-  const content = result[activeView];
-
-  // Don't render the component if the content for the active view is missing or just "null"
-  if (!content || typeof content !== 'string' || content.trim().toLowerCase() === 'null' || content.trim() === '') {
-    return null;
-  }
-
+const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase }) => {
   const handlePrint = async () => {
     const caseData = result.data;
     const pdfData: PdfSablonData = {
@@ -39,29 +32,76 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase 
 
   const title = generateTitle(result);
 
+  const tabs = [
+    { key: 'situatia_de_fapt_full', label: 'Situație de fapt' },
+    { key: 'argumente_instanta', label: 'Argumente' },
+    { key: 'text_individualizare', label: 'Individualizare' },
+    { key: 'text_doctrina', label: 'Doctrină' },
+    { key: 'text_ce_invatam', label: 'Ce învățăm' },
+    { key: 'Rezumat_generat_de_AI_Cod', label: 'Rezumat AI' },
+  ].filter(tab => result[tab.key] && result[tab.key].trim().toLowerCase() !== 'null' && result[tab.key].trim() !== '');
+
   return (
-    <div className="bg-white p-5 border border-gray-200 rounded-lg shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand-accent">
+    <div className="bg-surface border border-border-color rounded-xl shadow-soft transition-all duration-300 hover:shadow-medium hover:border-brand-gold/50">
       {/* Header Card */}
-      <div className="flex justify-between items-start pb-3 mb-3 border-b border-gray-100">
-        <h3 className="text-lg font-semibold text-brand-primary flex-1 cursor-pointer pr-4" onClick={onViewCase}>
-          {title}
-        </h3>
-        <div className="flex items-center space-x-2">
+      <div className="flex justify-between items-start p-5 border-b border-border-color">
+        <div>
+          <h3 className="text-lg font-semibold text-text-primary pr-4">
+            {title}
+          </h3>
+          {/* Footer Card */}
+          <div className="flex items-center space-x-4 text-xs text-text-secondary mt-2">
+            <InfoItem icon={<Scale size={14} />} text={result.data?.materie || 'N/A'} />
+            <InfoItem icon={<Calendar size={14} />} text={result.data?.sursa || 'N/A'} />
+          </div>
+        </div>
+        <div className="flex items-center space-x-1">
           <IconButton icon={<FolderPlus size={18} />} tooltip="Adaugă la dosar" />
           <IconButton icon={<Printer size={18} />} tooltip="Printează" onClick={handlePrint} />
-          <IconButton icon={<Eye size={18} />} tooltip="Vezi detalii" onClick={onViewCase} />
         </div>
       </div>
 
       {/* Content */}
-      <div className="text-sm text-brand-text-secondary leading-relaxed cursor-pointer" onClick={onViewCase}>
-        <p className="line-clamp-4">{content}</p>
+      <div className="p-5">
+        <Tab.Group>
+          <Tab.List className="flex space-x-1 rounded-lg bg-gray-100 p-1">
+            {tabs.map((tab) => (
+              <Tab
+                key={tab.key}
+                className={({ selected }) =>
+                  `w-full rounded-md py-2 text-sm font-medium leading-5
+                  transition-colors duration-200
+                  focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-100 focus:ring-brand-gold
+                  ${
+                    selected
+                      ? 'bg-white text-brand-blue shadow'
+                      : 'text-text-secondary hover:bg-white/[0.6]'
+                  }`
+                }
+              >
+                {tab.label}
+              </Tab>
+            ))}
+          </Tab.List>
+          <Tab.Panels className="mt-4">
+            {tabs.map((tab) => (
+              <Tab.Panel key={tab.key} className="text-sm text-text-secondary leading-relaxed">
+                <p className="line-clamp-5">{result[tab.key]}</p>
+              </Tab.Panel>
+            ))}
+          </Tab.Panels>
+        </Tab.Group>
       </div>
 
-      {/* Footer Card */}
-      <div className="flex items-center space-x-4 text-xs text-gray-500 mt-4">
-        <InfoItem icon={<Scale size={14} />} text={result.data?.materie || 'N/A'} />
-        <InfoItem icon={<Calendar size={14} />} text={result.data?.sursa || 'N/A'} />
+      {/* Action footer */}
+      <div className="border-t border-border-color bg-gray-50/50 px-5 py-3">
+        <button
+            onClick={onViewCase}
+            className="group flex items-center text-sm font-semibold text-brand-gold hover:text-brand-gold/80 transition-colors"
+        >
+            Vezi detalii caz
+            <ChevronRight size={16} className="ml-1 transition-transform group-hover:translate-x-1"/>
+        </button>
       </div>
     </div>
   );
@@ -69,17 +109,17 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase 
 
 // Helper components
 const IconButton: React.FC<{ icon: React.ReactNode; tooltip: string; onClick?: () => void }> = ({ icon, tooltip, onClick }) => (
-  <button onClick={onClick} className="p-2 rounded-full text-gray-500 hover:bg-gray-100 hover:text-brand-primary transition-colors relative group">
+  <button onClick={onClick} className="p-2 rounded-full text-text-secondary hover:bg-gray-100 hover:text-brand-blue transition-colors relative group">
     {icon}
-    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap bg-black text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+    <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 whitespace-nowrap bg-gray-800 text-white text-xs px-2 py-1 rounded-md opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
       {tooltip}
     </span>
   </button>
 );
 
 const InfoItem: React.FC<{ icon: React.ReactNode; text: string }> = ({ icon, text }) => (
-  <div className="flex items-center bg-gray-100 px-2 py-1 rounded-full">
-    <span className="text-gray-500">{icon}</span>
+  <div className="flex items-center">
+    <span className="text-text-secondary">{icon}</span>
     <span className="ml-1.5 font-medium">{text}</span>
   </div>
 );
