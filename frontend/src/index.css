@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 body {
-  @apply bg-brand-light font-sans text-brand-text;
+  @apply bg-background font-sans text-text-primary;
 }
 
 @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
