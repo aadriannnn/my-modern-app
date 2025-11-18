@@ -5,12 +5,11 @@ import { Printer, Eye, FolderPlus, Scale, Calendar } from 'lucide-react';
 
 interface ResultItemProps {
   result: any;
-  activeView: 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
   onViewCase: () => void;
 }
 
-const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase }) => {
-  const content = result[activeView];
+const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase }) => {
+  const content = result.data?.Rezumat_generat_de_AI_Cod || result.data?.situatia_de_fapt_full || 'Nu există descriere disponibilă.';
 
   // Don't render the component if the content for the active view is missing or just "null"
   if (!content || typeof content !== 'string' || content.trim().toLowerCase() === 'null' || content.trim() === '') {

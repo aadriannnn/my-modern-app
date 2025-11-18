@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useRef, useCallback } from 'react';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters';
 import { Loader2, Search } from 'lucide-react';
@@ -25,9 +25,6 @@ interface MainContentProps {
   onSearch: () => void;
 }
 
-type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
-
-
 const MainContent: React.FC<MainContentProps> = ({
   results,
   status,
@@ -42,7 +39,6 @@ const MainContent: React.FC<MainContentProps> = ({
   onSituatieChange,
   onSearch
 }) => {
-  const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
   const observer = useRef<IntersectionObserver>();
 
   const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -61,15 +57,6 @@ const MainContent: React.FC<MainContentProps> = ({
     });
     if (node) observer.current.observe(node);
   }, [isLoading, hasMore, onLoadMore]);
-
-  const viewButtons: { key: ViewType; label: string }[] = [
-    { key: 'situatia_de_fapt_full', label: 'Situație de fapt' },
-    { key: 'argumente_instanta', label: 'Argumente' },
-    { key: 'text_individualizare', label: 'Individualizare' },
-    { key: 'text_doctrina', label: 'Doctrină' },
-    { key: 'text_ce_invatam', label: 'Ce învățăm' },
-    { key: 'Rezumat_generat_de_AI_Cod', label: 'Rezumat AI' },
-  ];
 
   const renderContent = () => {
     if (isLoading && results.length === 0) {
@@ -92,14 +79,12 @@ const MainContent: React.FC<MainContentProps> = ({
       );
     }
 
-    // Filtrarea rezultatelor goale se face direct in ResultItem
     return (
       <div className="space-y-4">
         {results.map((result, index) => (
           <div ref={results.length === index + 1 ? lastResultElementRef : null} key={`${result.id}-${index}`}>
             <ResultItem
               result={result}
-              activeView={activeView}
               onViewCase={() => onViewCase(result)}
             />
           </div>
@@ -143,24 +128,6 @@ const MainContent: React.FC<MainContentProps> = ({
             <Search size={20} className="mr-2" />
             Căutare Avansată
           </button>
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-1 mb-4 flex-wrap">
-          <div className="flex justify-center items-center">
-            {viewButtons.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setActiveView(key)}
-                className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-200 ${
-                  activeView === key
-                    ? 'bg-brand-dark text-white shadow-sm'
-                    : 'text-brand-text-secondary hover:bg-gray-100'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
         </div>
 
         <SelectedFilters
