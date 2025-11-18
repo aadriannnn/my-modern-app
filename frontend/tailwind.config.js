@@ -1,10 +1,8 @@
-const { spacing } = require('tailwindcss/defaultTheme');
-
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}"
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {
@@ -29,11 +27,9 @@ module.exports = {
         },
       },
       spacing: {
-        ...spacing,
         '18': '4.5rem',
       },
       borderRadius: {
-        ...spacing,
         'xl': '0.75rem',
         '2xl': '1rem',
         '3xl': '1.5rem',
@@ -43,13 +39,9 @@ module.exports = {
         'md': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         'lg': '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
       },
-      fontFamily: {
-        sans: ['"Source Sans 3"', 'sans-serif'],
-      },
     },
   },
   plugins: [
     require('@tailwindcss/forms'),
-    require('@tailwindcss/line-clamp'),
   ],
 }
