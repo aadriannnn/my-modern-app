@@ -145,6 +145,7 @@ const MainContent: React.FC<MainContentProps> = ({
           </button>
         </div>
 
+        {results.length > 0 && (
         <div className="bg-white rounded-lg shadow p-1 mb-4 flex-wrap">
           <div className="flex justify-center items-center">
             {viewButtons.map(({ key, label }) => (
@@ -162,6 +163,7 @@ const MainContent: React.FC<MainContentProps> = ({
             ))}
           </div>
         </div>
+        )}
 
         <SelectedFilters
           filters={searchParams}
