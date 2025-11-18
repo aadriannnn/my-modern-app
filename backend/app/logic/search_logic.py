@@ -148,7 +148,7 @@ def _process_results(rows: List[Dict], score_metric: str = "semantic_distance") 
             "id": row['id'],
             **obj,
             "denumire": obj.get("denumire", f"Caz #{row['id']}"),
-            "situatia_de_fapt": obj.get('text_situatia_de_fapt') or obj.get('situatia_de_fapt') or "",
+            "situatia_de_fapt": obj.get('text_situatia_de_fapt') or obj.get('situatia_de_fapt') or obj.get('situatie') or "",
             "argumente_instanta": obj.get('argumente_instanta') or "",
             "text_individualizare": obj.get('text_individualizare') or "",
             "text_doctrina": obj.get('text_doctrina') or "",
@@ -255,7 +255,8 @@ def _search_by_keywords_postgres(session: Session, req: SearchRequest) -> List[D
     long_text_expr = """
         COALESCE(
           NULLIF(b.obj->>'text_situatia_de_fapt',''),
-          b.obj->>'situatia_de_fapt'
+          NULLIF(b.obj->>'situatia_de_fapt',''),
+          b.obj->>'situatie'
         )
     """
 

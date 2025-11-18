@@ -3,13 +3,16 @@ import { generatePdf } from '@/lib/pdf';
 import type { PdfSablonData } from '@/lib/pdf';
 import { Printer, Eye, FolderPlus, Scale, Calendar } from 'lucide-react';
 
+type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
+
 interface ResultItemProps {
   result: any;
   onViewCase: () => void;
+  activeView: ViewType;
 }
 
-const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase }) => {
-  const content = result.data?.Rezumat_generat_de_AI_Cod || result.data?.situatia_de_fapt_full || 'Nu există descriere disponibilă.';
+const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView }) => {
+  const content = result.data?.[activeView] || 'Nu există descriere disponibilă.';
 
   // Don't render the component if the content for the active view is missing or just "null"
   if (!content || typeof content !== 'string' || content.trim().toLowerCase() === 'null' || content.trim() === '') {
