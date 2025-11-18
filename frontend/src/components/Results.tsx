@@ -120,7 +120,7 @@ const getDisplayContent = (result: Result, view: ViewType) => {
         </div>
       </div>
 
-      {isModalOpen && <CaseDetailModal result={selectedResult} onClose={handleCloseModal} />}
+      {isModalOpen && <CaseDetailModal isOpen={isModalOpen} result={selectedResult} onClose={handleCloseModal} />}
     </div>
   );
 };
