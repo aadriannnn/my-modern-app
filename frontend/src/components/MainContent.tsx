@@ -6,6 +6,7 @@ import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
 
 interface MainContentProps {
+  isDesktopSidebarOpen: boolean;
   results: any[];
   status: string;
   isLoading: boolean;
@@ -29,6 +30,7 @@ type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individua
 
 
 const MainContent: React.FC<MainContentProps> = ({
+  isDesktopSidebarOpen,
   results,
   status,
   isLoading,
@@ -51,7 +53,7 @@ const MainContent: React.FC<MainContentProps> = ({
     }
   };
 
-  const lastResultElementRef = useCallback(node => {
+  const lastResultElementRef = useCallback((node: any) => {
     if (isLoading) return;
     if (observer.current) observer.current.disconnect();
     observer.current = new IntersectionObserver(entries => {
@@ -119,8 +121,8 @@ const MainContent: React.FC<MainContentProps> = ({
   };
 
   return (
-    <main className="flex-1 p-4 md:p-6 bg-brand-light overflow-y-auto">
-      <div className="max-w-4xl mx-auto">
+    <main className={`flex-1 p-4 md:p-6 bg-brand-light overflow-y-auto transition-all duration-300 ease-in-out ${isDesktopSidebarOpen ? 'pl-80' : 'pl-20'}`}>
+      <div className="max-w-4xl">
         {/* Search Bar */}
         <div className="mb-6">
           <div className="relative">
