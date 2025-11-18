@@ -1,4 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import Advertisement from './Advertisement';
+import avocat2 from '../assets/reclama/avocat2.jpg';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters'; // Import the new component
 import './SelectedFilters.css'; // Import the CSS
@@ -87,7 +89,14 @@ const MainContent: React.FC<MainContentProps> = ({
     }
 
     if (results.length === 0) {
-      return <div className="text-center py-10"><p className="text-gray-500">{status}</p></div>;
+      return (
+        <div className="text-center py-10">
+          <p className="text-gray-500 mb-6">{status}</p>
+          <div className="max-w-md mx-auto">
+            <Advertisement imageSrc={avocat2} altText="Reclamă avocat 2" />
+          </div>
+        </div>
+      );
     }
 
     const filteredResults = results.filter(result => {
