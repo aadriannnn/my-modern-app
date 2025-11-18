@@ -1,46 +1,50 @@
 import React, { useState, useRef, useCallback } from 'react';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, ChevronsRight } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
 
 interface MainContentProps {
-  results: any[];
-  status: string;
-  isLoading: boolean;
-  onViewCase: (caseData: any) => void;
-  searchParams: {
-    materie?: string;
-    obiect?: string[];
-    tip_speta?: string[];
-    parte?: string[];
-  };
-  onRemoveFilter: (filterType: string, value: string) => void;
-  onClearFilters: () => void;
-  onLoadMore: () => void;
-  hasMore: boolean;
-  situatie: string;
-  onSituatieChange: (value: string) => void;
-  onSearch: () => void;
+    results: Record<string, unknown>[];
+    status: string;
+    isLoading: boolean;
+    onViewCase: (caseData: Record<string, unknown>) => void;
+    searchParams: {
+        materie?: string;
+        obiect?: string[];
+        tip_speta?: string[];
+        parte?: string[];
+    };
+    onRemoveFilter: (filterType: string, value: string) => void;
+    onClearFilters: () => void;
+    onLoadMore: () => void;
+    hasMore: boolean;
+    situatie: string;
+    onSituatieChange: (value: string) => void;
+    onSearch: () => void;
+    isSidebarCollapsed: boolean;
+    onToggleSidebar: () => void;
 }
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
 
 
 const MainContent: React.FC<MainContentProps> = ({
-  results,
-  status,
-  isLoading,
-  onViewCase,
-  searchParams,
-  onRemoveFilter,
-  onClearFilters,
-  onLoadMore,
-  hasMore,
-  situatie,
-  onSituatieChange,
-  onSearch
+    results,
+    status,
+    isLoading,
+    onViewCase,
+    searchParams,
+    onRemoveFilter,
+    onClearFilters,
+    onLoadMore,
+    hasMore,
+    situatie,
+    onSituatieChange,
+    onSearch,
+    isSidebarCollapsed,
+    onToggleSidebar,
 }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
   const observer = useRef<IntersectionObserver | null>(null)
@@ -119,7 +123,16 @@ const MainContent: React.FC<MainContentProps> = ({
   };
 
   return (
-    <main className="flex-1 p-4 md:p-6 bg-brand-light overflow-y-auto">
+    <main className="flex-1 p-4 md:p-6 bg-brand-light overflow-y-auto relative">
+         {isSidebarCollapsed && (
+                <button
+                    onClick={onToggleSidebar}
+                    className="absolute top-1/2 left-0 transform -translate-y-1/2 bg-gray-200 hover:bg-brand-accent text-gray-600 hover:text-white rounded-full p-1 z-10"
+                    aria-label="Extinde meniul"
+                >
+                    <ChevronsRight size={16} />
+                </button>
+            )}
       <div className="max-w-4xl mx-auto">
         {/* Search Bar */}
         <div className="mb-6">
