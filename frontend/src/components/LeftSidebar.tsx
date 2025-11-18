@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-
+import Advertisement from './Advertisement';
+import avocat1 from '../assets/reclama/avocat1.jpg';
 import type { Filters, SelectedFilters, FilterItem } from '../types';
 
 interface LeftSidebarProps {
@@ -74,6 +75,9 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onF
           </div>
         )}
       </div>
+      {!isCollapsed && (
+        <Advertisement imageSrc={avocat1} altText="Reclamă avocat" />
+      )}
     </aside>
   );
 };
