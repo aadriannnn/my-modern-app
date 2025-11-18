@@ -1,11 +1,9 @@
 import React, { useState, useRef, useCallback } from 'react';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Search } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
-
-// ... (interfețele rămân la fel)
 
 interface MainContentProps {
   results: any[];
@@ -22,6 +20,9 @@ interface MainContentProps {
   onClearFilters: () => void;
   onLoadMore: () => void;
   hasMore: boolean;
+  situatie: string;
+  onSituatieChange: (value: string) => void;
+  onSearch: () => void;
 }
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
@@ -37,9 +38,18 @@ const MainContent: React.FC<MainContentProps> = ({
   onClearFilters,
   onLoadMore,
   hasMore,
+  situatie,
+  onSituatieChange,
+  onSearch
 }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
   const observer = useRef<IntersectionObserver>();
+
+  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      onSearch();
+    }
+  };
 
   const lastResultElementRef = useCallback(node => {
     if (isLoading) return;
@@ -111,6 +121,30 @@ const MainContent: React.FC<MainContentProps> = ({
   return (
     <main className="flex-1 p-4 md:p-6 bg-brand-light overflow-y-auto">
       <div className="max-w-4xl mx-auto">
+        {/* Search Bar */}
+        <div className="mb-6">
+          <div className="relative">
+            <input
+              type="text"
+              value={situatie}
+              onChange={(e) => onSituatieChange(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Introduceți situația de fapt, cuvinte cheie sau articole de lege..."
+              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl bg-white text-brand-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent shadow-subtle"
+            />
+            <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
+              <Search size={22} className="text-gray-400" />
+            </div>
+          </div>
+          <button
+            onClick={onSearch}
+            className="mt-3 w-full bg-brand-accent text-white px-6 py-2.5 rounded-xl flex items-center justify-center font-semibold hover:opacity-90 transition-opacity shadow-md"
+          >
+            <Search size={20} className="mr-2" />
+            Căutare Avansată
+          </button>
+        </div>
+
         <div className="bg-white rounded-lg shadow p-1 mb-4 flex-wrap">
           <div className="flex justify-center items-center">
             {viewButtons.map(({ key, label }) => (
@@ -119,7 +153,7 @@ const MainContent: React.FC<MainContentProps> = ({
                 onClick={() => setActiveView(key)}
                 className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-200 ${
                   activeView === key
-                    ? 'bg-brand-primary text-white shadow-sm'
+                    ? 'bg-brand-dark text-white shadow-sm'
                     : 'text-brand-text-secondary hover:bg-gray-100'
                 }`}
               >
