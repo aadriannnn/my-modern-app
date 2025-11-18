@@ -124,9 +124,6 @@ const SearchPage: React.FC = () => {
     return (
       <div className="flex flex-col min-h-screen bg-brand-light font-sans">
         <Header
-          situatie={situatie}
-          onSituatieChange={setSituatie}
-          onSearch={handleSearch}
           onToggleMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           onContribuieClick={() => setIsContribuieModalOpen(true)}
         />
@@ -149,6 +146,9 @@ const SearchPage: React.FC = () => {
             onClearFilters={handleClearFilters}
             onLoadMore={() => loadMoreResults(offset)}
             hasMore={hasMore}
+            situatie={situatie}
+            onSituatieChange={setSituatie}
+            onSearch={handleSearch}
           />
         </div>
 
