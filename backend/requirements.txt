@@ -9,3 +9,4 @@ pgvector
 httpx
 python-multipart
 requests
+reportlab>=4.0.0

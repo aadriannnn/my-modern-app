@@ -3,10 +3,11 @@ from sqlmodel import SQLModel, Field, Column
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.types import JSON
 from pgvector.sqlalchemy import Vector
+from datetime import datetime
 from .config import get_settings
 
 settings = get_settings()
-db_specific_json = JSONB if "postgresql" in settings.DATABASE_URL else JSON
+db_specific_json = JSONB if (settings.DATABASE_URL and "postgresql" in settings.DATABASE_URL) else JSON
 
 
 class Blocuri(SQLModel, table=True):
@@ -25,8 +26,6 @@ class FiltreCache(SQLModel, table=True):
     tip: str = Field(primary_key=True)
     valoare: str = Field(primary_key=True)
 
-
-from datetime import datetime
 class FiltreCacheMenu(SQLModel, table=True):
     __tablename__ = 'filtre_cache_menu'
     id: int = Field(primary_key=True)
@@ -57,3 +56,21 @@ class Contributii(SQLModel, table=True):
     sursa: str
     file_path: str
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+
+
+class ModeleDocumente(SQLModel, table=True):
+    """Model for legal document templates from the modele_documente database."""
+    __tablename__ = 'modele_documente'
+
+    id: str = Field(primary_key=True)  # SHA1 hash from titlu_model + text_model
+    keywords_model: Optional[str] = None
+    titlu_model: str
+    text_model: str
+    sursa_model: Optional[str] = None
+    obiect_model: Optional[str] = None
+    materie_model: Optional[str] = None
+    comentariiLLM_model: Optional[str] = None
+    comentariiLLM_model_embedding: Optional[List[float]] = Field(
+        default=None,
+        sa_column=Column(Vector(1536))
+    )

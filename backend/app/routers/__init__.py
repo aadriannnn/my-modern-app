@@ -1,0 +1,7 @@
+from .search import router as search_router
+from .equivalents import router as equivalents_router
+from .filters import router as filters_router
+from .test import router as test_router
+from .contribuie import router as contribuie_router
+from .case import router as case_router
+from .modele import router as modele_router

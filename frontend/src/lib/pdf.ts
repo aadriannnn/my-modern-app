@@ -222,3 +222,65 @@ export const generatePdf = async (data: PdfSablonData, opts: PdfOptions = {}): P
 
   doc.save(file);
 };
+
+export const generateModelPdf = async (modelData: {
+  titlu_model: string;
+  text_model: string;
+  materie_model?: string;
+  obiect_model?: string;
+  sursa_model?: string;
+}): Promise<void> => {
+  const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
+  doc.setFont("DejaVuSans", "normal");
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = DEF_MARGIN;
+
+  const ctx: LayoutCtx = {
+    y: margin,
+    margin,
+    pageW,
+    pageH,
+    maxW: pageW - margin * 2,
+  };
+
+  drawHeader(doc, ctx);
+
+  // Metadata
+  doc.setFont("DejaVuSans", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(100);
+
+  if (modelData.materie_model) {
+    doc.text(`Materie: ${modelData.materie_model}`, ctx.margin, ctx.y);
+    ctx.y += 5;
+  }
+  if (modelData.obiect_model) {
+    doc.text(`Obiect: ${modelData.obiect_model}`, ctx.margin, ctx.y);
+    ctx.y += 5;
+  }
+  if (modelData.sursa_model) {
+    doc.text(`Sursă: ${modelData.sursa_model}`, ctx.margin, ctx.y);
+    ctx.y += 5;
+  }
+
+  ctx.y += 10;
+
+  // Title
+  doc.setFont("DejaVuSans", "bold");
+  doc.setFontSize(16);
+  doc.setTextColor(0);
+
+  const titleLines = doc.splitTextToSize(modelData.titlu_model, ctx.maxW);
+  ensureSpace(doc, ctx, titleLines.length * 7 + 10);
+  doc.text(titleLines, ctx.pageW / 2, ctx.y, { align: "center" });
+  ctx.y += titleLines.length * 7 + 10;
+
+  // Content
+  drawParagraphJustified(doc, ctx, modelData.text_model);
+
+  drawFooterAllPages(doc, ctx);
+
+  const file = `${safe(modelData.titlu_model).replace(/\s+/g, "_")}.pdf`;
+  doc.save(file);
+};

@@ -33,3 +33,21 @@ class Equivalent(BaseModel):
 class ContributieCreate(BaseModel):
     denumire: str
     sursa: str
+
+class ModeleRequest(BaseModel):
+    """Request schema for fetching relevant document models for a case."""
+    materie: Optional[str] = None
+    obiect: Optional[str] = None
+    keywords: Optional[List[str]] = Field(default_factory=list)
+    situatia_de_fapt: Optional[str] = None
+    rezumat_ai: Optional[str] = None
+    limit: Optional[int] = 10
+
+class ModeleResponse(BaseModel):
+    """Response schema for a document model."""
+    id: str
+    titlu_model: str
+    obiect_model: Optional[str] = None
+    materie_model: Optional[str] = None
+    sursa_model: Optional[str] = None
+    relevance_score: float

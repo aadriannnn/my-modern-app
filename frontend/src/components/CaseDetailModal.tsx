@@ -8,6 +8,8 @@ import { useDosar } from "../context/DosarContext";
 import { generatePdf } from "../lib/pdf";
 import type { PdfSablonData } from "../lib/pdf";
 import LongTextField from "./LongTextField";
+import DocumentModelsSection from "./DocumentModelsSection";
+import DocumentModelModal from "./DocumentModelModal";
 
 // Refined type definitions for clarity
 interface CaseDetailModalProps {
@@ -21,6 +23,8 @@ interface CaseDetailModalProps {
 
 const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, result }) => {
   const [activeTab, setActiveTab] = useState("Metadate");
+  const [modelModalOpen, setModelModalOpen] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const { addToDosar, removeFromDosar, isCaseInDosar } = useDosar();
 
   if (!result) return null;
@@ -34,6 +38,16 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
     } else {
       addToDosar(result);
     }
+  };
+
+  const handleViewModel = (modelId: string) => {
+    setSelectedModelId(modelId);
+    setModelModalOpen(true);
+  };
+
+  const handleCloseModelModal = () => {
+    setModelModalOpen(false);
+    setSelectedModelId(null);
   };
 
   // PDF Generation Logic
@@ -57,6 +71,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
     "Argumente",
     "Hotărâre",
     "Elemente utile",
+    "Modele",
   ];
 
   const renderContent = () => {
@@ -96,6 +111,8 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
             <LongTextField label="Individualizare" text={caseData.text_individualizare} />
           </>
         );
+      case "Modele":
+        return <DocumentModelsSection caseData={caseData} onViewModel={handleViewModel} />;
       default:
         return null;
     }
@@ -199,6 +216,13 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
             </Transition.Child>
           </div>
         </div>
+
+        {/* Document Model Preview Modal */}
+        <DocumentModelModal
+          isOpen={modelModalOpen}
+          onClose={handleCloseModelModal}
+          modelId={selectedModelId}
+        />
       </Dialog>
     </Transition>
   );

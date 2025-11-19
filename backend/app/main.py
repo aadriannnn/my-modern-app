@@ -7,7 +7,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .db import init_db, get_session
 from .cache import load_all_filters_into_memory
-from .routers import search as main_router, equivalents, filters as filters_router, test as test_router, contribuie as contribuie_router, case as case_router
+from .routers import (
+    search as main_router,
+    equivalents,
+    filters as filters_router,
+    test as test_router,
+    contribuie as contribuie_router,
+    case as case_router,
+    modele as modele_router
+)
 
 # Configure logging
 logging.basicConfig(
@@ -67,6 +75,7 @@ api_router.include_router(filters_router.router)
 api_router.include_router(test_router.router)
 api_router.include_router(contribuie_router.router)
 api_router.include_router(case_router.router)
+api_router.include_router(modele_router.router)
 
 app.include_router(api_router)
 
