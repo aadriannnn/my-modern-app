@@ -1,7 +1,7 @@
 from typing import Optional, List, Any
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.types import JSON
+from sqlalchemy.types import JSON, ARRAY, String
 from pgvector.sqlalchemy import Vector
 from datetime import datetime
 from .config import get_settings
@@ -63,7 +63,7 @@ class ModeleDocumente(SQLModel, table=True):
     __tablename__ = 'modele_documente'
 
     id: str = Field(primary_key=True)  # SHA1 hash from titlu_model + text_model
-    keywords_model: Optional[str] = None
+    keywords_model: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(String)))
     titlu_model: str
     text_model: str
     sursa_model: Optional[str] = None

@@ -97,9 +97,9 @@ def get_relevant_modele(
         params["keywords_regex"] = '^$'  # Pattern that never matches
 
     # Scoring weights
-    W_EXACT_MATERIE = 2.0
-    W_EXACT_OBIECT = 2.5
-    W_KEYWORDS = 1.5
+    W_EXACT_MATERIE = 3.0
+    W_EXACT_OBIECT = 4.0
+    W_KEYWORDS = 2.0
     W_EMBEDDING = 1.0
     W_TRIGRAM = 0.5
 
@@ -133,7 +133,7 @@ def get_relevant_modele(
 
                 -- Keywords regex match
                 (CASE
-                    WHEN COALESCE(m.keywords_model, '') ~* :keywords_regex
+                    WHEN COALESCE(array_to_string(m.keywords_model, ' '), '') ~* :keywords_regex
                     THEN {W_KEYWORDS}
                     ELSE 0
                 END) +
@@ -149,7 +149,7 @@ def get_relevant_modele(
                 (similarity(
                     COALESCE(m.obiect_model, '') || ' ' ||
                     COALESCE(m.materie_model, '') || ' ' ||
-                    COALESCE(m.keywords_model, ''),
+                    COALESCE(array_to_string(m.keywords_model, ' '), ''),
                     :q
                 ) * {W_TRIGRAM})
             ) AS relevance_score
@@ -159,7 +159,7 @@ def get_relevant_modele(
             (
                 (LOWER(COALESCE(m.materie_model, '')) LIKE '%' || :materie || '%' AND :materie != '') OR
                 (LOWER(COALESCE(m.obiect_model, '')) LIKE '%' || :obiect || '%' AND :obiect != '') OR
-                (COALESCE(m.keywords_model, '') ~* :keywords_regex) OR
+                (COALESCE(array_to_string(m.keywords_model, ' '), '') ~* :keywords_regex) OR
                 (m.comentariiLLM_model_embedding IS NOT NULL AND
                  (1.0 - (m.comentariiLLM_model_embedding <=> :embedding)) > 0.5)
             )
