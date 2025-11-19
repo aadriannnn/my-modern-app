@@ -47,7 +47,7 @@ const MainContent: React.FC<MainContentProps> = ({
 
 
 
-  const lastResultElementRef = useCallback(node => {
+  const lastResultElementRef = useCallback((node: HTMLDivElement | null) => {
     if (isLoading) return;
     if (observer.current) observer.current.disconnect();
     observer.current = new IntersectionObserver(entries => {
