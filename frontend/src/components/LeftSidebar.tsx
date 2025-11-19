@@ -109,12 +109,12 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     <Fragment>
       {/* Mobile view */}
       <div
-        className={`fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         onClick={onClose}
       />
       <aside
-        className={`fixed top-0 left-0 h-full bg-brand-light w-72 shadow-xl z-50 transform transition-transform md:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 left-0 h-full bg-brand-light w-full shadow-2xl z-50 transform transition-transform duration-300 ease-out md:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'
           } overflow-y-auto`}
       >
         {sidebarContent}
@@ -123,7 +123,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
       {/* Desktop view */}
       <div className="hidden md:flex relative h-full">
         <aside
-          className={`bg-white border-r border-gray-200 h-full transition-all duration-300 ease-in-out overflow-hidden ${isDesktopOpen ? 'w-80' : 'w-0'
+          className={`bg-white border-r border-gray-200 h-full transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${isDesktopOpen ? 'w-80 opacity-100' : 'w-0 opacity-0'
             }`}
         >
           <div className="h-full w-80">
@@ -134,10 +134,10 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         {/* Toggle Button (Vertical Bar) */}
         <button
           onClick={onDesktopToggle}
-          className="absolute top-1/2 -right-3 transform -translate-y-1/2 bg-white border border-gray-200 shadow-md rounded-full p-1 z-10 hover:bg-gray-50 transition-colors focus:outline-none"
+          className="absolute top-1/2 -right-3 transform -translate-y-1/2 bg-white border border-gray-200 shadow-lg rounded-full p-1.5 z-10 hover:bg-gray-50 hover:scale-110 transition-all duration-200 focus:outline-none text-brand-primary"
           title={isDesktopOpen ? "Ascunde filtre" : "Arată filtre"}
         >
-          {isDesktopOpen ? <ChevronLeft size={16} className="text-gray-600" /> : <ChevronRight size={16} className="text-gray-600" />}
+          {isDesktopOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
         </button>
       </div>
     </Fragment>

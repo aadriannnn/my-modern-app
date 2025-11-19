@@ -45,11 +45,7 @@ const MainContent: React.FC<MainContentProps> = ({
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
   const observer = useRef<IntersectionObserver | null>(null)
 
-  const handleKeyPress = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      onSearch();
-    }
-  };
+
 
   const lastResultElementRef = useCallback(node => {
     if (isLoading) return;
@@ -106,7 +102,7 @@ const MainContent: React.FC<MainContentProps> = ({
         ))}
         {isLoading && (
           <div className="text-center py-6">
-             <Loader2 className="animate-spin h-8 w-8 text-brand-accent mx-auto" />
+            <Loader2 className="animate-spin h-8 w-8 text-brand-accent mx-auto" />
           </div>
         )}
         {!hasMore && results.length > 0 && (
@@ -123,46 +119,44 @@ const MainContent: React.FC<MainContentProps> = ({
       <div className="max-w-4xl mx-auto">
         {/* Search Bar */}
         <div className="mb-6">
-          <div className="relative">
-            <input
-              type="text"
+          <div className="relative group">
+            <textarea
               value={situatie}
               onChange={(e) => onSituatieChange(e.target.value)}
-              onKeyPress={handleKeyPress}
               placeholder="Introduceți situația de fapt, cuvinte cheie sau articole de lege..."
-              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl bg-white text-brand-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent shadow-subtle"
+              rows={3}
+              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl bg-white text-brand-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent shadow-sm transition-all duration-200 resize-y min-h-[80px]"
             />
-            <div className="absolute left-4 top-1/2 transform -translate-y-1/2">
-              <Search size={22} className="text-gray-400" />
+            <div className="absolute left-4 top-6 transform -translate-y-1/2 pointer-events-none">
+              <Search size={22} className="text-gray-400 group-focus-within:text-brand-accent transition-colors duration-200" />
             </div>
           </div>
           <button
             onClick={onSearch}
-            className="mt-3 w-full bg-brand-accent text-white px-6 py-2.5 rounded-xl flex items-center justify-center font-semibold hover:opacity-90 transition-opacity shadow-md"
+            className="mt-3 w-full bg-brand-accent text-white px-6 py-3 rounded-xl flex items-center justify-center font-bold text-lg hover:bg-brand-accent-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 shadow-md"
           >
-            <Search size={20} className="mr-2" />
+            <Search size={24} className="mr-2" />
             Căutare Avansată
           </button>
         </div>
 
         {results.length > 0 && (
-        <div className="bg-white rounded-lg shadow p-1 mb-4 flex-wrap">
-          <div className="flex justify-center items-center">
-            {viewButtons.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setActiveView(key)}
-                className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-200 ${
-                  activeView === key
+          <div className="bg-white rounded-lg shadow p-1 mb-4 flex-wrap">
+            <div className="flex justify-center items-center">
+              {viewButtons.map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setActiveView(key)}
+                  className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-200 ${activeView === key
                     ? 'bg-brand-dark text-white shadow-sm'
                     : 'text-brand-text-secondary hover:bg-gray-100'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
+                    }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
         )}
 
         <SelectedFilters

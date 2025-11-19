@@ -177,11 +177,29 @@ def _process_results(rows: List[Dict], score_metric: str = "semantic_distance") 
     return results
 
 def _search_postgres(session: Session, req: SearchRequest, embedding: List[float]) -> List[Dict]:
-    """Performs semantic search on PostgreSQL using pgvector."""
-    logger.info("Executing PostgreSQL vector search")
+    """
+    Performs semantic search on PostgreSQL using pgvector combined with metadata text similarity.
+
+    Logic:
+    - Vector Search: Uses cosine distance (via <=>) on the 'situatia de fapt' embedding.
+    - Metadata Search: Uses trigram similarity on a concatenated string of metadata fields:
+      (obiect, materie, parte, Rezumat_generat_de_AI_Cod, text_ce_invatam, tip_speta).
+    - Hybrid Scoring:
+      Final Score = (Vector Distance * 1.0) - (Metadata Similarity * 0.5)
+
+      Lower score is better (since it's based on distance).
+      - Vector distance is [0, 2] (0 = identical).
+      - Similarity is [0, 1] (1 = identical).
+      - Subtracting similarity reduces the "distance", effectively boosting the rank.
+    """
+    logger.info("Executing PostgreSQL hybrid vector search")
     filter_clause, params = _build_common_where_clause(req, 'postgresql')
 
     params["embedding"] = str(embedding)
+
+    # Normalize query for text similarity
+    q_norm = normalize_query(req.situatie)
+    params["q"] = q_norm
 
     # Use request's limit and offset, falling back to settings for top_k if not provided
     limit = req.limit if req.limit is not None else settings.TOP_K
@@ -191,20 +209,50 @@ def _search_postgres(session: Session, req: SearchRequest, embedding: List[float
 
     where_sql = f"WHERE {filter_clause}" if filter_clause else ""
 
+    # Define the metadata text expression for similarity comparison
+    # We use COALESCE to handle nulls and concatenate with spaces
+    metadata_text_expr = """
+        COALESCE(b.obj->>'obiect', '') || ' ' ||
+        COALESCE(b.obj->>'materie', '') || ' ' ||
+        COALESCE(b.obj->>'parte', '') || ' ' ||
+        COALESCE(b.obj->>'Rezumat_generat_de_AI_Cod', '') || ' ' ||
+        COALESCE(b.obj->>'text_ce_invatam', '') || ' ' ||
+        COALESCE(b.obj->>'tip_speta', '')
+    """
+
+    # Weights for the hybrid score
+    # You can adjust these to tune the importance of vector vs metadata
+    W_VECTOR = 1.0
+    W_METADATA = 0.5
+
     query = text(f"""
         SELECT
             b.id,
             b.obj,
-            (v.embedding <=> :embedding) AS semantic_distance
+            (v.embedding <=> :embedding) AS vector_distance,
+            similarity({metadata_text_expr}, :q) AS metadata_similarity,
+            (
+                (v.embedding <=> :embedding) * {W_VECTOR} -
+                (similarity({metadata_text_expr}, :q) * {W_METADATA})
+            ) AS hybrid_distance
         FROM blocuri b
         JOIN vectori v ON b.id = v.speta_id
         {where_sql}
-        ORDER BY semantic_distance ASC
+        ORDER BY hybrid_distance ASC
         LIMIT :limit OFFSET :offset;
     """)
 
     result = session.execute(query, params)
-    return _process_results(result.mappings().all(), score_metric="semantic_distance")
+
+    # We pass hybrid_distance as the metric.
+    # _process_results will see "distance" in the name and do: score = 1.0 - metric
+    # Best case (dist=0, sim=1) => metric = -0.5 => score = 1.5
+    # Worst case (dist=2, sim=0) => metric = 2.0 => score = -1.0
+    # This results in a "higher is better" score which is intuitive.
+
+    rows = result.mappings().all()
+
+    return _process_results(rows, score_metric="hybrid_distance")
 
 def _normalize_text(text: str) -> str:
     """
