@@ -1,6 +1,6 @@
 import React, { useState, Fragment } from 'react';
 import type { Filters, SelectedFilters, FilterItem } from '../types';
-import { ChevronDown, X, PlusCircle } from 'lucide-react';
+import { ChevronDown, X, PlusCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat1 from '../assets/reclama/avocat1.jpg';
 
@@ -11,9 +11,20 @@ interface LeftSidebarProps {
   isOpen: boolean;
   onClose: () => void;
   onContribuieClick: () => void;
+  isDesktopOpen?: boolean;
+  onDesktopToggle?: () => void;
 }
 
-const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onFilterChange, isOpen, onClose, onContribuieClick }) => {
+const LeftSidebar: React.FC<LeftSidebarProps> = ({
+  filters,
+  selectedFilters,
+  onFilterChange,
+  isOpen,
+  onClose,
+  onContribuieClick,
+  isDesktopOpen = true,
+  onDesktopToggle
+}) => {
   const { materii = [], obiecte = [], details = {}, tipSpeta = [], parte = [] } = filters ?? {};
   const availableObiecte = selectedFilters.materie ? details[selectedFilters.materie] ?? [] : obiecte;
 
@@ -26,7 +37,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onF
   };
 
   const sidebarContent = (
-    <div className="p-4 space-y-6 flex flex-col h-full">
+    <div className={`p-4 space-y-6 flex flex-col h-full transition-opacity duration-200 ${!isDesktopOpen ? 'md:opacity-0 md:pointer-events-none' : 'opacity-100'}`}>
       <div>
         <div className="flex justify-between items-center">
           <h3 className="text-lg font-semibold text-brand-text">Filtre</h3>
@@ -36,7 +47,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onF
         </div>
       </div>
 
-      <div className="flex-grow">
+      <div className="flex-grow overflow-y-auto custom-scrollbar">
         <div>
           <h4 className="font-semibold text-brand-text mb-2">Materie</h4>
           <div className="space-y-2">
@@ -44,11 +55,10 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onF
               <button
                 key={materie.name}
                 onClick={() => onFilterChange('materie', selectedFilters.materie === materie.name ? '' : materie.name)}
-                className={`w-full flex justify-between items-center text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                  selectedFilters.materie === materie.name
+                className={`w-full flex justify-between items-center text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedFilters.materie === materie.name
                     ? 'bg-brand-primary text-white font-semibold'
                     : 'bg-white hover:bg-gray-100 text-brand-text'
-                }`}
+                  }`}
               >
                 <span>{materie.name}</span>
                 <span className="text-xs opacity-70">{materie.count}</span>
@@ -99,23 +109,37 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({ filters, selectedFilters, onF
     <Fragment>
       {/* Mobile view */}
       <div
-        className={`fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden transition-opacity ${
-          isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
+        className={`fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden transition-opacity ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
         onClick={onClose}
       />
       <aside
-        className={`fixed top-0 left-0 h-full bg-brand-light w-72 shadow-xl z-50 transform transition-transform md:hidden ${
-          isOpen ? 'translate-x-0' : '-translate-x-full'
-        } overflow-y-auto`}
+        className={`fixed top-0 left-0 h-full bg-brand-light w-72 shadow-xl z-50 transform transition-transform md:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'
+          } overflow-y-auto`}
       >
         {sidebarContent}
       </aside>
 
       {/* Desktop view */}
-      <aside className="hidden md:block w-80 bg-white border-r border-gray-200 overflow-y-auto">
-        {sidebarContent}
-      </aside>
+      <div className="hidden md:flex relative h-full">
+        <aside
+          className={`bg-white border-r border-gray-200 h-full transition-all duration-300 ease-in-out overflow-hidden ${isDesktopOpen ? 'w-80' : 'w-0'
+            }`}
+        >
+          <div className="h-full w-80">
+            {sidebarContent}
+          </div>
+        </aside>
+
+        {/* Toggle Button (Vertical Bar) */}
+        <button
+          onClick={onDesktopToggle}
+          className="absolute top-1/2 -right-3 transform -translate-y-1/2 bg-white border border-gray-200 shadow-md rounded-full p-1 z-10 hover:bg-gray-50 transition-colors focus:outline-none"
+          title={isDesktopOpen ? "Ascunde filtre" : "Arată filtre"}
+        >
+          {isDesktopOpen ? <ChevronLeft size={16} className="text-gray-600" /> : <ChevronRight size={16} className="text-gray-600" />}
+        </button>
+      </div>
     </Fragment>
   );
 };

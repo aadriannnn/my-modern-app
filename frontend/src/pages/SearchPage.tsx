@@ -26,6 +26,8 @@ const SearchPage: React.FC = () => {
     const [isContribuieModalOpen, setIsContribuieModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
+    const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
+
     useEffect(() => {
         const loadFilters = async () => {
             try {
@@ -127,7 +129,7 @@ const SearchPage: React.FC = () => {
                 onToggleMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 onContribuieClick={() => setIsContribuieModalOpen(true)}
             />
-            <div className="flex flex-1 overflow-hidden">
+            <div className="flex flex-1 overflow-hidden relative">
                 <LeftSidebar
                     filters={filters}
                     selectedFilters={searchParams}
@@ -135,6 +137,8 @@ const SearchPage: React.FC = () => {
                     isOpen={isMobileMenuOpen}
                     onClose={() => setIsMobileMenuOpen(false)}
                     onContribuieClick={() => setIsContribuieModalOpen(true)}
+                    isDesktopOpen={isDesktopSidebarOpen}
+                    onDesktopToggle={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
                 />
                 <MainContent
                     results={searchResults}
