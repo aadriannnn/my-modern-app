@@ -187,12 +187,13 @@ def get_relevant_articles(
     else:
         params["keywords_regex"] = '^$'  # Never matches
 
-    # Scoring weights
-    W_EXACT_MATERIE = 3.0
-    W_EXACT_OBIECT = 4.0
-    W_KEYWORDS = 2.5
-    W_EMBEDDING = 1.5
-    W_TRIGRAM = 0.5
+    # Scoring weights - optimized for legal relevance
+    W_EXACT_ARTICLE = 10.0  # Exact article number match (e.g., "art. 218")
+    W_EXACT_MATERIE = 3.5
+    W_EXACT_OBIECT = 5.0    # Increased from 4.0 - obiect is crucial
+    W_KEYWORDS = 3.0        # Increased from 2.5
+    W_EMBEDDING = 2.0       # Increased from 1.5 - embeddings are valuable
+    W_TRIGRAM = 0.8         # Increased from 0.5
 
     # Collect results from all relevant tables
     all_results = []
@@ -200,7 +201,7 @@ def get_relevant_articles(
     for table_name in tables_to_query:
         logger.info(f"Querying table: {table_name}")
 
-        # Build the query for this specific table
+        # Build the query for this specific table with proper array handling
         query_sql = text(f"""
             SELECT
                 t.id,
@@ -213,6 +214,14 @@ def get_relevant_articles(
                 t.art_conex,
                 t.doctrina,
                 (
+                    -- Exact article number match (highest priority)
+                    (CASE
+                        WHEN LOWER(COALESCE(t.numar, '')) = LOWER(:obiect)
+                        OR LOWER(COALESCE(t.numar, '')) LIKE '%' || LOWER(:obiect) || '%'
+                        THEN {W_EXACT_ARTICLE}
+                        ELSE 0
+                    END) +
+
                     -- Exact materie match
                     (CASE
                         WHEN LOWER(COALESCE(t.materie, '')) LIKE '%' || :materie || '%'
@@ -229,10 +238,16 @@ def get_relevant_articles(
                         ELSE 0
                     END) +
 
-                    -- Keywords regex match in text or keywords field
+                    -- Keywords regex match in text field
                     (CASE
                         WHEN COALESCE(t.text, '') ~* :keywords_regex
-                        OR COALESCE(t.keywords, '') ~* :keywords_regex
+                        THEN {W_KEYWORDS}
+                        ELSE 0
+                    END) +
+
+                    -- Keywords match in array field (convert array to text first)
+                    (CASE
+                        WHEN array_to_string(t.keywords, ' ', '') ~* :keywords_regex
                         THEN {W_KEYWORDS}
                         ELSE 0
                     END) +
@@ -244,9 +259,12 @@ def get_relevant_articles(
                         ELSE 0
                     END) +
 
-                    -- Trigram similarity on text
+                    -- Trigram similarity on combined text (handle array properly)
                     (similarity(
-                        COALESCE(t.text, '') || ' ' || COALESCE(t.keywords, ''),
+                        COALESCE(t.text, '') || ' ' ||
+                        COALESCE(t.titlu, '') || ' ' ||
+                        COALESCE(t.obiect, '') || ' ' ||
+                        array_to_string(COALESCE(t.keywords, ARRAY[]::text[]), ' ', ''),
                         :q
                     ) * {W_TRIGRAM})
                 ) AS relevance_score
@@ -256,9 +274,11 @@ def get_relevant_articles(
                 (
                     (LOWER(COALESCE(t.materie, '')) LIKE '%' || :materie || '%' AND :materie != '') OR
                     (LOWER(COALESCE(t.obiect, '')) LIKE '%' || :obiect || '%' AND :obiect != '') OR
-                    (COALESCE(t.text, '') ~* :keywords_regex OR COALESCE(t.keywords, '') ~* :keywords_regex) OR
+                    (LOWER(COALESCE(t.numar, '')) LIKE '%' || :obiect || '%' AND :obiect != '') OR
+                    (COALESCE(t.text, '') ~* :keywords_regex) OR
+                    (array_to_string(t.keywords, ' ', '') ~* :keywords_regex) OR
                     (t.text_embeddings IS NOT NULL AND
-                     (1.0 - (t.text_embeddings <=> :embedding)) > 0.3)
+                     (1.0 - (t.text_embeddings <=> :embedding)) > 0.25)
                 )
             ORDER BY relevance_score DESC
             LIMIT :limit_per_table;
@@ -272,6 +292,21 @@ def get_relevant_articles(
 
             # Add results with table name annotation
             for row in rows:
+                # Convert PostgreSQL arrays to strings for Pydantic validation
+                keywords_str = None
+                if row['keywords']:
+                    if isinstance(row['keywords'], list):
+                        keywords_str = ', '.join(row['keywords'])
+                    else:
+                        keywords_str = str(row['keywords'])
+
+                art_conex_str = None
+                if row['art_conex']:
+                    if isinstance(row['art_conex'], list):
+                        art_conex_str = '; '.join(row['art_conex'])
+                    else:
+                        art_conex_str = str(row['art_conex'])
+
                 all_results.append({
                     "id": row['id'],
                     "numar": row['numar'],
@@ -279,8 +314,8 @@ def get_relevant_articles(
                     "obiect": row['obiect'],
                     "materie": row['materie'],
                     "text": row['text'],
-                    "keywords": row['keywords'],
-                    "art_conex": row['art_conex'],
+                    "keywords": keywords_str,
+                    "art_conex": art_conex_str,
                     "doctrina": row['doctrina'],
                     "relevance_score": float(row['relevance_score']) if row['relevance_score'] else 0.0,
                     "cod_sursa": table_name
@@ -290,6 +325,8 @@ def get_relevant_articles(
 
         except Exception as e:
             logger.error(f"Error querying table {table_name}: {e}", exc_info=True)
+            # Rollback the transaction to prevent "current transaction is aborted" errors
+            session.rollback()
             continue
 
     # Sort all results by relevance score and return top N
@@ -342,6 +379,21 @@ def get_article_by_id(session: Session, article_id: str, table_name: str) -> Opt
             logger.warning(f"Article with ID {article_id} not found in {table_name}")
             return None
 
+        # Convert PostgreSQL arrays to strings for Pydantic validation
+        keywords_str = None
+        if result['keywords']:
+            if isinstance(result['keywords'], list):
+                keywords_str = ', '.join(result['keywords'])
+            else:
+                keywords_str = str(result['keywords'])
+
+        art_conex_str = None
+        if result['art_conex']:
+            if isinstance(result['art_conex'], list):
+                art_conex_str = '; '.join(result['art_conex'])
+            else:
+                art_conex_str = str(result['art_conex'])
+
         return {
             "id": result['id'],
             "numar": result['numar'],
@@ -349,8 +401,8 @@ def get_article_by_id(session: Session, article_id: str, table_name: str) -> Opt
             "obiect": result['obiect'],
             "materie": result['materie'],
             "text": result['text'],
-            "keywords": result['keywords'],
-            "art_conex": result['art_conex'],
+            "keywords": keywords_str,
+            "art_conex": art_conex_str,
             "doctrina": result['doctrina'],
             "cod_sursa": table_name
         }
