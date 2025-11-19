@@ -2,6 +2,7 @@ import React from 'react';
 import { generatePdf } from '@/lib/pdf';
 import type { PdfSablonData } from '@/lib/pdf';
 import { Printer, Eye, FolderPlus, Scale, Calendar } from 'lucide-react';
+import ShareButton from './ShareButton';
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
 
@@ -50,6 +51,7 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView 
         </h3>
         <div className="flex items-center space-x-2">
           <IconButton icon={<FolderPlus size={18} />} tooltip="Adaugă la dosar" />
+          <ShareButton caseData={result.data} />
           <IconButton icon={<Printer size={18} />} tooltip="Printează" onClick={handlePrint} />
           <IconButton icon={<Eye size={18} />} tooltip="Vezi detalii" onClick={onViewCase} />
         </div>

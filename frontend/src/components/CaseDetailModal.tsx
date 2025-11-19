@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
 import { Download, X, Printer } from "lucide-react";
+import ShareButton from "./ShareButton";
 
 import { generatePdf } from "../lib/pdf";
 import type { PdfSablonData } from "../lib/pdf";
@@ -133,6 +134,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                     {caseData.titlu || "Detalii Speță"}
                   </Dialog.Title>
                   <div className="flex items-center space-x-2">
+                    <ShareButton caseData={caseData} />
                     <button onClick={handlePrint} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors" aria-label="Printează">
                       <Printer size={20} />
                     </button>
@@ -156,10 +158,9 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                           className={`
                             px-4 py-2.5 text-sm font-medium text-left rounded-lg transition-all duration-200
                             focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent
-                            ${
-                              activeTab === tab
-                                ? "bg-brand-accent bg-opacity-10 text-brand-accent font-semibold"
-                                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                            ${activeTab === tab
+                              ? "bg-brand-accent bg-opacity-10 text-brand-accent font-semibold"
+                              : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                             }
                           `}
                         >
