@@ -153,6 +153,7 @@ const SearchPage: React.FC = () => {
                     situatie={situatie}
                     onSituatieChange={setSituatie}
                     onSearch={handleSearch}
+                    onMinimizeSidebar={() => setIsDesktopSidebarOpen(false)}
                 />
             </div>
 

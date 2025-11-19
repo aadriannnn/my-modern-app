@@ -23,6 +23,7 @@ interface MainContentProps {
   situatie: string;
   onSituatieChange: (value: string) => void;
   onSearch: () => void;
+  onMinimizeSidebar?: () => void;
 }
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
@@ -140,7 +141,8 @@ const MainContent: React.FC<MainContentProps> = ({
   hasMore,
   situatie,
   onSituatieChange,
-  onSearch
+  onSearch,
+  onMinimizeSidebar
 }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
   const observer = useRef<IntersectionObserver | null>(null)
@@ -232,7 +234,10 @@ const MainContent: React.FC<MainContentProps> = ({
             </div>
           </div>
           <button
-            onClick={onSearch}
+            onClick={() => {
+              onSearch();
+              onMinimizeSidebar?.();
+            }}
             className="mt-3 w-full bg-brand-accent text-white px-6 py-3 rounded-xl flex items-center justify-center font-bold text-lg hover:bg-brand-accent-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 shadow-md"
           >
             <Search size={24} className="mr-2" />

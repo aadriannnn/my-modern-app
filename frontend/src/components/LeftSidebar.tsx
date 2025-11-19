@@ -56,8 +56,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                 key={materie.name}
                 onClick={() => onFilterChange('materie', selectedFilters.materie === materie.name ? '' : materie.name)}
                 className={`w-full flex justify-between items-center text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedFilters.materie === materie.name
-                    ? 'bg-brand-primary text-white font-semibold'
-                    : 'bg-white hover:bg-gray-100 text-brand-text'
+                  ? 'bg-brand-primary text-white font-semibold'
+                  : 'bg-white hover:bg-gray-100 text-brand-text'
                   }`}
               >
                 <span>{materie.name}</span>
@@ -131,10 +131,11 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
           </div>
         </aside>
 
-        {/* Toggle Button (Vertical Bar) */}
+        {/* Toggle Button (Vertical Bar) - Fixed positioning for constant visibility */}
         <button
           onClick={onDesktopToggle}
-          className="absolute top-1/2 -right-3 transform -translate-y-1/2 bg-white border border-gray-200 shadow-lg rounded-full p-1.5 z-10 hover:bg-gray-50 hover:scale-110 transition-all duration-200 focus:outline-none text-brand-primary"
+          className={`fixed top-20 transform -translate-y-1/2 bg-white border border-gray-200 shadow-lg rounded-full p-1.5 z-50 hover:bg-gray-50 hover:scale-110 transition-all duration-300 focus:outline-none text-brand-primary ${isDesktopOpen ? 'left-[308px]' : 'left-[12px]'
+            }`}
           title={isDesktopOpen ? "Ascunde filtre" : "Arată filtre"}
         >
           {isDesktopOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
