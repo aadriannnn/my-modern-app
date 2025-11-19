@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
-import { Download, X, Printer } from "lucide-react";
+import { Download, X, Printer, FolderPlus, FolderCheck } from "lucide-react";
 import ShareButton from "./ShareButton";
+import { useDosar } from "../context/DosarContext";
 
 import { generatePdf } from "../lib/pdf";
 import type { PdfSablonData } from "../lib/pdf";
@@ -20,10 +21,20 @@ interface CaseDetailModalProps {
 
 const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, result }) => {
   const [activeTab, setActiveTab] = useState("Metadate");
+  const { addToDosar, removeFromDosar, isCaseInDosar } = useDosar();
 
   if (!result) return null;
 
   const caseData = result.data;
+  const isInDosar = isCaseInDosar(result.id);
+
+  const handleDosarClick = () => {
+    if (isInDosar) {
+      removeFromDosar(result.id);
+    } else {
+      addToDosar(result);
+    }
+  };
 
   // PDF Generation Logic
   const createPdfData = (): PdfSablonData => ({
@@ -134,6 +145,13 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                     {caseData.titlu || "Detalii Speță"}
                   </Dialog.Title>
                   <div className="flex items-center space-x-2">
+                    <button
+                      onClick={handleDosarClick}
+                      className={`p-2 rounded-full transition-colors ${isInDosar ? 'text-green-600 bg-green-50 hover:bg-green-100' : 'text-gray-500 hover:bg-gray-100'}`}
+                      title={isInDosar ? "Șterge din dosar" : "Adaugă la dosar"}
+                    >
+                      {isInDosar ? <FolderCheck size={20} /> : <FolderPlus size={20} />}
+                    </button>
                     <ShareButton caseData={caseData} />
                     <button onClick={handlePrint} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors" aria-label="Printează">
                       <Printer size={20} />

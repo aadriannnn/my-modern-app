@@ -1,8 +1,9 @@
 import React from 'react';
 import { generatePdf } from '@/lib/pdf';
 import type { PdfSablonData } from '@/lib/pdf';
-import { Printer, Eye, FolderPlus, Scale, Calendar } from 'lucide-react';
+import { Printer, Eye, FolderPlus, Scale, Calendar, FolderCheck } from 'lucide-react';
 import ShareButton from './ShareButton';
+import { useDosar } from '../context/DosarContext';
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
 
@@ -13,12 +14,23 @@ interface ResultItemProps {
 }
 
 const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView }) => {
+  const { addToDosar, removeFromDosar, isCaseInDosar } = useDosar();
   const content = result?.[activeView] || 'Nu există descriere disponibilă.';
 
   // Don't render the component if the content for the active view is missing or just "null"
   if (!content || typeof content !== 'string' || content.trim().toLowerCase() === 'null' || content.trim() === '') {
     return null;
   }
+
+  const isInDosar = isCaseInDosar(result.id);
+
+  const handleDosarClick = () => {
+    if (isInDosar) {
+      removeFromDosar(result.id);
+    } else {
+      addToDosar(result);
+    }
+  };
 
   const handlePrint = async () => {
     const caseData = result.data;
@@ -50,7 +62,11 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView 
           {title}
         </h3>
         <div className="flex items-center space-x-2">
-          <IconButton icon={<FolderPlus size={18} />} tooltip="Adaugă la dosar" />
+          <IconButton
+            icon={isInDosar ? <FolderCheck size={18} className="text-green-600" /> : <FolderPlus size={18} />}
+            tooltip={isInDosar ? "Șterge din dosar" : "Adaugă la dosar"}
+            onClick={handleDosarClick}
+          />
           <ShareButton caseData={result.data} />
           <IconButton icon={<Printer size={18} />} tooltip="Printează" onClick={handlePrint} />
           <IconButton icon={<Eye size={18} />} tooltip="Vezi detalii" onClick={onViewCase} />

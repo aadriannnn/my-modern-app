@@ -1,6 +1,25 @@
 import React from 'react';
 import logo from '@/assets/icons/logo.png';
-import { Menu, PlusCircle } from 'lucide-react';
+import { Menu, PlusCircle, FolderOpen } from 'lucide-react';
+import { useDosar } from '../context/DosarContext';
+
+const DosarButton: React.FC = () => {
+  const { toggleDrawer, items } = useDosar();
+  return (
+    <button
+      onClick={toggleDrawer}
+      className="flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200 relative group"
+    >
+      <FolderOpen size={20} className="mr-2" />
+      <span className="hidden sm:inline">Dosar</span>
+      {items.length > 0 && (
+        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center border border-brand-dark">
+          {items.length}
+        </span>
+      )}
+    </button>
+  );
+};
 
 interface HeaderProps {
   onToggleMenu: () => void;
@@ -32,6 +51,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
             <PlusCircle size={18} className="mr-2" />
             Contribuie
           </button>
+          <DosarButton />
           <a
             href="https://app.verdictline.com/login"
             target="_blank"
