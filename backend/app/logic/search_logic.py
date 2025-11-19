@@ -270,27 +270,46 @@ def _normalize_text(text: str) -> str:
 
 def _search_by_keywords_postgres(session: Session, req: SearchRequest) -> List[Dict]:
     """
-    Keyword-oriented search for short queries (<=3 words), tuned for recall + relevance.
-    - Scanează atât keywords (array JSON → text) cât și textul situației de fapt.
-    - Folosește scor agregat (pondere mai mare pe keywords).
-    - Fără filtru dur cu '%' (crește recall); poți seta un prag moale din .env.
+    Keyword-oriented search for short queries (<=3 words), optimized for legal context.
+
+    Improvements:
+    - Exact Word Boundary Match: Uses regex `\\y` to distinguish e.g. "viol" from "violare".
+    - Context Awareness: Detects if query words match 'materie' or 'obiect' fields.
+    - Weighted Scoring:
+        - High boost for exact word match in 'obiect' (user intent is often the object).
+        - Boost for matching 'materie'.
+        - Boost for exact word match in 'keywords'.
+        - Base score from trigram similarity for fuzzy matching.
     """
-    logger.info("[search] using keyword mode (<=3 words)")
+    logger.info("[search] using optimized keyword mode (<=3 words)")
     filter_clause, params = _build_common_where_clause(req, 'postgresql')
 
     q_norm = normalize_query(req.situatie)
     params["q"] = q_norm
+
+    # Prepare regex for exact word matching (whole query as a word or sequence of words)
+    # Escape special regex characters in the query just in case
+    q_regex_safe = re.escape(q_norm)
+    # Postgres regex for "word boundary" is \y.
+    # We want to match the query as a distinct phrase.
+    params["q_regex"] = f"\\y{q_regex_safe}\\y"
 
     limit = req.limit if req.limit is not None else settings.TOP_K
     offset = req.offset if req.offset is not None else 0
     params["limit"] = limit
     params["offset"] = offset
 
-    min_sim = float(getattr(settings, "MIN_TRGM_SIMILARITY", 0.02))  # prag moale foarte mic
+    # Soft threshold for similarity to filter out complete noise
+    min_sim = float(getattr(settings, "MIN_TRGM_SIMILARITY", 0.05))
     params["min_sim"] = min_sim
 
-    # Concatenează keywords (array JSON) într-un text
-    keywords_text_expr = """
+    # Extract potential "materie" from query to boost if it matches the materie column
+    # We'll pass the whole query to check against materie column too
+
+    # JSON accessors
+    obiect_expr = "COALESCE(b.obj->>'obiect', '')"
+    materie_expr = "COALESCE(b.obj->>'materie', '')"
+    keywords_expr = """
         COALESCE(
           array_to_string(
             ARRAY(SELECT jsonb_array_elements_text(b.obj->'keywords')),
@@ -299,8 +318,7 @@ def _search_by_keywords_postgres(session: Session, req: SearchRequest) -> List[D
           ''
         )
     """
-
-    # Text lung pentru fallback/semnal secundar
+    # Long text for fallback similarity
     long_text_expr = """
         COALESCE(
           NULLIF(b.obj->>'text_situatia_de_fapt',''),
@@ -309,52 +327,68 @@ def _search_by_keywords_postgres(session: Session, req: SearchRequest) -> List[D
         )
     """
 
-    # Boost simplu pe tokeni (max 3). Construim parametri dinamici pentru ILIKE.
-    tokens = [t for t in q_norm.split() if t]
-    token_params = {}
-    token_clauses = []
-    for i, t in enumerate(tokens[:3]):
-        pname = f"tok_{i}"
-        token_params[pname] = f"%{t}%"
-        # Dacă vreun token apare în vreun keyword, acordăm un mic boost
-        token_clauses.append(f"EXISTS (SELECT 1 FROM jsonb_array_elements_text(b.obj->'keywords') kw WHERE kw ILIKE :{pname})")
+    # SCORING WEIGHTS
+    # 1. Exact Object Match (Highest Priority): If user searches "viol", cases with object "viol" should be top.
+    #    We use regex match on 'obiect'.
+    W_EXACT_OBIECT = 2.0
 
-    params.update(token_params)
-    token_boost_sql = f"CASE WHEN {' OR '.join(token_clauses)} THEN 0.05 ELSE 0 END" if token_clauses else "0"
+    # 2. Materie Match: If user searches "penal", cases with materie "penal" get a boost.
+    W_MATERIE = 1.5
 
-    # WHERE combinat cu filtrele existente + asigurăm că avem ceva text de comparat
-    where_bits = []
+    # 3. Exact Keyword Match: If query appears exactly in keywords.
+    W_EXACT_KEYWORD = 1.2
+
+    # 4. Similarity Scores (0-1 range)
+    W_SIM_OBIECT = 1.0
+    W_SIM_KEYWORDS = 0.8
+    W_SIM_TEXT = 0.4
+
+    # Construct the query
+    # We use a CASE statement for regex matches to return 1.0 (true) or 0.0 (false)
+
+    # Construct the WHERE clause properly
+    where_conditions = []
     if filter_clause:
-        where_bits.append(filter_clause)
-    where_bits.append(f"(length({keywords_text_expr}) > 0 OR length(COALESCE({long_text_expr},'')) > 0)")
+        where_conditions.append(filter_clause)
 
-    # Adăugăm și filtrul de similaritate minimă la clauzele WHERE
-    where_bits.append(f"""(
-        similarity({keywords_text_expr}, :q) >= :min_sim
-        OR similarity(COALESCE({long_text_expr},''), :q) >= :min_sim
+    # Add the relevance condition to ensure we don't return zero-score results
+    where_conditions.append(f"""(
+        {obiect_expr} ~* :q_regex OR
+        {materie_expr} ~* :q_regex OR
+        {keywords_expr} ~* :q_regex OR
+        similarity({obiect_expr}, :q) > :min_sim OR
+        similarity({keywords_expr}, :q) > :min_sim OR
+        similarity(COALESCE({long_text_expr},''), :q) > :min_sim
     )""")
 
-    where_sql = "WHERE " + " AND ".join(where_bits)
+    where_sql = "WHERE " + " AND ".join(where_conditions)
 
-    # Scor agregat: 70% keywords, 30% text lung + un boost mic dacă apar tokeni în keywords
     query = text(f"""
         SELECT
             b.id,
             b.obj,
             (
-              0.70 * similarity({keywords_text_expr}, :q) +
-              0.30 * similarity(COALESCE({long_text_expr},''), :q) +
-              {token_boost_sql}
-            ) AS keyword_similarity
+                -- Exact match boosts (Binary: 1 or 0 * Weight)
+                (CASE WHEN {obiect_expr} ~* :q_regex THEN {W_EXACT_OBIECT} ELSE 0 END) +
+                (CASE WHEN {materie_expr} ~* :q_regex THEN {W_MATERIE} ELSE 0 END) +
+                (CASE WHEN {keywords_expr} ~* :q_regex THEN {W_EXACT_KEYWORD} ELSE 0 END) +
+
+                -- Similarity scores (Continuous: 0.0 to 1.0 * Weight)
+                (similarity({obiect_expr}, :q) * {W_SIM_OBIECT}) +
+                (similarity({keywords_expr}, :q) * {W_SIM_KEYWORDS}) +
+                (similarity(COALESCE({long_text_expr},''), :q) * {W_SIM_TEXT})
+            ) AS relevance_score
         FROM blocuri b
         {where_sql}
-        ORDER BY keyword_similarity DESC
+        ORDER BY relevance_score DESC
         LIMIT :limit OFFSET :offset;
     """)
 
     rows = session.execute(query, params).mappings().all()
-    logger.info(f"[search] trigram results count: {len(rows)}")
-    return _process_results(rows, score_metric="keyword_similarity")
+    logger.info(f"[search] optimized keyword results count: {len(rows)}")
+
+    # We use 'relevance_score' directly (higher is better)
+    return _process_results(rows, score_metric="relevance_score")
 
 def _search_by_keywords_sqlite(session: Session, req: SearchRequest) -> List[Dict]:
     """Performs a simple keyword search on SQLite using LIKE."""
