@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, Sparkles, Filter, FolderOpen, Share2, Eye, Database } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
 
@@ -27,6 +27,106 @@ interface MainContentProps {
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
 
+// Features Section Component
+const FeaturesSection: React.FC = () => {
+  const features = [
+    {
+      icon: <Sparkles size={28} className="text-purple-400" />,
+      title: "Căutare Avansată cu AI",
+      description: "Motor de căutare semantic bazat pe inteligență artificială care înțelege contextul juridic și găsește cazuri relevante chiar și pentru interogări complexe.",
+      gradient: "from-purple-500/20 via-pink-500/20 to-red-500/20",
+      iconBg: "bg-gradient-to-br from-purple-500 to-pink-500"
+    },
+    {
+      icon: <Filter size={28} className="text-blue-400" />,
+      title: "Filtrare Profesională",
+      description: "Sistem avansat de filtrare pe multiple dimensiuni: materie juridică, obiect, tip speță și părți implicate pentru rezultate precise.",
+      gradient: "from-blue-500/20 via-cyan-500/20 to-teal-500/20",
+      iconBg: "bg-gradient-to-br from-blue-500 to-cyan-500"
+    },
+    {
+      icon: <FolderOpen size={28} className="text-amber-400" />,
+      title: "Dosare Personale",
+      description: "Organizează și salvează până la 10 cazuri juridice în dosarul personal pentru acces rapid. Datele sunt păstrate pe toată sesiunea de lucru.",
+      gradient: "from-amber-500/20 via-orange-500/20 to-red-500/20",
+      iconBg: "bg-gradient-to-br from-amber-500 to-orange-500"
+    },
+    {
+      icon: <Share2 size={28} className="text-green-400" />,
+      title: "Export & Partajare",
+      description: "Exportă cazuri în format PDF profesional, printează rapid sau partajează prin email și WhatsApp cu clienți și colegi.",
+      gradient: "from-green-500/20 via-emerald-500/20 to-teal-500/20",
+      iconBg: "bg-gradient-to-br from-green-500 to-emerald-500"
+    },
+    {
+      icon: <Eye size={28} className="text-indigo-400" />,
+      title: "Vizualizări Multiple",
+      description: "Accesează informații structurate: situații de fapt, argumente instanță, individualizare, doctrină, rezumate AI și lecții învățate.",
+      gradient: "from-indigo-500/20 via-purple-500/20 to-pink-500/20",
+      iconBg: "bg-gradient-to-br from-indigo-500 to-purple-500"
+    },
+    {
+      icon: <Database size={28} className="text-rose-400" />,
+      title: "Bază de Date Completă",
+      description: "Acces la o colecție comprehensivă de spețe juridice cu metadata detaliată: instanță, părți, sursă și clasificare completă.",
+      gradient: "from-rose-500/20 via-pink-500/20 to-fuchsia-500/20",
+      iconBg: "bg-gradient-to-br from-rose-500 to-pink-500"
+    }
+  ];
+
+  return (
+    <div className="mb-8 mt-6">
+      {/* Section Header */}
+      <div className="text-center mb-8">
+        <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-brand-primary via-brand-accent to-purple-600 bg-clip-text text-transparent mb-3">
+          Funcționalități Premium
+        </h2>
+        <p className="text-brand-text-secondary text-base md:text-lg max-w-3xl mx-auto">
+          Platformă profesională de cercetare juridică cu tehnologie de vârf pentru avocați, jurisconsulți și studenți
+        </p>
+      </div>
+
+      {/* Features Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 md:gap-6">
+        {features.map((feature, index) => (
+          <div
+            key={index}
+            className={`group relative bg-gradient-to-br ${feature.gradient} backdrop-blur-sm rounded-2xl p-6 border border-gray-200/50 shadow-lg hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 overflow-hidden`}
+          >
+            {/* Glassmorphism overlay */}
+            <div className="absolute inset-0 bg-white/60 backdrop-blur-md rounded-2xl"></div>
+
+            {/* Content */}
+            <div className="relative z-10">
+              {/* Icon */}
+              <div className={`${feature.iconBg} w-14 h-14 rounded-xl flex items-center justify-center mb-4 shadow-lg group-hover:scale-110 transition-transform duration-300`}>
+                {feature.icon}
+              </div>
+
+              {/* Title */}
+              <h3 className="text-xl font-bold text-brand-dark mb-3 group-hover:text-brand-accent transition-colors duration-200">
+                {feature.title}
+              </h3>
+
+              {/* Description */}
+              <p className="text-sm text-brand-text-secondary leading-relaxed">
+                {feature.description}
+              </p>
+            </div>
+
+            {/* Decorative gradient blob */}
+            <div className="absolute -bottom-10 -right-10 w-32 h-32 bg-gradient-to-br from-brand-accent/20 to-transparent rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500"></div>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom decoration */}
+      <div className="mt-8 flex justify-center">
+        <div className="h-1 w-32 bg-gradient-to-r from-transparent via-brand-accent to-transparent rounded-full"></div>
+      </div>
+    </div>
+  );
+};
 
 const MainContent: React.FC<MainContentProps> = ({
   results,
@@ -139,6 +239,9 @@ const MainContent: React.FC<MainContentProps> = ({
             Căutare Avansată
           </button>
         </div>
+
+        {/* Features Section - Show when no search has been performed */}
+        {results.length === 0 && !isLoading && <FeaturesSection />}
 
         {results.length > 0 && (
           <div className="bg-white rounded-lg shadow p-1 mb-4 flex-wrap">
