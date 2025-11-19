@@ -5,6 +5,11 @@ from collections import defaultdict
 from sqlmodel import Session, select, text
 from ..models import Blocuri, FiltreEchivalente, FiltreCacheMenu, FiltreCache
 from .normalization import normalize_text, find_canonical_key, extract_base_obiect
+from .object_clustering import (
+    group_objects_by_similarity,
+    select_canonical_term,
+    refine_groups_with_legal_knowledge
+)
 
 # --- Chei Canonice pentru MATERII ---
 CANONICAL_KEYS_MATERII = [
@@ -141,7 +146,7 @@ def load_and_build_menu_data(session: Session):
         if materie_orig not in mapare_materii_originale:
             mapare_materii_originale[materie_orig] = find_canonical_key(materie_orig, CANONICAL_MAP_MATERII)
 
-        # Mapare obiect
+        # Mapare obiect (initial cu regex-based extraction)
         if obiect_orig not in mapare_obiecte_originale:
             canon_key = find_canonical_key(obiect_orig, CANONICAL_MAP_OBIECTE)
             mapare_obiecte_originale[obiect_orig] = canon_key if canon_key else extract_base_obiect(obiect_orig)
@@ -158,8 +163,8 @@ def load_and_build_menu_data(session: Session):
         if cod_canon in eq_map_obiecte:
             mapare_obiecte_originale[orig] = eq_map_obiecte[cod_canon]
 
-    # Pas 5: Construiește meniul final agregând numărul de spețe
-    menu_data = defaultdict(lambda: defaultdict(int))
+    # Pas 5: Construiește meniul intermediar agregând numărul de spețe
+    menu_data_intermediate = defaultdict(lambda: defaultdict(int))
     for (materie_orig, obiect_orig), count in counts.items():
         materie_canon = mapare_materii_originale.get(materie_orig)
         obiect_canon = mapare_obiecte_originale.get(obiect_orig)
@@ -180,14 +185,68 @@ def load_and_build_menu_data(session: Session):
         materie_canon = materie_canon or eq_map_materii.get("Necunoscut", "Necunoscut")
         obiect_canon = obiect_canon or eq_map_obiecte.get("(fără obiect)", "(fără obiect)")
 
-        menu_data[materie_canon][obiect_canon] += count
+        menu_data_intermediate[materie_canon][obiect_canon] += count
+
+    # ===== ADVANCED CLUSTERING: Group similar objects per materie =====
+    logger.info("Step D: Applying intelligent object clustering per materie...")
+
+    # Data structures for final grouping
+    menu_data_final = defaultdict(lambda: defaultdict(int))
+    obiecte_canon_to_orig_clustered = defaultdict(set)
+
+    for materie, obiecte_counts in menu_data_intermediate.items():
+        # Get all unique objects for this materie
+        unique_obiecte = list(obiecte_counts.keys())
+
+        if len(unique_obiecte) <= 1:
+            # No clustering needed for single object
+            for obj, count in obiecte_counts.items():
+                menu_data_final[materie][obj] = count
+                # Map original objects to this canonical
+                for orig_obj, canon_obj in mapare_obiecte_originale.items():
+                    if canon_obj == obj:
+                        obiecte_canon_to_orig_clustered[obj].add(orig_obj)
+            continue
+
+        logger.info(f"Clustering {len(unique_obiecte)} objects for materie '{materie}'...")
+
+        # Apply clustering algorithm
+        clustered_groups = group_objects_by_similarity(
+            unique_obiecte,
+            threshold=0.85,  # Can be adjusted based on testing
+            max_group_size=50
+        )
+
+        # Apply legal domain knowledge refinement
+        clustered_groups = refine_groups_with_legal_knowledge(clustered_groups, materie)
+
+        # For each cluster, select canonical term and aggregate counts
+        for variants in clustered_groups.values():
+            # Select the best representative term
+            canonical_term = select_canonical_term(variants)
+
+            # Override with manual equivalence if exists
+            if canonical_term in eq_map_obiecte:
+                canonical_term = eq_map_obiecte[canonical_term]
+
+            # Aggregate counts for all variants in this cluster
+            total_count = sum(obiecte_counts.get(variant, 0) for variant in variants)
+            menu_data_final[materie][canonical_term] = total_count
+
+            # Map all original objects that led to ANY variant in this cluster
+            for variant in variants:
+                for orig_obj, canon_obj in mapare_obiecte_originale.items():
+                    if canon_obj == variant:
+                        obiecte_canon_to_orig_clustered[canonical_term].add(orig_obj)
+
+        logger.info(f"Clustered {len(unique_obiecte)} objects -> {len(clustered_groups)} groups for '{materie}'")
 
     # Pas 6: Formatează datele conform noii structuri specificate
 
     # 6.1: Generează `details` și calculează totalurile pentru `materii`
     details = {}
     materii_counts = defaultdict(int)
-    for materie, obiecte_counts in menu_data.items():
+    for materie, obiecte_counts in menu_data_final.items():
         obiecte_list_for_materie = [
             {"name": obiect, "count": count}
             for obiect, count in sorted(obiecte_counts.items(), key=lambda item: item[1], reverse=True)
@@ -202,7 +261,7 @@ def load_and_build_menu_data(session: Session):
 
     # 6.2: Generează lista globală de `obiecte`
     obiecte_global_counts = defaultdict(int)
-    for obiecte_counts in menu_data.values():
+    for obiecte_counts in menu_data_final.values():
         for obiect, count in obiecte_counts.items():
             obiecte_global_counts[obiect] += count
 
@@ -218,22 +277,19 @@ def load_and_build_menu_data(session: Session):
         "details": details
     }
 
+    # Build materii mapping (unchanged)
     materii_canon_to_orig = defaultdict(set)
     for orig, canon in mapare_materii_originale.items():
         if canon:
             materii_canon_to_orig[canon].add(orig)
 
-    obiecte_canon_to_orig = defaultdict(set)
-    for orig, canon in mapare_obiecte_originale.items():
-        if canon:
-            obiecte_canon_to_orig[canon].add(orig)
-
     materii_canon_to_orig = {k: list(v) for k, v in materii_canon_to_orig.items()}
-    obiecte_canon_to_orig = {k: list(v) for k, v in obiecte_canon_to_orig.items()}
+    obiecte_canon_to_orig_final = {k: list(v) for k, v in obiecte_canon_to_orig_clustered.items()}
 
     logger.info("Step C: Simplification and canonicalization complete.")
+    logger.info(f"Final object groups: {len(obiecte_canon_to_orig_final)}")
     logger.info("--- Menu Data Build Process Finished ---")
-    return menu_final, materii_canon_to_orig, obiecte_canon_to_orig
+    return menu_final, materii_canon_to_orig, obiecte_canon_to_orig_final
 
 def save_menu_data_to_db(session: Session, menu_data, materii_map, obiecte_map):
     logger.info("--- Saving Menu Data to Database ---")
