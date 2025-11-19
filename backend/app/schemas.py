@@ -51,3 +51,26 @@ class ModeleResponse(BaseModel):
     materie_model: Optional[str] = None
     sursa_model: Optional[str] = None
     relevance_score: float
+
+class CoduriRequest(BaseModel):
+    """Request schema for fetching relevant legal articles for a case."""
+    materie: Optional[str] = None
+    obiect: Optional[str] = None
+    keywords: Optional[List[str]] = Field(default_factory=list)
+    situatia_de_fapt: Optional[str] = None
+    rezumat_ai: Optional[str] = None
+    limit: Optional[int] = 10
+
+class CoduriResponse(BaseModel):
+    """Response schema for a legal code article."""
+    id: str
+    numar: str
+    titlu: str
+    obiect: Optional[str] = None
+    materie: Optional[str] = None
+    text: str
+    keywords: Optional[str] = None
+    art_conex: Optional[str] = None
+    doctrina: Optional[str] = None
+    relevance_score: float
+    cod_sursa: str  # e.g., "cod_civil", "cod_penal"

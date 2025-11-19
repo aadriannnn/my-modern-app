@@ -10,6 +10,7 @@ import type { PdfSablonData } from "../lib/pdf";
 import LongTextField from "./LongTextField";
 import DocumentModelsSection from "./DocumentModelsSection";
 import DocumentModelModal from "./DocumentModelModal";
+import LegalCodesSection from "./LegalCodesSection";
 
 // Refined type definitions for clarity
 interface CaseDetailModalProps {
@@ -72,6 +73,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
     "Hotărâre",
     "Elemente utile",
     "Modele",
+    "Coduri",
   ];
 
   const renderContent = () => {
@@ -113,6 +115,8 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
         );
       case "Modele":
         return <DocumentModelsSection caseData={caseData} onViewModel={handleViewModel} />;
+      case "Coduri":
+        return <LegalCodesSection caseData={caseData} />;
       default:
         return null;
     }

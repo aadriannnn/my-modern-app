@@ -17,3 +17,17 @@ export interface DocumentModelFull extends DocumentModel {
   text_model: string;
   keywords_model?: string;
 }
+
+export interface LegalArticle {
+  id: string;
+  numar: string;
+  titlu: string;
+  obiect?: string;
+  materie?: string;
+  text: string;
+  keywords?: string;
+  art_conex?: string;
+  doctrina?: string;
+  relevance_score: number;
+  cod_sursa: string; // e.g., "cod_civil", "cod_penal"
+}
