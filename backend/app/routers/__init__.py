@@ -5,3 +5,6 @@ from .test import router as test_router
 from .contribuie import router as contribuie_router
 from .case import router as case_router
 from .modele import router as modele_router
+from .settings import router as settings_router
+from .coduri import router as coduri_router
+from .auth import router as auth_router

@@ -7,7 +7,10 @@ from datetime import datetime
 from .config import get_settings
 
 settings = get_settings()
-db_specific_json = JSONB if (settings.DATABASE_URL and "postgresql" in settings.DATABASE_URL) else JSON
+is_postgres = settings.DATABASE_URL and "postgresql" in settings.DATABASE_URL
+db_specific_json = JSONB if is_postgres else JSON
+# Use JSON for arrays in SQLite as a fallback
+db_specific_array = ARRAY(String) if is_postgres else JSON
 
 
 class Blocuri(SQLModel, table=True):
@@ -63,7 +66,7 @@ class ModeleDocumente(SQLModel, table=True):
     __tablename__ = 'modele_documente'
 
     id: str = Field(primary_key=True)  # SHA1 hash from titlu_model + text_model
-    keywords_model: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(String)))
+    keywords_model: Optional[List[str]] = Field(default=None, sa_column=Column(JSON))
     titlu_model: str
     text_model: str
     sursa_model: Optional[str] = None

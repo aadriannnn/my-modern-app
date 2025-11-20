@@ -2,7 +2,7 @@ from pydantic_settings import BaseSettings
 from functools import lru_cache
 from typing import Optional
 from pydantic import model_validator
-
+import os
 
 class Settings(BaseSettings):
     APP_NAME: str = "Modern API"
@@ -66,7 +66,10 @@ class Settings(BaseSettings):
     PASS_SETARI: Optional[str] = None
 
     class Config:
-        env_file = ".env"
+        # Make .env path absolute relative to this file
+        env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "backend", ".env")
+        env_file_encoding = "utf-8"
+        extra = "ignore"
 
 
 @lru_cache

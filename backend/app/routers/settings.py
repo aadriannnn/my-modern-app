@@ -4,7 +4,7 @@ from ..settings_manager import settings_manager
 from ..routers.auth import get_current_user
 
 router = APIRouter(
-    prefix="/api/settings",
+    prefix="/settings",
     tags=["settings"],
     responses={404: {"description": "Not found"}},
 )

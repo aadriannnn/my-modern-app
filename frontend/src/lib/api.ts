@@ -108,10 +108,13 @@ export const login = async (username: string, password: string): Promise<{ succe
   return response.json();
 };
 
+// Use credentials injected by Vite from backend/.env
+const AUTH_HEADER = 'Basic ' + btoa(`${__AUTH_USER__}:${__AUTH_PASS__}`);
+
 export const getSettings = async () => {
   const response = await fetch(`${API_URL}/settings/`, {
     headers: {
-      'Authorization': 'Basic ' + btoa('admin:admin') // Temporary auth for dev, should use real auth token if available
+      'Authorization': AUTH_HEADER
     }
   });
   if (!response.ok) {
@@ -125,7 +128,7 @@ export const updateSettings = async (settings: any) => {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Basic ' + btoa('admin:admin')
+      'Authorization': AUTH_HEADER
     },
     body: JSON.stringify(settings),
   });
@@ -139,7 +142,7 @@ export const resetSettings = async () => {
   const response = await fetch(`${API_URL}/settings/reset`, {
     method: 'POST',
     headers: {
-      'Authorization': 'Basic ' + btoa('admin:admin')
+      'Authorization': AUTH_HEADER
     }
   });
   if (!response.ok) {
