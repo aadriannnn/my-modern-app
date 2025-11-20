@@ -4,6 +4,22 @@ export interface FilterItem {
   name: string;
   count: number;
 }
+
+export interface Filters {
+  materii: FilterItem[];
+  obiecte: FilterItem[];
+  details: Record<string, FilterItem[]>;
+  tipSpeta: string[];
+  parte: string[];
+}
+
+export interface SelectedFilters {
+  materie: string;
+  obiect: string[];
+  tip_speta: string[];
+  parte: string[];
+}
+
 export interface DocumentModel {
   id: string;
   titlu_model: string;

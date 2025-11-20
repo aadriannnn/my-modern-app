@@ -61,6 +61,10 @@ class Settings(BaseSettings):
     ALPHA_SCORE: float = 0.8
     TOP_K: int = 100
 
+    # Settings page authentication
+    USER_SETARI: Optional[str] = None
+    PASS_SETARI: Optional[str] = None
+
     class Config:
         env_file = ".env"
 

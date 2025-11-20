@@ -15,7 +15,8 @@ from .routers import (
     contribuie as contribuie_router,
     case as case_router,
     modele as modele_router,
-    coduri as coduri_router
+    coduri as coduri_router,
+    auth as auth_router
 )
 
 # Configure logging
@@ -78,6 +79,7 @@ api_router.include_router(contribuie_router.router)
 api_router.include_router(case_router.router)
 api_router.include_router(modele_router.router)
 api_router.include_router(coduri_router.router)
+api_router.include_router(auth_router.router)
 
 app.include_router(api_router)
 
