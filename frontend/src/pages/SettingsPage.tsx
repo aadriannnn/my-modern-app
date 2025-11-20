@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { getSettings, updateSettings, resetSettings } from '../lib/api';
-import { Save, RotateCcw, Info, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { getSettings, updateSettings, resetSettings, refreshFilters } from '../lib/api';
+import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Switch } from '@headlessui/react';
 
 interface SettingItem {
@@ -21,6 +21,7 @@ const SettingsPage: React.FC = () => {
     const [settings, setSettings] = useState<SettingsSection | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<string>('');
@@ -75,6 +76,22 @@ const SettingsPage: React.FC = () => {
             console.error(err);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleRefreshFilters = async () => {
+        if (!window.confirm('Sigur dorești să reîncarci toate filtrele? Acest proces poate dura câteva secunde.')) return;
+        try {
+            setRefreshing(true);
+            await refreshFilters();
+            setSuccess('Filtrele au fost reîncărcate cu succes! Gruparea obiectelor juridice a fost actualizată.');
+            setTimeout(() => setSuccess(null), 5000);
+        } catch (err) {
+            setError('Eroare la reîncărcarea filtrelor. Verifică conexiunea la server.');
+            console.error(err);
+            setTimeout(() => setError(null), 5000);
+        } finally {
+            setRefreshing(false);
         }
     };
 
@@ -220,11 +237,20 @@ const SettingsPage: React.FC = () => {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={handleReset}
-                            disabled={saving}
+                            disabled={saving || refreshing}
                             className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium text-sm"
                         >
                             <RotateCcw className="w-4 h-4" />
                             Resetează
+                        </button>
+                        <button
+                            onClick={handleRefreshFilters}
+                            disabled={saving || refreshing}
+                            className={`flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium text-sm border border-blue-200 ${refreshing ? 'opacity-75 cursor-wait' : ''}`}
+                            title="Reîncarcă și regrupează inteligent toate filtrele din baza de date"
+                        >
+                            <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                            {refreshing ? 'Se reîncarcă...' : 'Reîncarcă Filtre'}
                         </button>
                         <button
                             onClick={handleSave}
@@ -259,8 +285,8 @@ const SettingsPage: React.FC = () => {
                                 key={sectionKey}
                                 onClick={() => setActiveTab(sectionKey)}
                                 className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-between ${activeTab === sectionKey
-                                        ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200'
-                                        : 'text-slate-600 hover:bg-white/50 hover:text-slate-900'
+                                    ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200'
+                                    : 'text-slate-600 hover:bg-white/50 hover:text-slate-900'
                                     }`}
                             >
                                 {formatSectionName(sectionKey)}

@@ -1,0 +1,194 @@
+{
+  "ponderi_cautare_spete": {
+    "w_vector": {
+      "value": 1.0,
+      "label": "Pondere Vector (Semantic)",
+      "tooltip": "Importanța căutării semantice (înțelesul textului). O valoare mai mare favorizează rezultatele similare ca sens.",
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1
+    },
+    "w_metadata": {
+      "value": 0.5,
+      "label": "Pondere Metadate (Text)",
+      "tooltip": "Importanța potrivirii exacte a cuvintelor din metadate (obiect, materie, etc.).",
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1
+    },
+    "w_exact_obiect": {
+      "value": 2.0,
+      "label": "Bonus Obiect Exact",
+      "tooltip": "Bonus acordat dacă obiectul dosarului conține exact termenul căutat.",
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.5
+    },
+    "w_materie": {
+      "value": 1.5,
+      "label": "Bonus Materie",
+      "tooltip": "Bonus acordat dacă materia dosarului corespunde cu termenul căutat.",
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.5
+    },
+    "w_exact_keyword": {
+      "value": 1.2,
+      "label": "Bonus Cuvinte Cheie",
+      "tooltip": "Bonus pentru potrivirea exactă a cuvintelor cheie.",
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1
+    },
+    "w_sim_obiect": {
+      "value": 1.0,
+      "label": "Similaritate Obiect",
+      "tooltip": "Pondere pentru similaritatea parțială a obiectului.",
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1
+    },
+    "w_sim_keywords": {
+      "value": 0.8,
+      "label": "Similaritate Cuvinte Cheie",
+      "tooltip": "Pondere pentru similaritatea parțială a cuvintelor cheie.",
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1
+    },
+    "w_sim_text": {
+      "value": 0.4,
+      "label": "Similaritate Text Complet",
+      "tooltip": "Pondere pentru similaritatea textului extins (situația de fapt).",
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1
+    }
+  },
+  "ponderi_cautare_coduri": {
+    "w_exact_article": {
+      "value": 10.0,
+      "label": "Bonus Articol Exact",
+      "tooltip": "Bonus masiv pentru găsirea exactă a numărului articolului căutat (ex: 'art. 218').",
+      "min": 0.0,
+      "max": 20.0,
+      "step": 1.0
+    },
+    "w_exact_materie": {
+      "value": 3.5,
+      "label": "Bonus Materie",
+      "tooltip": "Bonus dacă materia codului corespunde cu cea căutată.",
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.5
+    },
+    "w_exact_obiect": {
+      "value": 5.0,
+      "label": "Bonus Obiect",
+      "tooltip": "Bonus dacă obiectul reglementării corespunde cu termenul căutat.",
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.5
+    },
+    "w_keywords": {
+      "value": 3.0,
+      "label": "Pondere Cuvinte Cheie",
+      "tooltip": "Importanța prezenței cuvintelor cheie în textul articolului.",
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.5
+    },
+    "w_embedding": {
+      "value": 2.0,
+      "label": "Pondere Semantică",
+      "tooltip": "Importanța similarității de sens (vectorială).",
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.5
+    },
+    "w_trigram": {
+      "value": 0.8,
+      "label": "Similaritate Textuală",
+      "tooltip": "Pondere pentru similaritatea la nivel de caractere (trigrame).",
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1
+    },
+    "min_embedding_score": {
+      "value": 0.25,
+      "label": "Prag Minim Semantic",
+      "tooltip": "Scorul minim de similaritate semantică pentru a lua în considerare un articol (0-1).",
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.05
+    }
+  },
+  "ponderi_cautare_modele": {
+    "w_exact_materie": {
+      "value": 3.0,
+      "label": "Bonus Materie",
+      "tooltip": "Bonus pentru potrivirea materiei modelului.",
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.5
+    },
+    "w_exact_obiect": {
+      "value": 4.0,
+      "label": "Bonus Obiect",
+      "tooltip": "Bonus pentru potrivirea obiectului modelului.",
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.5
+    },
+    "w_keywords": {
+      "value": 2.0,
+      "label": "Pondere Cuvinte Cheie",
+      "tooltip": "Importanța cuvintelor cheie în model.",
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.5
+    },
+    "w_embedding": {
+      "value": 1.0,
+      "label": "Pondere Semantică",
+      "tooltip": "Importanța similarității de sens pentru modele.",
+      "min": 0.0,
+      "max": 10.0,
+      "step": 0.5
+    },
+    "w_trigram": {
+      "value": 0.5,
+      "label": "Similaritate Textuală",
+      "tooltip": "Pondere pentru similaritatea textuală.",
+      "min": 0.0,
+      "max": 5.0,
+      "step": 0.1
+    },
+    "min_embedding_score": {
+      "value": 0.5,
+      "label": "Prag Minim Semantic",
+      "tooltip": "Scorul minim de similaritate semantică pentru modele (0-1).",
+      "min": 0.0,
+      "max": 1.0,
+      "step": 0.05
+    }
+  },
+  "setari_generale": {
+    "min_trgm_similarity": {
+      "value": 0.05,
+      "label": "Prag Minim Similaritate Text",
+      "tooltip": "Valoarea minimă pentru ca o potrivire parțială de text să fie luată în considerare.",
+      "min": 0.0,
+      "max": 0.5,
+      "step": 0.01
+    },
+    "top_k_results": {
+      "value": 50,
+      "label": "Număr Rezultate Implicite",
+      "tooltip": "Numărul de rezultate returnate dacă nu se specifică altfel.",
+      "min": 10,
+      "max": 200,
+      "step": 10
+    }
+  }
+}
