@@ -13,6 +13,7 @@ from typing import List, Dict, Any, Optional
 
 from ..config import get_settings
 from .search_logic import embed_text, normalize_query
+from ..settings_manager import settings_manager
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -97,11 +98,14 @@ def get_relevant_modele(
         params["keywords_regex"] = '^$'  # Pattern that never matches
 
     # Scoring weights
-    W_EXACT_MATERIE = 3.0
-    W_EXACT_OBIECT = 4.0
-    W_KEYWORDS = 2.0
-    W_EMBEDDING = 1.0
-    W_TRIGRAM = 0.5
+    W_EXACT_MATERIE = settings_manager.get_value("ponderi_cautare_modele", "w_exact_materie", 3.0)
+    W_EXACT_OBIECT = settings_manager.get_value("ponderi_cautare_modele", "w_exact_obiect", 4.0)
+    W_KEYWORDS = settings_manager.get_value("ponderi_cautare_modele", "w_keywords", 2.0)
+    W_EMBEDDING = settings_manager.get_value("ponderi_cautare_modele", "w_embedding", 1.0)
+    W_TRIGRAM = settings_manager.get_value("ponderi_cautare_modele", "w_trigram", 0.5)
+
+    MIN_EMBEDDING_SCORE = settings_manager.get_value("ponderi_cautare_modele", "min_embedding_score", 0.5)
+    params["min_embedding_score"] = MIN_EMBEDDING_SCORE
 
     # Build the query
     # We need to check if materie and obiect fields exist and match
@@ -161,7 +165,7 @@ def get_relevant_modele(
                 (LOWER(COALESCE(m.obiect_model, '')) LIKE '%' || :obiect || '%' AND :obiect != '') OR
                 (COALESCE(array_to_string(m.keywords_model, ' '), '') ~* :keywords_regex) OR
                 (m.comentariiLLM_model_embedding IS NOT NULL AND
-                 (1.0 - (m.comentariiLLM_model_embedding <=> :embedding)) > 0.5)
+                 (1.0 - (m.comentariiLLM_model_embedding <=> :embedding)) > :min_embedding_score)
             )
         ORDER BY relevance_score DESC
         LIMIT :limit;

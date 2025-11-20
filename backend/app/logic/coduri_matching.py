@@ -13,6 +13,7 @@ from typing import List, Dict, Any, Optional
 
 from ..config import get_settings
 from .search_logic import embed_text, normalize_query
+from ..settings_manager import settings_manager
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -188,12 +189,15 @@ def get_relevant_articles(
         params["keywords_regex"] = '^$'  # Never matches
 
     # Scoring weights - optimized for legal relevance
-    W_EXACT_ARTICLE = 10.0  # Exact article number match (e.g., "art. 218")
-    W_EXACT_MATERIE = 3.5
-    W_EXACT_OBIECT = 5.0    # Increased from 4.0 - obiect is crucial
-    W_KEYWORDS = 3.0        # Increased from 2.5
-    W_EMBEDDING = 2.0       # Increased from 1.5 - embeddings are valuable
-    W_TRIGRAM = 0.8         # Increased from 0.5
+    W_EXACT_ARTICLE = settings_manager.get_value("ponderi_cautare_coduri", "w_exact_article", 10.0)
+    W_EXACT_MATERIE = settings_manager.get_value("ponderi_cautare_coduri", "w_exact_materie", 3.5)
+    W_EXACT_OBIECT = settings_manager.get_value("ponderi_cautare_coduri", "w_exact_obiect", 5.0)
+    W_KEYWORDS = settings_manager.get_value("ponderi_cautare_coduri", "w_keywords", 3.0)
+    W_EMBEDDING = settings_manager.get_value("ponderi_cautare_coduri", "w_embedding", 2.0)
+    W_TRIGRAM = settings_manager.get_value("ponderi_cautare_coduri", "w_trigram", 0.8)
+
+    MIN_EMBEDDING_SCORE = settings_manager.get_value("ponderi_cautare_coduri", "min_embedding_score", 0.25)
+    params["min_embedding_score"] = MIN_EMBEDDING_SCORE
 
     # Collect results from all relevant tables
     all_results = []
@@ -278,7 +282,7 @@ def get_relevant_articles(
                     (COALESCE(t.text, '') ~* :keywords_regex) OR
                     (array_to_string(t.keywords, ' ', '') ~* :keywords_regex) OR
                     (t.text_embeddings IS NOT NULL AND
-                     (1.0 - (t.text_embeddings <=> :embedding)) > 0.25)
+                     (1.0 - (t.text_embeddings <=> :embedding)) > :min_embedding_score)
                 )
             ORDER BY relevance_score DESC
             LIMIT :limit_per_table;

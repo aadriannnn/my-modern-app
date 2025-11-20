@@ -107,3 +107,43 @@ export const login = async (username: string, password: string): Promise<{ succe
 
   return response.json();
 };
+
+export const getSettings = async () => {
+  const response = await fetch(`${API_URL}/settings/`, {
+    headers: {
+      'Authorization': 'Basic ' + btoa('admin:admin') // Temporary auth for dev, should use real auth token if available
+    }
+  });
+  if (!response.ok) {
+    throw new Error('Failed to fetch settings');
+  }
+  return response.json();
+};
+
+export const updateSettings = async (settings: any) => {
+  const response = await fetch(`${API_URL}/settings/`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Basic ' + btoa('admin:admin')
+    },
+    body: JSON.stringify(settings),
+  });
+  if (!response.ok) {
+    throw new Error('Failed to update settings');
+  }
+  return response.json();
+};
+
+export const resetSettings = async () => {
+  const response = await fetch(`${API_URL}/settings/reset`, {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Basic ' + btoa('admin:admin')
+    }
+  });
+  if (!response.ok) {
+    throw new Error('Failed to reset settings');
+  }
+  return response.json();
+};

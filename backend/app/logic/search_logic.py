@@ -8,6 +8,7 @@ from typing import List, Dict, Any
 from ..config import get_settings
 from ..schemas import SearchRequest
 from ..cache import get_cached_filters
+from ..settings_manager import settings_manager
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -221,9 +222,8 @@ def _search_postgres(session: Session, req: SearchRequest, embedding: List[float
     """
 
     # Weights for the hybrid score
-    # You can adjust these to tune the importance of vector vs metadata
-    W_VECTOR = 1.0
-    W_METADATA = 0.5
+    W_VECTOR = settings_manager.get_value("ponderi_cautare_spete", "w_vector", 1.0)
+    W_METADATA = settings_manager.get_value("ponderi_cautare_spete", "w_metadata", 0.5)
 
     query = text(f"""
         SELECT
@@ -300,7 +300,7 @@ def _search_by_keywords_postgres(session: Session, req: SearchRequest) -> List[D
     params["offset"] = offset
 
     # Soft threshold for similarity to filter out complete noise
-    min_sim = float(getattr(settings, "MIN_TRGM_SIMILARITY", 0.05))
+    min_sim = float(settings_manager.get_value("setari_generale", "min_trgm_similarity", 0.05))
     params["min_sim"] = min_sim
 
     # Extract potential "materie" from query to boost if it matches the materie column
@@ -329,19 +329,18 @@ def _search_by_keywords_postgres(session: Session, req: SearchRequest) -> List[D
 
     # SCORING WEIGHTS
     # 1. Exact Object Match (Highest Priority): If user searches "viol", cases with object "viol" should be top.
-    #    We use regex match on 'obiect'.
-    W_EXACT_OBIECT = 2.0
+    W_EXACT_OBIECT = settings_manager.get_value("ponderi_cautare_spete", "w_exact_obiect", 2.0)
 
     # 2. Materie Match: If user searches "penal", cases with materie "penal" get a boost.
-    W_MATERIE = 1.5
+    W_MATERIE = settings_manager.get_value("ponderi_cautare_spete", "w_materie", 1.5)
 
     # 3. Exact Keyword Match: If query appears exactly in keywords.
-    W_EXACT_KEYWORD = 1.2
+    W_EXACT_KEYWORD = settings_manager.get_value("ponderi_cautare_spete", "w_exact_keyword", 1.2)
 
     # 4. Similarity Scores (0-1 range)
-    W_SIM_OBIECT = 1.0
-    W_SIM_KEYWORDS = 0.8
-    W_SIM_TEXT = 0.4
+    W_SIM_OBIECT = settings_manager.get_value("ponderi_cautare_spete", "w_sim_obiect", 1.0)
+    W_SIM_KEYWORDS = settings_manager.get_value("ponderi_cautare_spete", "w_sim_keywords", 0.8)
+    W_SIM_TEXT = settings_manager.get_value("ponderi_cautare_spete", "w_sim_text", 0.4)
 
     # Construct the query
     # We use a CASE statement for regex matches to return 1.0 (true) or 0.0 (false)
