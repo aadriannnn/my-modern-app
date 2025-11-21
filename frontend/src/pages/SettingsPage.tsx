@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { getSettings, updateSettings, resetSettings, refreshFilters, precalculateModelsCodes, getPrecalculateStatus, stopPrecalculate } from '../lib/api';
 import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square } from 'lucide-react';
 import { Switch } from '@headlessui/react';
+import Footer from '../components/Footer';
 
 interface SettingItem {
     value: any;
@@ -532,6 +533,8 @@ const SettingsPage: React.FC = () => {
                     </div>
                 </div>
             </main>
+
+            <Footer />
         </div>
     );
 };
