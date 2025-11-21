@@ -42,6 +42,14 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
           <img src={logo} alt="Logo" className="h-8 w-auto" />
         </div>
 
+        {/* Center Section: Motto */}
+        <div className="hidden sm:flex items-center justify-center flex-1 mx-4">
+          <h1 className="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-brand-light font-semibold text-base sm:text-sm md:text-lg lg:text-xl tracking-wide">
+            <span className="hidden md:inline">VerdictLine – Dreptul de a fi informat</span>
+            <span className="md:hidden">Dreptul de a fi informat</span>
+          </h1>
+        </div>
+
         {/* Right Section: Actions */}
         <div className="flex items-center space-x-6">
           <button
