@@ -150,3 +150,44 @@ export const resetSettings = async () => {
   }
   return response.json();
 };
+
+export const precalculateModelsCodes = async (restart: boolean = false) => {
+  const response = await fetch(`${API_URL}/settings/precalculate-models-codes?restart=${restart}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': AUTH_HEADER
+    }
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to precalculate models and codes');
+  }
+  return response.json();
+};
+
+export const getPrecalculateStatus = async () => {
+  const response = await fetch(`${API_URL}/settings/precalculate-status`, {
+    headers: {
+      'Authorization': AUTH_HEADER
+    }
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to get precalculate status');
+  }
+  return response.json();
+};
+
+export const stopPrecalculate = async () => {
+  const response = await fetch(`${API_URL}/settings/precalculate-stop`, {
+    method: 'POST',
+    headers: {
+      'Authorization': AUTH_HEADER
+    }
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to stop precalculation');
+  }
+  return response.json();
+};
