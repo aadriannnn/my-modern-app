@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
-import { Download, X, Printer, FolderPlus, FolderCheck } from "lucide-react";
+import { Download, X, Printer, FolderPlus, FolderCheck, ThumbsUp, ThumbsDown } from "lucide-react";
 import ShareButton from "./ShareButton";
 import { useDosar } from "../context/DosarContext";
 
@@ -22,10 +22,13 @@ interface CaseDetailModalProps {
   } | null;
 }
 
+type FeedbackType = 'good' | 'bad' | null;
+
 const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, result }) => {
   const [activeTab, setActiveTab] = useState("Metadate");
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<FeedbackType>(null);
   const { addToDosar, removeFromDosar, isCaseInDosar } = useDosar();
 
   if (!result) return null;
@@ -135,6 +138,79 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
     );
   };
 
+  const handleFeedback = (type: FeedbackType) => {
+    setFeedback(type);
+  };
+
+  const renderFeedbackMessage = () => {
+    if (!feedback) return null;
+
+    if (feedback === 'good') {
+      return (
+        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <p className="text-green-800 font-medium">
+            ✓ Vă mulțumim pentru feedback! Ne bucurăm că informațiile au fost utile.
+          </p>
+        </div>
+      );
+    }
+
+    if (feedback === 'bad') {
+      return (
+        <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-amber-900 font-medium mb-2">
+            Vă mulțumim pentru feedback!
+          </p>
+          <p className="text-amber-800 text-sm">
+            Vă informăm că toate răspunsurile sunt generate de inteligență artificială.
+            Feedbackul dumneavoastră va fi analizat de echipa noastră pentru îmbunătățirea continuă a sistemului.
+          </p>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  const renderFeedbackButtons = () => {
+    return (
+      <div className="mt-6 pt-6 border-t border-gray-200">
+        <p className="text-sm text-gray-600 mb-3">Acest răspuns v-a fost util?</p>
+        <div className="flex gap-3">
+          <button
+            onClick={() => handleFeedback('good')}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200
+              ${feedback === 'good'
+                ? 'bg-green-600 text-white shadow-md'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-green-50 hover:border-green-300'
+              }
+            `}
+            aria-label="Răspuns util"
+          >
+            <ThumbsUp size={18} />
+            <span>Bun</span>
+          </button>
+          <button
+            onClick={() => handleFeedback('bad')}
+            className={`
+              flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all duration-200
+              ${feedback === 'bad'
+                ? 'bg-amber-600 text-white shadow-md'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-amber-50 hover:border-amber-300'
+              }
+            `}
+            aria-label="Răspuns neutil"
+          >
+            <ThumbsDown size={18} />
+            <span>Rău</span>
+          </button>
+        </div>
+        {renderFeedbackMessage()}
+      </div>
+    );
+  };
+
   return (
     <Transition show={isOpen} as={Fragment}>
       <Dialog as="div" className="relative z-50" onClose={onClose}>
@@ -214,6 +290,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                   <main className="flex-1 p-6 overflow-y-auto bg-gray-50">
                     <div className="prose max-w-none">
                       {renderContent()}
+                      {renderFeedbackButtons()}
                     </div>
                   </main>
                 </div>
