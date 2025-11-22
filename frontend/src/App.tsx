@@ -4,6 +4,7 @@ import SearchPage from './pages/SearchPage';
 import SettingsPage from './pages/SettingsPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import LandingPage from './pages/LandingPage';
 import { DosarProvider } from './context/DosarContext';
 import DosarDrawer from './components/DosarDrawer';
 import DosarToast from './components/DosarToast';
@@ -14,11 +15,13 @@ const App: React.FC = () => {
       <DosarDrawer />
       <DosarToast />
       <Routes>
+        <Route path="/landing" element={<LandingPage />} />
         <Route path="/" element={<SearchPage />} />
         <Route path="/setari" element={<SettingsPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
       </Routes>
+
     </DosarProvider>
   );
 };
