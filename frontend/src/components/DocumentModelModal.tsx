@@ -22,7 +22,9 @@ const DocumentModelModal: React.FC<DocumentModelModalProps> = ({ isOpen, onClose
             setError(null);
 
             try {
-                const response = await fetch(`/api/modele/${modelId}`);
+                const response = await fetch(`/api/modele/${modelId}`, {
+                    credentials: 'include'
+                });
                 if (!response.ok) {
                     throw new Error('Eroare la încărcarea modelului');
                 }

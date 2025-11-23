@@ -6,7 +6,22 @@ import os
 
 class Settings(BaseSettings):
     APP_NAME: str = "Modern API"
-    CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:5178"]
+    CORS_ORIGINS: list[str] | str = [
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174"
+    ]
+
+    @model_validator(mode='before')
+    @classmethod
+    def parse_cors_origins(cls, values):
+        """Parse CORS_ORIGINS if provided as comma-separated string"""
+        cors = values.get('CORS_ORIGINS')
+        if isinstance(cors, str):
+            # Split by comma and strip whitespace
+            values['CORS_ORIGINS'] = [origin.strip() for origin in cors.split(',') if origin.strip()]
+        return values
 
     # PostgreSQL settings
     PG_HOST: Optional[str] = None

@@ -42,6 +42,7 @@ const DocumentModelsSection: React.FC<DocumentModelsSectionProps> = ({ caseData,
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(requestBody),
+                    credentials: 'include'
                 });
 
                 if (!response.ok) {

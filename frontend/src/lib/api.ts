@@ -13,7 +13,9 @@ import type { Filters } from '../types';
 
 export const getFilters = async (): Promise<Filters> => {
   try {
-    const response = await fetch(`${API_URL}/filters/menu`);
+    const response = await fetch(`${API_URL}/filters/menu`, {
+      credentials: 'include'
+    });
     if (!response.ok) {
       throw new Error('Failed to fetch filters');
     }
@@ -56,6 +58,7 @@ export const search = async (payload: SearchParams) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    credentials: 'include'
   });
 
   if (!response.ok) {
@@ -73,7 +76,10 @@ export const search = async (payload: SearchParams) => {
 };
 
 export const refreshFilters = async () => {
-  const response = await fetch(`${API_URL}/filters/refresh`, { method: 'POST' });
+  const response = await fetch(`${API_URL}/filters/refresh`, {
+    method: 'POST',
+    credentials: 'include'
+  });
   if (!response.ok) {
     throw new Error('Filter refresh failed');
   }
@@ -85,6 +91,7 @@ export const contribute = async (data: { denumire: string; sursa: string }) => {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
+    credentials: 'include'
   });
   if (!response.ok) {
     const errorData = await response.json();
@@ -98,6 +105,7 @@ export const login = async (username: string, password: string): Promise<{ succe
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ username, password }),
+    credentials: 'include'
   });
 
   if (!response.ok) {
@@ -115,7 +123,8 @@ export const getSettings = async () => {
   const response = await fetch(`${API_URL}/settings/`, {
     headers: {
       'Authorization': AUTH_HEADER
-    }
+    },
+    credentials: 'include'
   });
   if (!response.ok) {
     throw new Error('Failed to fetch settings');
@@ -131,6 +140,7 @@ export const updateSettings = async (settings: any) => {
       'Authorization': AUTH_HEADER
     },
     body: JSON.stringify(settings),
+    credentials: 'include'
   });
   if (!response.ok) {
     throw new Error('Failed to update settings');
@@ -143,7 +153,8 @@ export const resetSettings = async () => {
     method: 'POST',
     headers: {
       'Authorization': AUTH_HEADER
-    }
+    },
+    credentials: 'include'
   });
   if (!response.ok) {
     throw new Error('Failed to reset settings');
@@ -156,7 +167,8 @@ export const precalculateModelsCodes = async (restart: boolean = false) => {
     method: 'POST',
     headers: {
       'Authorization': AUTH_HEADER
-    }
+    },
+    credentials: 'include'
   });
   if (!response.ok) {
     const errorData = await response.json();
@@ -169,7 +181,8 @@ export const getPrecalculateStatus = async () => {
   const response = await fetch(`${API_URL}/settings/precalculate-status`, {
     headers: {
       'Authorization': AUTH_HEADER
-    }
+    },
+    credentials: 'include'
   });
   if (!response.ok) {
     const errorData = await response.json();
@@ -183,7 +196,8 @@ export const stopPrecalculate = async () => {
     method: 'POST',
     headers: {
       'Authorization': AUTH_HEADER
-    }
+    },
+    credentials: 'include'
   });
   if (!response.ok) {
     const errorData = await response.json();

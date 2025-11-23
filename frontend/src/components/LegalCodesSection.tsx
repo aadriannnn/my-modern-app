@@ -43,6 +43,7 @@ const LegalCodesSection: React.FC<LegalCodesSectionProps> = ({ caseData }) => {
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify(requestBody),
+                    credentials: 'include'
                 });
 
                 if (!response.ok) {

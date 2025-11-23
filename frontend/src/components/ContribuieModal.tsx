@@ -49,7 +49,11 @@ const ContribuieModal: React.FC<ContribuieModalProps> = ({ isOpen, onClose }) =>
     formData.append("sursa", sursa);
 
     try {
-      const response = await fetch("/api/contribuie", { method: "POST", body: formData });
+      const response = await fetch("/api/contribuie", {
+        method: "POST",
+        body: formData,
+        credentials: 'include'
+      });
       if (!response.ok) throw new Error("A apărut o problemă la server.");
 
       setStatus("Speța a fost trimisă cu succes! Vă mulțumim.");
@@ -147,11 +151,11 @@ const ContribuieModal: React.FC<ContribuieModalProps> = ({ isOpen, onClose }) =>
                       </button>
                     </div>
                     {status && (
-                       <div className={`flex items-center p-3 rounded-lg text-sm ${isSuccess ? 'bg-green-50 text-green-800' : isError ? 'bg-red-50 text-red-800' : 'bg-blue-50 text-blue-800'}`}>
-                         {isSuccess && <CheckCircle className="h-5 w-5 mr-2" />}
-                         {isError && <AlertTriangle className="h-5 w-5 mr-2" />}
-                         {status}
-                       </div>
+                      <div className={`flex items-center p-3 rounded-lg text-sm ${isSuccess ? 'bg-green-50 text-green-800' : isError ? 'bg-red-50 text-red-800' : 'bg-blue-50 text-blue-800'}`}>
+                        {isSuccess && <CheckCircle className="h-5 w-5 mr-2" />}
+                        {isError && <AlertTriangle className="h-5 w-5 mr-2" />}
+                        {status}
+                      </div>
                     )}
                   </form>
                 </main>
