@@ -145,17 +145,34 @@ export const login = async (username: string, password: string): Promise<{ succe
   }
 };
 
-// Use credentials injected by Vite from backend/.env
-const AUTH_HEADER = 'Basic ' + btoa(`${__AUTH_USER__}:${__AUTH_PASS__}`);
+// Store credentials after successful login for use in API calls
+let storedCredentials: { username: string; password: string } | null = null;
+
+// Helper to get Authorization header
+const getAuthHeader = (): string => {
+  if (storedCredentials) {
+    return 'Basic ' + btoa(`${storedCredentials.username}:${storedCredentials.password}`);
+  }
+  // Fallback to build-time credentials if available
+  return 'Basic ' + btoa(`${__AUTH_USER__}:${__AUTH_PASS__}`);
+};
 
 export const getSettings = async () => {
+  console.log('[API] Getting settings, has stored credentials:', !!storedCredentials);
+
   const response = await fetch(`${API_URL}/settings/`, {
     headers: {
-      'Authorization': AUTH_HEADER
+      'Authorization': getAuthHeader()
     },
     credentials: 'include'
   });
+
+  console.log('[API] Settings response status:', response.status);
+
   if (!response.ok) {
+    if (response.status === 401) {
+      throw new Error('401: Unauthorized - credentials invalid or missing');
+    }
     throw new Error('Failed to fetch settings');
   }
   return response.json();
@@ -166,7 +183,7 @@ export const updateSettings = async (settings: any) => {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': AUTH_HEADER
+      'Authorization': getAuthHeader()
     },
     body: JSON.stringify(settings),
     credentials: 'include'
@@ -181,7 +198,7 @@ export const resetSettings = async () => {
   const response = await fetch(`${API_URL}/settings/reset`, {
     method: 'POST',
     headers: {
-      'Authorization': AUTH_HEADER
+      'Authorization': getAuthHeader()
     },
     credentials: 'include'
   });
@@ -195,7 +212,7 @@ export const precalculateModelsCodes = async (restart: boolean = false) => {
   const response = await fetch(`${API_URL}/settings/precalculate-models-codes?restart=${restart}`, {
     method: 'POST',
     headers: {
-      'Authorization': AUTH_HEADER
+      'Authorization': getAuthHeader()
     },
     credentials: 'include'
   });
@@ -209,7 +226,7 @@ export const precalculateModelsCodes = async (restart: boolean = false) => {
 export const getPrecalculateStatus = async () => {
   const response = await fetch(`${API_URL}/settings/precalculate-status`, {
     headers: {
-      'Authorization': AUTH_HEADER
+      'Authorization': getAuthHeader()
     },
     credentials: 'include'
   });
@@ -224,7 +241,7 @@ export const stopPrecalculate = async () => {
   const response = await fetch(`${API_URL}/settings/precalculate-stop`, {
     method: 'POST',
     headers: {
-      'Authorization': AUTH_HEADER
+      'Authorization': getAuthHeader()
     },
     credentials: 'include'
   });
@@ -234,3 +251,36 @@ export const stopPrecalculate = async () => {
   }
   return response.json();
 };
+
+// Export function to store credentials after login
+export const setAuthCredentials = (username: string, password: string) => {
+  console.log('[API] Storing credentials for user:', username);
+  storedCredentials = { username, password };
+
+  // Also store in sessionStorage for page refresh persistence
+  sessionStorage.setItem('auth_credentials', btoa(JSON.stringify({ username, password })));
+};
+
+// Export function to clear credentials on logout
+export const clearAuthCredentials = () => {
+  console.log('[API] Clearing stored credentials');
+  storedCredentials = null;
+  sessionStorage.removeItem('auth_credentials');
+};
+
+// Load credentials from sessionStorage on module load
+const loadStoredCredentials = () => {
+  try {
+    const stored = sessionStorage.getItem('auth_credentials');
+    if (stored) {
+      storedCredentials = JSON.parse(atob(stored));
+      console.log('[API] Loaded credentials from session storage for user:', storedCredentials?.username);
+    }
+  } catch (err) {
+    console.error('[API] Failed to load stored credentials:', err);
+    sessionStorage.removeItem('auth_credentials');
+  }
+};
+
+// Auto-load credentials on module initialization
+loadStoredCredentials();
