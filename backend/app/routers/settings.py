@@ -10,18 +10,16 @@ router = APIRouter(
 )
 
 @router.get("/", response_model=Dict[str, Any])
-async def get_settings(current_user: str = Depends(get_current_user)):
+async def get_settings():
     """
     Get all current settings.
-    Requires authentication.
     """
     return settings_manager.get_settings()
 
 @router.put("/", response_model=Dict[str, Any])
-async def update_settings(new_settings: Dict[str, Any], current_user: str = Depends(get_current_user)):
+async def update_settings(new_settings: Dict[str, Any]):
     """
     Update settings.
-    Requires authentication.
     """
     try:
         settings_manager.save_settings(new_settings)
@@ -30,10 +28,9 @@ async def update_settings(new_settings: Dict[str, Any], current_user: str = Depe
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/reset", response_model=Dict[str, Any])
-async def reset_settings(current_user: str = Depends(get_current_user)):
+async def reset_settings():
     """
     Reset settings to defaults.
-    Requires authentication.
     """
     try:
         settings_manager.reset_to_defaults()
@@ -43,14 +40,12 @@ async def reset_settings(current_user: str = Depends(get_current_user)):
 
 @router.post("/precalculate-models-codes", response_model=Dict[str, Any])
 async def precalculate_models_codes(
-    restart: bool = False,
-    current_user: str = Depends(get_current_user)
+    restart: bool = False
 ):
     """
     Triggers pre-calculation of models and codes for all cases.
     This is a resource-intensive operation that should be run during off-peak hours.
     Runs in a background thread to avoid blocking the API.
-    Requires authentication.
 
     Query Parameters:
         restart: If True, reset all precalculated data and start from scratch.
@@ -65,7 +60,7 @@ async def precalculate_models_codes(
     import threading
 
     logger = logging.getLogger(__name__)
-    logger.info(f"Pre-calculation endpoint called by user: {current_user}, restart={restart}")
+    logger.info(f"Pre-calculation endpoint called, restart={restart}")
 
     # Check if already running
     with precalc_status_lock:
@@ -109,10 +104,9 @@ async def precalculate_models_codes(
 
 
 @router.get("/precalculate-status", response_model=Dict[str, Any])
-async def get_precalculate_status(current_user: str = Depends(get_current_user)):
+async def get_precalculate_status():
     """
     Get the current status of the precalculation process.
-    Requires authentication.
     """
     from ..db import engine as main_engine
     from sqlmodel import Session
@@ -130,16 +124,15 @@ async def get_precalculate_status(current_user: str = Depends(get_current_user))
 
 
 @router.post("/precalculate-stop", response_model=Dict[str, Any])
-async def stop_precalculate(current_user: str = Depends(get_current_user)):
+async def stop_precalculate():
     """
     Stop the currently running precalculation process.
-    Requires authentication.
     """
     from ..logic.precalculation_service import stop_precalculation
     import logging
 
     logger = logging.getLogger(__name__)
-    logger.info(f"Stop precalculation requested by user: {current_user}")
+    logger.info("Stop precalculation requested")
 
     try:
         result = stop_precalculation()
