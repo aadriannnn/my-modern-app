@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { getSettings, updateSettings, resetSettings, refreshFilters, precalculateModelsCodes, getPrecalculateStatus, stopPrecalculate } from '../lib/api';
-import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { getSettings, updateSettings, resetSettings, refreshFilters, precalculateModelsCodes, getPrecalculateStatus, stopPrecalculate, login } from '../lib/api';
+import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square, Lock } from 'lucide-react';
 import { Switch } from '@headlessui/react';
 import Footer from '../components/Footer';
 
@@ -19,6 +19,12 @@ interface SettingsSection {
 }
 
 const SettingsPage: React.FC = () => {
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
+    const [loginUsername, setLoginUsername] = useState('');
+    const [loginPassword, setLoginPassword] = useState('');
+    const [loginError, setLoginError] = useState<string | null>(null);
+    const [loggingIn, setLoggingIn] = useState(false);
+
     const [settings, setSettings] = useState<SettingsSection | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -28,8 +34,53 @@ const SettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<string>('');
 
     useEffect(() => {
-        loadSettings();
+        // Try to load settings on mount to check if already authenticated
+        checkAuthentication();
     }, []);
+
+    const checkAuthentication = async () => {
+        try {
+            setLoading(true);
+            const data = await getSettings();
+            // If we got here, we're authenticated
+            setIsAuthenticated(true);
+            setSettings(data);
+            if (!activeTab && data && Object.keys(data).length > 0) {
+                setActiveTab(Object.keys(data)[0]);
+            }
+            setError(null);
+        } catch (err: any) {
+            // 401 means not authenticated
+            if (err.message?.includes('401') || err.message?.includes('Unauthorized')) {
+                setIsAuthenticated(false);
+            } else {
+                setError('Nu s-au putut încărca setările. Verifică conexiunea la server.');
+                console.error(err);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleLogin = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoginError(null);
+        setLoggingIn(true);
+
+        console.log('[SETTINGS] Attempting login...');
+
+        try {
+            await login(loginUsername, loginPassword);
+            console.log('[SETTINGS] Login successful, loading settings...');
+            setIsAuthenticated(true);
+            await loadSettings();
+        } catch (err: any) {
+            console.error('[SETTINGS] Login failed:', err);
+            setLoginError(err.message || 'Autentificare eșuată. Verifică credențialele.');
+        } finally {
+            setLoggingIn(false);
+        }
+    };
 
     const loadSettings = async () => {
         try {
@@ -289,6 +340,87 @@ const SettingsPage: React.FC = () => {
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
             .join(' ');
     };
+
+    // Show login form if not authenticated
+    if (!isAuthenticated) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50 p-4">
+                <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full border border-slate-200">
+                    <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Lock className="w-8 h-8 text-blue-600" />
+                    </div>
+
+                    <h2 className="text-2xl font-bold text-slate-900 text-center mb-2">Conectează-te</h2>
+                    <p className="text-slate-600 text-center mb-8 text-sm">
+                        https://{window.location.host}
+                    </p>
+
+                    <form onSubmit={handleLogin} className="space-y-5">
+                        <div>
+                            <label htmlFor="username" className="block text-sm font-semibold text-slate-700 mb-2">
+                                Nume de utilizator
+                            </label>
+                            <input
+                                type="text"
+                                id="username"
+                                value={loginUsername}
+                                onChange={(e) => setLoginUsername(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                placeholder="Introdu numele de utilizator"
+                                required
+                                autoFocus
+                            />
+                        </div>
+
+                        <div>
+                            <label htmlFor="password" className="block text-sm font-semibold text-slate-700 mb-2">
+                                Parolă
+                            </label>
+                            <input
+                                type="password"
+                                id="password"
+                                value={loginPassword}
+                                onChange={(e) => setLoginPassword(e.target.value)}
+                                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                                placeholder="Introdu parola"
+                                required
+                            />
+                        </div>
+
+                        {loginError && (
+                            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm flex items-center gap-2">
+                                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                                {loginError}
+                            </div>
+                        )}
+
+                        <button
+                            type="submit"
+                            disabled={loggingIn}
+                            className={`w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-lg shadow-blue-200 flex items-center justify-center gap-2 ${loggingIn ? 'opacity-75 cursor-wait' : ''}`}
+                        >
+                            {loggingIn ? (
+                                <>
+                                    <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    Se conectează...
+                                </>
+                            ) : (
+                                'Conectează-te'
+                            )}
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => window.location.href = '/'}
+                            className="w-full px-6 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium text-sm"
+                        >
+                            Anulează
+                        </button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
 
     if (loading && !settings) {
         return (
