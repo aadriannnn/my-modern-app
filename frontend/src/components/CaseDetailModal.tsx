@@ -263,36 +263,58 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                   </div>
                 </header>
 
-                <div className="flex flex-1 overflow-hidden">
-                  {/* Vertical Navigation Sidebar */}
-                  <aside className="w-1/4 xl:w-1/5 p-5 border-r border-gray-200 bg-white overflow-y-auto">
-                    <nav className="flex flex-col space-y-2">
+                <div className="flex flex-col flex-1 overflow-hidden">
+                  {/* Mobile Navigation Dropdown - Only visible on mobile */}
+                  <div className="md:hidden border-b border-gray-200 bg-white px-4 py-3">
+                    <label htmlFor="mobile-nav-select" className="text-xs font-medium text-gray-500 block mb-1.5">
+                      Secțiune
+                    </label>
+                    <select
+                      id="mobile-nav-select"
+                      value={activeTab}
+                      onChange={(e) => setActiveTab(e.target.value)}
+                      className="w-full px-3 py-2.5 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-accent focus:border-brand-accent transition-all"
+                    >
                       {navTabs.map((tab) => (
-                        <button
-                          key={tab}
-                          onClick={() => setActiveTab(tab)}
-                          className={`
-                            px-4 py-2.5 text-sm font-medium text-left rounded-lg transition-all duration-200
-                            focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent
-                            ${activeTab === tab
-                              ? "bg-brand-accent bg-opacity-10 text-brand-accent font-semibold"
-                              : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                            }
-                          `}
-                        >
+                        <option key={tab} value={tab}>
                           {tab}
-                        </button>
+                        </option>
                       ))}
-                    </nav>
-                  </aside>
+                    </select>
+                  </div>
 
-                  {/* Content Area */}
-                  <main className="flex-1 p-6 overflow-y-auto bg-gray-50">
-                    <div className="prose max-w-none">
-                      {renderContent()}
-                      {renderFeedbackButtons()}
-                    </div>
-                  </main>
+                  {/* Desktop and Mobile Content Layout */}
+                  <div className="flex flex-1 overflow-hidden">
+                    {/* Vertical Navigation Sidebar - Only visible on desktop */}
+                    <aside className="hidden md:flex w-1/4 xl:w-1/5 p-5 border-r border-gray-200 bg-white overflow-y-auto">
+                      <nav className="flex flex-col space-y-2 w-full">
+                        {navTabs.map((tab) => (
+                          <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`
+                              px-4 py-2.5 text-sm font-medium text-left rounded-lg transition-all duration-200
+                              focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-accent
+                              ${activeTab === tab
+                                ? "bg-brand-accent bg-opacity-10 text-brand-accent font-semibold"
+                                : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                              }
+                            `}
+                          >
+                            {tab}
+                          </button>
+                        ))}
+                      </nav>
+                    </aside>
+
+                    {/* Content Area */}
+                    <main className="flex-1 p-4 md:p-6 overflow-y-auto bg-gray-50">
+                      <div className="prose max-w-none">
+                        {renderContent()}
+                        {renderFeedbackButtons()}
+                      </div>
+                    </main>
+                  </div>
                 </div>
               </Dialog.Panel>
             </Transition.Child>
