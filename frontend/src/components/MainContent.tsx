@@ -4,6 +4,7 @@ import SelectedFilters from './SelectedFilters';
 import { Loader2, Search, Sparkles, Filter, FolderOpen, Share2, Eye, Database } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
+import UserJourneyMap from './UserJourneyMap';
 
 interface MainContentProps {
   results: any[];
@@ -245,8 +246,13 @@ const MainContent: React.FC<MainContentProps> = ({
           </button>
         </div>
 
-        {/* Features Section - Show when no search has been performed */}
-        {results.length === 0 && !isLoading && <FeaturesSection />}
+        {/* Features Section & User Journey - Show when no search has been performed */}
+        {results.length === 0 && !isLoading && (
+          <>
+            <FeaturesSection />
+            <UserJourneyMap />
+          </>
+        )}
 
         {results.length > 0 && (
           <>
@@ -270,8 +276,8 @@ const MainContent: React.FC<MainContentProps> = ({
                       key={key}
                       onClick={() => setActiveView(key)}
                       className={`w-full px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-between group ${activeView === key
-                          ? 'bg-gradient-to-r from-brand-accent to-brand-accent-dark text-white shadow-md scale-[1.02]'
-                          : 'bg-white text-brand-text-secondary hover:bg-brand-accent/10 hover:shadow-sm border border-gray-200/50'
+                        ? 'bg-gradient-to-r from-brand-accent to-brand-accent-dark text-white shadow-md scale-[1.02]'
+                        : 'bg-white text-brand-text-secondary hover:bg-brand-accent/10 hover:shadow-sm border border-gray-200/50'
                         }`}
                     >
                       <span className="flex-1 text-left">{label}</span>
@@ -323,8 +329,8 @@ const MainContent: React.FC<MainContentProps> = ({
                       key={key}
                       onClick={() => setActiveView(key)}
                       className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-200 ${activeView === key
-                          ? 'bg-brand-dark text-white shadow-sm'
-                          : 'text-brand-text-secondary hover:bg-gray-100'
+                        ? 'bg-brand-dark text-white shadow-sm'
+                        : 'text-brand-text-secondary hover:bg-gray-100'
                         }`}
                     >
                       {label}
