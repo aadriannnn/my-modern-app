@@ -38,9 +38,9 @@ const SelectedFilters: React.FC<SelectedFiltersProps> = ({ filters, onRemoveFilt
         {selectedFilterEntries.map(([type, value]) => {
           const displayValues = Array.isArray(value) ? value : [value];
           return displayValues.map((val) => (
-            <div key={`${type}-${val}`} className="flex items-center bg-gray-100 text-brand-text-secondary text-xs font-semibold px-2 py-1 rounded-full">
-              <span>{formatFilterType(type)}: {val}</span>
-              <button onClick={() => onRemoveFilter(type, val)} className="ml-1.5 text-gray-500 hover:text-brand-text">
+            <div key={`${type}-${val}`} className="flex items-center bg-gray-100 text-brand-text-secondary text-xs font-semibold px-2 py-1.5 rounded-lg whitespace-normal break-words max-w-full">
+              <span className="mr-1">{formatFilterType(type)}: {val}</span>
+              <button onClick={() => onRemoveFilter(type, val)} className="flex-shrink-0 ml-1 text-gray-500 hover:text-brand-text p-0.5">
                 <X size={14} />
               </button>
             </div>

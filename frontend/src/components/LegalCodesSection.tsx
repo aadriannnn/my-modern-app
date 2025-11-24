@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, ChevronDown, ChevronUp, Copy, BookOpen } from 'lucide-react';
 import type { LegalArticle } from '../types';
+import { LAW_TITLES } from '../lib/lawTitles';
 
 interface LegalCodesSectionProps {
     caseData: {
@@ -88,16 +89,21 @@ const LegalCodesSection: React.FC<LegalCodesSectionProps> = ({ caseData }) => {
     };
 
     const formatCodeSource = (codSursa: string): string => {
-        // Beautify code source name
-        const mapping: Record<string, string> = {
-            'cod_civil': 'Cod Civil',
-            'cod_penal': 'Cod Penal',
-            'cod_procedura_civila': 'Cod Procedură Civilă',
-            'cod_procedura_penala': 'Cod Procedură Penală',
-            'cod_fiscal': 'Cod Fiscal',
-            'codul_muncii': 'Codul Muncii',
-        };
-        return mapping[codSursa] || codSursa.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        // 1. Verifică dacă există mapare directă
+        if (LAW_TITLES[codSursa]) return LAW_TITLES[codSursa];
+
+        // 2. Normalizează numele tabelelor (ex: legea_302_2004 -> Legea 302/2004)
+        if (codSursa.startsWith('legea_')) {
+            const parts = codSursa.split('_');
+            if (parts.length === 3) {
+                const key = `Legea ${parts[1]}/${parts[2]}`;
+                if (LAW_TITLES[key]) return LAW_TITLES[key];
+            }
+        }
+
+        // 3. Fallback pentru coduri standard (ex: cod_civil -> Cod Civil)
+        const normalized = codSursa.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+        return LAW_TITLES[normalized] || normalized;
     };
 
     if (loading) {
@@ -159,7 +165,7 @@ const LegalCodesSection: React.FC<LegalCodesSectionProps> = ({ caseData }) => {
                                             <span className="text-xs font-semibold text-gray-500 uppercase">
                                                 {article.numar}
                                             </span>
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800 whitespace-normal break-words">
                                                 {formatCodeSource(article.cod_sursa)}
                                             </span>
                                         </div>
@@ -168,8 +174,8 @@ const LegalCodesSection: React.FC<LegalCodesSectionProps> = ({ caseData }) => {
                                         </h4>
                                         <div className="flex flex-wrap gap-2 mb-2">
                                             {article.materie && (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                                                    {article.materie}
+                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 whitespace-normal text-center">
+                                                    {LAW_TITLES[article.materie] || article.materie}
                                                 </span>
                                             )}
                                             {article.obiect && (

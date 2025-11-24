@@ -57,12 +57,13 @@ def get_available_code_tables(session: Session) -> List[str]:
         return []
 
 
-def determine_relevant_codes(materie: str) -> List[str]:
+def determine_relevant_codes(materie: str, available_tables: List[str] = None) -> List[str]:
     """
     Maps a case's materie (legal matter) to relevant code table names.
 
     Args:
         materie: Legal matter field from case (e.g., "civil", "penal")
+        available_tables: List of available tables in DB to check against
 
     Returns:
         List of table names to query (e.g., ["cod_civil"])
@@ -72,6 +73,26 @@ def determine_relevant_codes(materie: str) -> List[str]:
         return ["cod_civil", "cod_penal"]
 
     materie_lower = materie.lower().strip()
+
+    # 1. Try to find specific law table (e.g. "Legea nr. 302/2004..." -> "legea_302_2004")
+    if available_tables:
+        # Match "Legea 302/2004" or "Legea nr. 302/2004"
+        match = re.search(r'legea\s+(?:nr\.?\s*)?(\d+)/(\d{4})', materie_lower)
+        if match:
+            number, year = match.groups()
+            candidate_table = f"legea_{number}_{year}"
+            if candidate_table in available_tables:
+                logger.info(f"Materie '{materie}' mapped to specific table: {candidate_table}")
+                return [candidate_table]
+
+        # Match "OUG 195/2002" etc.
+        match_oug = re.search(r'(?:oug|ordonanta de urgenta)\s+(?:nr\.?\s*)?(\d+)/(\d{4})', materie_lower)
+        if match_oug:
+            number, year = match_oug.groups()
+            candidate_table = f"oug_{number}_{year}" # Assuming naming convention, or check variations
+            # Actually, let's just check if we can find it.
+            # If not found, fall back.
+            pass
 
     # Mapping of materie keywords to code tables
     materie_mapping = {
@@ -84,6 +105,8 @@ def determine_relevant_codes(materie: str) -> List[str]:
         "muncii": ["codul_muncii"],
         "munca": ["codul_muncii"],
         "familie": ["cod_civil"],  # Family law is in civil code
+        "administrativ": ["cod_administrativ"],
+        "silvic": ["cod_silvic"],
     }
 
     # Try exact match first
@@ -136,7 +159,7 @@ def get_relevant_articles(
         return []
 
     # Determine which tables to query based on materie
-    relevant_table_names = determine_relevant_codes(materie)
+    relevant_table_names = determine_relevant_codes(materie, available_tables)
 
     # Filter to only query tables that actually exist
     tables_to_query = [t for t in relevant_table_names if t in available_tables]

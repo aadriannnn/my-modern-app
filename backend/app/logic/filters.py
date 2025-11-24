@@ -11,7 +11,7 @@ from .object_clustering import (
     refine_groups_with_legal_knowledge
 )
 
-# --- Chei Canonice pentru MATERII ---
+# --- Chei Canonice pentru MATERII (pentru DETECȚIE) ---
 CANONICAL_KEYS_MATERII = [
     "Legea 8/1996", "Legea 7/1996", "Legea 10/2001", "Legea 11/1991", "Legea 14/2003",
     "Legea 17/2014", "Legea 18/1991", "Legea 19/2000", "Legea 21/1991", "Legea 21/1996",
@@ -40,6 +40,139 @@ CANONICAL_KEYS_MATERII = [
     "Asigurari sociale", "Litigii de munca", "Minori si familie",
     "Proprietate Intelectuala", "Litigii cu profesionistii",
     "Penal", "Civil"
+]
+
+# --- Mapare pentru AFIȘARE (Nume Profesionale) ---
+DISPLAY_NAMES_MATERII = {
+    # Coduri
+    "Codul Civil": "Codul Civil",
+    "Codul de Procedura Civila": "Codul de Procedură Civilă",
+    "Codul Penal": "Codul Penal",
+    "Codul de Procedura Penala": "Codul de Procedură Penală",
+    "Codul Muncii": "Codul Muncii",
+    "Codul de Procedura Fiscala": "Codul de Procedură Fiscală",
+    "Codul Fiscal": "Codul Fiscal",
+    "Codul Administrativ": "Codul Administrativ",
+    "Codul Silvic": "Codul Silvic",
+    "Codul Familiei": "Codul Familiei",
+    "Codul Comercial": "Codul Comercial",
+
+    # Legi - Lista Completă
+    "Legea 3/1977": "Legea nr. 3/1977 privind pensiile de asigurări sociale de stat și asistență socială",
+    "Legea 7/1996": "Legea cadastrului și a publicității imobiliare nr. 7/1996",
+    "Legea 8/1996": "Legea nr. 8/1996 privind dreptul de autor și drepturile conexe",
+    "Legea 10/2001": "Legea nr. 10/2001 privind regimul juridic al unor imobile preluate în mod abuziv în perioada 6 martie 1945 - 22 decembrie 1989",
+    "Legea 11/1991": "Legea nr. 11/1991 privind combaterea concurenței neloiale",
+    "Legea 14/2003": "Legea partidelor politice nr. 14/2003",
+    "Legea 17/2014": "Legea nr. 17/2014 privind unele măsuri de reglementare a vânzării terenurilor agricole situate în extravilan",
+    "Legea 18/1991": "Legea fondului funciar nr. 18/1991",
+    "Legea 19/2000": "Legea nr. 19/2000 privind sistemul public de pensii și alte drepturi de asigurări sociale",
+    "Legea 21/1991": "Legea cetățeniei române nr. 21/1991",
+    "Legea 21/1996": "Legea concurenței nr. 21/1996",
+    "Legea 26/2000": "Ordonanța Guvernului nr. 26/2000 cu privire la asociații și fundații",
+    "Legea 31/1990": "Legea societăților nr. 31/1990",
+    "Legea 33/1994": "Legea nr. 33/1994 privind exproprierea pentru cauză de utilitate publică",
+    "Legea 36/1991": "Legea nr. 36/1991 privind societățile agricole și alte forme de asociere în agricultură",
+    "Legea 36/1995": "Legea notarilor publici și a activității notariale nr. 36/1995",
+    "Legea 39/2003": "Legea nr. 39/2003 privind prevenirea și combaterea criminalității organizate",
+    "Legea 46/2003": "Legea drepturilor pacientului nr. 46/2003",
+    "Legea 46/2008": "Legea nr. 46/2008 - Codul silvic",
+    "Legea 47/1992": "Legea nr. 47/1992 privind organizarea și funcționarea Curții Constituționale",
+    "Legea 50/1991": "Legea nr. 50/1991 privind autorizarea executării lucrărilor de construcții",
+    "Legea 51/1995": "Legea nr. 51/1995 pentru organizarea și exercitarea profesiei de avocat",
+    "Legea 58/1934": "Legea nr. 58/1934 asupra cambiei și biletului la ordin",
+    "Legea 59/1934": "Legea nr. 59/1934 asupra cecului",
+    "Legea 62/2011": "Legea dialogului social nr. 62/2011",
+    "Legea 64/1991": "Legea nr. 64/1991 privind brevetele de invenție",
+    "Legea 71/2011": "Legea nr. 71/2011 pentru punerea în aplicare a Legii nr. 287/2009 privind Codul civil",
+    "Legea 76/2002": "Legea nr. 76/2002 privind sistemul asigurărilor pentru șomaj și stimularea ocupării forței de muncă",
+    "Legea 77/2016": "Legea nr. 77/2016 privind darea în plată a unor bunuri imobile în vederea stingerii obligațiilor asumate prin credite",
+    "Legea 78/2000": "Legea nr. 78/2000 pentru prevenirea, descoperirea și sancționarea faptelor de corupție",
+    "Legea 84/1998": "Legea nr. 84/1998 privind mărcile și indicațiile geografice",
+    "Legea 85/2006": "Legea nr. 85/2006 privind procedura insolvenței",
+    "Legea 85/2014": "Legea nr. 85/2014 privind procedurile de prevenire a insolvenței și de insolvență",
+    "Legea 86/2006": "Legea nr. 86/2006 privind Codul vamal al României",
+    "Legea 95/2006": "Legea nr. 95/2006 privind reforma în domeniul sănătății",
+    "Legea 112/1995": "Legea nr. 112/1995 pentru reglementarea situației juridice a unor imobile cu destinația de locuințe, trecute în proprietatea statului",
+    "Legea 115/2015": "Legea nr. 115/2015 pentru alegerea autorităților administrației publice locale",
+    "Legea 118/2019": "Legea nr. 118/2019 privind Registrul național automatizat cu privire la persoanele care au comis infracțiuni sexuale",
+    "Legea 119/1996": "Legea nr. 119/1996 cu privire la actele de stare civilă",
+    "Legea 129/1992": "Legea nr. 129/1992 privind protecția desenelor și modelelor industriale",
+    "Legea 129/2019": "Legea nr. 129/2019 pentru prevenirea și combaterea spălării banilor și finanțării terorismului",
+    "Legea 132/2017": "Legea nr. 132/2017 privind asigurarea obligatorie de răspundere civilă auto",
+    "Legea 136/1995": "Legea nr. 136/1995 privind asigurările și reasigurările în România",
+    "Legea 143/2000": "Legea nr. 143/2000 privind prevenirea și combaterea traficului și consumului ilicit de droguri",
+    "Legea 161/2003": "Legea nr. 161/2003 privind unele măsuri pentru asigurarea transparenței în exercitarea demnităților publice",
+    "Legea 165/2013": "Legea nr. 165/2013 privind măsurile pentru finalizarea procesului de restituire, în natură sau prin echivalent, a imobilelor preluate în mod abuziv",
+    "Legea 169/1997": "Legea nr. 169/1997 pentru modificarea și completarea Legii fondului funciar nr. 18/1991",
+    "Legea 176/2010": "Legea nr. 176/2010 privind integritatea în exercitarea funcțiilor și demnităților publice",
+    "Legea 187/2012": "Legea nr. 187/2012 pentru punerea în aplicare a Legii nr. 286/2009 privind Codul penal",
+    "Legea 192/2006": "Legea nr. 192/2006 privind medierea și organizarea profesiei de mediator",
+    "Legea 193/2000": "Legea nr. 193/2000 privind clauzele abuzive din contractele încheiate între profesioniști și consumatori",
+    "Legea 194/2002": "Legea nr. 194/2002 privind regimul străinilor în România",
+    "Legea 196/2018": "Legea nr. 196/2018 privind înființarea, organizarea și funcționarea asociațiilor de proprietari și administrarea condominiilor",
+    "Legea 207/2015": "Legea nr. 207/2015 privind Codul de procedură fiscală",
+    "Legea 208/2015": "Legea nr. 208/2015 privind alegerea Senatului și a Camerei Deputaților",
+    "Legea 211/2004": "Legea nr. 211/2004 privind unele măsuri pentru asigurarea protecției victimelor infracțiunilor",
+    "Legea 213/2015": "Legea nr. 213/2015 privind Fondul de Garantare a Asiguraților",
+    "Legea 217/2003": "Legea nr. 217/2003 pentru prevenirea și combaterea violenței în familie",
+    "Legea 221/2009": "Legea nr. 221/2009 privind condamnările cu caracter politic și măsurile administrative asimilate acestora",
+    "Legea 223/2015": "Legea nr. 223/2015 privind pensiile militare de stat",
+    "Legea 230/2007": "Legea nr. 230/2007 privind înființarea, organizarea și funcționarea asociațiilor de proprietari",
+    "Legea 241/2005": "Legea nr. 241/2005 pentru prevenirea și combaterea evaziunii fiscale",
+    "Legea 248/2005": "Legea nr. 248/2005 privind regimul liberei circulații a cetățenilor români în străinătate",
+    "Legea 253/2013": "Legea nr. 253/2013 privind executarea pedepselor, a măsurilor educative și a altor măsuri neprivative de libertate",
+    "Legea 254/2013": "Legea nr. 254/2013 privind executarea pedepselor și a măsurilor privative de libertate",
+    "Legea 255/2010": "Legea nr. 255/2010 privind exproprierea pentru cauză de utilitate publică",
+    "Legea 263/2010": "Legea nr. 263/2010 privind sistemul unitar de pensii publice",
+    "Legea 272/2004": "Legea nr. 272/2004 privind protecția și promovarea drepturilor copilului",
+    "Legea 273/2004": "Legea nr. 273/2004 privind procedura adopției",
+    "Legea 292/2011": "Legea asistenței sociale nr. 292/2011",
+    "Legea 297/2004": "Legea nr. 297/2004 privind piața de capital",
+    "Legea 302/2004": "Legea nr. 302/2004 privind cooperarea judiciară internațională în materie penală",
+    "Legea 303/2004": "Legea nr. 303/2004 privind statutul judecătorilor și procurorilor",
+    "Legea 331/2024": "Legea nr. 331/2024 privind responsabilitatea parentală",
+    "Legea 341/2004": "Legea recunoștinței pentru victoria Revoluției Române din Decembrie 1989 nr. 341/2004",
+    "Legea 350/2007": "Legea nr. 350/2001 privind amenajarea teritoriului și urbanismul",
+    "Legea 360/2023": "Legea nr. 360/2023 privind sistemul public de pensii",
+    "Legea 365/2002": "Legea nr. 365/2002 privind comerțul electronic",
+    "Legea 367/2022": "Legea dialogului social nr. 367/2022",
+    "Legea 422/2001": "Legea nr. 422/2001 privind protejarea monumentelor istorice",
+    "Legea 448/2006": "Legea nr. 448/2006 privind protecția și promovarea drepturilor persoanelor cu handicap",
+    "Legea 487/2002": "Legea sănătății mintale și a protecției persoanelor cu tulburări psihice nr. 487/2002",
+    "Legea 554/2004": "Legea contenciosului administrativ nr. 554/2004",
+    "Legea 678/2001": "Legea nr. 678/2001 privind prevenirea și combaterea traficului de persoane",
+
+    "Ordonanta 2/2001": "Ordonanța Guvernului nr. 2/2001 privind regimul juridic al contravențiilor",
+    "Ordonanta 5/2001": "Ordonanța Guvernului nr. 5/2001 privind procedura somației de plată",
+    "Ordonanta de urgenta 195/2002": "O.U.G. nr. 195/2002 privind circulația pe drumurile publice",
+    "Regulamentul 679/2016": "Regulamentul (UE) 2016/679 (GDPR)",
+
+    # Categorii generale
+    "Contencios administrativ si fiscal": "Contencios administrativ și fiscal",
+    "Contencios administrativ": "Contencios administrativ",
+    "Asigurari sociale": "Asigurări sociale",
+    "Litigii de munca": "Litigii de muncă",
+    "Minori si familie": "Minori și familie",
+    "Proprietate Intelectuala": "Proprietate Intelectuală",
+    "Litigii cu profesionistii": "Litigii cu profesioniștii",
+    "Penal": "Penal",
+    "Civil": "Civil"
+}
+
+# --- Ordine de Prioritate la Afișare ---
+MATERII_PRIORITY_ORDER = [
+    "Codul Civil",
+    "Codul de Procedură Civilă",
+    "Codul Penal",
+    "Codul de Procedură Penală",
+    "Codul Muncii",
+    "Codul de Procedură Fiscală",
+    "Codul Fiscal",
+    "Codul Administrativ",
+    "Codul Silvic",
+    "Codul Familiei",
+    "Codul Comercial"
 ]
 
 # --- Liste de DEDUCERE ---
@@ -185,6 +318,14 @@ def load_and_build_menu_data(session: Session):
         materie_canon = materie_canon or eq_map_materii.get("Necunoscut", "Necunoscut")
         obiect_canon = obiect_canon or eq_map_obiecte.get("(fără obiect)", "(fără obiect)")
 
+        # --- APLICARE NUME PROFESIONALE (DISPLAY NAMES) ---
+        # Aici transformăm cheia canonică scurtă în numele lung, profesional
+        if materie_canon in DISPLAY_NAMES_MATERII:
+            materie_canon = DISPLAY_NAMES_MATERII[materie_canon]
+        elif materie_canon.startswith("Legea ") and "/" in materie_canon and "nr." not in materie_canon:
+             # Auto-fix simplu pentru legi care nu sunt în mapare: "Legea 1/2000" -> "Legea nr. 1/2000"
+             materie_canon = materie_canon.replace("Legea ", "Legea nr. ")
+
         menu_data_intermediate[materie_canon][obiect_canon] += count
 
     # ===== ADVANCED CLUSTERING: Group similar objects per materie =====
@@ -254,9 +395,20 @@ def load_and_build_menu_data(session: Session):
         details[materie] = obiecte_list_for_materie
         materii_counts[materie] = sum(item['count'] for item in obiecte_list_for_materie)
 
+    # Funcție de sortare personalizată pentru materii
+    def get_materie_sort_key(item):
+        name, count = item
+        if name in MATERII_PRIORITY_ORDER:
+            # Returnează indexul din lista de prioritate (0, 1, 2...)
+            # Folosim un tuplu (0, index) pentru a le pune primele
+            return (0, MATERII_PRIORITY_ORDER.index(name))
+        # Pentru restul, sortăm după număr (descrescător)
+        # Folosim (1, -count) pentru a le pune după cele prioritare
+        return (1, -count)
+
     materii_list = [
         {"name": name, "count": count}
-        for name, count in sorted(materii_counts.items(), key=lambda item: item[1], reverse=True)
+        for name, count in sorted(materii_counts.items(), key=get_materie_sort_key)
     ]
 
     # 6.2: Generează lista globală de `obiecte`

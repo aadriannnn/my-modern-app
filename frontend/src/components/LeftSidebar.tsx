@@ -320,7 +320,7 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, items, selected, onCha
                   </div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <span className={`text-sm block truncate ${selected.includes(item.name) ? 'font-medium text-brand-primary' : 'text-brand-text-secondary group-hover:text-brand-text'}`}>
+                  <span className={`text-sm block whitespace-normal ${selected.includes(item.name) ? 'font-medium text-brand-primary' : 'text-brand-text-secondary group-hover:text-brand-text'}`}>
                     {item.name}
                   </span>
                 </div>
