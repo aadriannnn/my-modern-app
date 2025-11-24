@@ -1,6 +1,6 @@
 import React, { useState, Fragment } from 'react';
 import type { Filters, SelectedFilters, FilterItem } from '../types';
-import { ChevronDown, X, PlusCircle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronDown, X, PlusCircle, ChevronLeft, ChevronRight, Edit2, Check } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat1 from '../assets/reclama/avocat1.jpg';
 
@@ -36,10 +36,39 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     onFilterChange(filterType, newValues);
   };
 
+  const handleMaterieChange = (materieName: string) => {
+    if (selectedFilters.materie === materieName) {
+      // Deselecting current materie -> Reset everything
+      onFilterChange('materie', '');
+      onFilterChange('obiect', []);
+      onFilterChange('tip_speta', []);
+      onFilterChange('parte', []);
+    } else {
+      // Selecting new materie
+      onFilterChange('materie', materieName);
+      onFilterChange('obiect', []);
+      onFilterChange('tip_speta', []);
+      onFilterChange('parte', []);
+    }
+  };
+
+  const resetToMaterie = () => {
+    onFilterChange('materie', '');
+    onFilterChange('obiect', []);
+    onFilterChange('tip_speta', []);
+    onFilterChange('parte', []);
+  };
+
+  const resetToObiect = () => {
+    onFilterChange('obiect', []);
+    onFilterChange('tip_speta', []);
+    onFilterChange('parte', []);
+  };
+
   const sidebarContent = (
-    <div className={`p-4 space-y-6 flex flex-col h-full transition-opacity duration-200 ${!isDesktopOpen ? 'md:opacity-0 md:pointer-events-none' : 'opacity-100'}`}>
+    <div className={`p-4 space-y-4 flex flex-col h-full transition-opacity duration-200 ${!isDesktopOpen ? 'md:opacity-0 md:pointer-events-none' : 'opacity-100'}`}>
       <div>
-        <div className="flex justify-between items-center">
+        <div className="flex justify-between items-center mb-4">
           <h3 className="text-lg font-semibold text-brand-text">Filtre</h3>
           <button onClick={onClose} className="md:hidden text-brand-text-secondary hover:text-brand-text">
             <X size={24} />
@@ -47,45 +76,127 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         </div>
       </div>
 
-      <div className="flex-grow overflow-y-auto custom-scrollbar">
-        <div>
-          <h4 className="font-semibold text-brand-text mb-2">Materie</h4>
-          <div className="space-y-2">
-            {materii.map(materie => (
-              <button
-                key={materie.name}
-                onClick={() => onFilterChange('materie', selectedFilters.materie === materie.name ? '' : materie.name)}
-                className={`w-full flex justify-between items-center text-left px-3 py-2 rounded-lg text-sm transition-colors ${selectedFilters.materie === materie.name
-                  ? 'bg-brand-primary text-white font-semibold'
-                  : 'bg-white hover:bg-gray-100 text-brand-text'
-                  }`}
-              >
-                <span>{materie.name}</span>
-                <span className="text-xs opacity-70">{materie.count}</span>
-              </button>
-            ))}
-          </div>
+      <div className="flex-grow overflow-y-auto custom-scrollbar space-y-4">
+
+        {/* 1. MATERIE SECTION */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
+          {!selectedFilters.materie ? (
+            // STATE: No Materie Selected -> Show List
+            <div className="p-3">
+              <h4 className="font-semibold text-brand-text mb-3 flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-primary text-white text-xs">1</span>
+                Alege Materia
+              </h4>
+              <div className="space-y-1">
+                {materii.map(materie => (
+                  <button
+                    key={materie.name}
+                    onClick={() => handleMaterieChange(materie.name)}
+                    className="w-full flex justify-between items-center text-left px-3 py-2.5 rounded-lg text-sm transition-colors hover:bg-gray-50 text-brand-text group"
+                  >
+                    <span className="font-medium group-hover:text-brand-primary transition-colors">{materie.name}</span>
+                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full group-hover:bg-brand-primary/10 group-hover:text-brand-primary transition-colors">
+                      {materie.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            // STATE: Materie Selected -> Show Summary Header
+            <div className="p-3 bg-brand-primary/5 border-l-4 border-brand-primary">
+              <div className="flex justify-between items-center">
+                <div>
+                  <div className="text-xs text-brand-primary font-semibold uppercase tracking-wider mb-0.5">Materie</div>
+                  <div className="font-bold text-brand-text text-lg">{selectedFilters.materie}</div>
+                </div>
+                <button
+                  onClick={resetToMaterie}
+                  className="p-1.5 text-brand-text-secondary hover:text-brand-primary hover:bg-white rounded-full transition-all"
+                  title="Modifică materia"
+                >
+                  <Edit2 size={16} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
-        <FilterGroup
-          title="Obiect"
-          items={availableObiecte}
-          selected={selectedFilters.obiect as string[]}
-          onChange={(val) => handleCheckboxChange('obiect', val)}
-          disabled={!selectedFilters.materie}
-        />
-        <FilterGroup
-          title="Tip Speță"
-          items={tipSpeta}
-          selected={selectedFilters.tip_speta as string[]}
-          onChange={(val) => handleCheckboxChange('tip_speta', val)}
-        />
-        <FilterGroup
-          title="Parte"
-          items={parte}
-          selected={selectedFilters.parte as string[]}
-          onChange={(val) => handleCheckboxChange('parte', val)}
-        />
+        {/* 2. OBIECT SECTION - Only visible if Materie is selected */}
+        {selectedFilters.materie && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+            {selectedFilters.obiect.length === 0 ? (
+              // STATE: No Obiect Selected -> Show Searchable List
+              <div className="p-3">
+                <h4 className="font-semibold text-brand-text mb-3 flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-primary text-white text-xs">2</span>
+                  Alege Obiectul
+                </h4>
+                <FilterGroup
+                  title="Obiecte disponibile"
+                  items={availableObiecte}
+                  selected={selectedFilters.obiect as string[]}
+                  onChange={(val) => handleCheckboxChange('obiect', val)}
+                  showBadge={false}
+                  alwaysExpanded={true}
+                />
+              </div>
+            ) : (
+              // STATE: Obiect Selected -> Show Summary Header
+              <div className="p-3 bg-brand-accent/5 border-l-4 border-brand-accent">
+                <div className="flex justify-between items-center">
+                  <div className="overflow-hidden">
+                    <div className="text-xs text-brand-accent font-semibold uppercase tracking-wider mb-0.5">Obiect</div>
+                    <div className="font-bold text-brand-text truncate">
+                      {selectedFilters.obiect.length === 1
+                        ? selectedFilters.obiect[0]
+                        : `${selectedFilters.obiect.length} obiecte selectate`}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onFilterChange('obiect', [])} // Just clear obiects to re-open list, keep materie
+                    className="p-1.5 text-brand-text-secondary hover:text-brand-accent hover:bg-white rounded-full transition-all"
+                    title="Modifică obiectul"
+                  >
+                    <Edit2 size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 3. DETALII SECTION - Only visible if Obiect is selected */}
+        {selectedFilters.obiect.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="p-3">
+              <h4 className="font-semibold text-brand-text mb-3 flex items-center gap-2">
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-primary text-white text-xs">3</span>
+                Filtrează după Detalii
+              </h4>
+
+              <div className="space-y-4">
+                <FilterGroup
+                  title="Tip Speță"
+                  items={tipSpeta}
+                  selected={selectedFilters.tip_speta as string[]}
+                  onChange={(val) => handleCheckboxChange('tip_speta', val)}
+                  showBadge={true}
+                />
+                <div className="border-t border-gray-100 pt-4">
+                  <FilterGroup
+                    title="Parte"
+                    items={parte}
+                    selected={selectedFilters.parte as string[]}
+                    onChange={(val) => handleCheckboxChange('parte', val)}
+                    showBadge={true}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
       </div>
 
       <Advertisement imageSrc={avocat1} altText="Reclamă avocat" />
@@ -151,10 +262,12 @@ interface FilterGroupProps {
   selected: string[];
   onChange: (value: string) => void;
   disabled?: boolean;
+  showBadge?: boolean;
+  alwaysExpanded?: boolean;
 }
 
-const FilterGroup: React.FC<FilterGroupProps> = ({ title, items, selected, onChange, disabled }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+const FilterGroup: React.FC<FilterGroupProps> = ({ title, items, selected, onChange, disabled, showBadge, alwaysExpanded = false }) => {
+  const [isExpanded, setIsExpanded] = useState(alwaysExpanded);
   const [searchTerm, setSearchTerm] = useState('');
 
   const mappedItems = (items ?? []).map(item =>
@@ -166,44 +279,69 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, items, selected, onCha
   );
 
   return (
-    <div className={`border-t border-gray-200 pt-4 mt-4 ${disabled ? 'opacity-50' : ''}`}>
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex justify-between items-center font-semibold text-brand-text"
-        disabled={disabled}
-      >
-        <span>{title}</span>
-        <ChevronDown size={20} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
-      </button>
+    <div className={`${disabled ? 'opacity-50' : ''}`}>
+      {!alwaysExpanded && (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className="w-full flex justify-between items-center font-semibold text-brand-text mb-2"
+          disabled={disabled}
+        >
+          <div className="flex items-center gap-2">
+            <span>{title}</span>
+            {showBadge && selected.length > 0 && (
+              <span className="text-xs bg-brand-accent text-white px-2 py-0.5 rounded-full">
+                {selected.length}
+              </span>
+            )}
+          </div>
+          <ChevronDown size={20} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+        </button>
+      )}
+
       {isExpanded && (
-        <div className="mt-3 space-y-2">
-          {title === 'Obiect' && !disabled && (
+        <div className="space-y-2">
+          {/* Show search input if it's Obiect group or if there are many items */}
+          {(title.includes('Obiect') || mappedItems.length > 10) && !disabled && (
             <input
               type="text"
-              placeholder="Caută obiect..."
+              placeholder="Caută..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-3 py-1.5 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-brand-accent"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all bg-gray-50 focus:bg-white"
             />
           )}
-          <div className="max-h-60 overflow-y-auto pr-2">
+          <div className={`overflow-y-auto custom-scrollbar ${alwaysExpanded ? 'max-h-[400px]' : 'max-h-60'} pr-1`}>
             {(filteredItems ?? []).map((item, index) => (
-              <label key={`${item.name}-${index}`} className="flex items-center justify-between space-x-2 cursor-pointer p-1 rounded-md hover:bg-gray-100">
-                <div className="flex items-center">
+              <label key={`${item.name}-${index}`} className="flex items-start space-x-3 cursor-pointer p-2 rounded-lg hover:bg-gray-50 transition-colors group">
+                <div className="relative flex items-center mt-0.5">
                   <input
                     type="checkbox"
                     checked={selected.includes(item.name)}
                     onChange={() => onChange(item.name)}
                     disabled={disabled}
-                    className="h-4 w-4 rounded text-brand-primary focus:ring-brand-accent"
+                    className="peer h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary/20"
                   />
-                  <span className="ml-2 text-sm text-brand-text-secondary">{item.name}</span>
+                  <div className="absolute inset-0 bg-white hidden peer-checked:block pointer-events-none">
+                    <Check size={16} className="text-brand-primary" />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className={`text-sm block truncate ${selected.includes(item.name) ? 'font-medium text-brand-primary' : 'text-brand-text-secondary group-hover:text-brand-text'}`}>
+                    {item.name}
+                  </span>
                 </div>
                 {item.count !== null && (
-                  <span className="text-sm text-gray-400">{item.count}</span>
+                  <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
+                    {item.count}
+                  </span>
                 )}
               </label>
             ))}
+            {filteredItems.length === 0 && (
+              <div className="text-sm text-gray-400 text-center py-4 italic">
+                Nu s-au găsit rezultate
+              </div>
+            )}
           </div>
         </div>
       )}
