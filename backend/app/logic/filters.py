@@ -167,12 +167,12 @@ MATERII_PRIORITY_ORDER = [
     "Codul Penal",
     "Codul de Procedură Penală",
     "Codul Muncii",
-    "Codul de Procedură Fiscală",
-    "Codul Fiscal",
     "Codul Administrativ",
-    "Codul Silvic",
+    "Codul Comercial",
+    "Codul de Procedură Fiscală",
     "Codul Familiei",
-    "Codul Comercial"
+    "Codul Fiscal",
+    "Codul Silvic"
 ]
 
 # --- Liste de DEDUCERE ---

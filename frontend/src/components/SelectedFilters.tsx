@@ -1,5 +1,6 @@
 import React from 'react';
 import { X } from 'lucide-react';
+import { LAW_TITLES } from '../lib/lawTitles';
 
 interface SelectedFiltersProps {
   filters: {
@@ -37,14 +38,18 @@ const SelectedFilters: React.FC<SelectedFiltersProps> = ({ filters, onRemoveFilt
       <div className="flex flex-wrap gap-2">
         {selectedFilterEntries.map(([type, value]) => {
           const displayValues = Array.isArray(value) ? value : [value];
-          return displayValues.map((val) => (
-            <div key={`${type}-${val}`} className="flex items-center bg-gray-100 text-brand-text-secondary text-xs font-semibold px-2 py-1.5 rounded-lg whitespace-normal break-words max-w-full">
-              <span className="mr-1">{formatFilterType(type)}: {val}</span>
-              <button onClick={() => onRemoveFilter(type, val)} className="flex-shrink-0 ml-1 text-gray-500 hover:text-brand-text p-0.5">
-                <X size={14} />
-              </button>
-            </div>
-          ));
+          return displayValues.map((val) => {
+            // Use LAW_TITLES for materie to display full law names
+            const displayValue = type === 'materie' ? (LAW_TITLES[val] || val) : val;
+            return (
+              <div key={`${type}-${val}`} className="flex items-center bg-gray-100 text-brand-text-secondary text-xs font-semibold px-2 py-1.5 rounded-lg whitespace-normal break-words max-w-full">
+                <span className="mr-1">{formatFilterType(type)}: {displayValue}</span>
+                <button onClick={() => onRemoveFilter(type, val)} className="flex-shrink-0 ml-1 text-gray-500 hover:text-brand-text p-0.5">
+                  <X size={14} />
+                </button>
+              </div>
+            );
+          });
         })}
       </div>
     </div>

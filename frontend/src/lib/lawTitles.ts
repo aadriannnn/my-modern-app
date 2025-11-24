@@ -1,16 +1,18 @@
 export const LAW_TITLES: Record<string, string> = {
-    // Coduri
+    // Coduri - Ordine Prioritară
     "Codul Civil": "Codul Civil",
     "Codul de Procedura Civila": "Codul de Procedură Civilă",
     "Codul Penal": "Codul Penal",
     "Codul de Procedura Penala": "Codul de Procedură Penală",
     "Codul Muncii": "Codul Muncii",
-    "Codul de Procedura Fiscala": "Codul de Procedură Fiscală",
-    "Codul Fiscal": "Codul Fiscal",
+
+    // Alte Coduri
     "Codul Administrativ": "Codul Administrativ",
-    "Codul Silvic": "Codul Silvic",
-    "Codul Familiei": "Codul Familiei",
     "Codul Comercial": "Codul Comercial",
+    "Codul de Procedura Fiscala": "Codul de Procedură Fiscală",
+    "Codul Familiei": "Codul Familiei",
+    "Codul Fiscal": "Codul Fiscal",
+    "Codul Silvic": "Codul Silvic",
 
     // Legi - Lista Completă
     "Legea 3/1977": "Legea nr. 3/1977 privind pensiile de asigurări sociale de stat și asistență socială",
