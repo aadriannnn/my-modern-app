@@ -5,6 +5,7 @@ import { Loader2, Search } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
 import UserJourneyMap from './UserJourneyMap';
+import ExampleCaseButton from './ExampleCaseButton';
 
 interface MainContentProps {
   results: any[];
@@ -31,6 +32,9 @@ type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individua
 
 
 
+// Example case text for user education
+const EXAMPLE_CASE = "Contestatorii au formulat contestație la executare silită împotriva actelor de executare pornite de un executor judecătoresc la cererea creditorului, bazate pe două contracte de împrumut. Aceștia au solicitat anularea actelor de executare, reducerea cheltuielilor de executare și anularea titlurilor executorii (contractele de împrumut), argumentând că prețurile din contracte erau neserioase, sumele împrumutate nu au fost primite integral și că actele ascundeau o operațiune de cămătărie.";
+
 const MainContent: React.FC<MainContentProps> = ({
   results,
   status,
@@ -47,7 +51,36 @@ const MainContent: React.FC<MainContentProps> = ({
   onMinimizeSidebar
 }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
-  const observer = useRef<IntersectionObserver | null>(null)
+  const observer = useRef<IntersectionObserver | null>(null);
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Handle example case fill with typing animation
+  const handleExampleFill = useCallback(() => {
+    const text = EXAMPLE_CASE;
+    let index = 0;
+
+    // Clear current text
+    onSituatieChange('');
+
+    // Typing animation
+    const typingInterval = setInterval(() => {
+      if (index < text.length) {
+        onSituatieChange(text.substring(0, index + 1));
+        index++;
+      } else {
+        clearInterval(typingInterval);
+        // Smooth scroll to search button after typing completes
+        setTimeout(() => {
+          searchButtonRef.current?.scrollIntoView({
+            behavior: 'smooth',
+            block: 'nearest'
+          });
+        }, 300);
+      }
+    }, 10); // Fast typing speed for better UX
+
+    return () => clearInterval(typingInterval);
+  }, [onSituatieChange])
 
 
 
@@ -124,6 +157,7 @@ const MainContent: React.FC<MainContentProps> = ({
         {/* Search Bar */}
         <div className="mb-6">
           <div className="relative group">
+            <ExampleCaseButton onExampleClick={handleExampleFill} />
             <textarea
               value={situatie}
               onChange={(e) => onSituatieChange(e.target.value)}
@@ -136,6 +170,7 @@ const MainContent: React.FC<MainContentProps> = ({
             </div>
           </div>
           <button
+            ref={searchButtonRef}
             onClick={() => {
               onSearch();
               onMinimizeSidebar?.();
