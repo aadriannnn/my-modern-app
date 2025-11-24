@@ -249,22 +249,91 @@ const MainContent: React.FC<MainContentProps> = ({
         {results.length === 0 && !isLoading && <FeaturesSection />}
 
         {results.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-1 mb-4 flex-wrap">
-            <div className="flex justify-center items-center">
-              {viewButtons.map(({ key, label }) => (
-                <button
-                  key={key}
-                  onClick={() => setActiveView(key)}
-                  className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-200 ${activeView === key
-                    ? 'bg-brand-dark text-white shadow-sm'
-                    : 'text-brand-text-secondary hover:bg-gray-100'
-                    }`}
-                >
-                  {label}
-                </button>
-              ))}
+          <>
+            {/* Mobile View - Vertical Stack */}
+            <div className="md:hidden mb-4">
+              <div className="bg-gradient-to-br from-brand-accent/5 to-purple-500/5 rounded-xl p-3 border border-brand-accent/20">
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <p className="text-xs font-semibold text-brand-text-secondary uppercase tracking-wide">
+                    Ordonare după:
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <div className="w-1.5 h-1.5 rounded-full bg-brand-accent animate-pulse"></div>
+                    <span className="text-xs text-brand-accent font-medium">
+                      {viewButtons.find(v => v.key === activeView)?.label}
+                    </span>
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  {viewButtons.map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => setActiveView(key)}
+                      className={`w-full px-4 py-2.5 text-sm font-semibold rounded-lg transition-all duration-200 flex items-center justify-between group ${activeView === key
+                          ? 'bg-gradient-to-r from-brand-accent to-brand-accent-dark text-white shadow-md scale-[1.02]'
+                          : 'bg-white text-brand-text-secondary hover:bg-brand-accent/10 hover:shadow-sm border border-gray-200/50'
+                        }`}
+                    >
+                      <span className="flex-1 text-left">{label}</span>
+                      {activeView === key && (
+                        <svg
+                          className="w-4 h-4 ml-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
+                      {activeView !== key && (
+                        <svg
+                          className="w-4 h-4 ml-2 opacity-0 group-hover:opacity-100 transition-opacity"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M9 5l7 7-7 7"
+                          />
+                        </svg>
+                      )}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-brand-text-secondary/70 mt-2 px-1 italic">
+                  Selectează un criteriu pentru a reordona rezultatele
+                </p>
+              </div>
             </div>
-          </div>
+
+            {/* Desktop View - Horizontal Layout */}
+            <div className="hidden md:block mb-4">
+              <div className="bg-white rounded-lg shadow p-1">
+                <div className="flex justify-center items-center flex-wrap gap-1">
+                  {viewButtons.map(({ key, label }) => (
+                    <button
+                      key={key}
+                      onClick={() => setActiveView(key)}
+                      className={`px-3 py-1.5 text-sm font-semibold rounded-md transition-all duration-200 ${activeView === key
+                          ? 'bg-brand-dark text-white shadow-sm'
+                          : 'text-brand-text-secondary hover:bg-gray-100'
+                        }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </>
         )}
 
         <SelectedFilters

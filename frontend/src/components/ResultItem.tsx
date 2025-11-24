@@ -55,33 +55,64 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView 
   const title = generateTitle(result);
 
   return (
-    <div className="bg-white p-5 border border-gray-200 rounded-lg shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand-accent">
-      {/* Header Card */}
-      <div className="flex justify-between items-start pb-3 mb-3 border-b border-gray-100">
-        <h3 className="text-lg font-semibold text-brand-primary flex-1 cursor-pointer pr-4" onClick={onViewCase}>
-          {title}
-        </h3>
-        <div className="flex items-center space-x-2">
+    <div className="bg-white p-3 md:p-5 border border-gray-200 rounded-lg shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand-accent">
+      {/* Mobile: Icons First (Above Title) */}
+      <div className="md:hidden">
+        {/* Action Icons Row */}
+        <div className="flex items-center justify-end space-x-1 mb-2">
           <IconButton
-            icon={isInDosar ? <FolderCheck size={18} className="text-green-600" /> : <FolderPlus size={18} />}
+            icon={isInDosar ? <FolderCheck size={16} className="text-green-600" /> : <FolderPlus size={16} />}
             tooltip={isInDosar ? "Șterge din dosar" : "Adaugă la dosar"}
             onClick={handleDosarClick}
           />
           <ShareButton caseData={result.data} />
-          <IconButton icon={<Printer size={18} />} tooltip="Printează" onClick={handlePrint} />
-          <IconButton icon={<Eye size={18} />} tooltip="Vezi detalii" onClick={onViewCase} />
+          <IconButton icon={<Printer size={16} />} tooltip="Printează" onClick={handlePrint} />
+          <IconButton icon={<Eye size={16} />} tooltip="Vezi detalii" onClick={onViewCase} />
+        </div>
+
+        {/* Title - Full Width */}
+        <h3 className="text-base font-semibold text-brand-primary cursor-pointer mb-2 leading-snug" onClick={onViewCase}>
+          {title}
+        </h3>
+
+        {/* Content - More Lines Visible */}
+        <div className="text-sm text-brand-text-secondary leading-relaxed cursor-pointer mb-2" onClick={onViewCase}>
+          <p className="line-clamp-6">{content}</p>
+        </div>
+
+        {/* Footer Info */}
+        <div className="flex items-center flex-wrap gap-2 text-xs text-gray-500">
+          <InfoItem icon={<Scale size={14} />} text={result.data?.materie || 'N/A'} />
+          <InfoItem icon={<Calendar size={14} />} text={result.data?.sursa || 'N/A'} />
         </div>
       </div>
 
-      {/* Content */}
-      <div className="text-sm text-brand-text-secondary leading-relaxed cursor-pointer" onClick={onViewCase}>
-        <p className="line-clamp-4">{content}</p>
-      </div>
+      {/* Desktop: Original Layout */}
+      <div className="hidden md:block">
+        <div className="flex justify-between items-start pb-3 mb-3 border-b border-gray-100">
+          <h3 className="text-lg font-semibold text-brand-primary flex-1 cursor-pointer pr-4" onClick={onViewCase}>
+            {title}
+          </h3>
+          <div className="flex items-center space-x-2">
+            <IconButton
+              icon={isInDosar ? <FolderCheck size={18} className="text-green-600" /> : <FolderPlus size={18} />}
+              tooltip={isInDosar ? "Șterge din dosar" : "Adaugă la dosar"}
+              onClick={handleDosarClick}
+            />
+            <ShareButton caseData={result.data} />
+            <IconButton icon={<Printer size={18} />} tooltip="Printează" onClick={handlePrint} />
+            <IconButton icon={<Eye size={18} />} tooltip="Vezi detalii" onClick={onViewCase} />
+          </div>
+        </div>
 
-      {/* Footer Card */}
-      <div className="flex items-center space-x-4 text-xs text-gray-500 mt-4">
-        <InfoItem icon={<Scale size={14} />} text={result.data?.materie || 'N/A'} />
-        <InfoItem icon={<Calendar size={14} />} text={result.data?.sursa || 'N/A'} />
+        <div className="text-sm text-brand-text-secondary leading-relaxed cursor-pointer" onClick={onViewCase}>
+          <p className="line-clamp-4">{content}</p>
+        </div>
+
+        <div className="flex items-center space-x-4 text-xs text-gray-500 mt-4">
+          <InfoItem icon={<Scale size={14} />} text={result.data?.materie || 'N/A'} />
+          <InfoItem icon={<Calendar size={14} />} text={result.data?.sursa || 'N/A'} />
+        </div>
       </div>
     </div>
   );
