@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Filters, SelectedFilters, FilterItem } from '../types';
 import { X, ChevronLeft, ChevronRight, Check, Search, Filter } from 'lucide-react';
-import { getCurrentStep } from '../lib/filterHelpers';
+
 
 interface ProgressiveFiltersMobileProps {
     filters: Filters | null;
@@ -139,8 +139,8 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                                     key={materie.name}
                                     onClick={() => handleMaterieSelect(materie.name)}
                                     className={`relative flex items-center p-4 rounded-xl border-2 transition-all ${selectedFilters.materie === materie.name
-                                            ? 'border-brand-primary bg-brand-primary/5 shadow-md'
-                                            : 'border-transparent bg-white shadow-sm hover:border-gray-200'
+                                        ? 'border-brand-primary bg-brand-primary/5 shadow-md'
+                                        : 'border-transparent bg-white shadow-sm hover:border-gray-200'
                                         }`}
                                 >
                                     <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-4 ${selectedFilters.materie === materie.name ? 'bg-brand-primary text-white' : 'bg-gray-100 text-gray-500'
@@ -194,8 +194,8 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                                         <label
                                             key={`${obiect.name}-${index}`}
                                             className={`flex items-center p-3 rounded-xl border transition-all cursor-pointer ${isSelected
-                                                    ? 'bg-brand-primary/5 border-brand-primary shadow-sm'
-                                                    : 'bg-white border-transparent shadow-sm'
+                                                ? 'bg-brand-primary/5 border-brand-primary shadow-sm'
+                                                : 'bg-white border-transparent shadow-sm'
                                                 }`}
                                         >
                                             <div className={`w-6 h-6 rounded border flex items-center justify-center mr-3 transition-colors ${isSelected ? 'bg-brand-primary border-brand-primary' : 'border-gray-300 bg-white'
@@ -246,8 +246,8 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                                             <label
                                                 key={`${tip}-${index}`}
                                                 className={`flex items-center p-3 rounded-xl border transition-all cursor-pointer ${isSelected
-                                                        ? 'bg-brand-accent/5 border-brand-accent shadow-sm'
-                                                        : 'bg-white border-transparent shadow-sm'
+                                                    ? 'bg-brand-accent/5 border-brand-accent shadow-sm'
+                                                    : 'bg-white border-transparent shadow-sm'
                                                     }`}
                                             >
                                                 <div className={`w-5 h-5 rounded border flex items-center justify-center mr-3 transition-colors ${isSelected ? 'bg-brand-accent border-brand-accent' : 'border-gray-300 bg-white'
@@ -279,8 +279,8 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                                             <label
                                                 key={`${p}-${index}`}
                                                 className={`flex items-center p-3 rounded-xl border transition-all cursor-pointer ${isSelected
-                                                        ? 'bg-brand-accent/5 border-brand-accent shadow-sm'
-                                                        : 'bg-white border-transparent shadow-sm'
+                                                    ? 'bg-brand-accent/5 border-brand-accent shadow-sm'
+                                                    : 'bg-white border-transparent shadow-sm'
                                                     }`}
                                             >
                                                 <div className={`w-5 h-5 rounded border flex items-center justify-center mr-3 transition-colors ${isSelected ? 'bg-brand-accent border-brand-accent' : 'border-gray-300 bg-white'

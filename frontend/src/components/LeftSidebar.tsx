@@ -59,12 +59,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     onFilterChange('parte', []);
   };
 
-  const resetToObiect = () => {
-    onFilterChange('obiect', []);
-    onFilterChange('tip_speta', []);
-    onFilterChange('parte', []);
-  };
-
   const sidebarContent = (
     <div className={`p-4 space-y-4 flex flex-col h-full transition-opacity duration-200 ${!isDesktopOpen ? 'md:opacity-0 md:pointer-events-none' : 'opacity-100'}`}>
       <div>
