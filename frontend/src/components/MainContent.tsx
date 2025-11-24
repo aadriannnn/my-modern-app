@@ -161,7 +161,7 @@ const MainContent: React.FC<MainContentProps> = ({
             <textarea
               value={situatie}
               onChange={(e) => onSituatieChange(e.target.value)}
-              placeholder="Introduceți situația de fapt, cuvinte cheie sau articole de lege..."
+              placeholder="Introduceți situația de fapt sau cuvinte cheie relevante. Utilizați filtrele din meniu pentru a rafina rezultatele..."
               rows={3}
               className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl bg-white text-brand-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent shadow-sm transition-all duration-200 resize-y min-h-[80px]"
             />

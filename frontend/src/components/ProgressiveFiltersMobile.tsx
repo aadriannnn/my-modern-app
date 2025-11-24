@@ -96,22 +96,27 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
             {/* Modal */}
             <aside className="fixed top-0 left-0 h-full bg-gray-50 w-full shadow-2xl z-50 flex flex-col animate-in slide-in-from-bottom duration-300">
                 {/* Header */}
-                <div className="bg-white border-b border-gray-200 p-4 flex items-center justify-between shadow-sm z-10">
-                    <div className="flex items-center gap-3">
-                        {viewStep !== 'materie' && (
-                            <button onClick={handleBack} className="p-1 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full">
-                                <ChevronLeft size={24} />
-                            </button>
-                        )}
-                        <h3 className="text-lg font-bold text-brand-text">
-                            {viewStep === 'materie' && 'Alege Materia'}
-                            {viewStep === 'obiect' && 'Alege Obiectul'}
-                            {viewStep === 'detalii' && 'Filtrează Detalii'}
-                        </h3>
+                <div className="bg-white border-b border-gray-200 p-4 shadow-sm z-10">
+                    <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                            {viewStep !== 'materie' && (
+                                <button onClick={handleBack} className="p-1 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full">
+                                    <ChevronLeft size={24} />
+                                </button>
+                            )}
+                            <h3 className="text-lg font-bold text-brand-text">
+                                {viewStep === 'materie' && 'Alege Materia'}
+                                {viewStep === 'obiect' && 'Alege Obiectul'}
+                                {viewStep === 'detalii' && 'Filtrează Detalii'}
+                            </h3>
+                        </div>
+                        <button onClick={onClose} className="p-2 bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200">
+                            <X size={20} />
+                        </button>
                     </div>
-                    <button onClick={onClose} className="p-2 bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200">
-                        <X size={20} />
-                    </button>
+                    <p className="text-xs text-gray-500 mt-1">
+                        Apasă X pentru a închide meniul și a salva filtrele selectate
+                    </p>
                 </div>
 
                 {/* Progress Bar */}
