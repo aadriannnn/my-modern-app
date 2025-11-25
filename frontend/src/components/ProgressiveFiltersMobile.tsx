@@ -154,9 +154,9 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                                     </div>
                                     <div className="flex-1 text-left">
                                         <div className={`font-bold text-lg ${selectedFilters.materie === materie.name ? 'text-brand-primary' : 'text-brand-text'}`}>
-                                            {materie.name}
+                                            {String(materie.name)}
                                         </div>
-                                        <div className="text-sm text-gray-500">{materie.count} spețe</div>
+                                        <div className="text-sm text-gray-500">{String(materie.count)} spețe</div>
                                     </div>
                                     {selectedFilters.materie === materie.name && (
                                         <div className="absolute top-4 right-4 text-brand-primary">
@@ -174,7 +174,7 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                                 <div className="text-sm text-gray-500 mb-1">Materie selectată</div>
                                 <div className="font-bold text-brand-text text-lg flex items-center gap-2">
-                                    {selectedFilters.materie}
+                                    {String(selectedFilters.materie || '')}
                                     <Check size={18} className="text-brand-primary" />
                                 </div>
                             </div>
@@ -214,11 +214,11 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                                                 className="hidden"
                                             />
                                             <span className={`flex-1 font-medium ${isSelected ? 'text-brand-primary' : 'text-brand-text'}`}>
-                                                {obiect.name}
+                                                {String(obiect.name)}
                                             </span>
-                                            {obiect.count !== null && (
+                                            {obiect.count !== null && obiect.count !== undefined && (
                                                 <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
-                                                    {obiect.count}
+                                                    {String(obiect.count)}
                                                 </span>
                                             )}
                                         </label>
@@ -234,18 +234,20 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                                 <div className="text-sm text-gray-500 mb-1">Selecție curentă</div>
                                 <div className="font-bold text-brand-text">
-                                    {selectedFilters.materie}
+                                    {String(selectedFilters.materie || '')}
                                 </div>
                                 <div className="text-sm text-brand-text-secondary mt-1">
-                                    {selectedFilters.obiect.length} obiecte selectate
+                                    {selectedFilters.obiect?.length || 0} obiecte selectate
                                 </div>
                             </div>
+
 
                             {/* Tip Speta */}
                             <div>
                                 <h4 className="font-bold text-brand-text mb-3 uppercase text-sm tracking-wider">Tip Speță</h4>
                                 <div className="space-y-2">
-                                    {tipSpeta.map((tip, index) => {
+                                    {tipSpeta.map((tipItem, index) => {
+                                        const tip = typeof tipItem === 'string' ? tipItem : tipItem.name;
                                         const isSelected = selectedFilters.tip_speta.includes(tip);
                                         return (
                                             <label
@@ -278,7 +280,8 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                             <div>
                                 <h4 className="font-bold text-brand-text mb-3 uppercase text-sm tracking-wider">Parte</h4>
                                 <div className="space-y-2">
-                                    {parte.map((p, index) => {
+                                    {parte.map((parteItem, index) => {
+                                        const p = typeof parteItem === 'string' ? parteItem : parteItem.name;
                                         const isSelected = selectedFilters.parte.includes(p);
                                         return (
                                             <label

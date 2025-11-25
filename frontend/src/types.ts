@@ -9,8 +9,8 @@ export interface Filters {
   materii: FilterItem[];
   obiecte: FilterItem[];
   details: Record<string, FilterItem[]>;
-  tipSpeta: string[];
-  parte: string[];
+  tipSpeta: (FilterItem | string)[];
+  parte: (FilterItem | string)[];
 }
 
 export interface SelectedFilters {
