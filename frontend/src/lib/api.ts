@@ -173,3 +173,38 @@ export const stopPrecalculate = async () => {
   }
   return response.json();
 };
+
+// Queue status subscription using Server-Sent Events
+export const subscribeToQueueStatus = (
+  requestId: string,
+  onUpdate: (status: { position: number; total: number; status: string }) => void,
+  onComplete: () => void,
+  onError: (error: Error) => void
+) => {
+  const eventSource = new EventSource(`${API_URL}/queue/status/${requestId}`);
+
+  eventSource.onmessage = (event) => {
+    try {
+      const data = JSON.parse(event.data);
+
+      if (data.status === 'completed' || data.status === 'error') {
+        eventSource.close();
+        onComplete();
+      } else {
+        onUpdate(data);
+      }
+    } catch (e) {
+      console.error('Error parsing SSE data:', e);
+    }
+  };
+
+  eventSource.onerror = (error) => {
+    console.error('SSE error:', error);
+    eventSource.close();
+    onError(new Error('Connection to server lost'));
+  };
+
+  return {
+    close: () => eventSource.close()
+  };
+};

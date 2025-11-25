@@ -3,6 +3,7 @@ from sqlmodel import Session
 from ..db import get_session
 from ..schemas import SearchRequest
 from ..logic.search_logic import search_cases
+from ..logic.queue_manager import queue_manager
 import logging
 
 router = APIRouter(prefix="/search", tags=["search"])
@@ -16,12 +17,46 @@ async def search(
     """
     Performs a consolidated search for legal cases based on a text query
     and multiple optional filters.
+
+    This endpoint uses a queue system to prevent server overload when
+    multiple users make simultaneous requests.
     """
     logger.info(f"Received search request with situation: '{request.situatie[:50]}...' and filters: {request.dict(exclude={'situatie'})}")
+
     try:
-        results = search_cases(session, request)
-        logger.info(f"Search completed successfully, returning {len(results)} results.")
-        return results
+        # Define the processor function that will be called by queue worker
+        async def process_search(payload: dict):
+            """Process the actual search when queue worker calls it."""
+            # Recreate SearchRequest from payload
+            search_req = SearchRequest(**payload['search_request'])
+            # Get fresh session for this worker
+            with next(get_session()) as worker_session:
+                results = search_cases(worker_session, search_req)
+                logger.info(f"Search completed successfully, returning {len(results)} results.")
+                return results
+
+        # Prepare payload
+        payload = {
+            'search_request': request.dict()
+        }
+
+        # Add to queue and wait for result
+        request_id, future = await queue_manager.add_to_queue(payload, process_search)
+
+        logger.info(f"Search request queued with ID: {request_id}")
+
+        # Wait for queue to process and return result
+        result = await future
+
+        return result
+
+    except RuntimeError as e:
+        # Queue full or other queue-related error
+        logger.error(f"Queue error: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail=f"Serverul este momentan ocupat. Vă rugăm să încercați din nou în câteva momente. ({str(e)})"
+        )
     except Exception as e:
         logger.error(f"An unexpected error occurred during search: {e}", exc_info=True)
         raise HTTPException(

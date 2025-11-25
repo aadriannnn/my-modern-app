@@ -17,7 +17,8 @@ from .routers import (
     modele as modele_router,
     coduri as coduri_router,
     auth as auth_router,
-    settings as settings_router
+    settings as settings_router,
+    queue_status as queue_router
 )
 
 # Configure logging
@@ -67,6 +68,12 @@ def on_startup():
     with next(get_session()) as session:
         load_all_filters_into_memory(session)
     logger.info("Step 2: In-memory cache loaded successfully.")
+
+    logger.info("Step 3: Starting queue manager worker...")
+    from .logic.queue_manager import queue_manager
+    queue_manager.start_worker()
+    logger.info("Step 3: Queue manager worker started.")
+
     logger.info("--- Backend Startup Sequence Finished ---")
 
 
@@ -85,6 +92,7 @@ api_router.include_router(modele_router.router)
 api_router.include_router(coduri_router.router)
 api_router.include_router(auth_router.router)
 api_router.include_router(settings_router.router)
+api_router.include_router(queue_router.router)
 
 app.include_router(api_router)
 

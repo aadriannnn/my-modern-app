@@ -45,5 +45,22 @@ export interface LegalArticle {
   art_conex?: string;
   doctrina?: string;
   relevance_score: number;
-  cod_sursa: string; // e.g., "cod_civil", "cod_penal"
+  cod_sursa: string;
+}
+
+export interface QueueStatus {
+  requestId?: string;
+  position: number;
+  total: number;
+  status: 'queued' | 'processing' | 'completed' | 'error';
+}
+
+export interface SearchResult {
+  id: number;
+  denumire: string;
+  situatia_de_fapt_full: string;
+  tip_speta: string;
+  materie: string;
+  score?: number;
+  data?: any;
 }
