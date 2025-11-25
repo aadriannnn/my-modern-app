@@ -4,14 +4,17 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #f5f5f5; /* brand-light */
+  background: #f5f5f5;
+  /* brand-light */
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c5a265; /* brand-accent */
+  background: #0D7377;
+  /* brand-accent - professional teal */
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #b39254; /* Un auriu mai închis la hover */
+  background: #0A5A5D;
+  /* Darker teal on hover */
 }

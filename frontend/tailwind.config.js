@@ -10,12 +10,13 @@ module.exports = {
         'sans': ['Inter', 'Source Sans 3', 'system-ui', 'sans-serif'],
       },
       colors: {
-        'brand-dark': '#0D1B2A',
-        'brand-secondary': '#1B263B',
-        'brand-accent': '#E0A800',
+        'brand-dark': '#0F2347',
+        'brand-primary': '#1B3A6B',
+        'brand-secondary': '#475569',
+        'brand-accent': '#0D7377',
         'brand-light': '#F0F2F5',
-        'brand-text': '#333333',
-        'brand-text-secondary': '#5A6472',
+        'brand-text': '#1E293B',
+        'brand-text-secondary': '#64748B',
         // Landing page colors
         'navy': {
           50: '#E6EBF5',

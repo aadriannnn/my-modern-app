@@ -14,8 +14,6 @@ const UserJourneyMap: React.FC = () => {
             title: "Introducere Situație",
             description: "Descrie situația de fapt în limbaj natural. Sistemul înțelege contextul juridic complex.",
             icon: Search,
-            gradient: "from-blue-400 via-blue-500 to-blue-600",
-            accentColor: "#3b82f6",
             details: ["Recunoaștere semantică", "Procesare limbaj natural", "Identificare cuvinte cheie"]
         },
         {
@@ -23,8 +21,6 @@ const UserJourneyMap: React.FC = () => {
             title: "Analiză & Identificare",
             description: "AI-ul scanează baza de date pentru a găsi spețe similare și relevante situației tale.",
             icon: Brain,
-            gradient: "from-purple-400 via-purple-500 to-purple-600",
-            accentColor: "#a855f7",
             details: ["Filtrare inteligentă", "Corelare spețe", "Clasificare automată"]
         },
         {
@@ -32,8 +28,6 @@ const UserJourneyMap: React.FC = () => {
             title: "Explorare Aprofundată",
             description: "Navighează prin multiple dimensiuni ale cazului pentru o înțelegere completă.",
             icon: Scale,
-            gradient: "from-indigo-400 via-indigo-500 to-indigo-600",
-            accentColor: "#6366f1",
             details: [
                 "Doctrină juridică",
                 "Argumente judecător",
@@ -45,8 +39,6 @@ const UserJourneyMap: React.FC = () => {
             title: "Resurse & Modele",
             description: "Acces direct la instrumentele necesare pentru a construi cazul tău.",
             icon: FileText,
-            gradient: "from-orange-400 via-orange-500 to-orange-600",
-            accentColor: "#f97316",
             details: ["Modele de acte", "Coduri de procedură", "Jurisprudență conexă"]
         },
         {
@@ -54,13 +46,11 @@ const UserJourneyMap: React.FC = () => {
             title: "Strategie & Succes",
             description: "Transformă informația în avantaj competitiv. Construiește o strategie câștigătoare.",
             icon: Trophy,
-            gradient: "from-green-400 via-green-500 to-green-600",
-            accentColor: "#22c55e",
             details: ["Argumentație solidă", "Predicție rezultate", "Beneficiu final"]
         }
     ];
 
-    // SVG curved connector for desktop
+    // SVG curved connector for desktop - Professional teal color
     const CurvedConnector = ({ index }: { index: number }) => {
         const yOffset = index % 2 === 0 ? 20 : -20;
         return (
@@ -70,21 +60,15 @@ const UserJourneyMap: React.FC = () => {
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
             >
-                <defs>
-                    <linearGradient id={`gradient-${index}`} x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor={steps[index].accentColor} stopOpacity="0.3" />
-                        <stop offset="100%" stopColor={steps[index + 1].accentColor} stopOpacity="0.3" />
-                    </linearGradient>
-                </defs>
                 <path
                     d={`M 10 50 Q 50 ${50 + yOffset}, 90 50`}
-                    stroke={`url(#gradient-${index})`}
-                    strokeWidth="3"
+                    stroke="#0D7377"
+                    strokeWidth="2"
                     strokeLinecap="round"
                     strokeDasharray="5,5"
-                    className="animate-dash"
+                    className="animate-dash opacity-40"
                 />
-                <circle cx="90" cy="50" r="4" fill={steps[index + 1].accentColor} className="animate-pulse" />
+                <circle cx="90" cy="50" r="3" fill="#0D7377" className="animate-pulse" />
             </svg>
         );
     };
@@ -126,18 +110,18 @@ const UserJourneyMap: React.FC = () => {
                 }
             `}</style>
 
-            <div className="w-full py-8 md:py-16 px-3 md:px-6 relative overflow-hidden">
-                {/* Background decorative elements */}
-                <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-30">
-                    <div className="absolute top-10 left-10 w-72 h-72 bg-blue-200 rounded-full mix-blend-multiply filter blur-3xl animate-float" style={{ animationDelay: '0s' }}></div>
-                    <div className="absolute top-20 right-10 w-72 h-72 bg-purple-200 rounded-full mix-blend-multiply filter blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
-                    <div className="absolute -bottom-10 left-1/3 w-72 h-72 bg-orange-200 rounded-full mix-blend-multiply filter blur-3xl animate-float" style={{ animationDelay: '4s' }}></div>
+            <div className="w-full py-8 md:py-16 px-3 md:px-6 relative overflow-hidden bg-gradient-to-b from-gray-50 to-white">
+                {/* Background decorative elements - Professional gray tones */}
+                <div className="absolute inset-0 overflow-hidden pointer-events-none opacity-20">
+                    <div className="absolute top-10 left-10 w-72 h-72 bg-gray-200 rounded-full mix-blend-multiply filter blur-3xl animate-float" style={{ animationDelay: '0s' }}></div>
+                    <div className="absolute top-20 right-10 w-72 h-72 bg-slate-200 rounded-full mix-blend-multiply filter blur-3xl animate-float" style={{ animationDelay: '2s' }}></div>
+                    <div className="absolute -bottom-10 left-1/3 w-72 h-72 bg-gray-100 rounded-full mix-blend-multiply filter blur-3xl animate-float" style={{ animationDelay: '4s' }}></div>
                 </div>
 
                 <div className="relative z-10">
                     {/* Header */}
                     <div className="text-center mb-8 md:mb-16">
-                        <div className="inline-block mb-4 px-6 py-2 bg-gradient-to-r from-brand-accent/10 to-purple-500/10 rounded-full border-2 border-dashed border-brand-accent/30">
+                        <div className="inline-block mb-4 px-6 py-2 bg-brand-accent/10 rounded-full border-2 border-dashed border-brand-accent/30">
                             <span className="text-sm md:text-base font-semibold text-brand-accent uppercase tracking-wide">Călătoria ta juridică</span>
                         </div>
                         <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold mb-4 relative inline-block">
@@ -171,34 +155,26 @@ const UserJourneyMap: React.FC = () => {
                                         >
                                             {/* Icon Area - Can overflow */}
                                             <div className="relative">
-                                                {/* Floating Icon */}
-                                                <div className={`absolute -top-8 left-1/2 -translate-x-1/2 w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br ${step.gradient} rounded-[40%_60%_50%_50%/60%_40%_60%_40%] shadow-2xl flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 group-hover:rotate-12 z-20`}>
+                                                {/* Floating Icon - Navy Blue */}
+                                                <div className="absolute -top-8 left-1/2 -translate-x-1/2 w-16 h-16 md:w-20 md:h-20 bg-brand-primary rounded-full shadow-2xl flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 z-20">
                                                     <Icon className="w-8 h-8 md:w-10 md:h-10 text-white drop-shadow-lg" strokeWidth={2.5} />
-                                                    <div className={`absolute inset-0 bg-gradient-to-br ${step.gradient} rounded-[40%_60%_50%_50%/60%_40%_60%_40%] opacity-50 blur-md`}></div>
+                                                    <div className="absolute inset-0 bg-brand-primary rounded-full opacity-30 blur-md"></div>
                                                 </div>
 
-                                                {/* Step Number */}
-                                                <div className="absolute -top-3 right-0 w-10 h-10 bg-white rounded-full shadow-lg border-2 flex items-center justify-center font-bold text-lg z-20"
-                                                    style={{ borderColor: step.accentColor, color: step.accentColor }}
-                                                >
+                                                {/* Step Number - Navy Blue */}
+                                                <div className="absolute -top-3 right-0 w-10 h-10 bg-white rounded-full shadow-lg border-2 border-brand-primary flex items-center justify-center font-bold text-lg text-brand-primary z-20">
                                                     {step.id}
                                                 </div>
                                             </div>
 
-                                            {/* Content Area - With overflow hidden */}
-                                            <div className="relative bg-white/80 backdrop-blur-sm rounded-[2.5rem] p-5 pt-12 shadow-xl border-2 border-gray-200/50 sketch-border transform transition-all duration-500 hover:scale-105 hover:shadow-2xl hover:rotate-1 overflow-hidden"
-                                                style={{
-                                                    borderRadius: `${40 + index * 3}% ${60 - index * 3}% ${50 + index * 2}% ${50 - index * 2}% / ${60 - index * 2}% ${40 + index * 3}% ${60 - index * 3}% ${40 + index * 2}%`
-                                                }}
-                                            >
+                                            {/* Content Area - Clean white card */}
+                                            <div className="relative bg-white rounded-2xl p-5 pt-12 shadow-lg border border-gray-200 transform transition-all duration-500 hover:scale-105 hover:shadow-xl overflow-hidden">
                                                 {/* Content */}
                                                 <div className="min-h-[280px] flex flex-col">
-                                                    <h3 className="text-lg font-extrabold text-gray-800 mb-3 text-center leading-tight break-words"
-                                                        style={{ color: step.accentColor }}
-                                                    >
+                                                    <h3 className="text-lg font-extrabold text-brand-primary mb-3 text-center leading-tight break-words">
                                                         {step.title}
                                                     </h3>
-                                                    <p className="text-gray-600 text-xs text-center mb-3 flex-grow leading-relaxed break-words">
+                                                    <p className="text-brand-text-secondary text-xs text-center mb-3 flex-grow leading-relaxed break-words">
                                                         {step.description}
                                                     </p>
 
@@ -207,12 +183,7 @@ const UserJourneyMap: React.FC = () => {
                                                         <ul className="space-y-2">
                                                             {step.details.map((detail, idx) => (
                                                                 <li key={idx} className="flex items-start text-xs text-gray-700 leading-snug">
-                                                                    <div
-                                                                        className="w-1.5 h-1.5 rounded-full mt-1 mr-2 flex-shrink-0 shadow-sm"
-                                                                        style={{
-                                                                            background: `linear-gradient(135deg, ${step.accentColor}, ${step.accentColor}dd)`,
-                                                                        }}
-                                                                    ></div>
+                                                                    <div className="w-1.5 h-1.5 rounded-full mt-1 mr-2 flex-shrink-0 bg-brand-accent"></div>
                                                                     <span className="font-medium break-words">{detail}</span>
                                                                 </li>
                                                             ))}
@@ -246,33 +217,25 @@ const UserJourneyMap: React.FC = () => {
                                     >
                                         {/* Icon Area - Can overflow */}
                                         <div className="relative">
-                                            {/* Icon */}
-                                            <div className={`absolute -top-6 -left-6 w-16 h-16 bg-gradient-to-br ${step.gradient} rounded-[45%_55%_50%_50%/55%_45%_55%_45%] shadow-xl flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 group-hover:-rotate-6 z-20`}>
+                                            {/* Icon - Navy Blue */}
+                                            <div className="absolute -top-6 -left-6 w-16 h-16 bg-brand-primary rounded-full shadow-xl flex items-center justify-center transform transition-all duration-500 group-hover:scale-110 z-20">
                                                 <Icon className="w-8 h-8 text-white drop-shadow-lg" strokeWidth={2.5} />
                                             </div>
 
-                                            {/* Step Number */}
-                                            <div className="absolute -top-3 right-0 w-10 h-10 bg-white rounded-full shadow-lg border-2 flex items-center justify-center font-bold text-lg z-20"
-                                                style={{ borderColor: step.accentColor, color: step.accentColor }}
-                                            >
+                                            {/* Step Number - Navy Blue */}
+                                            <div className="absolute -top-3 right-0 w-10 h-10 bg-white rounded-full shadow-lg border-2 border-brand-primary flex items-center justify-center font-bold text-lg text-brand-primary z-20">
                                                 {step.id}
                                             </div>
                                         </div>
 
-                                        {/* Content Area - With overflow hidden */}
-                                        <div className="relative bg-white/90 backdrop-blur-sm rounded-[2rem] p-6 pt-10 shadow-xl border-2 border-gray-200/50 transform transition-all duration-500 hover:scale-105 hover:shadow-2xl overflow-hidden"
-                                            style={{
-                                                borderRadius: `${35 + index * 2}% ${65 - index * 2}% ${50 + index}% ${50 - index}% / ${60 - index}% ${40 + index * 2}% ${55 - index}% ${45 + index}%`
-                                            }}
-                                        >
+                                        {/* Content Area - Clean white card */}
+                                        <div className="relative bg-white rounded-2xl p-6 pt-10 shadow-lg border border-gray-200 transform transition-all duration-500 hover:scale-105 hover:shadow-xl overflow-hidden">
                                             {/* Content */}
                                             <div>
-                                                <h3 className="text-xl font-extrabold mb-3 leading-tight break-words"
-                                                    style={{ color: step.accentColor }}
-                                                >
+                                                <h3 className="text-xl font-extrabold text-brand-primary mb-3 leading-tight break-words">
                                                     {step.title}
                                                 </h3>
-                                                <p className="text-gray-600 text-sm mb-4 leading-relaxed break-words">
+                                                <p className="text-brand-text-secondary text-sm mb-4 leading-relaxed break-words">
                                                     {step.description}
                                                 </p>
 
@@ -280,10 +243,7 @@ const UserJourneyMap: React.FC = () => {
                                                     <ul className="space-y-2">
                                                         {step.details.map((detail, idx) => (
                                                             <li key={idx} className="flex items-start text-xs text-gray-700">
-                                                                <div
-                                                                    className="w-2 h-2 rounded-full mt-1 mr-2 flex-shrink-0"
-                                                                    style={{ backgroundColor: step.accentColor }}
-                                                                ></div>
+                                                                <div className="w-2 h-2 rounded-full mt-1 mr-2 flex-shrink-0 bg-brand-accent"></div>
                                                                 <span className="font-medium">{detail}</span>
                                                             </li>
                                                         ))}
@@ -312,33 +272,25 @@ const UserJourneyMap: React.FC = () => {
                                 >
                                     {/* Icon Area - Can overflow */}
                                     <div className="relative">
-                                        {/* Icon */}
-                                        <div className={`absolute -top-6 left-4 w-14 h-14 bg-gradient-to-br ${step.gradient} rounded-[40%_60%_50%_50%/60%_40%_60%_40%] shadow-xl flex items-center justify-center z-20`}>
+                                        {/* Icon - Navy Blue */}
+                                        <div className="absolute -top-6 left-4 w-14 h-14 bg-brand-primary rounded-full shadow-xl flex items-center justify-center z-20">
                                             <Icon className="w-7 h-7 text-white drop-shadow-lg" strokeWidth={2.5} />
                                         </div>
 
-                                        {/* Step Number */}
-                                        <div className="absolute -top-3 -right-2 w-9 h-9 bg-white rounded-full shadow-lg border-2 flex items-center justify-center font-bold z-20"
-                                            style={{ borderColor: step.accentColor, color: step.accentColor }}
-                                        >
+                                        {/* Step Number - Navy Blue */}
+                                        <div className="absolute -top-3 -right-2 w-9 h-9 bg-white rounded-full shadow-lg border-2 border-brand-primary flex items-center justify-center font-bold text-brand-primary z-20">
                                             {step.id}
                                         </div>
                                     </div>
 
-                                    {/* Content Area - With overflow hidden */}
-                                    <div className="relative bg-white/95 backdrop-blur-sm rounded-[2rem] p-5 pt-10 shadow-lg border-2 border-gray-200/50 transform transition-all duration-300 active:scale-95 overflow-hidden"
-                                        style={{
-                                            borderRadius: `${40 + index * 3}% ${60 - index * 3}% ${55 + index * 2}% ${45 - index * 2}% / ${50 - index * 2}% ${50 + index * 3}% ${60 - index * 2}% ${40 + index * 2}%`
-                                        }}
-                                    >
+                                    {/* Content Area - Clean white card */}
+                                    <div className="relative bg-white rounded-2xl p-5 pt-10 shadow-lg border border-gray-200 transform transition-all duration-300 active:scale-95 overflow-hidden">
                                         {/* Content */}
                                         <div>
-                                            <h3 className="text-lg font-extrabold mb-2 leading-tight pr-8 break-words"
-                                                style={{ color: step.accentColor }}
-                                            >
+                                            <h3 className="text-lg font-extrabold text-brand-primary mb-2 leading-tight pr-8 break-words">
                                                 {step.title}
                                             </h3>
-                                            <p className="text-gray-600 text-sm mb-4 leading-relaxed break-words">
+                                            <p className="text-brand-text-secondary text-sm mb-4 leading-relaxed break-words">
                                                 {step.description}
                                             </p>
 
@@ -346,10 +298,7 @@ const UserJourneyMap: React.FC = () => {
                                                 <ul className="space-y-2">
                                                     {step.details.map((detail, idx) => (
                                                         <li key={idx} className="flex items-start text-xs text-gray-700">
-                                                            <div
-                                                                className="w-1.5 h-1.5 rounded-full mt-1 mr-2 flex-shrink-0"
-                                                                style={{ backgroundColor: step.accentColor }}
-                                                            ></div>
+                                                            <div className="w-1.5 h-1.5 rounded-full mt-1 mr-2 flex-shrink-0 bg-brand-accent"></div>
                                                             <span className="font-medium">{detail}</span>
                                                         </li>
                                                     ))}
@@ -358,18 +307,18 @@ const UserJourneyMap: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Organic connector line */}
+                                    {/* Professional connector line - Teal */}
                                     {index < steps.length - 1 && (
                                         <div className="flex justify-center py-2">
                                             <svg width="40" height="40" viewBox="0 0 40 40" fill="none" className="opacity-40">
                                                 <path
                                                     d="M20 5 Q 25 20, 20 35"
-                                                    stroke={step.accentColor}
+                                                    stroke="#0D7377"
                                                     strokeWidth="2"
                                                     strokeLinecap="round"
                                                     strokeDasharray="4,4"
                                                 />
-                                                <circle cx="20" cy="35" r="3" fill={steps[index + 1].accentColor} className="animate-pulse" />
+                                                <circle cx="20" cy="35" r="3" fill="#0D7377" className="animate-pulse" />
                                             </svg>
                                         </div>
                                     )}
