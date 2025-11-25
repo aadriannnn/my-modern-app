@@ -3,6 +3,7 @@ import { getSettings, updateSettings, resetSettings, refreshFilters, precalculat
 import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square } from 'lucide-react';
 import { Switch } from '@headlessui/react';
 import Footer from '../components/Footer';
+import SEOHead from '../components/SEOHead';
 
 interface SettingItem {
     value: any;
@@ -320,6 +321,12 @@ const SettingsPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-slate-50 pb-20">
+            <SEOHead
+                title="Configurare Sistem | LegeaAplicata"
+                description="Pagină de configurare și setări sistem pentru administratori LegeaAplicata."
+                noIndex={true}
+                canonicalUrl="https://chat.legeaaplicata.ro/setari"
+            />
             {/* Header */}
             <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">

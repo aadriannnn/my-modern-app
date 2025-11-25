@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+Allow: /landing
+Allow: /terms
+Allow: /privacy-policy
+Disallow: /setari
+
+# Sitemap
+Sitemap: https://chat.legeaaplicata.ro/sitemap.xml
+
+# Crawl-delay for respectful crawling
+Crawl-delay: 1

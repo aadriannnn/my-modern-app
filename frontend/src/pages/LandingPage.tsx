@@ -1,11 +1,70 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Lock, Cpu, Scale, FileText, Calculator, Search, Download, CheckCircle } from 'lucide-react';
+import SEOHead from '../components/SEOHead';
 import './LandingPage.css';
 
 const LandingPage: React.FC = () => {
+    // SEO Structured Data for Landing Page
+    const structuredData = {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Juridic AI – Local",
+        "applicationCategory": "LegalService",
+        "operatingSystem": "Windows, macOS, Linux",
+        "description": "Inteligență artificială juridică 100% offline și confidențială. Analizează cazuri și calculează taxe juridice direct pe propriul hardware, fără cloud sau procesare externă.",
+        "offers": [
+            {
+                "@type": "Offer",
+                "name": "Demo Web",
+                "price": "0",
+                "priceCurrency": "RON",
+                "description": "Versiune demo gratuită care rulează în browser, cu sesiune efemeră fără salvare de date."
+            },
+            {
+                "@type": "Offer",
+                "name": "Versiune Desktop Offline",
+                "priceCurrency": "RON",
+                "description": "Versiune completă 100% offline cu procesare locală, stocare criptată și bază de date completă.",
+                "availability": "https://schema.org/PreOrder"
+            },
+            {
+                "@type": "Offer",
+                "name": "Ediție Enterprise",
+                "priceCurrency": "RON",
+                "description": "Versiune premium cu dataset extins, LLM avansat și personalizare pentru cabinete și instituții.",
+                "availability": "https://schema.org/PreOrder"
+            }
+        ],
+        "featureList": [
+            "Procesare 100% offline, fără internet",
+            "Model AI proprietar, datele nu antrenează modelul",
+            "Zero amprentă digitală - fără cookie-uri, logging sau tracking",
+            "Căutare cazuri similare în jurisprudență română",
+            "Detectare automată prevederi legale",
+            "Generare documente juridice",
+            "Calcul automat taxe judiciare"
+        ],
+        "softwareVersion": "2.0",
+        "inLanguage": "ro",
+        "releaseNotes": "Versiune offline cu confidențialitate maximă pentru profesioniști în drept",
+        "screenshot": "https://chat.legeaaplicata.ro/src/assets/icons/logo.png"
+    };
+
     return (
         <div className="landing-page">
+            <SEOHead
+                title="Juridic AI Local - Inteligență Artificială Juridică 100% Offline și Confidențială"
+                description="Inteligență artificială juridică 100% offline pentru avocați și jurisconsulți. Analizează cazuri, calculează taxe juridice, generează documente - totul pe propriul tău hardware, fără cloud. Zero tracking, confidențialitate maximă."
+                keywords="AI juridic offline, inteligență artificială juridică, cercetare juridică offline, confidențialitate juridică maximă, legal AI local, avocat AI offline, jurisprudență offline, fără cloud legal, GDPR compliant legal AI"
+                ogTitle="Juridic AI Local - AI Juridic 100% Offline și Confidențial"
+                ogDescription="Prima platformă de inteligență artificială juridică 100% offline. Procesare locală, zero cloud, confidențialitate totală pentru profesioniști în drept."
+                ogImage="https://chat.legeaaplicata.ro/src/assets/icons/logo.png"
+                ogUrl="https://chat.legeaaplicata.ro/landing"
+                canonicalUrl="https://chat.legeaaplicata.ro/landing"
+                structuredData={structuredData}
+            />
+
             {/* Header */}
             <header className="landing-header">
                 <div className="container">
@@ -228,7 +287,7 @@ const LandingPage: React.FC = () => {
                             <h4 className="footer-title">Contact</h4>
                             <p className="footer-text">
                                 Pentru versiunea Desktop sau Enterprise,<br />
-                                contactează-ne la: <a href="mailto:contact@legeaaplicata.ro" className="footer-link">contact@legeaaplicata.ro</a>
+                                contactează-ne la: <a href="mailto:contact@juridicai.ro" className="footer-link">contact@juridicai.ro</a>
                             </p>
                         </div>
                         <div className="footer-column">

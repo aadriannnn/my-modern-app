@@ -2,10 +2,39 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import SEOHead from '../components/SEOHead';
 
 const TermsPage: React.FC = () => {
+    // SEO Structured Data for Terms Page
+    const structuredData = {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "Termeni și Condiții - LegeaAplicata",
+        "description": "Termeni și condiții de utilizare a platformei LegeaAplicata - platformă de cercetare juridică profesională.",
+        "url": "https://chat.legeaaplicata.ro/terms",
+        "inLanguage": "ro",
+        "isPartOf": {
+            "@type": "WebSite",
+            "name": "LegeaAplicata",
+            "url": "https://chat.legeaaplicata.ro"
+        },
+        "datePublished": "2025-11-21",
+        "dateModified": "2025-11-21"
+    };
+
     return (
         <div className="flex flex-col min-h-screen bg-brand-light">
+            <SEOHead
+                title="Termeni și Condiții | LegeaAplicata - Platformă Cercetare Juridică"
+                description="Termeni și condiții de utilizare a platformei LegeaAplicata. Reguli de folosire, drepturi de proprietate intelectuală, limitări răspundere pentru servicii de cercetare juridică."
+                keywords="termeni conditii LegeaAplicata, utilizare platformă juridică, drepturi autor conținut juridic, regulament platformă"
+                ogTitle="Termeni și Condiții - LegeaAplicata"
+                ogDescription="Termeni și condiții de utilizare a platformei profesionale de cercetare juridică LegeaAplicata."
+                ogImage="https://chat.legeaaplicata.ro/src/assets/icons/logo.png"
+                ogUrl="https://chat.legeaaplicata.ro/terms"
+                canonicalUrl="https://chat.legeaaplicata.ro/terms"
+                structuredData={structuredData}
+            />
             <Header onToggleMenu={() => { }} onContribuieClick={() => { }} />
 
             <div className="flex-1 overflow-y-auto pb-20">

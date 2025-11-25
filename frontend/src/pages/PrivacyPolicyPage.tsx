@@ -2,10 +2,44 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
+import SEOHead from '../components/SEOHead';
 
 const PrivacyPolicyPage: React.FC = () => {
+    // SEO Structured Data for Privacy Policy Page
+    const structuredData = {
+        "@context": "https://schema.org",
+        "@type": "WebPage",
+        "name": "Politica de Confidențialitate - LegeaAplicata",
+        "description": "Politica de confidențialitate GDPR a platformei LegeaAplicata. Protecția datelor personale conform legislației române și europene.",
+        "url": "https://chat.legeaaplicata.ro/privacy-policy",
+        "inLanguage": "ro",
+        "isPartOf": {
+            "@type": "WebSite",
+            "name": "LegeaAplicata",
+            "url": "https://chat.legeaaplicata.ro"
+        },
+        "about": {
+            "@type": "Thing",
+            "name": "Privacy Policy",
+            "description": "Politica de confidențialitate conform GDPR și legislația română pentru protecția datelor cu caracter personal"
+        },
+        "datePublished": "2025-11-21",
+        "dateModified": "2025-11-21"
+    };
+
     return (
         <div className="flex flex-col min-h-screen bg-brand-light">
+            <SEOHead
+                title="Politica de Confidențialitate GDPR | LegeaAplicata - Protecția Datelor Personale"
+                description="Politica de confidențialitate LegeaAplicata conform GDPR și legislația română. Transparență în colectarea, utilizarea și protecția datelor personale. Drepturile utilizatorilor conform ANSPDCP."
+                keywords="politică confidențialitate GDPR, protecție date personale România, ANSPDCP, drepturi utilizatori GDPR, prelucrare date juridice, confidențialitate platformă juridică"
+                ogTitle="Politica de Confidențialitate GDPR - LegeaAplicata"
+                ogDescription="Politica de confidențialitate conform GDPR. Protecția datelor personale și transparență în prelucrare pentru platforma de cercetare juridică."
+                ogImage="https://chat.legeaaplicata.ro/src/assets/icons/logo.png"
+                ogUrl="https://chat.legeaaplicata.ro/privacy-policy"
+                canonicalUrl="https://chat.legeaaplicata.ro/privacy-policy"
+                structuredData={structuredData}
+            />
             <Header onToggleMenu={() => { }} onContribuieClick={() => { }} />
 
             <div className="flex-1 overflow-y-auto pb-20">
