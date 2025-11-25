@@ -57,7 +57,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
             className="hidden sm:flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"
           >
             <PlusCircle size={18} className="mr-2" />
-            Contribuie
+            Contribuie cu o spetă
           </button>
           <DosarButton />
           <a
