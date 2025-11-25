@@ -115,16 +115,16 @@ const SEOHead: React.FC<SEOHeadProps> = ({
     // Add structured data
     if (structuredData) {
       const scriptId = 'structured-data-script';
-      let scriptElement = document.getElementById(scriptId);
+      let scriptElement = document.getElementById(scriptId) as HTMLScriptElement | null;
 
       if (scriptElement) {
         scriptElement.textContent = JSON.stringify(structuredData);
       } else {
-        scriptElement = document.createElement('script');
-        scriptElement.id = scriptId;
-        scriptElement.type = 'application/ld+json';
-        scriptElement.textContent = JSON.stringify(structuredData);
-        document.head.appendChild(scriptElement);
+        const newScriptElement = document.createElement('script') as HTMLScriptElement;
+        newScriptElement.id = scriptId;
+        newScriptElement.type = 'application/ld+json';
+        newScriptElement.textContent = JSON.stringify(structuredData);
+        document.head.appendChild(newScriptElement);
       }
     }
   }, [title, description, keywords, ogTitle, ogDescription, ogImage, ogUrl, twitterCard, canonicalUrl, structuredData, noIndex]);
