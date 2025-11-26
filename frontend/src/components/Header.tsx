@@ -45,7 +45,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
         {/* Center Section: Motto */}
         <div className="hidden sm:flex items-center justify-center flex-1 mx-4">
           <h1 className="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-brand-light font-semibold text-base sm:text-sm md:text-lg lg:text-xl tracking-wide">
-            <span className="hidden md:inline">LegeaAplicată.ro – Dreptul de a fi informat</span>
+            <span className="hidden md:inline">LegeaAplicată – Dreptul de a fi informat</span>
             <span className="md:hidden">Dreptul de a fi informat</span>
           </h1>
         </div>
@@ -61,12 +61,12 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
           </button>
           <DosarButton />
           <a
-            href="https://app.verdictline.com/login"
+            href="https://chat.legeaaplicata.ro/"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"
           >
-            VerdictLine.com
+            LegeaAplicată.ro
           </a>
         </div>
       </div>

@@ -48,6 +48,33 @@ async def search(
         # Wait for queue to process and return result
         result = await future
 
+        # Save result IDs for LLM export
+        try:
+            from ..models import UltimaInterogare
+            from datetime import datetime
+
+            speta_ids = [r.get('id') for r in result if r.get('id') is not None]
+
+            # Use a separate session for saving
+            with next(get_session()) as save_session:
+                existing = save_session.get(UltimaInterogare, 1)
+                if existing:
+                    existing.speta_ids = speta_ids
+                    existing.query_text = request.situatie[:500]  # Limit query text length
+                    existing.created_at = datetime.utcnow()
+                else:
+                    nueva = UltimaInterogare(
+                        id=1,
+                        speta_ids=speta_ids,
+                        query_text=request.situatie[:500],
+                    )
+                    save_session.add(nueva)
+                save_session.commit()
+                logger.info(f"Saved {len(speta_ids)} speta IDs for LLM export from query: '{request.situatie[:50]}'")
+        except Exception as save_error:
+            # Don't fail the search if saving for LLM export fails
+            logger.error(f"Failed to save search results for LLM export: {save_error}")
+
         return result
 
     except RuntimeError as e:

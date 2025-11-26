@@ -17,6 +17,9 @@ class Blocuri(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     obj: dict = Field(sa_column=Column(db_specific_json))
     vector: Optional[List[float]] = Field(default=None, sa_column=Column(Vector(settings.VECTOR_DIM)))
+    # Pre-calculated fields for performance optimization
+    modele_speta: Optional[List[Any]] = Field(default=None, sa_column=Column(db_specific_json))
+    coduri_speta: Optional[List[Any]] = Field(default=None, sa_column=Column(db_specific_json))
 
 
 class Vectori(SQLModel, table=True):
@@ -77,3 +80,13 @@ class ModeleDocumente(SQLModel, table=True):
         default=None,
         sa_column=Column(Vector(1536))
     )
+
+
+class UltimaInterogare(SQLModel, table=True):
+    """Stores the IDs from the last search query for LLM export."""
+    __tablename__ = 'ultima_interogare'
+
+    id: int = Field(primary_key=True, default=1)  # Single row, always id=1
+    speta_ids: List[int] = Field(sa_column=Column(JSON))
+    query_text: str = Field(default="")
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)

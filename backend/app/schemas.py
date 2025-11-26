@@ -74,3 +74,19 @@ class CoduriResponse(BaseModel):
     doctrina: Optional[str] = None
     relevance_score: float
     cod_sursa: str  # e.g., "cod_civil", "cod_penal"
+
+
+class SpetaLLMExport(BaseModel):
+    """Schema for exporting a single case for LLM prompting."""
+    id: int
+    denumire: str
+    situatia_de_fapt: str
+
+
+class LLMExportResponse(BaseModel):
+    """Response schema for LLM data export."""
+    success: bool
+    message: Optional[str] = None
+    query_text: str
+    total_spete: int
+    spete: List[SpetaLLMExport]

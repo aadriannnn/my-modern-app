@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSettings, updateSettings, resetSettings, refreshFilters, precalculateModelsCodes, getPrecalculateStatus, stopPrecalculate } from '../lib/api';
-import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square } from 'lucide-react';
+import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square, FileDown } from 'lucide-react';
 import { Switch } from '@headlessui/react';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
@@ -100,6 +100,7 @@ const SettingsPage: React.FC = () => {
     const [precalculating, setPrecalculating] = useState(false);
     const [precalcStatus, setPrecalcStatus] = useState<any>(null);
     const [showRestartDialog, setShowRestartDialog] = useState(false);
+    const [exporting, setExporting] = useState(false);
 
     // Poll for status when precalculating
     useEffect(() => {
@@ -187,6 +188,47 @@ const SettingsPage: React.FC = () => {
             setError(err.message || 'Eroare la oprirea procesului.');
             console.error(err);
             setTimeout(() => setError(null), 5000);
+        }
+    };
+
+    const handleExportLLM = async () => {
+        try {
+            setExporting(true);
+            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/settings/export-llm-data`);
+
+            if (!response.ok) {
+                throw new Error('Eroare la exportul datelor pentru LLM');
+            }
+
+            const data = await response.json();
+
+            if (!data.success || data.total_spete === 0) {
+                setError(data.message || 'Nu există date de exportat din ultima căutare.');
+                setTimeout(() => setError(null), 5000);
+                return;
+            }
+
+            // Create and download JSON file
+            const blob = new Blob([JSON.stringify(data, null, 2)], {
+                type: 'application/json'
+            });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `situatii_fapt_llm_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            setSuccess(`Export reușit! ${data.total_spete} situații de fapt descărcate.`);
+            setTimeout(() => setSuccess(null), 5000);
+        } catch (err: any) {
+            setError(err.message || 'Eroare la exportul datelor.');
+            console.error(err);
+            setTimeout(() => setError(null), 5000);
+        } finally {
+            setExporting(false);
         }
     };
 
@@ -500,6 +542,39 @@ const SettingsPage: React.FC = () => {
                             </div>
                         )}
                     </div>
+                </div>
+
+                {/* LLM Export Section */}
+                <div className="mb-8 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900 mb-2">🤖 Export pentru LLM</h3>
+                            <p className="text-sm text-slate-600 leading-relaxed max-w-3xl">
+                                Descarcă situațiile de fapt din ultima căutare împreună cu identificatorii unici.
+                                Datele pot fi folosite pentru rafinarea căutărilor prin compararea cu prompt-ul LLM:
+                                <span className="italic text-slate-500 block mt-1">
+                                    "Ai situația aceasta de fapt introdusă de user, alege cea mai asemănătoare din situațiile de fapt următoare..."
+                                </span>
+                            </p>
+                            <p className="text-xs text-green-600 mt-2 flex items-center gap-1">
+                                <AlertCircle className="w-3 h-3" />
+                                Exportă doar rezultatele din ultima interogare, nu toate spetele din baza de date
+                            </p>
+                        </div>
+                    </div>
+
+                    <button
+                        onClick={handleExportLLM}
+                        disabled={exporting || saving || refreshing}
+                        className={`flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all font-medium shadow-lg shadow-green-200 ${(exporting || saving || refreshing) ? 'opacity-75 cursor-not-allowed' : ''}`}
+                    >
+                        {exporting ? (
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <FileDown className="w-5 h-5" />
+                        )}
+                        {exporting ? 'Se exportă...' : 'Descarcă Situații de Fapt pentru LLM'}
+                    </button>
                 </div>
 
                 <div className="flex flex-col lg:flex-row gap-8">

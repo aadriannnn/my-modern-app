@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from typing import Dict, Any
+from sqlmodel import Session
 from ..settings_manager import settings_manager
 from ..routers.auth import get_current_user
+from ..db import get_session
 
 router = APIRouter(
     prefix="/settings",
@@ -142,4 +144,97 @@ async def stop_precalculate():
         raise HTTPException(
             status_code=500,
             detail=f"Error stopping precalculation: {str(e)}"
+        )
+
+
+@router.get("/export-llm-data", response_model=Dict[str, Any])
+async def export_llm_data(
+    session: Session = Depends(get_session)
+):
+    """
+    Export fact situations from last search query for LLM refinement.
+    Returns JSON with case IDs, names, and full fact situations.
+
+    Only exports results from the most recent search query, not all cases in database.
+    This is useful for creating prompts like:
+    "Given this user's fact situation, choose the most similar from the following..."
+    """
+    from ..models import UltimaInterogare
+    from sqlmodel import text
+    import logging
+    import json
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Get last query data
+        ultima = session.get(UltimaInterogare, 1)
+
+        if not ultima or not ultima.speta_ids:
+            return {
+                'success': False,
+                'message': 'Nu există rezultate salvate din ultima căutare.',
+                'query_text': '',
+                'total_spete': 0,
+                'spete': []
+            }
+
+        # Fetch cases by IDs using raw SQL to avoid column issues
+        # Only select id and obj columns
+        placeholders = ', '.join([f':id_{i}' for i in range(len(ultima.speta_ids))])
+        query = text(f"""
+            SELECT id, obj
+            FROM blocuri
+            WHERE id IN ({placeholders})
+        """)
+
+        # Create parameter dict
+        params = {f'id_{i}': speta_id for i, speta_id in enumerate(ultima.speta_ids)}
+
+        # Execute query
+        result = session.execute(query, params)
+        results = result.mappings().all()
+
+        # Build export data
+        spete_export = []
+        for row in results:
+            # Handle obj being either dict or JSON string
+            obj_data = row['obj']
+            if isinstance(obj_data, str):
+                try:
+                    obj = json.loads(obj_data)
+                except json.JSONDecodeError:
+                    logger.warning(f"Could not decode JSON for speta {row['id']}")
+                    continue
+            else:
+                obj = obj_data
+
+            # Extract fact situation from various possible fields
+            situatia = (
+                obj.get('text_situatia_de_fapt') or
+                obj.get('situatia_de_fapt') or
+                obj.get('situatie') or
+                ""
+            )
+
+            spete_export.append({
+                'id': row['id'],
+                'denumire': obj.get('denumire', f'Caz #{row["id"]}'),
+                'situatia_de_fapt': situatia
+            })
+
+        logger.info(f"Exported {len(spete_export)} cases for LLM from last query: '{ultima.query_text[:50]}'")
+
+        return {
+            'success': True,
+            'query_text': ultima.query_text,
+            'total_spete': len(spete_export),
+            'spete': spete_export
+        }
+
+    except Exception as e:
+        logger.error(f"Error exporting LLM data: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Eroare la exportul datelor: {str(e)}"
         )
