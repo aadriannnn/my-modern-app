@@ -264,6 +264,45 @@ class QueueManager:
             'processing': self.processing
         }
 
+    def get_job_status(self, request_id: str) -> Dict[str, Any]:
+        """
+        Gets the detailed status and result of a job.
+
+        Args:
+            request_id: The request ID to check
+
+        Returns:
+            Dictionary with status, result (if done), or error
+        """
+        if request_id not in self.items:
+            return {'status': 'not_found'}
+
+        item = self.items[request_id]
+
+        if item.future.done():
+            try:
+                result = item.future.result()
+                return {
+                    'status': 'completed',
+                    'result': result
+                }
+            except Exception as e:
+                return {
+                    'status': 'failed',
+                    'error': str(e)
+                }
+
+        # If not done, check position
+        if item.position > 0:
+            return {
+                'status': 'queued',
+                'position': item.position
+            }
+        else:
+            return {
+                'status': 'processing'
+            }
+
 
 # Global singleton instance
 queue_manager = QueueManager()

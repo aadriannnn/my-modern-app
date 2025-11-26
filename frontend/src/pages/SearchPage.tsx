@@ -99,7 +99,7 @@ const SearchPage: React.FC = () => {
                 try {
                     setStatus("Analizez contextul juridic cu AI... (poate dura câteva minute)");
 
-                    // Call the analysis endpoint
+                    // Start analysis and get job_id
                     const response = await fetch('/api/settings/analyze-llm-data', {
                         method: 'POST',
                         headers: {
@@ -108,43 +108,79 @@ const SearchPage: React.FC = () => {
                     });
 
                     if (!response.ok) {
-                        throw new Error('AI Analysis failed');
+                        throw new Error('Failed to start AI analysis');
                     }
 
-                    const apiResponse = await response.json();
+                    const startResponse = await response.json();
 
-                    if (apiResponse.success && apiResponse.response) {
-                        // Step 3: Filtering
-                        const llmIds = (apiResponse.response.match(/\d+/g) || []).map(Number);
+                    if (!startResponse.success || !startResponse.job_id) {
+                        throw new Error(startResponse.message || 'Failed to start AI analysis');
+                    }
 
-                        if (llmIds.length > 0) {
-                            const filteredResults = initialResults.filter((item: any) => llmIds.includes(item.id));
+                    const jobId = startResponse.job_id;
 
-                            if (filteredResults.length > 0) {
-                                setSearchResults(filteredResults);
-                                setOffset(initialResults.length);
-                                setHasMore(false); // Disable load more for filtered view
-                                setStatus(`Rezultate filtrate de AI: ${filteredResults.length} din ${initialResults.length} inițiale.`);
-                            } else {
-                                setSearchResults([]);
-                                setStatus("AI-ul nu a găsit potriviri exacte în rezultatele curente.");
-                            }
-                        } else {
-                            setSearchResults([]);
-                            setStatus("Răspunsul AI nu a conținut ID-uri valide.");
+                    // Poll for status
+                    const pollInterval = 2000; // 2 seconds
+                    const maxPolls = 600; // 20 minutes max
+                    let pollCount = 0;
+
+                    const pollStatus = async (): Promise<any> => {
+                        const statusResponse = await fetch(`/api/settings/analyze-llm-status/${jobId}`);
+                        if (!statusResponse.ok) {
+                            throw new Error('Failed to check status');
                         }
-                    } else {
-                        throw new Error('Invalid AI response');
+                        return await statusResponse.json();
+                    };
+
+                    // Start polling
+                    while (pollCount < maxPolls) {
+                        const statusData = await pollStatus();
+
+                        if (statusData.status === 'completed') {
+                            // Success! Filter results
+                            if (statusData.result && statusData.result.success && statusData.result.response) {
+                                const llmIds = (statusData.result.response.match(/\d+/g) || []).map(Number);
+
+                                if (llmIds.length > 0) {
+                                    const filteredResults = initialResults.filter((item: any) => llmIds.includes(item.id));
+
+                                    if (filteredResults.length > 0) {
+                                        setSearchResults(filteredResults);
+                                        setOffset(initialResults.length);
+                                        setHasMore(false);
+                                        setStatus(`Rezultate filtrate de AI: ${filteredResults.length} din ${initialResults.length} inițiale.`);
+                                    } else {
+                                        setSearchResults([]);
+                                        setStatus("AI-ul nu a găsit potriviri exacte în rezultatele curente.");
+                                    }
+                                } else {
+                                    setSearchResults([]);
+                                    setStatus("Răspunsul AI nu a conținut ID-uri valide.");
+                                }
+                            }
+                            break;
+                        } else if (statusData.status === 'failed') {
+                            throw new Error(statusData.error || 'AI analysis failed');
+                        } else if (statusData.status === 'queued') {
+                            setStatus(`În coadă pentru analiză AI... (poziția ${statusData.position || '?'})`);
+                        } else if (statusData.status === 'processing') {
+                            setStatus("AI analizează datele... (așteptați câteva minute)");
+                        } else if (statusData.status === 'not_found') {
+                            throw new Error('Job not found');
+                        }
+
+                        // Wait before next poll
+                        await new Promise(resolve => setTimeout(resolve, pollInterval));
+                        pollCount++;
+                    }
+
+                    if (pollCount >= maxPolls) {
+                        throw new Error('AI analysis timeout');
                     }
 
                 } catch (aiError) {
                     console.error("AI Filtering failed:", aiError);
                     setStatus("Filtrarea AI nu a putut fi aplicată. Vă rugăm să încercați din nou sau să dezactivați funcția Pro.");
-                    // In strict mode, we don't show fallback results if AI was requested but failed,
-                    // or we could show them but the user asked to "not show intermediate".
-                    // If it fails, showing nothing might be too harsh?
-                    // The user said: "sa nu le afiseze... daca nu avem [pro], sa afiseze cautarea standard".
-                    // Implies if Pro IS active, we only show AI results. If AI fails, we probably show nothing or error.
                     setSearchResults([]);
                 }
             } else {

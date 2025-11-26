@@ -203,9 +203,11 @@ async def analyze_llm_data(
     session: Session = Depends(get_session)
 ):
     """
-    Send the optimized prompt to the local LLM server and return the analysis.
+    Start LLM analysis and return job_id immediately.
+    Client should poll /analyze-llm-status/{job_id} for results.
     """
     from ..models import UltimaInterogare
+    from ..logic.queue_manager import queue_manager
     import logging
     import httpx
 
@@ -224,39 +226,69 @@ async def analyze_llm_data(
         # Generate the prompt using the helper
         _, optimized_prompt = _generate_llm_data(session, ultima)
 
-        # Prepare payload for LLM
-        payload = {
-            "prompt": optimized_prompt,
-            "max_tokens": 512,
-            "temperature": 0.1
-        }
+        # Define async processor function
+        async def process_llm_analysis(payload: dict):
+            """Process the LLM analysis."""
+            llm_url = "http://192.168.1.30:8005/generate"
+            logger.info(f"Sending request to LLM at {llm_url}...")
 
-        # Call the local LLM server
-        llm_url = "http://192.168.1.30:8005/generate"
-        logger.info(f"Sending request to LLM at {llm_url}...")
+            llm_payload = {
+                "prompt": payload['prompt'],
+                "max_tokens": 512,
+                "temperature": 0.1
+            }
 
-        async with httpx.AsyncClient(timeout=1200.0) as client:
-            response = await client.post(llm_url, json=payload)
-            response.raise_for_status()
-            result = response.json()
+            async with httpx.AsyncClient(timeout=1200.0) as client:
+                response = await client.post(llm_url, json=llm_payload)
+                response.raise_for_status()
+                result = response.json()
 
-        logger.info("Received response from LLM")
+            logger.info("Received response from LLM")
+
+            return {
+                'success': True,
+                'response': result.get('response', ''),
+                'full_response': result
+            }
+
+        # Add to queue and get job_id immediately
+        payload = {'prompt': optimized_prompt}
+        job_id, _ = await queue_manager.add_to_queue(payload, process_llm_analysis)
+
+        logger.info(f"LLM analysis queued with job_id: {job_id}")
 
         return {
             'success': True,
-            'response': result.get('response', ''),
-            'full_response': result
+            'job_id': job_id,
+            'message': 'Analiză pusă în coadă. Folosește job_id pentru a verifica statusul.'
         }
 
-    except httpx.RequestError as e:
-        logger.error(f"LLM Connection Error: {e}")
-        raise HTTPException(status_code=503, detail=f"Nu s-a putut conecta la serverul LLM: {str(e)}")
-    except httpx.HTTPStatusError as e:
-        logger.error(f"LLM API Error: {e.response.text}")
-        raise HTTPException(status_code=e.response.status_code, detail=f"Eroare de la serverul LLM: {e.response.text}")
+    except RuntimeError as e:
+        logger.error(f"Queue error: {e}")
+        raise HTTPException(status_code=503, detail=f"Coada este plină. Vă rugăm să încercați din nou mai târziu.")
     except Exception as e:
-        logger.error(f"Error analyzing LLM data: {e}", exc_info=True)
+        logger.error(f"Error queuing LLM analysis: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Eroare internă: {str(e)}")
+
+
+@router.get("/analyze-llm-status/{job_id}", response_model=Dict[str, Any])
+async def get_analyze_llm_status(job_id: str):
+    """
+    Check the status of an LLM analysis job.
+    Returns: {status: 'queued'|'processing'|'completed'|'failed'|'not_found', ...}
+    """
+    from ..logic.queue_manager import queue_manager
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        status = queue_manager.get_job_status(job_id)
+        logger.info(f"Job {job_id} status: {status.get('status')}")
+        return status
+    except Exception as e:
+        logger.error(f"Error getting job status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Eroare la verificarea statusului: {str(e)}")
 
 
 def _generate_llm_data(session: Session, ultima: Any):
