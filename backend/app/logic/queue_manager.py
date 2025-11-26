@@ -210,11 +210,24 @@ class QueueManager:
                     logger.error(f"Error processing request {item.request_id}: {e}", exc_info=True)
 
                 finally:
-                    # Clean up
-                    if item.request_id in self.items:
-                        del self.items[item.request_id]
+                    # Clean up callbacks immediately
                     if item.request_id in self.update_callbacks:
                         del self.update_callbacks[item.request_id]
+
+                    # Schedule delayed cleanup for completed/failed jobs (keep results for 5 min)
+                    # Only delete from items if it's done, after a delay
+                    if item.future.done():
+                        async def delayed_cleanup():
+                            await asyncio.sleep(300)  # 5 minutes
+                            if item.request_id in self.items:
+                                del self.items[item.request_id]
+                                logger.info(f"Cleaned up completed job {item.request_id}")
+
+                        asyncio.create_task(delayed_cleanup())
+                    else:
+                        # If not done (shouldn't happen), delete immediately
+                        if item.request_id in self.items:
+                            del self.items[item.request_id]
 
                     # Update positions for remaining items
                     await self._update_positions()
