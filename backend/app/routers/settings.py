@@ -160,9 +160,7 @@ async def export_llm_data(
     "Given this user's fact situation, choose the most similar from the following..."
     """
     from ..models import UltimaInterogare
-    from sqlmodel import text
     import logging
-    import json
 
     logger = logging.getLogger(__name__)
 
@@ -179,87 +177,8 @@ async def export_llm_data(
                 'spete': []
             }
 
-        # Fetch cases by IDs using raw SQL to avoid column issues
-        # Only select id and obj columns
-        placeholders = ', '.join([f':id_{i}' for i in range(len(ultima.speta_ids))])
-        query = text(f"""
-            SELECT id, obj
-            FROM blocuri
-            WHERE id IN ({placeholders})
-        """)
-
-        # Create parameter dict
-        params = {f'id_{i}': speta_id for i, speta_id in enumerate(ultima.speta_ids)}
-
-        # Execute query
-        result = session.execute(query, params)
-        results = result.mappings().all()
-
-        # Build export data
-        spete_export = []
-        spete_text_list = []
-
-        for i, row in enumerate(results):
-            # Handle obj being either dict or JSON string
-            obj_data = row['obj']
-            if isinstance(obj_data, str):
-                try:
-                    obj = json.loads(obj_data)
-                except json.JSONDecodeError:
-                    logger.warning(f"Could not decode JSON for speta {row['id']}")
-                    continue
-            else:
-                obj = obj_data
-
-            # Extract fact situation from various possible fields
-            situatia = (
-                obj.get('text_situatia_de_fapt') or
-                obj.get('situatia_de_fapt') or
-                obj.get('situatie') or
-                ""
-            )
-
-            # Extract new fields
-            text_individualizare = obj.get('text_individualizare', '')
-            obiect = obj.get('obiect', '')
-
-            speta_item = {
-                'id': row['id'],
-                'denumire': obj.get('denumire', f'Caz #{row["id"]}'),
-                'situatia_de_fapt': situatia,
-                'text_individualizare': text_individualizare,
-                'obiect': obiect
-            }
-            spete_export.append(speta_item)
-
-            # Format for prompt
-            spete_text_list.append(f"""
-CAZ #{row['id']}:
-OBIECT: {obiect}
-SITUATIA DE FAPT: {situatia}
-ELEMENTE DE INDIVIDUALIZARE: {text_individualizare}
---------------------------------------------------
-""")
-
-        # Generate optimized prompt
-        prompt_spete = "\n".join(spete_text_list)
-        optimized_prompt = f"""Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.
-
-SARCINA TA:
-Analizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu lista de spete (cazuri) furnizate.
-Identifica cele mai relevante 5 spete care sunt cele mai asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.
-
-SITUATIA DE FAPT A JUSTITIABILULUI:
-"{ultima.query_text}"
-
-LISTA DE SPETE PENTRU COMPARATIE:
-{prompt_spete}
-
-FORMATUL RASPUNSULUI:
-Genereaza EXCLUSIV o lista cu ID-urile celor mai relevante 5 spete, separate prin virgula.
-Nu adauga niciun alt text, comentariu, explicatie sau introducere.
-Exemplu de raspuns valid: 123, 456, 789, 101, 112
-"""
+        # Use helper to generate data and prompt
+        spete_export, optimized_prompt = _generate_llm_data(session, ultima)
 
         logger.info(f"Exported {len(spete_export)} cases for LLM from last query: '{ultima.query_text[:50]}'")
 
@@ -277,3 +196,145 @@ Exemplu de raspuns valid: 123, 456, 789, 101, 112
             status_code=500,
             detail=f"Eroare la exportul datelor: {str(e)}"
         )
+
+
+@router.post("/analyze-llm-data", response_model=Dict[str, Any])
+async def analyze_llm_data(
+    session: Session = Depends(get_session)
+):
+    """
+    Send the optimized prompt to the local LLM server and return the analysis.
+    """
+    from ..models import UltimaInterogare
+    import logging
+    import httpx
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Get last query data
+        ultima = session.get(UltimaInterogare, 1)
+
+        if not ultima or not ultima.speta_ids:
+            return {
+                'success': False,
+                'message': 'Nu există rezultate salvate din ultima căutare.',
+            }
+
+        # Generate the prompt using the helper
+        _, optimized_prompt = _generate_llm_data(session, ultima)
+
+        # Prepare payload for LLM
+        payload = {
+            "prompt": optimized_prompt,
+            "max_tokens": 512,
+            "temperature": 0.1
+        }
+
+        # Call the local LLM server
+        llm_url = "http://192.168.1.30:8005/generate"
+        logger.info(f"Sending request to LLM at {llm_url}...")
+
+        async with httpx.AsyncClient(timeout=1200.0) as client:
+            response = await client.post(llm_url, json=payload)
+            response.raise_for_status()
+            result = response.json()
+
+        logger.info("Received response from LLM")
+
+        return {
+            'success': True,
+            'response': result.get('response', ''),
+            'full_response': result
+        }
+
+    except httpx.RequestError as e:
+        logger.error(f"LLM Connection Error: {e}")
+        raise HTTPException(status_code=503, detail=f"Nu s-a putut conecta la serverul LLM: {str(e)}")
+    except httpx.HTTPStatusError as e:
+        logger.error(f"LLM API Error: {e.response.text}")
+        raise HTTPException(status_code=e.response.status_code, detail=f"Eroare de la serverul LLM: {e.response.text}")
+    except Exception as e:
+        logger.error(f"Error analyzing LLM data: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Eroare internă: {str(e)}")
+
+
+def _generate_llm_data(session: Session, ultima: Any):
+    """
+    Helper to generate the export data and optimized prompt.
+    """
+    from sqlmodel import text
+    import json
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # Fetch cases by IDs using raw SQL
+    placeholders = ', '.join([f':id_{i}' for i in range(len(ultima.speta_ids))])
+    query = text(f"SELECT id, obj FROM blocuri WHERE id IN ({placeholders})")
+
+    params = {f'id_{i}': speta_id for i, speta_id in enumerate(ultima.speta_ids)}
+
+    result = session.execute(query, params)
+    results = result.mappings().all()
+
+    spete_export = []
+    spete_text_list = []
+
+    for row in results:
+        obj_data = row['obj']
+        if isinstance(obj_data, str):
+            try:
+                obj = json.loads(obj_data)
+            except json.JSONDecodeError:
+                continue
+        else:
+            obj = obj_data
+
+        situatia = (
+            obj.get('text_situatia_de_fapt') or
+            obj.get('situatia_de_fapt') or
+            obj.get('situatie') or
+            ""
+        )
+
+        text_individualizare = obj.get('text_individualizare', '')
+        obiect = obj.get('obiect', '')
+
+        speta_item = {
+            'id': row['id'],
+            'denumire': obj.get('denumire', f'Caz #{row["id"]}'),
+            'situatia_de_fapt': situatia,
+            'text_individualizare': text_individualizare,
+            'obiect': obiect
+        }
+        spete_export.append(speta_item)
+
+        spete_text_list.append(f"""
+CAZ #{row['id']}:
+OBIECT: {obiect}
+SITUATIA DE FAPT: {situatia}
+ELEMENTE DE INDIVIDUALIZARE: {text_individualizare}
+--------------------------------------------------
+""")
+
+    prompt_spete = "\n".join(spete_text_list)
+    optimized_prompt = f"""Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.
+
+SARCINA TA:
+Analizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu lista de spete (cazuri) furnizate.
+Identifica cele mai relevante 5 spete care sunt cele mai asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.
+
+SITUATIA DE FAPT A JUSTITIABILULUI:
+"{ultima.query_text}"
+
+LISTA DE SPETE PENTRU COMPARATIE:
+{prompt_spete}
+
+FORMATUL RASPUNSULUI:
+Genereaza EXCLUSIV o lista cu ID-urile celor mai relevante 5 spete, separate prin virgula.
+Nu adauga niciun alt text, comentariu, explicatie sau introducere.
+Exemplu de raspuns valid: 123, 456, 789, 101, 112
+"""
+
+    return spete_export, optimized_prompt
