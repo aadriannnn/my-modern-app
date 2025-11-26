@@ -229,7 +229,8 @@ async def analyze_llm_data(
         # Define async processor function
         async def process_llm_analysis(payload: dict):
             """Process the LLM analysis."""
-            llm_url = "http://192.168.1.30:8005/generate"
+            # Get LLM URL from settings
+            llm_url = settings_manager.get_value('setari_llm', 'llm_url', 'http://192.168.1.30:8005/generate')
             logger.info(f"Sending request to LLM at {llm_url}...")
 
             llm_payload = {
@@ -351,22 +352,19 @@ ELEMENTE DE INDIVIDUALIZARE: {text_individualizare}
 """)
 
     prompt_spete = "\n".join(spete_text_list)
-    optimized_prompt = f"""Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.
 
-SARCINA TA:
-Analizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu lista de spete (cazuri) furnizate.
-Identifica cele mai relevante 5 spete care sunt cele mai asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.
+    # Get prompt template from settings
+    prompt_template = settings_manager.get_value(
+        'setari_llm',
+        'llm_prompt_template',
+        # Default fallback value
+        'Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\n\nSARCINA TA:\nAnalizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu lista de spete (cazuri) furnizate.\nIdentifica cele mai relevante 5 spete care sunt cele mai asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\n\nSITUATIA DE FAPT A JUSTITIABILULUI:\n"{query_text}"\n\nLISTA DE SPETE PENTRU COMPARATIE:\n{prompt_spete}\n\nFORMATUL RASPUNSULUI:\nGenereaza EXCLUSIV o lista cu ID-urile celor mai relevante 5 spete, separate prin virgula.\nNu adauga niciun alt text, comentariu, explicatie sau introducere.\nExemplu de raspuns valid: 123, 456, 789, 101, 112'
+    )
 
-SITUATIA DE FAPT A JUSTITIABILULUI:
-"{ultima.query_text}"
-
-LISTA DE SPETE PENTRU COMPARATIE:
-{prompt_spete}
-
-FORMATUL RASPUNSULUI:
-Genereaza EXCLUSIV o lista cu ID-urile celor mai relevante 5 spete, separate prin virgula.
-Nu adauga niciun alt text, comentariu, explicatie sau introducere.
-Exemplu de raspuns valid: 123, 456, 789, 101, 112
-"""
+    # Format the template with actual data
+    optimized_prompt = prompt_template.format(
+        query_text=ultima.query_text,
+        prompt_spete=prompt_spete
+    )
 
     return spete_export, optimized_prompt

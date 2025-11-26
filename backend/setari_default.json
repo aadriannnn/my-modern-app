@@ -190,5 +190,19 @@
             "max": 200,
             "step": 10
         }
+    },
+    "setari_llm": {
+        "llm_url": {
+            "value": "http://192.168.1.30:8005/generate",
+            "label": "URL Server LLM",
+            "tooltip": "Adresa serverului LLM local pentru analiză (ex: http://192.168.1.30:8005/generate)",
+            "type": "string"
+        },
+        "llm_prompt_template": {
+            "value": "Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\n\nSARCINA TA:\nAnalizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu lista de spete (cazuri) furnizate.\nIdentifica cele mai relevante 5 spete care sunt cele mai asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\n\nSITUATIA DE FAPT A JUSTITIABILULUI:\n\"{query_text}\"\n\nLISTA DE SPETE PENTRU COMPARATIE:\n{prompt_spete}\n\nFORMATUL RASPUNSULUI:\nGenereaza EXCLUSIV o lista cu ID-urile celor mai relevante 5 spete, separate prin virgula.\nNu adauga niciun alt text, comentariu, explicatie sau introducere.\nExemplu de raspuns valid: 123, 456, 789, 101, 112",
+            "label": "Template Prompt LLM",
+            "tooltip": "Template-ul prompt-ului trimis către LLM. Folosește {query_text} pentru situația utilizatorului și {prompt_spete} pentru lista de spețe.",
+            "type": "text"
+        }
     }
 }

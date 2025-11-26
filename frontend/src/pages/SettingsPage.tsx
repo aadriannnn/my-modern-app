@@ -253,6 +253,8 @@ const SettingsPage: React.FC = () => {
     const renderSettingControl = (key: string, item: SettingItem, path: string[]) => {
         const isNumber = typeof item.value === 'number';
         const isBoolean = typeof item.value === 'boolean';
+        const isText = item.type === 'text';
+        const isString = item.type === 'string';
 
         return (
             <div key={key} className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:border-blue-100 transition-colors">
@@ -270,11 +272,13 @@ const SettingsPage: React.FC = () => {
                         </h4>
                         <p className="text-sm text-slate-500 mt-1">{item.tooltip}</p>
                     </div>
-                    <div className="text-right">
-                        <span className="inline-block px-3 py-1 bg-slate-100 text-slate-700 rounded-md font-mono text-sm font-semibold">
-                            {isBoolean ? (item.value ? 'ON' : 'OFF') : item.value}
-                        </span>
-                    </div>
+                    {!isText && !isString && (
+                        <div className="text-right">
+                            <span className="inline-block px-3 py-1 bg-slate-100 text-slate-700 rounded-md font-mono text-sm font-semibold">
+                                {isBoolean ? (item.value ? 'ON' : 'OFF') : item.value}
+                            </span>
+                        </div>
+                    )}
                 </div>
 
                 {isNumber && (
@@ -307,6 +311,25 @@ const SettingsPage: React.FC = () => {
                                 } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
                         />
                     </Switch>
+                )}
+
+                {isText && (
+                    <textarea
+                        value={item.value}
+                        onChange={(e) => updateSettingValue([...path, 'value'], e.target.value)}
+                        className="w-full min-h-[200px] px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-y"
+                        placeholder={item.tooltip}
+                    />
+                )}
+
+                {isString && (
+                    <input
+                        type="text"
+                        value={item.value}
+                        onChange={(e) => updateSettingValue([...path, 'value'], e.target.value)}
+                        className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder={item.tooltip}
+                    />
                 )}
             </div>
         );
@@ -544,8 +567,8 @@ const SettingsPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* LLM Analysis Section */}
-                <div className="mb-8 bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200 rounded-2xl p-6 shadow-sm">
+                {/* LLM Analysis Section - Hidden but backend remains functional */}
+                <div style={{ display: 'none' }} className="mb-8 bg-gradient-to-br from-indigo-50 to-violet-50 border border-indigo-200 rounded-2xl p-6 shadow-sm">
                     <div className="flex items-start justify-between mb-4">
                         <div>
                             <h3 className="text-lg font-bold text-slate-900 mb-2">🤖 Analiză LLM Locală</h3>
