@@ -180,6 +180,9 @@ class QueueManager:
 
                 logger.info(f"Processing request {item.request_id}")
 
+                # Mark item as processing (position 0)
+                item.position = 0
+
                 # Update status to processing
                 await self._broadcast_update(item.request_id, 0, self.queue.qsize())
 
