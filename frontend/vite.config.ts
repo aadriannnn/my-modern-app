@@ -20,6 +20,8 @@ export default defineConfig(({ mode }) => {
           target: 'http://127.0.0.1:8000',
           changeOrigin: true,
           secure: false,
+          timeout: 1200000, // 20 minutes
+          proxyTimeout: 1200000, // 20 minutes
         },
       },
     },
