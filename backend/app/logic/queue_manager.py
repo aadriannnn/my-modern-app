@@ -214,18 +214,25 @@ class QueueManager:
                     if item.request_id in self.update_callbacks:
                         del self.update_callbacks[item.request_id]
 
-                    # Schedule delayed cleanup for completed/failed jobs (keep results for 5 min)
+                    # Schedule delayed cleanup for completed/failed jobs (keep results for 30 min)
                     # Only delete from items if it's done, after a delay
                     if item.future.done():
+                        logger.info(f"Scheduling delayed cleanup for job {item.request_id} in 30 minutes")
+
                         async def delayed_cleanup():
-                            await asyncio.sleep(300)  # 5 minutes
+                            logger.info(f"Delayed cleanup starting 30-min wait for job {item.request_id}")
+                            await asyncio.sleep(1800)  # 30 minutes
+                            logger.info(f"Delayed cleanup 30-min wait finished, now deleting job {item.request_id}")
                             if item.request_id in self.items:
                                 del self.items[item.request_id]
                                 logger.info(f"Cleaned up completed job {item.request_id}")
+                            else:
+                                logger.warning(f"Job {item.request_id} already deleted from items")
 
                         asyncio.create_task(delayed_cleanup())
                     else:
                         # If not done (shouldn't happen), delete immediately
+                        logger.warning(f"Job {item.request_id} future not done in finally block - deleting immediately")
                         if item.request_id in self.items:
                             del self.items[item.request_id]
 
