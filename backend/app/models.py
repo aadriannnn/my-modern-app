@@ -90,3 +90,13 @@ class UltimaInterogare(SQLModel, table=True):
     speta_ids: List[int] = Field(sa_column=Column(JSON))
     query_text: str = Field(default="")
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+
+
+class FeedbackStatistics(SQLModel, table=True):
+    """Stores user feedback ratings (good/bad) for answers."""
+    __tablename__ = 'feedbackstatistics'
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    feedback_type: str = Field(index=True)  # 'good' or 'bad'
+    speta_id: Optional[int] = Field(default=None, index=True)  # Optional: for future analytics
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False, index=True)

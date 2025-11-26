@@ -18,7 +18,8 @@ from .routers import (
     coduri as coduri_router,
     auth as auth_router,
     settings as settings_router,
-    queue_status as queue_router
+    queue_status as queue_router,
+    feedback as feedback_router
 )
 
 # Configure logging
@@ -93,6 +94,7 @@ api_router.include_router(coduri_router.router)
 api_router.include_router(auth_router.router)
 api_router.include_router(settings_router.router)
 api_router.include_router(queue_router.router)
+api_router.include_router(feedback_router.router)
 
 app.include_router(api_router)
 

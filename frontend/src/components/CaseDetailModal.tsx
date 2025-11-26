@@ -4,6 +4,7 @@ import { Fragment } from "react";
 import { Download, X, Printer, FolderPlus, FolderCheck, ThumbsUp, ThumbsDown } from "lucide-react";
 import ShareButton from "./ShareButton";
 import { useDosar } from "../context/DosarContext";
+import { submitFeedback } from "../lib/api";
 
 import { generatePdf } from "../lib/pdf";
 import type { PdfSablonData } from "../lib/pdf";
@@ -138,8 +139,24 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
     );
   };
 
-  const handleFeedback = (type: FeedbackType) => {
+  const handleFeedback = async (type: FeedbackType) => {
+    if (!type) return;
+
+    // Optimistic update
     setFeedback(type);
+
+    try {
+      // Try to parse ID as number for the backend
+      const spetaId = typeof result.id === 'number'
+        ? result.id
+        : parseInt(result.id as string);
+
+      await submitFeedback(type, !isNaN(spetaId) ? spetaId : undefined);
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+      // We keep the UI state as is to not disrupt the user experience,
+      // but log the error for debugging
+    }
   };
 
   const renderFeedbackMessage = () => {

@@ -208,3 +208,54 @@ export const subscribeToQueueStatus = (
     close: () => eventSource.close()
   };
 };
+
+// Feedback API interfaces
+export interface FeedbackStats {
+  total_feedback: number;
+  good_count: number;
+  bad_count: number;
+  good_percentage: number;
+  bad_percentage: number;
+}
+
+/**
+ * Submit user feedback (good or bad rating)
+ */
+export const submitFeedback = async (
+  feedbackType: 'good' | 'bad',
+  spetaId?: number
+): Promise<{ success: boolean; message: string }> => {
+  const response = await fetch(`${API_URL}/feedback`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      feedback_type: feedbackType,
+      speta_id: spetaId
+    }),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to submit feedback');
+  }
+
+  return response.json();
+};
+
+/**
+ * Get feedback statistics
+ */
+export const getFeedbackStats = async (): Promise<FeedbackStats> => {
+  const response = await fetch(`${API_URL}/feedback/stats`, {
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch feedback statistics');
+  }
+
+  return response.json();
+};

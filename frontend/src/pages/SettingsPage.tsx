@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getSettings, updateSettings, resetSettings, refreshFilters, precalculateModelsCodes, getPrecalculateStatus, stopPrecalculate } from '../lib/api';
-import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square } from 'lucide-react';
+import { getSettings, updateSettings, resetSettings, refreshFilters, precalculateModelsCodes, getPrecalculateStatus, stopPrecalculate, getFeedbackStats, type FeedbackStats } from '../lib/api';
+import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square, ThumbsUp, ThumbsDown, BarChart3 } from 'lucide-react';
 import { Switch } from '@headlessui/react';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
@@ -27,10 +27,29 @@ const SettingsPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [success, setSuccess] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<string>('');
+    const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null);
 
     useEffect(() => {
         loadSettings();
+        loadFeedbackStats();
     }, []);
+
+    const loadFeedbackStats = async () => {
+        try {
+            const stats = await getFeedbackStats();
+            setFeedbackStats(stats);
+        } catch (err) {
+            console.error('Error loading feedback stats:', err);
+            // Set default empty stats to show the UI even if fetch fails (e.g. table empty)
+            setFeedbackStats({
+                total_feedback: 0,
+                good_count: 0,
+                bad_count: 0,
+                good_percentage: 0,
+                bad_percentage: 0
+            });
+        }
+    };
 
     const loadSettings = async () => {
         try {
@@ -479,6 +498,51 @@ const SettingsPage: React.FC = () => {
                                 >
                                     Anulează
                                 </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Feedback Stats Section */}
+                {feedbackStats && (
+                    <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in slide-in-from-top-4 duration-500 delay-100">
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+                            <div className="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                                <BarChart3 className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-slate-500 font-medium">Total Feedback</p>
+                                <p className="text-2xl font-bold text-slate-900">{feedbackStats.total_feedback}</p>
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+                            <div className="p-3 bg-green-50 text-green-600 rounded-xl">
+                                <ThumbsUp className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-slate-500 font-medium">Răspunsuri Bune</p>
+                                <div className="flex items-baseline gap-2">
+                                    <p className="text-2xl font-bold text-slate-900">{feedbackStats.good_count}</p>
+                                    <span className="text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">
+                                        {feedbackStats.good_percentage}%
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex items-center gap-4 hover:shadow-md transition-shadow">
+                            <div className="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                                <ThumbsDown className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-slate-500 font-medium">Răspunsuri Rele</p>
+                                <div className="flex items-baseline gap-2">
+                                    <p className="text-2xl font-bold text-slate-900">{feedbackStats.bad_count}</p>
+                                    <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
+                                        {feedbackStats.bad_percentage}%
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
