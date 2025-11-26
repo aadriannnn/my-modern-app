@@ -118,7 +118,7 @@ const SearchPage: React.FC = () => {
                         const llmIds = (apiResponse.response.match(/\d+/g) || []).map(Number);
 
                         if (llmIds.length > 0) {
-                            const filteredResults = initialResults.filter(item => llmIds.includes(item.id));
+                            const filteredResults = initialResults.filter((item: any) => llmIds.includes(item.id));
 
                             if (filteredResults.length > 0) {
                                 setSearchResults(filteredResults);
