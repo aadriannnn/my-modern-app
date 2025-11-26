@@ -54,7 +54,7 @@ class QueueManager:
             self.processing: bool = False
             self.worker_task: Optional[asyncio.Task] = None
             self.max_queue_size: int = 50
-            self.queue_timeout: int = 300  # seconds
+            self.queue_timeout: int = 1200  # seconds (20 minutes for LLM)
             self.update_callbacks: Dict[str, list] = {}
             self.initialized = True
             logger.info("QueueManager initialized")
