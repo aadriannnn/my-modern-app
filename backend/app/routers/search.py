@@ -60,13 +60,13 @@ async def search(
                 existing = save_session.get(UltimaInterogare, 1)
                 if existing:
                     existing.speta_ids = speta_ids
-                    existing.query_text = request.situatie[:500]  # Limit query text length
+                    existing.query_text = request.situatie[:10000]  # Limit query text length
                     existing.created_at = datetime.utcnow()
                 else:
                     nueva = UltimaInterogare(
                         id=1,
                         speta_ids=speta_ids,
-                        query_text=request.situatie[:500],
+                        query_text=request.situatie[:10000],
                     )
                     save_session.add(nueva)
                 save_session.commit()

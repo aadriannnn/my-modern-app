@@ -208,20 +208,37 @@ const SettingsPage: React.FC = () => {
                 return;
             }
 
-            // Create and download JSON file
-            const blob = new Blob([JSON.stringify(data, null, 2)], {
-                type: 'application/json'
-            });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `situatii_fapt_llm_${new Date().toISOString().split('T')[0]}.json`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
+            if (data.optimized_prompt) {
+                // Download as text file
+                const blob = new Blob([data.optimized_prompt], {
+                    type: 'text/plain;charset=utf-8'
+                });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `prompt_llm_${new Date().toISOString().split('T')[0]}.txt`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
 
-            setSuccess(`Export reușit! ${data.total_spete} situații de fapt descărcate.`);
+                setSuccess(`Prompt optimizat descărcat cu succes!`);
+            } else {
+                // Fallback: Create and download JSON file
+                const blob = new Blob([JSON.stringify(data, null, 2)], {
+                    type: 'application/json'
+                });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `situatii_fapt_llm_${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                setSuccess(`Export reușit! ${data.total_spete} situații de fapt descărcate.`);
+            }
             setTimeout(() => setSuccess(null), 5000);
         } catch (err: any) {
             setError(err.message || 'Eroare la exportul datelor.');

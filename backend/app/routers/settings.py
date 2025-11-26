@@ -197,7 +197,9 @@ async def export_llm_data(
 
         # Build export data
         spete_export = []
-        for row in results:
+        spete_text_list = []
+
+        for i, row in enumerate(results):
             # Handle obj being either dict or JSON string
             obj_data = row['obj']
             if isinstance(obj_data, str):
@@ -217,11 +219,47 @@ async def export_llm_data(
                 ""
             )
 
-            spete_export.append({
+            # Extract new fields
+            text_individualizare = obj.get('text_individualizare', '')
+            obiect = obj.get('obiect', '')
+
+            speta_item = {
                 'id': row['id'],
                 'denumire': obj.get('denumire', f'Caz #{row["id"]}'),
-                'situatia_de_fapt': situatia
-            })
+                'situatia_de_fapt': situatia,
+                'text_individualizare': text_individualizare,
+                'obiect': obiect
+            }
+            spete_export.append(speta_item)
+
+            # Format for prompt
+            spete_text_list.append(f"""
+CAZ #{row['id']}:
+OBIECT: {obiect}
+SITUATIA DE FAPT: {situatia}
+ELEMENTE DE INDIVIDUALIZARE: {text_individualizare}
+--------------------------------------------------
+""")
+
+        # Generate optimized prompt
+        prompt_spete = "\n".join(spete_text_list)
+        optimized_prompt = f"""Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.
+
+SARCINA TA:
+Analizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu lista de spete (cazuri) furnizate.
+Identifica cele mai relevante 5 spete care sunt cele mai asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.
+
+SITUATIA DE FAPT A JUSTITIABILULUI:
+"{ultima.query_text}"
+
+LISTA DE SPETE PENTRU COMPARATIE:
+{prompt_spete}
+
+FORMATUL RASPUNSULUI:
+Genereaza EXCLUSIV o lista cu ID-urile celor mai relevante 5 spete, separate prin virgula.
+Nu adauga niciun alt text, comentariu, explicatie sau introducere.
+Exemplu de raspuns valid: 123, 456, 789, 101, 112
+"""
 
         logger.info(f"Exported {len(spete_export)} cases for LLM from last query: '{ultima.query_text[:50]}'")
 
@@ -229,7 +267,8 @@ async def export_llm_data(
             'success': True,
             'query_text': ultima.query_text,
             'total_spete': len(spete_export),
-            'spete': spete_export
+            'spete': spete_export,
+            'optimized_prompt': optimized_prompt
         }
 
     except Exception as e:
