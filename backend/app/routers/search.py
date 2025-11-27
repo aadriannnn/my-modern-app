@@ -75,6 +75,46 @@ async def search(
             # Don't fail the search if saving for LLM export fails
             logger.error(f"Failed to save search results for LLM export: {save_error}")
 
+        # Track materie statistics from top 5 results
+        try:
+            from ..models import MaterieStatistics
+            from datetime import datetime
+            from collections import Counter
+
+            # Get top 5 results (or fewer if less than 5 results)
+            top_results = result[:5]
+
+            # Extract materii from top results
+            materii = []
+            for r in top_results:
+                materie = r.get('materie') or r.get('data', {}).get('materie')
+                if materie and materie != "—" and materie.strip():
+                    materii.append(materie.strip())
+
+            # Count occurrences of each materie
+            materie_counts = Counter(materii)
+
+            if materie_counts:
+                # Use a separate session for tracking
+                with next(get_session()) as track_session:
+                    for materie, count in materie_counts.items():
+                        existing = track_session.get(MaterieStatistics, materie)
+                        if existing:
+                            existing.display_count += count
+                            existing.last_updated = datetime.utcnow()
+                        else:
+                            new_stat = MaterieStatistics(
+                                materie=materie,
+                                display_count=count,
+                                last_updated=datetime.utcnow()
+                            )
+                            track_session.add(new_stat)
+                    track_session.commit()
+                    logger.info(f"Tracked materie statistics: {dict(materie_counts)}")
+        except Exception as track_error:
+            # Don't fail the search if materie tracking fails
+            logger.error(f"Failed to track materie statistics: {track_error}")
+
         return result
 
     except RuntimeError as e:

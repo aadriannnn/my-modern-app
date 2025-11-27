@@ -368,3 +368,62 @@ ELEMENTE DE INDIVIDUALIZARE: {text_individualizare}
     )
 
     return spete_export, optimized_prompt
+
+
+@router.get("/materie-statistics", response_model=Dict[str, Any])
+async def get_materie_statistics(
+    session: Session = Depends(get_session),
+    limit: int = 100
+):
+    """
+    Get materie statistics showing which legal subjects are most frequently displayed.
+
+    Query Parameters:
+        limit: Maximum number of materii to return (default: 100)
+
+    Returns:
+        List of materii sorted by display_count (descending) with:
+        - materie: The materie name
+        - display_count: Number of times displayed in top 5 search results
+        - last_updated: Timestamp of last update
+    """
+    from ..models import MaterieStatistics
+    from sqlmodel import select
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Query materie statistics, ordered by display_count descending
+        statement = (
+            select(MaterieStatistics)
+            .order_by(MaterieStatistics.display_count.desc())
+            .limit(limit)
+        )
+
+        results = session.exec(statement).all()
+
+        # Format results
+        statistics = [
+            {
+                'materie': stat.materie,
+                'display_count': stat.display_count,
+                'last_updated': stat.last_updated.isoformat() if stat.last_updated else None
+            }
+            for stat in results
+        ]
+
+        logger.info(f"Retrieved {len(statistics)} materie statistics")
+
+        return {
+            'success': True,
+            'total_materii': len(statistics),
+            'statistics': statistics
+        }
+
+    except Exception as e:
+        logger.error(f"Error retrieving materie statistics: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Eroare la preluarea statisticilor: {str(e)}"
+        )

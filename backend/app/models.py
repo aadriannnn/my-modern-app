@@ -100,3 +100,12 @@ class FeedbackStatistics(SQLModel, table=True):
     feedback_type: str = Field(index=True)  # 'good' or 'bad'
     speta_id: Optional[int] = Field(default=None, index=True)  # Optional: for future analytics
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False, index=True)
+
+
+class MaterieStatistics(SQLModel, table=True):
+    """Tracks how many times each materie has been displayed in search results."""
+    __tablename__ = 'materie_statistics'
+
+    materie: str = Field(primary_key=True)  # The materie name (e.g., "Penal", "Civil")
+    display_count: int = Field(default=0, index=True)  # Number of times displayed
+    last_updated: datetime = Field(default_factory=datetime.utcnow, nullable=False)

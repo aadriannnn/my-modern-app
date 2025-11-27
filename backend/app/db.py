@@ -2,7 +2,7 @@ import logging
 from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy import text
 from .config import get_settings
-from .models import Blocuri
+from .models import Blocuri, MaterieStatistics, FeedbackStatistics, UltimaInterogare
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -30,6 +30,8 @@ def init_db():
         Blocuri.model_rebuild(force=True)
 
 
+    # Create all tables including MaterieStatistics, FeedbackStatistics, etc.
+    logger.info("Creating all database tables (including materie_statistics)...")
     SQLModel.metadata.create_all(engine)
     with Session(engine) as session:
         # Use a more robust check for PostgreSQL

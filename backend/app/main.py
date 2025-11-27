@@ -61,9 +61,9 @@ app.add_middleware(
 @app.on_event("startup")
 def on_startup():
     logger.info("--- Backend Startup Sequence Initiated ---")
-    logger.info("Step 1: Initializing database...")
+    logger.info("Step 1: Initializing database (creating all tables including materie_statistics)...")
     init_db()
-    logger.info("Step 1: Database initialization complete.")
+    logger.info("Step 1: Database initialization complete. All tables created.")
 
     logger.info("Step 2: Loading all filter data into memory cache...")
     with next(get_session()) as session:
