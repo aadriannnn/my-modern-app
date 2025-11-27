@@ -106,7 +106,11 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
         return (
           <>
             <LongTextField label="Parte Introductivă" text={caseData.parte_introductiva} />
-            <LongTextField label="Considerente" text={caseData.considerente_speta} />
+            <LongTextField
+              label="Considerente"
+              text={caseData.considerente_speta}
+              highlightTerms={caseData.highlight_terms}
+            />
             <LongTextField label="Dispozitiv Speță" text={caseData.dispozitiv_speta} />
           </>
         );
