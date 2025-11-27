@@ -1,15 +1,48 @@
 from fastapi import APIRouter, HTTPException, Depends
+from pydantic import BaseModel
 from typing import Dict, Any
 from sqlmodel import Session
 from ..settings_manager import settings_manager
 from ..routers.auth import get_current_user
 from ..db import get_session
+from ..config import get_settings as get_env_settings
 
 router = APIRouter(
     prefix="/settings",
     tags=["settings"],
     responses={404: {"description": "Not found"}},
 )
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+@router.post("/login", response_model=Dict[str, bool])
+async def login_settings(credentials: LoginRequest):
+    """
+    Verify settings page credentials.
+    """
+    env_settings = get_env_settings()
+
+    # Get credentials from settings (loaded from env)
+    valid_user = env_settings.USER_SETARI
+    valid_pass = env_settings.PASS_SETARI
+
+    if not valid_user or not valid_pass:
+        # If credentials are not set in env, allow access (or deny, depending on policy)
+        # For security, if not set, we might want to deny or warn.
+        # But here assuming if not set, maybe open? Or fail safe?
+        # Let's assume fail safe: if not configured, deny access to be safe,
+        # OR if the user didn't set them, maybe they don't want protection?
+        # Given the prompt says "parola si user trebuiesc importate din .env",
+        # we assume they ARE in .env.
+        raise HTTPException(status_code=500, detail="Server misconfiguration: Credentials not set")
+
+    if credentials.username == valid_user and credentials.password == valid_pass:
+        return {"success": True}
+
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
 
 @router.get("/", response_model=Dict[str, Any])
 async def get_settings():

@@ -5,6 +5,8 @@ import { Switch } from '@headlessui/react';
 import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
 
+import SettingsLogin from '../components/SettingsLogin';
+
 interface SettingItem {
     value: any;
     label: string;
@@ -20,6 +22,7 @@ interface SettingsSection {
 }
 
 const SettingsPage: React.FC = () => {
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [settings, setSettings] = useState<SettingsSection | null>(null);
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -30,9 +33,26 @@ const SettingsPage: React.FC = () => {
     const [feedbackStats, setFeedbackStats] = useState<FeedbackStats | null>(null);
 
     useEffect(() => {
+        checkAuth();
+    }, []);
+
+    const checkAuth = () => {
+        const auth = localStorage.getItem('settings_auth');
+        if (auth === 'true') {
+            setIsAuthenticated(true);
+            loadSettings();
+            loadFeedbackStats();
+        } else {
+            setLoading(false);
+        }
+    };
+
+    const handleLoginSuccess = () => {
+        setIsAuthenticated(true);
+        setLoading(true);
         loadSettings();
         loadFeedbackStats();
-    }, []);
+    };
 
     const loadFeedbackStats = async () => {
         try {
@@ -374,6 +394,10 @@ const SettingsPage: React.FC = () => {
             .map(word => word.charAt(0).toUpperCase() + word.slice(1))
             .join(' ');
     };
+
+    if (!isAuthenticated) {
+        return <SettingsLogin onLoginSuccess={handleLoginSuccess} />;
+    }
 
     if (loading && !settings) {
         return (

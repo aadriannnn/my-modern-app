@@ -139,6 +139,22 @@ export const resetSettings = async () => {
   return response.json();
 };
 
+export const loginSettings = async (username: string, pass: string) => {
+  const response = await fetch(`${API_URL}/settings/login`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ username, password: pass }),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    throw new Error('Invalid credentials');
+  }
+  return response.json();
+};
+
 export const precalculateModelsCodes = async (restart: boolean = false) => {
   const response = await fetch(`${API_URL}/settings/precalculate-models-codes?restart=${restart}`, {
     method: 'POST',
