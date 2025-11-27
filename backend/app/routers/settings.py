@@ -449,6 +449,7 @@ async def export_materie_statistics(
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
     from io import BytesIO
+    from datetime import datetime
     import logging
 
     logger = logging.getLogger(__name__)
