@@ -263,7 +263,7 @@ async def analyze_llm_data(
         async def process_llm_analysis(payload: dict):
             """Process the LLM analysis."""
             # Get LLM URL from settings
-            llm_url = settings_manager.get_value('setari_llm', 'llm_url', 'http://192.168.1.30:8005/generate')
+            llm_url = settings_manager.get_value('setari_llm', 'llm_url', 'http://localhost:11434/api/generate')
             logger.info(f"Sending request to LLM at {llm_url}...")
 
             llm_payload = {

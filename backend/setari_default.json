@@ -193,9 +193,9 @@
     },
     "setari_llm": {
         "llm_url": {
-            "value": "http://192.168.1.30:8005/generate",
+            "value": "http://localhost:11434/api/generate",
             "label": "URL Server LLM",
-            "tooltip": "Adresa serverului LLM local pentru analiză (ex: http://192.168.1.30:8005/generate)",
+            "tooltip": "Adresa serverului LLM local pentru analiză (ex: http://localhost:11434/api/generate)",
             "type": "string"
         },
         "llm_prompt_template": {
