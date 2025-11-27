@@ -81,6 +81,47 @@ async def search(
             from datetime import datetime
             from collections import Counter
             import re
+            import unicodedata
+
+            def normalize_text(text: str) -> str:
+                """
+                Normalize Romanian text for statistics aggregation.
+                1. Remove diacritics (în -> in, ș -> s, etc.)
+                2. Basic stemming (Lipsirea -> Lipsire)
+                3. Title case
+                """
+                if not text:
+                    return ""
+
+                # 1. Remove diacritics
+                # Normalize unicode characters to decomposed form (NFD)
+                normalized = unicodedata.normalize('NFD', text)
+                # Filter out non-spacing mark characters (diacritics)
+                text_no_diacritics = "".join([c for c in normalized if unicodedata.category(c) != 'Mn'])
+
+                # 2. Split into words for processing
+                words = text_no_diacritics.split()
+                processed_words = []
+
+                for word in words:
+                    word_lower = word.lower()
+                    # Basic Romanian stemming for articulation
+                    # "Lipsirea" -> "Lipsire", "Violarea" -> "Violare"
+                    if word_lower.endswith("ea") and len(word_lower) > 3:
+                        # Check if it's likely an articulated noun
+                        # This is a heuristic, but works well for legal terms
+                        word_stem = word[:-1] # Remove 'a' -> Lipsire
+                    elif word_lower.endswith("ii") and len(word_lower) > 3:
+                        # "Copiii" -> "Copii" (simplified)
+                        word_stem = word[:-1]
+                    else:
+                        word_stem = word
+
+                    processed_words.append(word_stem)
+
+                # Rejoin and Title Case
+                final_text = " ".join(processed_words)
+                return final_text.title()
 
             # Get top 5 results (or fewer if less than 5 results)
             top_results = result[:5]
@@ -92,16 +133,15 @@ async def search(
 
                 if raw_obiect and raw_obiect != "—" and raw_obiect.strip():
                     # Split by comma, ' și ' (with diacritics) and ' si ' (without diacritics)
-                    # Example: "Lipsire de libertate și viol" -> ["Lipsire de libertate", "viol"]
                     parts = re.split(r',|\s+și\s+|\s+si\s+', raw_obiect, flags=re.IGNORECASE)
 
                     for part in parts:
                         cleaned = part.strip()
                         if cleaned:
-                            # Capitalize first letter, keep rest as is for consistency
-                            # e.g. "viol" -> "Viol", "TENTATIVA" -> "Tentativa"
-                            normalized = cleaned.capitalize()
-                            obiecte_normalizate.append(normalized)
+                            # Apply advanced normalization
+                            normalized = normalize_text(cleaned)
+                            if normalized:
+                                obiecte_normalizate.append(normalized)
 
             # Count occurrences of each normalized obiect
             obiect_counts = Counter(obiecte_normalizate)
