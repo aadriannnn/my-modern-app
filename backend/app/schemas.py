@@ -19,7 +19,7 @@ class SearchRequest(BaseModel):
     doctrina: bool = False
     offset: Optional[int] = 0
     limit: Optional[int] = 20
-    pro_search: bool = False
+    pro_search: bool = False  # Enable Pro Keyword Search (strict diacritics in considerente)
 
 class FilterOptions(BaseModel):
     tip_speta: List[str]

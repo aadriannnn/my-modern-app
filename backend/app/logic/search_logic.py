@@ -566,6 +566,7 @@ def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
 
     # Remove duplicates
     terms_to_search = list(set(terms_to_search))
+    logger.info(f"[search] Pro terms: {terms_to_search}")
 
     # 2. Build Query
     # We need to count occurrences.
