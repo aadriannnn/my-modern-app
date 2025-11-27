@@ -631,7 +631,14 @@ def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
         result = session.execute(query, params)
         rows = result.mappings().all()
         logger.info(f"[search] Pro keyword results: {len(rows)}")
-        return _process_results(rows, score_metric="relevance_score")
+        results = _process_results(rows, score_metric="relevance_score")
+
+        # Inject highlight terms into the data dictionary of each result
+        for res in results:
+            if 'data' in res:
+                res['data']['highlight_terms'] = terms_to_search
+
+        return results
     except Exception as e:
         logger.error(f"[search] Pro keyword search failed: {e}")
         # Fallback to standard search if this fails (e.g. on SQLite where functions might differ)

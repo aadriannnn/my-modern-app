@@ -148,7 +148,6 @@ const MainContent: React.FC<MainContentProps> = ({
         {isLoading && (
           <div className="text-center py-6">
             <Loader2 className="animate-spin h-8 w-8 text-brand-accent mx-auto" />
-            <p className="text-brand-text-secondary mt-2 text-sm">{status}</p>
           </div>
         )}
         {!hasMore && results.length > 0 && (
