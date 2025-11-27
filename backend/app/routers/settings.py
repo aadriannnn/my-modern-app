@@ -29,13 +29,7 @@ async def login_settings(credentials: LoginRequest):
     valid_pass = env_settings.PASS_SETARI
 
     if not valid_user or not valid_pass:
-        # If credentials are not set in env, allow access (or deny, depending on policy)
-        # For security, if not set, we might want to deny or warn.
-        # But here assuming if not set, maybe open? Or fail safe?
-        # Let's assume fail safe: if not configured, deny access to be safe,
-        # OR if the user didn't set them, maybe they don't want protection?
-        # Given the prompt says "parola si user trebuiesc importate din .env",
-        # we assume they ARE in .env.
+        # Fail safe: if not configured in .env, deny access
         raise HTTPException(status_code=500, detail="Server misconfiguration: Credentials not set")
 
     if credentials.username == valid_user and credentials.password == valid_pass:
@@ -187,10 +181,6 @@ async def export_llm_data(
     """
     Export fact situations from last search query for LLM refinement.
     Returns JSON with case IDs, names, and full fact situations.
-
-    Only exports results from the most recent search query, not all cases in database.
-    This is useful for creating prompts like:
-    "Given this user's fact situation, choose the most similar from the following..."
     """
     from ..models import UltimaInterogare
     import logging
@@ -275,11 +265,15 @@ async def analyze_llm_data(
 
             logger.info(f"Sending request to LLM at {llm_url}...")
 
+            # --- CONFIGURARE MODEL QWEN ---
             llm_payload = {
+                "model": "verdict-ro",  # Folosim modelul Qwen instalat
                 "prompt": payload['prompt'],
-                "max_tokens": 512,
-                "temperature": 0.1
+                "stream": False,                 # False pentru raspuns complet
+                "max_tokens": 2048,              # Limita marita pentru raspunsuri complexe
+                "temperature": 0.1               # Temperatura mica pentru precizie
             }
+            # ------------------------------
 
             async with httpx.AsyncClient(timeout=1200.0) as client:
                 response = await client.post(llm_url, json=llm_payload)
@@ -419,15 +413,6 @@ async def get_materie_statistics(
 ):
     """
     Get materie statistics showing which legal subjects are most frequently displayed.
-
-    Query Parameters:
-        limit: Maximum number of materii to return (default: 100)
-
-    Returns:
-        List of materii sorted by display_count (descending) with:
-        - materie: The materie name
-        - display_count: Number of times displayed in top 5 search results
-        - last_updated: Timestamp of last update
     """
     from ..models import MaterieStatistics
     from sqlmodel import select
@@ -478,12 +463,6 @@ async def export_materie_statistics(
 ):
     """
     Export materie statistics to Excel file (.xlsx).
-
-    Query Parameters:
-        limit: Maximum number of materii to export (default: 1000)
-
-    Returns:
-        Excel file with materie statistics
     """
     from ..models import MaterieStatistics
     from sqlmodel import select
