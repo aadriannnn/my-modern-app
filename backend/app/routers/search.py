@@ -75,7 +75,7 @@ async def search(
             # Don't fail the search if saving for LLM export fails
             logger.error(f"Failed to save search results for LLM export: {save_error}")
 
-        # Track materie statistics from top 5 results
+        # Track obiect (case object) statistics from top 5 results
         try:
             from ..models import MaterieStatistics
             from datetime import datetime
@@ -84,36 +84,36 @@ async def search(
             # Get top 5 results (or fewer if less than 5 results)
             top_results = result[:5]
 
-            # Extract materii from top results
-            materii = []
+            # Extract obiecte (case objects) from top results
+            obiecte = []
             for r in top_results:
-                materie = r.get('materie') or r.get('data', {}).get('materie')
-                if materie and materie != "—" and materie.strip():
-                    materii.append(materie.strip())
+                obiect = r.get('obiect') or r.get('data', {}).get('obiect')
+                if obiect and obiect != "—" and obiect.strip():
+                    obiecte.append(obiect.strip())
 
-            # Count occurrences of each materie
-            materie_counts = Counter(materii)
+            # Count occurrences of each obiect
+            obiect_counts = Counter(obiecte)
 
-            if materie_counts:
+            if obiect_counts:
                 # Use a separate session for tracking
                 with next(get_session()) as track_session:
-                    for materie, count in materie_counts.items():
-                        existing = track_session.get(MaterieStatistics, materie)
+                    for obiect, count in obiect_counts.items():
+                        existing = track_session.get(MaterieStatistics, obiect)
                         if existing:
                             existing.display_count += count
                             existing.last_updated = datetime.utcnow()
                         else:
                             new_stat = MaterieStatistics(
-                                materie=materie,
+                                materie=obiect,  # Using 'materie' field to store obiect
                                 display_count=count,
                                 last_updated=datetime.utcnow()
                             )
                             track_session.add(new_stat)
                     track_session.commit()
-                    logger.info(f"Tracked materie statistics: {dict(materie_counts)}")
+                    logger.info(f"Tracked obiect statistics: {dict(obiect_counts)}")
         except Exception as track_error:
-            # Don't fail the search if materie tracking fails
-            logger.error(f"Failed to track materie statistics: {track_error}")
+            # Don't fail the search if obiect tracking fails
+            logger.error(f"Failed to track obiect statistics: {track_error}")
 
         return result
 

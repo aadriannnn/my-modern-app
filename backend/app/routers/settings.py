@@ -475,7 +475,7 @@ async def export_materie_statistics(
         header_alignment = Alignment(horizontal="center", vertical="center")
 
         # Set headers
-        headers = ["Nr.", "Materie Juridică", "Număr Afișări", "Ultima Actualizare"]
+        headers = ["Nr.", "Obiect Spetă", "Număr Afișări", "Ultima Actualizare"]
         for col, header in enumerate(headers, 1):
             cell = ws.cell(row=1, column=col, value=header)
             cell.fill = header_fill

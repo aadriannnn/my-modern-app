@@ -554,10 +554,10 @@ const SettingsPage: React.FC = () => {
                         <div className="flex items-start justify-between mb-4">
                             <div>
                                 <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
-                                    📊 Statistici Materii Juridice
+                                    📊 Statistici Obiecte Spețe
                                 </h3>
                                 <p className="text-sm text-slate-600 leading-relaxed max-w-3xl">
-                                    Urmărește ce materii juridice sunt cele mai căutate de utilizatori pentru a prioritiza adăugarea de spețe în baza de date.
+                                    Urmărește ce obiecte juridice (infracțiuni, litigii, etc.) sunt cele mai căutate de utilizatori pentru a prioritiza adăugarea de spețe în baza de date.
                                 </p>
                                 <p className="text-xs text-emerald-600 mt-2 flex items-center gap-1">
                                     <Info className="w-3 h-3" />
