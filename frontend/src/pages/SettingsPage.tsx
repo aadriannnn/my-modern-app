@@ -541,6 +541,53 @@ const SettingsPage: React.FC = () => {
                                     <p className="text-2xl font-bold text-slate-900">{feedbackStats.bad_count}</p>
                                     <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
                                         {feedbackStats.bad_percentage}%
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Materie Statistics Section */}
+                <div className="mb-8 grid grid-cols-1 gap-4 animate-in fade-in slide-in-from-top-4 duration-500 delay-150">
+                    <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-6 shadow-sm">
+                        <div className="flex items-start justify-between mb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                                    📊 Statistici Materii Juridice
+                                </h3>
+                                <p className="text-sm text-slate-600 leading-relaxed max-w-3xl">
+                                    Urmărește ce materii juridice sunt cele mai căutate de utilizatori pentru a prioritiza adăugarea de spețe în baza de date.
+                                </p>
+                                <p className="text-xs text-emerald-600 mt-2 flex items-center gap-1">
+                                    <Info className="w-3 h-3" />
+                                    Statisticile se actualizează automat la fiecare căutare (primele 5 rezultate)
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <button
+                                onClick={() => {
+                                    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/settings/materie-statistics/export`;
+                                    window.open(url, '_blank');
+                                }}
+                                disabled={saving || refreshing}
+                                className={`flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all font-medium shadow-lg shadow-emerald-200 ${(saving || refreshing) ? 'opacity-75 cursor-not-allowed' : ''}`}
+                            >
+                                <BarChart3 className="w-5 h-5" />
+                                Descarcă Statistici (.xlsx)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Pre-calculation Section */}
+                <div className="mb-8 bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-2xl p-6 shadow-sm">
+                    <div className="flex items-start justify-between mb-4">
+                        <div>
+                            <h3 className="text-lg font-bold text-slate-900 mb-2">⚡ Optimizare Performanță</h3>
+                            <p className="text-sm text-slate-600 leading-relaxed max-w-3xl">
                                 Pre-calculează și stochează modelele de acte și codurile relevante pentru fiecare spetă din baza de date.
                                 Această operațiune îmbunătățește semnificativ timpul de răspuns pentru interogările utilizatorilor,
                                 eliminând necesitatea căutării în timp real folosind embeddings și algoritmi complecși.
