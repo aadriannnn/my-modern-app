@@ -53,7 +53,7 @@ class Settings(BaseSettings):
 
     # Ollama settings
     DEFAULT_OLLAMA_HOST: Optional[str] = "192.168.1.30"
-    DEFAULT_OLLAMA_PORT: Optional[int] = 11434
+    DEFAULT_OLLAMA_PORT: Optional[int] = None
     OLLAMA_URL: Optional[str] = None
 
     @model_validator(mode='before')
