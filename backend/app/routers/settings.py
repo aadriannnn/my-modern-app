@@ -263,7 +263,16 @@ async def analyze_llm_data(
         async def process_llm_analysis(payload: dict):
             """Process the LLM analysis."""
             # Get LLM URL from settings
-            llm_url = settings_manager.get_value('setari_llm', 'llm_url', 'http://localhost:11434/api/generate')
+            llm_url = settings_manager.get_value('setari_llm', 'llm_url')
+
+            # If not set (or empty string from default), use env or safe fallback
+            if not llm_url:
+                env_settings = get_env_settings()
+                if env_settings.OLLAMA_URL:
+                    llm_url = f"{env_settings.OLLAMA_URL}/api/generate"
+                else:
+                    llm_url = 'http://192.168.1.30:11434/api/generate'
+
             logger.info(f"Sending request to LLM at {llm_url}...")
 
             llm_payload = {
