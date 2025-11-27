@@ -86,9 +86,9 @@ const SearchPage: React.FC = () => {
         setIsLoading(true);
 
         if (isProKeywordEnabled) {
-             setStatus('Căutare extinsă în considerente... (poate dura mai mult)');
+            setStatus('Căutare extinsă în considerente... (poate dura mai mult)');
         } else {
-             setStatus('Se încarcă rezultatele...');
+            setStatus('Se încarcă rezultatele...');
         }
 
         try {
@@ -112,7 +112,7 @@ const SearchPage: React.FC = () => {
 
             if (isProEnabled && !isProKeywordEnabled && situatie.trim().split(/\s+/).length > 3) {
                 try {
-                    setStatus("Analizez contextul juridic cu AI... (poate dura câteva minute)");
+                    setStatus("Analizez contextul juridic cu AI pentru a găsi cea mai relevantă spetă... (poate dura câteva minute)");
 
                     // Start analysis and get job_id
                     const response = await fetch('/api/settings/analyze-llm-data', {
@@ -152,25 +152,27 @@ const SearchPage: React.FC = () => {
                         const statusData = await pollStatus();
 
                         if (statusData.status === 'completed') {
-                            // Success! Filter results
+                            // Success! Extract single most relevant result
                             if (statusData.result && statusData.result.success && statusData.result.response) {
-                                const llmIds = (statusData.result.response.match(/\d+/g) || []).map(Number);
+                                // Extract single ID from LLM response
+                                const llmIdMatch = statusData.result.response.match(/\d+/);
+                                const llmId = llmIdMatch ? Number(llmIdMatch[0]) : null;
 
-                                if (llmIds.length > 0) {
-                                    const filteredResults = initialResults.filter((item: any) => llmIds.includes(item.id));
+                                if (llmId) {
+                                    const filteredResult = initialResults.find((item: any) => item.id === llmId);
 
-                                    if (filteredResults.length > 0) {
-                                        setSearchResults(filteredResults);
-                                        setOffset(initialResults.length);
+                                    if (filteredResult) {
+                                        setSearchResults([filteredResult]);
+                                        setOffset(1);
                                         setHasMore(false);
-                                        setStatus(`Rezultate filtrate de AI: ${filteredResults.length} din ${initialResults.length} inițiale.`);
+                                        setStatus(`Rezultat AI: Cea mai relevantă spetă din ${initialResults.length} rezultate inițiale.`);
                                     } else {
                                         setSearchResults([]);
                                         setStatus("AI-ul nu a găsit potriviri exacte în rezultatele curente.");
                                     }
                                 } else {
                                     setSearchResults([]);
-                                    setStatus("Răspunsul AI nu a conținut ID-uri valide.");
+                                    setStatus("Răspunsul AI nu a conținut un ID valid.");
                                 }
                             }
                             break;

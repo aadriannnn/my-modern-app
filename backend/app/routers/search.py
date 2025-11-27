@@ -53,7 +53,8 @@ async def search(
             from ..models import UltimaInterogare
             from datetime import datetime
 
-            speta_ids = [r.get('id') for r in result if r.get('id') is not None]
+            # Limit to top 5 results for AI filtering (most semantically relevant)
+            speta_ids = [r.get('id') for r in result[:5] if r.get('id') is not None]
 
             # Use a separate session for saving
             with next(get_session()) as save_session:

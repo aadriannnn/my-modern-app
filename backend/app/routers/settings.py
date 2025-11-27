@@ -393,8 +393,8 @@ ELEMENTE DE INDIVIDUALIZARE: {text_individualizare}
     prompt_template = settings_manager.get_value(
         'setari_llm',
         'llm_prompt_template',
-        # Default fallback value
-        'Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\n\nSARCINA TA:\nAnalizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu lista de spete (cazuri) furnizate.\nIdentifica cele mai relevante 5 spete care sunt cele mai asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\n\nSITUATIA DE FAPT A JUSTITIABILULUI:\n"{query_text}"\n\nLISTA DE SPETE PENTRU COMPARATIE:\n{prompt_spete}\n\nFORMATUL RASPUNSULUI:\nGenereaza EXCLUSIV o lista cu ID-urile celor mai relevante 5 spete, separate prin virgula.\nNu adauga niciun alt text, comentariu, explicatie sau introducere.\nExemplu de raspuns valid: 123, 456, 789, 101, 112'
+        # Default fallback value - Updated to request single most relevant case
+        'Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n\\nSARCINA TA:\\nAnalizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele 5 spete pre-filtrate furnizate.\\nIdentifica SINGURA speta cea mai asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\\n\\nSITUATIA DE FAPT A JUSTITIABILULUI:\\n"{query_text}"\\n\\nLISTA DE SPETE PENTRU COMPARATIE (5 Spete Pre-filtrate):\\n{prompt_spete}\\n\\nFORMATUL RASPUNSULUI:\\nGenereaza EXCLUSIV ID-ul spetei celei mai relevante.\\nNu adauga niciun alt text, comentariu, explicatie sau introducere.\\nExemplu de raspuns valid: 123'
     )
 
     # Format the template with actual data
