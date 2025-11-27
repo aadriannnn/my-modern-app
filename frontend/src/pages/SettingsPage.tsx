@@ -541,19 +541,6 @@ const SettingsPage: React.FC = () => {
                                     <p className="text-2xl font-bold text-slate-900">{feedbackStats.bad_count}</p>
                                     <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">
                                         {feedbackStats.bad_percentage}%
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {/* Pre-calculation Section */}
-                <div className="mb-8 bg-gradient-to-br from-purple-50 to-blue-50 border border-purple-200 rounded-2xl p-6 shadow-sm">
-                    <div className="flex items-start justify-between mb-4">
-                        <div>
-                            <h3 className="text-lg font-bold text-slate-900 mb-2">⚡ Optimizare Performanță</h3>
-                            <p className="text-sm text-slate-600 leading-relaxed max-w-3xl">
                                 Pre-calculează și stochează modelele de acte și codurile relevante pentru fiecare spetă din baza de date.
                                 Această operațiune îmbunătățește semnificativ timpul de răspuns pentru interogările utilizatorilor,
                                 eliminând necesitatea căutării în timp real folosind embeddings și algoritmi complecși.

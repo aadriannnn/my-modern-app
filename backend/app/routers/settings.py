@@ -427,3 +427,92 @@ async def get_materie_statistics(
             status_code=500,
             detail=f"Eroare la preluarea statisticilor: {str(e)}"
         )
+
+
+@router.get("/materie-statistics/export")
+async def export_materie_statistics(
+    session: Session = Depends(get_session),
+    limit: int = 1000
+):
+    """
+    Export materie statistics to Excel file (.xlsx).
+
+    Query Parameters:
+        limit: Maximum number of materii to export (default: 1000)
+
+    Returns:
+        Excel file with materie statistics
+    """
+    from ..models import MaterieStatistics
+    from sqlmodel import select
+    from fastapi.responses import StreamingResponse
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from io import BytesIO
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Query materie statistics
+        statement = (
+            select(MaterieStatistics)
+            .order_by(MaterieStatistics.display_count.desc())
+            .limit(limit)
+        )
+
+        results = session.exec(statement).all()
+
+        # Create Excel workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Statistici Materii"
+
+        # Header styling
+        header_fill = PatternFill(start_color="1F4788", end_color="1F4788", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        header_alignment = Alignment(horizontal="center", vertical="center")
+
+        # Set headers
+        headers = ["Nr.", "Materie Juridică", "Număr Afișări", "Ultima Actualizare"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = header_alignment
+
+        # Add data
+        for idx, stat in enumerate(results, 1):
+            ws.cell(row=idx+1, column=1, value=idx)
+            ws.cell(row=idx+1, column=2, value=stat.materie)
+            ws.cell(row=idx+1, column=3, value=stat.display_count)
+            ws.cell(row=idx+1, column=4, value=stat.last_updated.strftime("%Y-%m-%d %H:%M:%S") if stat.last_updated else "")
+
+        # Adjust column widths
+        ws.column_dimensions['A'].width = 8
+        ws.column_dimensions['B'].width = 40
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 25
+
+        # Save to BytesIO
+        excel_file = BytesIO()
+        wb.save(excel_file)
+        excel_file.seek(0)
+
+        logger.info(f"Exported {len(results)} materie statistics to Excel")
+
+        # Return as downloadable file
+        return StreamingResponse(
+            excel_file,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename=statistici_materii_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error exporting materie statistics: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Eroare la exportul statisticilor: {str(e)}"
+        )
