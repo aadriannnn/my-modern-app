@@ -541,31 +541,28 @@ def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
     if not raw_query:
         return []
 
-    # Check if query has diacritics
-    has_diacritics = raw_query != _normalize_text(raw_query)
+    # Strict Diacritics Logic Implementation:
+    normalized_query = _normalize_text(raw_query)
 
-    terms_to_search = []
-    if has_diacritics:
-        # Search for both exact (with diacritics) and normalized (without)
-        terms_to_search.append(raw_query)
-        terms_to_search.append(_normalize_text(raw_query))
+    # Start with the raw query (exact text)
+    terms_to_search = [raw_query]
+
+    # Check if input has diacritics
+    if raw_query != normalized_query:
+        # Case 1: Input WITH diacritics (e.g., "școală")
+        # Logic: Search for "școală" OR "scoala" (normalized).
+        terms_to_search.append(normalized_query)
     else:
-        # Search only for the term as typed (which is already "normalized" in a sense, or user intended no diacritics)
-        # User requirement: "daca userul introduce fara diacritice, sa caute decat fara diacritice"
-        # This implies we shouldn't match "ședință" if user types "sedinta", BUT usually "sedinta" is meant to find "ședință".
-        # However, the user was specific: "sa caute decat fara diacritice".
-        # Wait, "decat fara diacritice" usually means "only without diacritics".
-        # But if the DB has "ședință", "sedinta" won't match it with a simple ILIKE unless we normalize the DB text too.
-        # The user said: "in baza de date avem considerentele cu diacritice si fara."
-        # So if user types "sedinta", they want to find "sedinta" in DB. They might NOT want to find "ședință"?
-        # Or maybe they mean: treat "sedinta" as "sedinta".
-        # Let's stick to the plan:
-        # If input has diacritics -> search exact + normalized.
-        # If input has NO diacritics -> search exact (which is normalized).
-        terms_to_search.append(raw_query)
+        # Case 2: Input WITHOUT diacritics (e.g., "scoala")
+        # Logic: Search ONLY for "scoala" (exact match).
+        # We do NOT add any other variants.
+        # This assumes Postgres ILIKE is accent-sensitive by default (which it is for standard collations),
+        # so "scoala" will NOT match "școală".
+        pass
 
     # Remove duplicates
     terms_to_search = list(set(terms_to_search))
+    logger.info(f"[search] Pro terms: {terms_to_search}")
 
     # 2. Build Query
     # We need to count occurrences.
