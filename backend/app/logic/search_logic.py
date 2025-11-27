@@ -525,6 +525,178 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
         else:
             return _search_by_keywords_sqlite(session, search_request)
 
+def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
+    """
+    Pro Keyword Search:
+    - Searches in 'considerente' (mapped to 'argumente_instanta' or similar in JSON).
+    - Logic:
+        - If query has diacritics: Search for exact match AND normalized match.
+        - If query has NO diacritics: Search ONLY for normalized match (exact match without diacritics).
+    - Ranking: Descending order of keyword occurrences.
+    """
+    logger.info("[search] using PRO keyword mode")
+
+    # 1. Prepare terms
+    raw_query = req.situatie.strip()
+    if not raw_query:
+        return []
+
+    # Check if query has diacritics
+    has_diacritics = raw_query != _normalize_text(raw_query)
+
+    terms_to_search = []
+    if has_diacritics:
+        # Search for both exact (with diacritics) and normalized (without)
+        terms_to_search.append(raw_query)
+        terms_to_search.append(_normalize_text(raw_query))
+    else:
+        # Search only for the term as typed (which is already "normalized" in a sense, or user intended no diacritics)
+        # User requirement: "daca userul introduce fara diacritice, sa caute decat fara diacritice"
+        # This implies we shouldn't match "ședință" if user types "sedinta", BUT usually "sedinta" is meant to find "ședință".
+        # However, the user was specific: "sa caute decat fara diacritice".
+        # Wait, "decat fara diacritice" usually means "only without diacritics".
+        # But if the DB has "ședință", "sedinta" won't match it with a simple ILIKE unless we normalize the DB text too.
+        # The user said: "in baza de date avem considerentele cu diacritice si fara."
+        # So if user types "sedinta", they want to find "sedinta" in DB. They might NOT want to find "ședință"?
+        # Or maybe they mean: treat "sedinta" as "sedinta".
+        # Let's stick to the plan:
+        # If input has diacritics -> search exact + normalized.
+        # If input has NO diacritics -> search exact (which is normalized).
+        terms_to_search.append(raw_query)
+
+    # Remove duplicates
+    terms_to_search = list(set(terms_to_search))
+
+    # 2. Build Query
+    # We need to count occurrences.
+    # Postgres: (LENGTH(text) - LENGTH(REPLACE(text, term, ''))) / LENGTH(term)
+    # We search in 'argumente_instanta' as it's the closest to 'considerente' usually,
+    # or we check multiple fields if 'considerente' isn't a single field.
+    # Based on models.py, we have 'argumente_instanta', 'text_individualizare', 'text_doctrina', 'text_ce_invatam'.
+    # The user said "cauta in toate considerentele". I'll search in 'argumente_instanta' and 'text_situatia_de_fapt' and 'motivare' if exists.
+    # Let's assume 'argumente_instanta' is the main one. I will also check 'obj'->>'considerente' just in case.
+
+    # We need to access the JSON field safely.
+    # User confirmed 'considerente' is in 'Hotarare' section which maps to 'considerente_speta' in frontend.
+    target_field = "COALESCE(b.obj->>'considerente_speta', '')"
+
+    # Build the occurrence counting expression
+    # We sum occurrences of all terms
+    occurrence_exprs = []
+    for term in terms_to_search:
+        # Escape single quotes in term for SQL safety (basic)
+        safe_term = term.replace("'", "''")
+        # We use ILIKE for case-insensitivity
+        # But for counting, REPLACE is case-sensitive usually. We should use lower().
+        expr = f"(LENGTH({target_field}) - LENGTH(REPLACE(LOWER({target_field}), LOWER('{safe_term}'), ''))) / LENGTH('{safe_term}')"
+        occurrence_exprs.append(expr)
+
+    total_occurrences = " + ".join(occurrence_exprs)
+
+    # Build WHERE clause
+    where_conditions = []
+
+    # Add filters
+    filter_clause, params = _build_common_where_clause(req, 'postgresql') # Assuming PG for Pro features usually
+    if filter_clause:
+        where_conditions.append(filter_clause)
+
+    # Add match condition (at least one term must be present)
+    match_conditions = []
+    for i, term in enumerate(terms_to_search):
+        param_name = f"pro_term_{i}"
+        match_conditions.append(f"{target_field} ILIKE :{param_name}")
+        params[param_name] = f"%{term}%"
+
+    where_conditions.append(f"({' OR '.join(match_conditions)})")
+
+    where_sql = "WHERE " + " AND ".join(where_conditions)
+
+    limit = req.limit if req.limit is not None else 20
+    offset = req.offset if req.offset is not None else 0
+    params["limit"] = limit
+    params["offset"] = offset
+
+    query = text(f"""
+        SELECT
+            b.id,
+            b.obj,
+            ({total_occurrences}) as relevance_score
+        FROM blocuri b
+        {where_sql}
+        ORDER BY relevance_score DESC
+        LIMIT :limit OFFSET :offset;
+    """)
+
+    try:
+        result = session.execute(query, params)
+        rows = result.mappings().all()
+        logger.info(f"[search] Pro keyword results: {len(rows)}")
+        return _process_results(rows, score_metric="relevance_score")
+    except Exception as e:
+        logger.error(f"[search] Pro keyword search failed: {e}")
+        # Fallback to standard search if this fails (e.g. on SQLite where functions might differ)
+        logger.info("Falling back to standard keyword search")
+        return _search_by_keywords_sqlite(session, req)
+
+
+def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
+    """
+    Main search function that orchestrates the search logic.
+    - Routes to Pro Keyword Search if enabled.
+    - Routes to keyword search for short queries (<= 3 words).
+    - Routes to semantic/vector search for longer queries.
+    """
+    # Check for Pro Search first
+    if getattr(search_request, 'pro_search', False):
+        return _search_pro_keyword(session, search_request)
+
+    dialect = session.bind.dialect.name
+    word_count = len(search_request.situatie.split())
+    use_keyword_search = True
+
+    if not search_request.situatie.strip() and search_request.obiect:
+        logger.info("[search] using 'obiect' only mode")
+        filter_clause, params = _build_common_where_clause(search_request, dialect)
+
+        limit = search_request.limit if search_request.limit is not None else settings.TOP_K
+        offset = search_request.offset if search_request.offset is not None else 0
+        params["limit"] = limit
+        params["offset"] = offset
+
+        where_sql = f"WHERE {filter_clause}" if filter_clause else ""
+        query_str = f"""
+            SELECT id, obj
+            FROM blocuri b
+            {where_sql}
+            LIMIT :limit OFFSET :offset;
+        """.replace("ILIKE", "LIKE")
+        result = session.execute(text(query_str), params)
+        return _process_results(result.mappings().all(), score_metric=None)
+
+    if word_count > 3:
+        logger.info("[search] using embedding mode (>3 words)")
+        embedding = embed_text(search_request.situatie)
+
+        # Check if embedding failed (indicated by a zero vector)
+        if any(v != 0.0 for v in embedding):
+            use_keyword_search = False
+            if dialect == 'postgresql':
+                return _search_postgres(session, search_request, embedding)
+            else:
+                # Fallback for SQLite when embedding is successful but platform is not PG
+                return _search_sqlite(session, search_request)
+        else:
+            logger.warning("[search] embedding failed, falling back to keyword search.")
+            # Fallback to keyword search is implicitly handled below
+
+    # This block is executed if word_count <= 3 OR if embedding failed
+    if use_keyword_search:
+        if dialect == 'postgresql':
+            return _search_by_keywords_postgres(session, search_request)
+        else:
+            return _search_by_keywords_sqlite(session, search_request)
+
 def get_case_by_id(session: Session, case_id: int) -> Dict[str, Any] | None:
     """
     Retrieves a single case by its ID from the database.

@@ -28,6 +28,8 @@ interface MainContentProps {
   onMinimizeSidebar?: () => void;
   isProEnabled?: boolean;
   onTogglePro?: (enabled: boolean) => void;
+  isProKeywordEnabled?: boolean;
+  onToggleProKeyword?: (enabled: boolean) => void;
 }
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
@@ -52,7 +54,9 @@ const MainContent: React.FC<MainContentProps> = ({
   onSearch,
   onMinimizeSidebar,
   isProEnabled = false,
-  onTogglePro
+  onTogglePro,
+  isProKeywordEnabled = false,
+  onToggleProKeyword
 }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
   const observer = useRef<IntersectionObserver | null>(null);
@@ -176,7 +180,7 @@ const MainContent: React.FC<MainContentProps> = ({
 
           {/* Pro Feature Checkbox */}
           {onTogglePro && (
-            <div className="mt-3 flex items-center mb-2">
+            <div className="mt-3 flex flex-col gap-2 mb-2">
               <label className="flex items-center cursor-pointer select-none group">
                 <div className="relative">
                   <input
@@ -195,6 +199,27 @@ const MainContent: React.FC<MainContentProps> = ({
                   </span>
                 </div>
               </label>
+
+              {onToggleProKeyword && (
+                <label className="flex items-center cursor-pointer select-none group">
+                  <div className="relative">
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={isProKeywordEnabled}
+                      onChange={(e) => onToggleProKeyword && onToggleProKeyword(e.target.checked)}
+                    />
+                    <div className={`block w-10 h-6 rounded-full transition-colors duration-200 ease-in-out ${isProKeywordEnabled ? 'bg-purple-600' : 'bg-gray-300'}`}></div>
+                    <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ease-in-out ${isProKeywordEnabled ? 'transform translate-x-4' : ''}`}></div>
+                  </div>
+                  <div className="ml-3 text-sm font-medium text-brand-text flex items-center">
+                    Căutare Pro (Cuvinte cheie în considerente)
+                    <span className="ml-2 px-2 py-0.5 text-[10px] font-bold bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-full uppercase tracking-wider shadow-sm">
+                      NEW
+                    </span>
+                  </div>
+                </label>
+              )}
             </div>
           )}
 

@@ -19,6 +19,7 @@ class SearchRequest(BaseModel):
     doctrina: bool = False
     offset: Optional[int] = 0
     limit: Optional[int] = 20
+    pro_search: bool = False
 
 class FilterOptions(BaseModel):
     tip_speta: List[str]

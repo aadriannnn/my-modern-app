@@ -26,6 +26,7 @@ const SearchPage: React.FC = () => {
     const [isContribuieModalOpen, setIsContribuieModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProEnabled, setIsProEnabled] = useState(false);
+    const [isProKeywordEnabled, setIsProKeywordEnabled] = useState(false);
 
     useEffect(() => {
         const loadFilters = async () => {
@@ -55,6 +56,7 @@ const SearchPage: React.FC = () => {
             situatie,
             materie: searchParams.materie ? [searchParams.materie] : [],
             offset: currentOffset,
+            pro_search: isProKeywordEnabled
         };
 
         try {
@@ -69,7 +71,7 @@ const SearchPage: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, hasMore, searchParams, situatie]);
+    }, [isLoading, hasMore, searchParams, situatie, isProKeywordEnabled]);
 
     const handleSearch = useCallback(async () => {
         if (!situatie.trim() && searchParams.obiect.length === 0) {
@@ -77,12 +79,17 @@ const SearchPage: React.FC = () => {
             return;
         }
 
-        // Step 1: Standard Search
+        // Step 1: Standard Search (or Pro Keyword Search)
         setSearchResults([]);
         setOffset(0);
         setHasMore(true);
         setIsLoading(true);
-        setStatus('Se încarcă rezultatele...');
+
+        if (isProKeywordEnabled) {
+             setStatus('Căutare extinsă în considerente... (poate dura mai mult)');
+        } else {
+             setStatus('Se încarcă rezultatele...');
+        }
 
         try {
             const payload = {
@@ -90,12 +97,20 @@ const SearchPage: React.FC = () => {
                 situatie,
                 materie: searchParams.materie ? [searchParams.materie] : [],
                 offset: 0,
+                pro_search: isProKeywordEnabled
             };
 
             const initialResults = await apiSearch(payload);
 
-            // Step 2: AI Analysis (Conditional)
-            if (isProEnabled && situatie.trim().split(/\s+/).length > 3) {
+            // Step 2: AI Analysis (Conditional) - Only if Pro Keyword is NOT enabled (mutually exclusive usually, or sequential?)
+            // If Pro Keyword is enabled, we probably just want those results.
+            // If user enables BOTH, we could filter the Pro Keyword results with AI?
+            // Let's assume they are independent features for now.
+            // If Pro Keyword is ON, we skip the AI filtering step unless explicitly requested.
+            // The user said "optiune separata de cautare... la fel ca la filtrare AI".
+            // So it's another toggle.
+
+            if (isProEnabled && !isProKeywordEnabled && situatie.trim().split(/\s+/).length > 3) {
                 try {
                     setStatus("Analizez contextul juridic cu AI... (poate dura câteva minute)");
 
@@ -184,7 +199,7 @@ const SearchPage: React.FC = () => {
                     setSearchResults([]);
                 }
             } else {
-                // Standard search display (Pro disabled OR query too short)
+                // Standard search display (Pro disabled OR query too short OR Pro Keyword enabled)
                 setSearchResults(initialResults);
                 setOffset(initialResults.length);
                 setHasMore(initialResults.length === 20);
@@ -198,7 +213,7 @@ const SearchPage: React.FC = () => {
             setIsLoading(false);
         }
 
-    }, [situatie, searchParams, isProEnabled]);
+    }, [situatie, searchParams, isProEnabled, isProKeywordEnabled]);
 
     const handleFilterChange = useCallback((filterType: keyof SelectedFilters, value: any) => {
         setSearchParams(prevParams => {
@@ -270,6 +285,8 @@ const SearchPage: React.FC = () => {
                     onSearch={handleSearch}
                     isProEnabled={isProEnabled}
                     onTogglePro={setIsProEnabled}
+                    isProKeywordEnabled={isProKeywordEnabled}
+                    onToggleProKeyword={setIsProKeywordEnabled}
                 />
             </div>
 
