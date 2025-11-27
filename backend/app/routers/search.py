@@ -80,24 +80,37 @@ async def search(
             from ..models import MaterieStatistics
             from datetime import datetime
             from collections import Counter
+            import re
 
             # Get top 5 results (or fewer if less than 5 results)
             top_results = result[:5]
 
-            # Extract obiecte (case objects) from top results
-            obiecte = []
+            # Extract and normalize obiecte (case objects) from top results
+            obiecte_normalizate = []
             for r in top_results:
-                obiect = r.get('obiect') or r.get('data', {}).get('obiect')
-                if obiect and obiect != "—" and obiect.strip():
-                    obiecte.append(obiect.strip())
+                raw_obiect = r.get('obiect') or r.get('data', {}).get('obiect')
 
-            # Count occurrences of each obiect
-            obiect_counts = Counter(obiecte)
+                if raw_obiect and raw_obiect != "—" and raw_obiect.strip():
+                    # Split by comma, ' și ' (with diacritics) and ' si ' (without diacritics)
+                    # Example: "Lipsire de libertate și viol" -> ["Lipsire de libertate", "viol"]
+                    parts = re.split(r',|\s+și\s+|\s+si\s+', raw_obiect, flags=re.IGNORECASE)
+
+                    for part in parts:
+                        cleaned = part.strip()
+                        if cleaned:
+                            # Capitalize first letter, keep rest as is for consistency
+                            # e.g. "viol" -> "Viol", "TENTATIVA" -> "Tentativa"
+                            normalized = cleaned.capitalize()
+                            obiecte_normalizate.append(normalized)
+
+            # Count occurrences of each normalized obiect
+            obiect_counts = Counter(obiecte_normalizate)
 
             if obiect_counts:
                 # Use a separate session for tracking
                 with next(get_session()) as track_session:
                     for obiect, count in obiect_counts.items():
+                        # Check if exists
                         existing = track_session.get(MaterieStatistics, obiect)
                         if existing:
                             existing.display_count += count
@@ -110,7 +123,7 @@ async def search(
                             )
                             track_session.add(new_stat)
                     track_session.commit()
-                    logger.info(f"Tracked obiect statistics: {dict(obiect_counts)}")
+                    logger.info(f"Tracked normalized obiect statistics: {dict(obiect_counts)}")
         except Exception as track_error:
             # Don't fail the search if obiect tracking fails
             logger.error(f"Failed to track obiect statistics: {track_error}")
