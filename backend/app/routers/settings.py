@@ -338,11 +338,16 @@ def _generate_llm_data(session: Session, ultima: Any):
 
     logger = logging.getLogger(__name__)
 
-    # Fetch cases by IDs using raw SQL
-    placeholders = ', '.join([f':id_{i}' for i in range(len(ultima.speta_ids))])
+    # --- MODIFICARE CRITICĂ PENTRU VITEZĂ (CPU) ---
+    # Fără linia asta, sistemul va fi lent!
+    speta_ids_to_process = ultima.speta_ids[:5]
+    # ----------------------------------------------
+
+    # Construim query-ul doar pentru cele 5 ID-uri
+    placeholders = ', '.join([f':id_{i}' for i in range(len(speta_ids_to_process))])
     query = text(f"SELECT id, obj FROM blocuri WHERE id IN ({placeholders})")
 
-    params = {f'id_{i}': speta_id for i, speta_id in enumerate(ultima.speta_ids)}
+    params = {f'id_{i}': speta_id for i, speta_id in enumerate(speta_ids_to_process)}
 
     result = session.execute(query, params)
     results = result.mappings().all()
@@ -366,6 +371,10 @@ def _generate_llm_data(session: Session, ultima: Any):
             obj.get('situatie') or
             ""
         )
+
+        # Siguranță: Tăiem textul dacă e prea lung pentru a nu bloca memoria
+        if len(situatia) > 4000:
+            situatia = situatia[:4000] + "... (text trunchiat)"
 
         text_individualizare = obj.get('text_individualizare', '')
         obiect = obj.get('obiect', '')
