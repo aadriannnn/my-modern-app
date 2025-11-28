@@ -211,11 +211,185 @@ class NetworkFileSaver:
             logger.error("=" * 70)
             return False, error_msg, network_path if 'network_path' in locals() else ""
 
-        except Exception as e:
-            error_msg = f"Eroare neașteptată la salvarea în rețea: {str(e)}"
-            logger.error("=" * 70)
-            logger.error(f"[NETWORK SAVE] ❌ EROARE GENERALĂ/NEAȘTEPTATĂ")
             logger.error(f"[NETWORK SAVE] {error_msg}")
             logger.exception(e)
             logger.error("=" * 70)
             return False, error_msg, network_path if 'network_path' in locals() else ""
+
+    @staticmethod
+    async def poll_for_response(
+        saved_path: str,
+        timeout_seconds: int = 1200,
+        poll_interval: int = 10
+    ) -> Tuple[bool, str, str]:
+        """
+        Polling pentru fișierul de răspuns după salvarea promptului în rețea.
+
+        Args:
+            saved_path: Calea completă unde a fost salvat promptul
+            timeout_seconds: Timeout-ul maxim pentru polling (default: 1200s = 20 min)
+            poll_interval: Interval între verificări în secunde (default: 10s)
+
+        Returns:
+            Tuple[bool, str, str]: (success, content_or_error, response_path)
+            - success: True dacă răspunsul a fost găsit, False la timeout
+            - content_or_error: Conținutul fișierului de răspuns sau mesaj de eroare
+            - response_path: Calea completă a fișierului de răspuns
+
+        Example:
+            >>> success, content, path = await NetworkFileSaver.poll_for_response(
+            ...     saved_path="/path/to/prompt_20251128_121648.txt"
+            ... )
+        """
+        import asyncio
+
+        logger.info("=" * 70)
+        logger.info("[NETWORK POLLING] Începem polling pentru răspuns...")
+        logger.info(f"[NETWORK POLLING] Prompt salvat la: {saved_path}")
+        logger.info(f"[NETWORK POLLING] Timeout: {timeout_seconds}s")
+        logger.info(f"[NETWORK POLLING] Interval polling: {poll_interval}s")
+
+        try:
+            # Extragem directorul și numele fișierului
+            directory = os.path.dirname(saved_path)
+            prompt_filename = os.path.basename(saved_path)
+
+            # Construim pattern pentru fișierul de răspuns
+            # Pattern: raspuns_+_prompt_[numele_fisier_prompt]
+            response_filename = f"raspuns_+_prompt_{prompt_filename}"
+            response_path = os.path.join(directory, response_filename)
+
+            logger.info(f"[NETWORK POLLING] Căutăm fișier: {response_filename}")
+            logger.info(f"[NETWORK POLLING] Cale completă: {response_path}")
+
+            # Calculăm numărul maxim de iterații
+            max_iterations = timeout_seconds // poll_interval
+            iteration = 0
+
+            logger.info(f"[NETWORK POLLING] Iterații maxime: {max_iterations}")
+            logger.info("=" * 70)
+
+            # Începem polling
+            while iteration < max_iterations:
+                iteration += 1
+
+                # Verificăm dacă fișierul există
+                if os.path.exists(response_path):
+                    logger.info("=" * 70)
+                    logger.info(f"[NETWORK POLLING] ✅ RĂSPUNS GĂSIT la iterația {iteration}!")
+                    logger.info(f"[NETWORK POLLING] Cale: {response_path}")
+
+                    try:
+                        # Citim conținutul
+                        with open(response_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+
+                        logger.info(f"[NETWORK POLLING] ✓ Conținut citit: {len(content)} caractere")
+
+                        # Preview conținut
+                        preview_len = 500
+                        content_preview = content[:preview_len] + "..." if len(content) > preview_len else content
+                        logger.info(f"[NETWORK POLLING] Preview răspuns:\n{content_preview}")
+                        logger.info("=" * 70)
+
+                        return True, content, response_path
+
+                    except Exception as read_error:
+                        error_msg = f"Eroare la citirea răspunsului: {str(read_error)}"
+                        logger.error(f"[NETWORK POLLING] ❌ {error_msg}")
+                        return False, error_msg, response_path
+
+                # Logging periodic pentru a arăta că polling-ul este activ
+                if iteration % 6 == 0:  # La fiecare minut (6 iterații x 10s)
+                    elapsed_time = iteration * poll_interval
+                    logger.info(f"[NETWORK POLLING] Așteptăm răspuns... ({elapsed_time}s / {timeout_seconds}s)")
+
+                # Așteptăm înainte de următoarea verificare
+                await asyncio.sleep(poll_interval)
+
+            # Timeout - nu am găsit răspunsul
+            logger.error("=" * 70)
+            logger.error("[NETWORK POLLING] ❌ TIMEOUT")
+            logger.error(f"[NETWORK POLLING] Nu s-a primit răspuns în {timeout_seconds}s")
+            logger.error(f"[NETWORK POLLING] Fișier așteptat: {response_filename}")
+            logger.error("=" * 70)
+
+            error_msg = f"Timeout: Nu s-a primit răspuns în {timeout_seconds // 60} minute. Verificați că procesul extern generează fișierul '{response_filename}' în același director."
+            return False, error_msg, response_path
+
+        except Exception as e:
+            error_msg = f"Eroare neașteptată în polling: {str(e)}"
+            logger.error("=" * 70)
+            logger.error(f"[NETWORK POLLING] ❌ EROARE GENERALĂ")
+            logger.error(f"[NETWORK POLLING] {error_msg}")
+            logger.exception(e)
+            logger.error("=" * 70)
+            return False, error_msg, ""
+
+    @staticmethod
+    def delete_response_file(response_path: str) -> Tuple[bool, str]:
+        """
+        Șterge fișierul de răspuns după ce a fost procesat.
+
+        Args:
+            response_path: Calea completă către fișierul de răspuns
+
+        Returns:
+            Tuple[bool, str]: (success, message)
+            - success: True dacă ștergerea a reușit, False altfel
+            - message: Mesaj descriptiv (succes sau eroare)
+
+        Example:
+            >>> success, msg = NetworkFileSaver.delete_response_file(
+            ...     response_path="/path/to/raspuns_+_prompt_20251128_121648.txt"
+            ... )
+        """
+        logger.info("=" * 70)
+        logger.info("[NETWORK CLEANUP] Începem curățarea fișierului de răspuns...")
+        logger.info(f"[NETWORK CLEANUP] Fișier de șters: {response_path}")
+
+        try:
+            # Verificăm dacă fișierul există
+            if not os.path.exists(response_path):
+                warning_msg = "Fișierul nu mai există (poate a fost deja șters)"
+                logger.warning(f"[NETWORK CLEANUP] ⚠️ {warning_msg}")
+                logger.info("=" * 70)
+                return True, warning_msg  # Nu e o eroare critică
+
+            # Obținem dimensiunea pentru logging
+            file_size = os.path.getsize(response_path)
+            logger.info(f"[NETWORK CLEANUP] Dimensiune fișier: {file_size} bytes")
+
+            # Ștergem fișierul
+            os.remove(response_path)
+
+            # Verificăm că a fost șters
+            if os.path.exists(response_path):
+                error_msg = "Fișierul există încă după ștergere!"
+                logger.error(f"[NETWORK CLEANUP] ❌ {error_msg}")
+                logger.error("=" * 70)
+                return False, error_msg
+
+            logger.info("[NETWORK CLEANUP] ✅ Fișier șters cu succes")
+            logger.info("=" * 70)
+
+            success_msg = f"Fișier de răspuns șters cu succes: {os.path.basename(response_path)}"
+            return True, success_msg
+
+        except PermissionError as e:
+            error_msg = f"Eroare permisiuni: Nu am acces de ștergere la fișierul {response_path}"
+            logger.error("=" * 70)
+            logger.error(f"[NETWORK CLEANUP] ❌ EROARE PERMISIUNI")
+            logger.error(f"[NETWORK CLEANUP] {error_msg}")
+            logger.error(f"[NETWORK CLEANUP] Detalii: {str(e)}")
+            logger.error("=" * 70)
+            return False, error_msg
+
+        except Exception as e:
+            error_msg = f"Eroare la ștergerea fișierului: {str(e)}"
+            logger.error("=" * 70)
+            logger.error(f"[NETWORK CLEANUP] ❌ EROARE GENERALĂ")
+            logger.error(f"[NETWORK CLEANUP] {error_msg}")
+            logger.exception(e)
+            logger.error("=" * 70)
+            return False, error_msg

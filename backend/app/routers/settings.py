@@ -329,23 +329,64 @@ async def analyze_llm_data(
                     subfolder=retea_subfolder
                 )
 
-                if success:
-                    logger.info(f"[AI FILTERING] ✅ Prompt salvat cu succes: {saved_path}")
-                    # STOP EXECUTION HERE FOR NETWORK MODE
-                    return {
-                        'success': True,
-                        'response': f"Prompt salvat în rețea: {message}",
-                        'ai_selected_ids': [], # No IDs selected by AI since we skipped it
-                        'all_candidates': payload.get('all_candidates', []),
-                        'network_save': True,
-                        'saved_path': saved_path
-                    }
-                else:
+                if not success:
                     logger.error(f"[AI FILTERING] ❌ EROARE SALVARE REȚEA: {message}")
                     return {
                         'success': False,
                         'error': f"Eroare la salvarea în rețea: {message}"
                     }
+
+                logger.info(f"[AI FILTERING] ✅ Prompt salvat cu succes: {saved_path}")
+
+                # ===== POLLING PENTRU RĂSPUNS =====
+                logger.info("[AI FILTERING] Începem polling pentru răspuns din rețea...")
+
+                # Polling pentru fișierul de răspuns
+                poll_success, poll_content, response_path = await NetworkFileSaver.poll_for_response(
+                    saved_path=saved_path,
+                    timeout_seconds=1200,  # 20 minute
+                    poll_interval=10  # 10 secunde
+                )
+
+                if not poll_success:
+                    # Timeout sau altă eroare
+                    logger.error(f"[AI FILTERING] ❌ POLLING FAILED: {poll_content}")
+                    return {
+                        'success': False,
+                        'error': poll_content
+                    }
+
+                logger.info(f"[AI FILTERING] ✅ Răspuns primit din rețea!")
+
+                # ===== PARSARE ID-URI SPEȚE DIN RĂSPUNS =====
+                logger.info("[AI FILTERING] Parsăm ID-urile spețelor din răspuns...")
+
+                import re
+                id_matches = re.findall(r'\d+', poll_content)
+                ai_selected_ids = [int(id_str) for id_str in id_matches]
+
+                logger.info(f"[AI FILTERING] ✓ ID-uri extrase: {ai_selected_ids}")
+
+                # ===== ȘTERGERE FIȘIER RĂSPUNS =====
+                logger.info("[AI FILTERING] Curățăm fișierul de răspuns...")
+
+                delete_success, delete_message = NetworkFileSaver.delete_response_file(response_path)
+
+                if delete_success:
+                    logger.info(f"[AI FILTERING] ✓ {delete_message}")
+                else:
+                    logger.warning(f"[AI FILTERING] ⚠️ Eroare la ștergere (non-critică): {delete_message}")
+
+                # ===== RETURNARE REZULTATE =====
+                logger.info("[AI FILTERING] ✅ Procesare completă - returnăm rezultatele")
+                return {
+                    'success': True,
+                    'response': poll_content,
+                    'ai_selected_ids': ai_selected_ids,
+                    'all_candidates': payload.get('all_candidates', []),
+                    'network_save': True,
+                    'saved_path': saved_path
+                }
 
             # ===== CONTINUARE CU TRIMITEREA CĂTRE LLM (DOAR DACĂ REȚEA E OFF) =====
             logger.info("[AI FILTERING] Salvarea în rețea este DEZACTIVATĂ, se continuă cu LLM local")
