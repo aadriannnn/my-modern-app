@@ -172,18 +172,29 @@ const SearchPage: React.FC = () => {
                                         .sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
 
                                     // Merge: AI-selected first (with badge), then candidates
-                                    const mergedResults = [
-                                        ...aiSelectedResults.map((r: any) => ({ ...r, isAISelected: true })),
-                                        ...remainingCandidates.map((r: any) => ({ ...r, isCandidateCase: true }))
-                                    ];
+                                    const exclusiveDisplay = statusData.result.exclusive_display || false;
 
-                                    setSearchResults(mergedResults);
-                                    setOffset(mergedResults.length);
-                                    setHasMore(false);
-                                    setStatus(
-                                        `${aiSelectedResults.length} ${aiSelectedResults.length === 1 ? 'rezultat selectat' : 'rezultate selectate'} de AI` +
-                                        (remainingCandidates.length > 0 ? `, ${remainingCandidates.length} ${remainingCandidates.length === 1 ? 'candidat' : 'candidați'} analizați` : '')
-                                    );
+                                    let mergedResults;
+
+                                    if (exclusiveDisplay) {
+                                        // Network Mode Strict: Show ONLY AI selected results
+                                        mergedResults = aiSelectedResults.map((r: any) => ({ ...r, isAISelected: true }));
+
+                                        setStatus(
+                                            `${aiSelectedResults.length} ${aiSelectedResults.length === 1 ? 'rezultat relevant identificat' : 'rezultate relevante identificate'} de AI.`
+                                        );
+                                    } else {
+                                        // Standard Mode: Show AI selected + candidates
+                                        mergedResults = [
+                                            ...aiSelectedResults.map((r: any) => ({ ...r, isAISelected: true })),
+                                            ...remainingCandidates.map((r: any) => ({ ...r, isCandidateCase: true }))
+                                        ];
+
+                                        setStatus(
+                                            `${aiSelectedResults.length} ${aiSelectedResults.length === 1 ? 'rezultat selectat' : 'rezultate selectate'} de AI` +
+                                            (remainingCandidates.length > 0 ? `, ${remainingCandidates.length} ${remainingCandidates.length === 1 ? 'candidat' : 'candidați'} analizați` : '')
+                                        );
+                                    }
                                 } else {
                                     setSearchResults([]);
                                     setStatus("AI-ul nu a găsit rezultate relevante.");

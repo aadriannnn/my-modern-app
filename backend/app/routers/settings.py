@@ -394,7 +394,8 @@ async def analyze_llm_data(
                     'ai_selected_ids': ai_selected_ids,
                     'all_candidates': payload.get('all_candidates', []),
                     'network_save': True,
-                    'saved_path': saved_path
+                    'saved_path': saved_path,
+                    'exclusive_display': True  # Flag to tell UI to show ONLY these results
                 }
 
             # ===== CONTINUARE CU TRIMITEREA CĂTRE LLM (DOAR DACĂ REȚEA E OFF) =====
