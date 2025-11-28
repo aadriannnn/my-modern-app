@@ -275,18 +275,32 @@ const SettingsPage: React.FC = () => {
         setSettings((prev) => {
             if (!prev) return null;
             const newSettings = JSON.parse(JSON.stringify(prev));
-            let current = newSettings;
+            let current: any = newSettings;
+
+            // Navigate to the parent of the final key
             for (let i = 0; i < path.length - 1; i++) {
                 current = current[path[i]];
             }
-            current[path[path.length - 1]].value = newValue;
+
+            // Get the final key (this should be a SettingItem object with a 'value' property)
+            const finalKey = path[path.length - 1];
+
+            // Safely update the value property
+            if (current[finalKey] && typeof current[finalKey] === 'object' && 'value' in current[finalKey]) {
+                current[finalKey].value = newValue;
+            } else {
+                console.error('Invalid path or structure:', path, current[finalKey]);
+            }
+
             return newSettings;
         });
     };
 
     // Helper to determine if an object is a SettingItem (leaf) or a Section (branch)
     const isSettingItem = (obj: any): obj is SettingItem => {
-        return obj && typeof obj === 'object' && 'value' in obj && 'label' in obj;
+        // A SettingItem has 'value' and 'label' properties
+        // It may also have 'type' for string/boolean/text fields
+        return obj && typeof obj === 'object' && 'value' in obj && 'label' in obj && !Array.isArray(obj);
     };
 
     const renderSettingControl = (key: string, item: SettingItem, path: string[]) => {
@@ -328,7 +342,7 @@ const SettingsPage: React.FC = () => {
                             max={item.max ?? 100}
                             step={item.step ?? 1}
                             value={item.value}
-                            onChange={(e) => updateSettingValue([...path, 'value'], parseFloat(e.target.value))}
+                            onChange={(e) => updateSettingValue(path, parseFloat(e.target.value))}
                             className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600 hover:accent-blue-700"
                         />
                         <div className="flex justify-between text-xs text-slate-400 font-mono">
@@ -341,7 +355,7 @@ const SettingsPage: React.FC = () => {
                 {isBoolean && (
                     <Switch
                         checked={item.value}
-                        onChange={(checked: boolean) => updateSettingValue([...path, 'value'], checked)}
+                        onChange={(checked: boolean) => updateSettingValue(path, checked)}
                         className={`${item.value ? 'bg-blue-600' : 'bg-slate-200'
                             } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2`}
                     >
@@ -355,7 +369,7 @@ const SettingsPage: React.FC = () => {
                 {isText && (
                     <textarea
                         value={item.value}
-                        onChange={(e) => updateSettingValue([...path, 'value'], e.target.value)}
+                        onChange={(e) => updateSettingValue(path, e.target.value)}
                         className="w-full min-h-[200px] px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm resize-y"
                         placeholder={item.tooltip}
                     />
@@ -365,7 +379,7 @@ const SettingsPage: React.FC = () => {
                     <input
                         type="text"
                         value={item.value}
-                        onChange={(e) => updateSettingValue([...path, 'value'], e.target.value)}
+                        onChange={(e) => updateSettingValue(path, e.target.value)}
                         className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder={item.tooltip}
                     />

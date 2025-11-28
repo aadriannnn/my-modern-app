@@ -6,6 +6,7 @@ from ..settings_manager import settings_manager
 from ..routers.auth import get_current_user
 from ..db import get_session
 from ..config import get_settings as get_env_settings
+from ..lib.network_file_saver import NetworkFileSaver
 
 router = APIRouter(
     prefix="/settings",
@@ -253,6 +254,50 @@ async def analyze_llm_data(
         # Define async processor function
         async def process_llm_analysis(payload: dict):
             """Process the LLM analysis."""
+
+            # ===== SALVARE PROMPT ÎN REȚEA ÎNAINTE DE LLM =====
+            logger.info("[AI FILTERING] Verificăm configurarea salvării în rețea...")
+            network_enabled = settings_manager.get_value('setari_retea', 'retea_enabled', False)
+
+            if network_enabled:
+                logger.info("[AI FILTERING] ✓ Salvarea în rețea este ACTIVATĂ")
+
+                # Preluăm setările de rețea
+                retea_host = settings_manager.get_value('setari_retea', 'retea_host', '')
+                retea_folder = settings_manager.get_value('setari_retea', 'retea_folder_partajat', '')
+                retea_subfolder = settings_manager.get_value('setari_retea', 'retea_subfolder', '')
+
+                logger.info(f"[AI FILTERING] Configurare rețea: \\\\{retea_host}\\{retea_folder}")
+
+                # Validăm configurarea
+                if not retea_host or not retea_folder:
+                    error_msg = "Salvarea în rețea este activată, dar configurația este incompletă (lipsește host sau folder partajat)."
+                    logger.error(f"[AI FILTERING] ❌ EROARE CONFIGURARE: {error_msg}")
+                    raise HTTPException(status_code=500, detail=error_msg)
+
+                # Salvăm promptul în rețea
+                logger.info("[AI FILTERING] Începem salvarea promptului în rețea...")
+                success, message, saved_path = NetworkFileSaver.save_to_network(
+                    content=payload['prompt'],
+                    host=retea_host,
+                    shared_folder=retea_folder,
+                    subfolder=retea_subfolder
+                )
+
+                # Dacă salvarea a eșuat, OPRIM totul
+                if not success:
+                    logger.error(f"[AI FILTERING] ❌ EROARE SALVARE REȚEA: {message}")
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Eroare la salvarea promptului în rețea: {message}"
+                    )
+
+                logger.info(f"[AI FILTERING] ✅ Prompt salvat cu succes: {saved_path}")
+                logger.info("[AI FILTERING] Continuăm cu trimiterea către LLM...")
+            else:
+                logger.info("[AI FILTERING] Salvarea în rețea este DEZACTIVATĂ, se continuă direct cu LLM")
+
+            # ===== CONTINUARE CU TRIMITEREA CĂTRE LLM =====
             # Get LLM URL from settings
             llm_url = settings_manager.get_value('setari_llm', 'llm_url')
 

@@ -220,5 +220,31 @@
             "max": 10,
             "step": 1
         }
+    },
+    "setari_retea": {
+        "retea_enabled": {
+            "value": false,
+            "label": "Activează Salvare Prompturi în Rețea",
+            "tooltip": "Dacă este activat, toate prompturile LLM vor fi salvate pe calculatorul din rețea înainte de trimitere.",
+            "type": "boolean"
+        },
+        "retea_host": {
+            "value": "192.168.1.32",
+            "label": "IP/Hostname Calculator Rețea",
+            "tooltip": "Adresa calculatorului din rețea (ex: 192.168.1.32 sau DESKTOP-NUME). NOTĂ: Dacă folosești IP dinamic, verifică că este corect după restart router.",
+            "type": "string"
+        },
+        "retea_folder_partajat": {
+            "value": "juridic",
+            "label": "Folder Partajat",
+            "tooltip": "Numele folderului partajat pe calculatorul din rețea",
+            "type": "string"
+        },
+        "retea_subfolder": {
+            "value": "",
+            "label": "Subfolder (opțional)",
+            "tooltip": "Subfolder în care să se salveze fișierele (ex: prompturi_llm). Lasă gol pentru rădăcina folderului partajat.",
+            "type": "string"
+        }
     }
 }
