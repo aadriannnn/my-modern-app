@@ -69,8 +69,8 @@ class NetworkFileSaver:
         """
         logger.info("=" * 70)
         logger.info("[NETWORK SAVE] Începem salvarea în rețea...")
-        logger.info(f"[NETWORK SAVE] Host: {host}")
-        logger.info(f"[NETWORK SAVE] Folder partajat: {shared_folder}")
+        logger.info(f"[NETWORK SAVE] Host: {host if host else '(local)'}")
+        logger.info(f"[NETWORK SAVE] Folder: {shared_folder}")
         logger.info(f"[NETWORK SAVE] Subfolder: {subfolder if subfolder else '(none)'}")
         logger.info(f"[NETWORK SAVE] Dimensiune conținut: {len(content)} caractere")
 
@@ -81,9 +81,22 @@ class NetworkFileSaver:
 
         try:
             # Validare parametri
-            if not host or not shared_folder:
-                error_msg = "Configurare incompletă: lipsește host sau folder partajat"
+            # Dacă avem host, trebuie să avem și folder. Dacă nu avem host, folderul trebuie să fie absolut (local).
+            if not shared_folder:
+                error_msg = "Configurare incompletă: lipsește folderul de salvare"
                 logger.error(f"[NETWORK SAVE] EROARE VALIDARE: {error_msg}")
+                return False, error_msg, ""
+
+            is_posix = os.name == 'posix'
+
+            # Validare specifică Linux/Docker
+            if is_posix and host and host.lower() not in ['localhost', '127.0.0.1', 'local']:
+                error_msg = (
+                    f"Pe Linux/Docker nu sunt suportate căile UNC de Windows (\\\\{host}). "
+                    f"Vă rugăm să montați share-ul în container și să folosiți o cale locală "
+                    f"(lăsați Host gol și puneți calea de mount la Folder, ex: /app/mnt_juridic)."
+                )
+                logger.error(f"[NETWORK SAVE] EROARE OS: {error_msg}")
                 return False, error_msg, ""
 
             # Generăm numele fișierului dacă nu s-a specificat
@@ -92,14 +105,22 @@ class NetworkFileSaver:
 
             logger.info(f"[NETWORK SAVE] Nume fișier: {filename}")
 
-            # Construim calea UNC completă
-            # Format: \\HOST\FOLDER\[SUBFOLDER\]FILENAME
-            if subfolder:
-                network_path = f"\\\\{host}\\{shared_folder}\\{subfolder}\\{filename}"
+            # Construim calea
+            if not host or (is_posix and host.lower() in ['local', 'localhost']):
+                # Cale locală (sau mount point)
+                base_path = shared_folder
+                if subfolder:
+                    network_path = os.path.join(base_path, subfolder, filename)
+                else:
+                    network_path = os.path.join(base_path, filename)
             else:
-                network_path = f"\\\\{host}\\{shared_folder}\\{filename}"
+                # Cale UNC Windows
+                if subfolder:
+                    network_path = f"\\\\{host}\\{shared_folder}\\{subfolder}\\{filename}"
+                else:
+                    network_path = f"\\\\{host}\\{shared_folder}\\{filename}"
 
-            logger.info(f"[NETWORK SAVE] Cale completă UNC: {network_path}")
+            logger.info(f"[NETWORK SAVE] Cale țintă: {network_path}")
 
             # Verificăm dacă directorul părinte există
             parent_dir = str(Path(network_path).parent)

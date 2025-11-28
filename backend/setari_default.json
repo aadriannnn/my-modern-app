@@ -223,21 +223,21 @@
     },
     "setari_retea": {
         "retea_enabled": {
-            "value": false,
+            "value": true,
             "label": "Activează Salvare Prompturi în Rețea",
             "tooltip": "Dacă este activat, toate prompturile LLM vor fi salvate pe calculatorul din rețea înainte de trimitere.",
             "type": "boolean"
         },
         "retea_host": {
-            "value": "192.168.1.32",
+            "value": "",
             "label": "IP/Hostname Calculator Rețea",
-            "tooltip": "Adresa calculatorului din rețea (ex: 192.168.1.32 sau DESKTOP-NUME). NOTĂ: Dacă folosești IP dinamic, verifică că este corect după restart router.",
+            "tooltip": "Pentru Docker/Linux: Lăsați GOL. Pentru Windows: Adresa calculatorului (ex: 192.168.1.32).",
             "type": "string"
         },
         "retea_folder_partajat": {
-            "value": "juridic",
-            "label": "Folder Partajat",
-            "tooltip": "Numele folderului partajat pe calculatorul din rețea",
+            "value": "/app/mnt_juridic",
+            "label": "Folder Partajat / Cale Mount",
+            "tooltip": "Pentru Docker: Calea de mount (ex: /app/mnt_juridic). Pentru Windows: Numele folderului partajat.",
             "type": "string"
         },
         "retea_subfolder": {

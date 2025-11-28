@@ -273,7 +273,11 @@ async def analyze_llm_data(
                 logger.info(f"[AI FILTERING] Configurare rețea: \\\\{retea_host}\\{retea_folder}")
 
                 # Validăm configurarea
-                if not retea_host or not retea_folder:
+                # Permitem host gol dacă folderul este o cale absolută (pentru mount-uri locale)
+                import os
+                is_local_path = os.path.isabs(retea_folder) if retea_folder else False
+
+                if (not retea_host and not is_local_path) or not retea_folder:
                     error_msg = "Salvarea în rețea este activată, dar configurația este incompletă (lipsește host sau folder partajat)."
                     logger.error(f"[AI FILTERING] ❌ EROARE CONFIGURARE: {error_msg}")
                     raise HTTPException(status_code=500, detail=error_msg)
