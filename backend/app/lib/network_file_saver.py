@@ -255,8 +255,14 @@ class NetworkFileSaver:
             prompt_filename = os.path.basename(saved_path)
 
             # Construim pattern pentru fișierul de răspuns
-            # Pattern: raspuns_+_prompt_[numele_fisier_prompt]
-            response_filename = f"raspuns_+_prompt_{prompt_filename}"
+            # Pattern: înlocuim "prompt_" cu "raspuns_+_prompt_"
+            # Exemplu: prompt_20251128_151527.txt -> raspuns_+_prompt_20251128_151527.txt
+            if prompt_filename.startswith('prompt_'):
+                response_filename = prompt_filename.replace('prompt_', 'raspuns_+_prompt_', 1)
+            else:
+                # Fallback dacă nu începe cu prompt_ (nu ar trebui să se întâmple)
+                response_filename = f"raspuns_+_prompt_{prompt_filename}"
+
             response_path = os.path.join(directory, response_filename)
 
             logger.info(f"[NETWORK POLLING] Căutăm fișier: {response_filename}")
