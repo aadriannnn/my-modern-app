@@ -52,9 +52,12 @@ async def update_settings(new_settings: Dict[str, Any]):
     Update settings.
     """
     try:
+        from ..settings_manager import logger as settings_logger
+        settings_logger.info(f"Received update_settings request. Payload size: {len(str(new_settings))} chars")
         settings_manager.save_settings(new_settings)
         return settings_manager.get_settings()
     except Exception as e:
+        settings_logger.error(f"Exception in update_settings endpoint: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/reset", response_model=Dict[str, Any])

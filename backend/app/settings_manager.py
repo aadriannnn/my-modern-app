@@ -76,6 +76,9 @@ class SettingsManager:
         Saves the provided settings to setari.json.
         """
         try:
+            logger.info(f"Attempting to save settings to {USER_SETTINGS_PATH}")
+            logger.info(f"Settings content keys: {list(new_settings.keys())}")
+
             # We only save what's different or just save the whole structure?
             # Saving the whole structure is safer for now.
             with open(USER_SETTINGS_PATH, 'w', encoding='utf-8') as f:
@@ -83,9 +86,9 @@ class SettingsManager:
 
             # Update cache
             self._settings_cache = new_settings
-            logger.info("Settings saved to setari.json")
+            logger.info(f"Settings saved successfully to {USER_SETTINGS_PATH}")
         except Exception as e:
-            logger.error(f"Error saving settings: {e}")
+            logger.error(f"Error saving settings: {e}", exc_info=True)
             raise
 
     def reset_to_defaults(self):

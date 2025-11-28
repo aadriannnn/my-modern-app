@@ -74,6 +74,11 @@ class NetworkFileSaver:
         logger.info(f"[NETWORK SAVE] Subfolder: {subfolder if subfolder else '(none)'}")
         logger.info(f"[NETWORK SAVE] Dimensiune conținut: {len(content)} caractere")
 
+        # LOG CONTENT PREVIEW
+        preview_len = 500
+        content_preview = content[:preview_len] + "..." if len(content) > preview_len else content
+        logger.info(f"[NETWORK SAVE] Content preview (first {preview_len} chars):\n{content_preview}")
+
         try:
             # Validare parametri
             if not host or not shared_folder:
@@ -124,6 +129,20 @@ class NetworkFileSaver:
             logger.info(f"[NETWORK SAVE] Scriem {len(content)} caractere în fișier...")
             with open(network_path, "w", encoding="utf-8") as f:
                 f.write(content)
+
+            # VERIFICARE POST-SALVARE
+            logger.info("[NETWORK SAVE] VERIFICARE POST-SALVARE...")
+            if os.path.exists(network_path):
+                file_size = os.path.getsize(network_path)
+                logger.info(f"[NETWORK SAVE] ✓ Fișierul există pe disc.")
+                logger.info(f"[NETWORK SAVE] ✓ Dimensiune fișier: {file_size} bytes.")
+
+                if file_size == 0 and len(content) > 0:
+                     logger.warning("[NETWORK SAVE] ⚠️ ATENȚIE: Fișierul a fost creat dar are 0 bytes!")
+            else:
+                error_msg = f"Fișierul NU a fost găsit pe disc după scriere: {network_path}"
+                logger.error(f"[NETWORK SAVE] ❌ EROARE VERIFICARE: {error_msg}")
+                return False, error_msg, network_path
 
             logger.info("=" * 70)
             logger.info(f"[NETWORK SAVE] ✅ SUCCES! Fișier salvat: {network_path}")

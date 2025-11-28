@@ -223,13 +223,13 @@
   },
   "setari_retea": {
     "retea_enabled": {
-      "value": false,
+      "value": true,
       "label": "Activează Salvare Prompturi în Rețea",
       "tooltip": "Dacă este activat, toate prompturile LLM vor fi salvate pe calculatorul din rețea înainte de trimitere.",
       "type": "boolean"
     },
     "retea_host": {
-      "value": "192.168.1.32",
+      "value": "192.168.137.1",
       "label": "IP/Hostname Calculator Rețea",
       "tooltip": "Adresa calculatorului din rețea (ex: 192.168.1.32 sau DESKTOP-NUME). NOTĂ: Dacă folosești IP dinamic, verifică că este corect după restart router.",
       "type": "string"
