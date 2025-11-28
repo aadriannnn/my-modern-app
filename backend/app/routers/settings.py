@@ -260,19 +260,22 @@ async def analyze_llm_data(
 
             # Custom prompt for network mode as requested
             custom_template = (
-                "Esti un asistent juridic expert.\\n\\n"
-                "SARCINA:\\n"
-                "Analizeaza situatia de fapt de mai jos si lista de spete candidate ({num_candidates} spete).\\n"
-                "Selecteaza cele mai relevante 10 spete care se potrivesc cu situatia de fapt.\\n"
-                "Daca nu gasesti 10 spete strict relevante (ex: alta materie sau obiect), afiseaza TOATE spetele pe care le consideri relevante, "
-                "in ordinea relevantei (de la cea mai relevanta la cea mai putin relevanta).\\n\\n"
-                "SITUATIA DE FAPT:\\n"
-                "\\\"{query_text}\\\"\\n\\n"
-                "LISTA SPETE CANDIDATE:\\n"
+                "Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n\\n"
+                "SARCINA TA:\\n"
+                "Analizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele {num_candidates} spete candidate furnizate.\\n"
+                "Selecteaza cele mai relevante 10 spete asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\\n"
+                "Daca nu gasesti 10 spete strict relevante (ex: alta materie sau alt obiect), afiseaza TOATE spetele pe care le consideri relevante, "
+                "ordonate de la cea mai relevanta la cea mai putin relevanta.\\n\\n"
+                "SITUATIA DE FAPT A JUSTITIABILULUI:\\n"
+                "\"{query_text}\"\\n\\n"
+                "LISTA DE SPETE CANDIDATE ({num_candidates} Spete Pre-filtrate):\\n"
                 "{prompt_spete}\\n\\n"
-                "FORMAT RASPUNS:\\n"
-                "Returneaza DOAR lista de ID-uri, separate prin virgula (ex: 123, 456, 789).\\n"
-                "Nu adauga alte explicatii."
+                "FORMATUL RASPUNSULUI:\\n"
+                "Genereaza EXCLUSIV ID-urile spetelor selectate, separate prin virgula.\\n"
+                "Nu adauga niciun alt text, comentariu, explicatie sau introducere - nici inainte, nici dupa.\\n"
+                "Exemplu de raspuns valid pentru 1 rezultat: 123\\n"
+                "Exemplu de raspuns valid pentru 3 rezultate: 123, 456, 789\\n"
+                "Exemplu de raspuns valid pentru 10 rezultate: 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021, 2223"
             )
         else:
             candidate_count = settings_manager.get_value('setari_llm', 'ai_filtering_llm_candidate_count', 5)
