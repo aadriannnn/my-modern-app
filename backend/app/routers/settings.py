@@ -250,9 +250,40 @@ async def analyze_llm_data(
                 'message': 'Nu există rezultate salvate din ultima căutare.',
             }
 
-        # Generate the prompt using the helper with candidate count from settings
-        candidate_count = settings_manager.get_value('setari_llm', 'ai_filtering_llm_candidate_count', 5)
-        all_candidates, optimized_prompt = _generate_llm_data(session, ultima, candidate_count=candidate_count)
+        # Check network settings first to determine candidate count and mode
+        network_enabled = settings_manager.get_value('setari_retea', 'retea_enabled', False)
+
+        custom_template = None
+        if network_enabled:
+            # Use more candidates for network mode (default 50 or max available)
+            candidate_count = settings_manager.get_value('setari_generale', 'top_k_results', 50)
+
+            # Custom prompt for network mode as requested
+            custom_template = (
+                "Esti un asistent juridic expert.\\n\\n"
+                "SARCINA:\\n"
+                "Analizeaza situatia de fapt de mai jos si lista de spete candidate ({num_candidates} spete).\\n"
+                "Selecteaza cele mai relevante 10 spete care se potrivesc cu situatia de fapt.\\n"
+                "Daca nu gasesti 10 spete strict relevante (ex: alta materie sau obiect), afiseaza TOATE spetele pe care le consideri relevante, "
+                "in ordinea relevantei (de la cea mai relevanta la cea mai putin relevanta).\\n\\n"
+                "SITUATIA DE FAPT:\\n"
+                "\\\"{query_text}\\\"\\n\\n"
+                "LISTA SPETE CANDIDATE:\\n"
+                "{prompt_spete}\\n\\n"
+                "FORMAT RASPUNS:\\n"
+                "Returneaza DOAR lista de ID-uri, separate prin virgula (ex: 123, 456, 789).\\n"
+                "Nu adauga alte explicatii."
+            )
+        else:
+            candidate_count = settings_manager.get_value('setari_llm', 'ai_filtering_llm_candidate_count', 5)
+
+        # Generate the prompt using the helper
+        all_candidates, optimized_prompt = _generate_llm_data(
+            session,
+            ultima,
+            candidate_count=candidate_count,
+            custom_template=custom_template
+        )
 
         # Define async processor function
         async def process_llm_analysis(payload: dict):
@@ -280,7 +311,11 @@ async def analyze_llm_data(
                 if (not retea_host and not is_local_path) or not retea_folder:
                     error_msg = "Salvarea în rețea este activată, dar configurația este incompletă (lipsește host sau folder partajat)."
                     logger.error(f"[AI FILTERING] ❌ EROARE CONFIGURARE: {error_msg}")
-                    raise HTTPException(status_code=500, detail=error_msg)
+                    # Nu ridicăm excepție aici pentru a nu bloca worker-ul, dar returnăm eroare
+                    return {
+                        'success': False,
+                        'error': error_msg
+                    }
 
                 # Salvăm promptul în rețea
                 logger.info("[AI FILTERING] Începem salvarea promptului în rețea...")
@@ -291,20 +326,27 @@ async def analyze_llm_data(
                     subfolder=retea_subfolder
                 )
 
-                # Dacă salvarea a eșuat, OPRIM totul
-                if not success:
+                if success:
+                    logger.info(f"[AI FILTERING] ✅ Prompt salvat cu succes: {saved_path}")
+                    # STOP EXECUTION HERE FOR NETWORK MODE
+                    return {
+                        'success': True,
+                        'response': f"Prompt salvat în rețea: {message}",
+                        'ai_selected_ids': [], # No IDs selected by AI since we skipped it
+                        'all_candidates': payload.get('all_candidates', []),
+                        'network_save': True,
+                        'saved_path': saved_path
+                    }
+                else:
                     logger.error(f"[AI FILTERING] ❌ EROARE SALVARE REȚEA: {message}")
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Eroare la salvarea promptului în rețea: {message}"
-                    )
+                    return {
+                        'success': False,
+                        'error': f"Eroare la salvarea în rețea: {message}"
+                    }
 
-                logger.info(f"[AI FILTERING] ✅ Prompt salvat cu succes: {saved_path}")
-                logger.info("[AI FILTERING] Continuăm cu trimiterea către LLM...")
-            else:
-                logger.info("[AI FILTERING] Salvarea în rețea este DEZACTIVATĂ, se continuă direct cu LLM")
+            # ===== CONTINUARE CU TRIMITEREA CĂTRE LLM (DOAR DACĂ REȚEA E OFF) =====
+            logger.info("[AI FILTERING] Salvarea în rețea este DEZACTIVATĂ, se continuă cu LLM local")
 
-            # ===== CONTINUARE CU TRIMITEREA CĂTRE LLM =====
             # Get LLM URL from settings
             llm_url = settings_manager.get_value('setari_llm', 'llm_url')
 
@@ -397,11 +439,12 @@ async def get_analyze_llm_status(job_id: str):
         raise HTTPException(status_code=500, detail=f"Eroare la verificarea statusului: {str(e)}")
 
 
-def _generate_llm_data(session: Session, ultima: Any, candidate_count: int = None):
+def _generate_llm_data(session: Session, ultima: Any, candidate_count: int = None, custom_template: str = None):
     """
     Helper to generate the export data and optimized prompt.
     Args:
         candidate_count: Number of cases to include (default from settings)
+        custom_template: Optional custom prompt template to use instead of settings
     """
     from sqlmodel import text
     import json
@@ -473,12 +516,16 @@ ELEMENTE DE INDIVIDUALIZARE: {text_individualizare}
 
     # Get settings
     result_count = settings_manager.get_value('setari_llm', 'ai_filtering_result_count', 1)
-    prompt_template = settings_manager.get_value(
-        'setari_llm',
-        'llm_prompt_template',
-        # Default fallback value
-        'Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n\\nSARCINA TA:\\nAnalizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele {num_candidates} spete pre-filtrate furnizate.\\nIdentifica cele mai relevante {num_results} spete asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\\n\\nSITUATIA DE FAPT A JUSTITIABILULUI:\\n"{query_text}"\\n\\nLISTA DE SPETE PENTRU COMPARATIE ({num_candidates} Spete Pre-filtrate):\\n{prompt_spete}\\n\\nFORMATUL RASPUNSULUI:\\nGenereaza EXCLUSIV ID-urile spetelor selectate, separate prin virgula.\\nNu adauga niciun alt text, comentariu, explicatie sau introducere.\\nExemplu de raspuns valid pentru 1 rezultat: 123\\nExemplu de raspuns valid pentru 3 rezultate: 123, 456, 789'
-    )
+
+    if custom_template:
+        prompt_template = custom_template
+    else:
+        prompt_template = settings_manager.get_value(
+            'setari_llm',
+            'llm_prompt_template',
+            # Default fallback value
+            'Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n\\nSARCINA TA:\\nAnalizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele {num_candidates} spete pre-filtrate furnizate.\\nIdentifica cele mai relevante {num_results} spete asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\\n\\nSITUATIA DE FAPT A JUSTITIABILULUI:\\n"{query_text}"\\n\\nLISTA DE SPETE PENTRU COMPARATIE ({num_candidates} Spete Pre-filtrate):\\n{prompt_spete}\\n\\nFORMATUL RASPUNSULUI:\\nGenereaza EXCLUSIV ID-urile spetelor selectate, separate prin virgula.\\nNu adauga niciun alt text, comentariu, explicatie sau introducere.\\nExemplu de raspuns valid pentru 1 rezultat: 123\\nExemplu de raspuns valid pentru 3 rezultate: 123, 456, 789'
+        )
 
     # Format the template with actual data
     optimized_prompt = prompt_template.format(
