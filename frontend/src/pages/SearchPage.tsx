@@ -195,6 +195,10 @@ const SearchPage: React.FC = () => {
                                             (remainingCandidates.length > 0 ? `, ${remainingCandidates.length} ${remainingCandidates.length === 1 ? 'candidat' : 'candidați'} analizați` : '')
                                         );
                                     }
+
+                                    setSearchResults(mergedResults);
+                                    setOffset(mergedResults.length);
+                                    setHasMore(false);
                                 } else {
                                     setSearchResults([]);
                                     setStatus("AI-ul nu a găsit rezultate relevante.");
