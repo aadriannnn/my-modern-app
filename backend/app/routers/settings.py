@@ -253,12 +253,51 @@ async def analyze_llm_data(
         # Check network settings first to determine candidate count and mode
         network_enabled = settings_manager.get_value('setari_retea', 'retea_enabled', False)
 
+        # Check if Pro Search was used in the original query
+        is_pro_search = getattr(ultima, 'pro_search', False)
+
         custom_template = None
-        if network_enabled:
+        if network_enabled and is_pro_search:
+            # SPECIAL MODE: Pro Search + Network Mode
+            # Use 50 candidates for maximum coverage
+            candidate_count = 50
+            logger.info(f"[AI FILTERING] PRO + NETWORK MODE ACTIVATED: Using {candidate_count} candidates")
+
+            # Strict prompt for Pro mode: max 10 relevant results, strict formatting
+            custom_template = (
+                "Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n\\n"
+                "SARCINA TA:\\n"
+                "Analizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele {num_candidates} spete candidate furnizate.\\n\\n"
+                "Selecteaza DOAR spetele strict relevante pentru situatia justitiabilului (maxim 10 spete).\\n"
+                "- Daca gasesti 10 sau mai multe spete relevante, returneaza EXACT 10 spete\\n"
+                "- Daca gasesti mai putin de 10 spete relevante, returneaza DOAR cele relevante (ex: 3, 5, 7 spete este acceptabil)\\n"
+                "- Ordoneaza rezultatele de la CEL MAI RELEVANT la CEL MAI PUTIN RELEVANT\\n"
+                "- Evalueaza relevanta luand in considerare: situatia de fapt, obiectul si elementele de individualizare\\n\\n"
+                "SITUATIA DE FAPT A JUSTITIABILULUI:\\n"
+                "\"{query_text}\"\\n\\n"
+                "LISTA DE SPETE CANDIDATE ({num_candidates} Spete Pre-filtrate):\\n"
+                "{prompt_spete}\\n\\n"
+                "FORMATUL RASPUNSULUI - FOARTE IMPORTANT:\\n"
+                "Genereaza EXCLUSIV ID-urile spetelor selectate, separate prin virgula.\\n"
+                "NU adauga NICIUN alt text, comentariu, explicatie sau introducere.\\n"
+                "NU adauga text inainte, la mijloc sau dupa numerele de ID.\\n"
+                "Raspunsul trebuie sa contina DOAR numere separate prin virgule.\\n\\n"
+                "Exemple de raspunsuri CORECTE:\\n"
+                "- Pentru 1 rezultat: 123\\n"
+                "- Pentru 3 rezultate: 123, 456, 789\\n"
+                "- Pentru 10 rezultate: 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021, 2223\\n\\n"
+                "Exemple de raspunsuri INCORECTE (NU face asta):\\n"
+                "- \"Iata spetele relevante: 123, 456\" (are text inainte)\\n"
+                "- \"123, 456 - acestea sunt cele mai relevante\" (are text dupa)\\n"
+                "- \"Am gasit urmatoarele 3 spete: 123, 456, 789\" (are text inainte)"
+            )
+        elif network_enabled:
+            # NORMAL NETWORK MODE (without Pro Search)
             # Use more candidates for network mode (default 50 or max available)
             candidate_count = settings_manager.get_value('setari_generale', 'top_k_results', 50)
+            logger.info(f"[AI FILTERING] NETWORK MODE: Using {candidate_count} candidates")
 
-            # Custom prompt for network mode as requested
+            # Original network mode prompt
             custom_template = (
                 "Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n\\n"
                 "SARCINA TA:\\n"
@@ -278,7 +317,9 @@ async def analyze_llm_data(
                 "Exemplu de raspuns valid pentru 10 rezultate: 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021, 2223"
             )
         else:
+            # NORMAL MODE (no network)
             candidate_count = settings_manager.get_value('setari_llm', 'ai_filtering_llm_candidate_count', 5)
+            logger.info(f"[AI FILTERING] NORMAL MODE: Using {candidate_count} candidates")
 
         # Generate the prompt using the helper
         all_candidates, optimized_prompt = _generate_llm_data(

@@ -89,6 +89,7 @@ class UltimaInterogare(SQLModel, table=True):
     id: int = Field(primary_key=True, default=1)  # Single row, always id=1
     speta_ids: List[int] = Field(sa_column=Column(JSON))
     query_text: str = Field(default="")
+    pro_search: bool = Field(default=False)  # Flag pentru Pro Search mode
     created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)
 
 
