@@ -152,28 +152,45 @@ const SearchPage: React.FC = () => {
                         const statusData = await pollStatus();
 
                         if (statusData.status === 'completed') {
-                            // Success! Extract single most relevant result
-                            if (statusData.result && statusData.result.success && statusData.result.response) {
-                                // Extract single ID from LLM response
-                                const llmIdMatch = statusData.result.response.match(/\d+/);
-                                const llmId = llmIdMatch ? Number(llmIdMatch[0]) : null;
+                            // Success! Extract AI-selected IDs and candidates
+                            if (statusData.result && statusData.result.success) {
+                                const aiSelectedIds = statusData.result.ai_selected_ids || [];
+                                const allCandidates = statusData.result.all_candidates || [];
 
-                                if (llmId) {
-                                    const filteredResult = initialResults.find((item: any) => item.id === llmId);
+                                if (aiSelectedIds.length > 0) {
+                                    // Find AI-selected results from initial results
+                                    const aiSelectedResults = aiSelectedIds
+                                        .map((id: number) => initialResults.find((item: any) => item.id === id))
+                                        .filter(Boolean);
 
-                                    if (filteredResult) {
-                                        setSearchResults([filteredResult]);
-                                        setOffset(1);
-                                        setHasMore(false);
-                                        setStatus(`Rezultat AI: Cea mai relevantă spetă din ${initialResults.length} rezultate inițiale.`);
-                                    } else {
-                                        setSearchResults([]);
-                                        setStatus("AI-ul nu a găsit potriviri exacte în rezultatele curente.");
-                                    }
+                                    // Find remaining candidates (not selected by AI)
+                                    const candidateIds = allCandidates.map((c: any) => c.id);
+                                    const remainingCandidates = initialResults
+                                        .filter((item: any) =>
+                                            candidateIds.includes(item.id) && !aiSelectedIds.includes(item.id)
+                                        )
+                                        .sort((a: any, b: any) => (b.score || 0) - (a.score || 0));
+
+                                    // Merge: AI-selected first (with badge), then candidates
+                                    const mergedResults = [
+                                        ...aiSelectedResults.map((r: any) => ({ ...r, isAISelected: true })),
+                                        ...remainingCandidates.map((r: any) => ({ ...r, isCandidateCase: true }))
+                                    ];
+
+                                    setSearchResults(mergedResults);
+                                    setOffset(mergedResults.length);
+                                    setHasMore(false);
+                                    setStatus(
+                                        `${aiSelectedResults.length} ${aiSelectedResults.length === 1 ? 'rezultat selectat' : 'rezultate selectate'} de AI` +
+                                        (remainingCandidates.length > 0 ? `, ${remainingCandidates.length} ${remainingCandidates.length === 1 ? 'candidat' : 'candidați'} analizați` : '')
+                                    );
                                 } else {
                                     setSearchResults([]);
-                                    setStatus("Răspunsul AI nu a conținut un ID valid.");
+                                    setStatus("AI-ul nu a găsit rezultate relevante.");
                                 }
+                            } else {
+                                setSearchResults([]);
+                                setStatus("Eroare la procesarea răspunsului AI.");
                             }
                             break;
                         } else if (statusData.status === 'failed') {

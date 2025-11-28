@@ -34,3 +34,83 @@ body {
   display: none;
   /* Chrome, Safari and Opera */
 }
+
+/* AI Result Badge Styling */
+.ai-result-badge {
+  @apply inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold;
+  @apply bg-gradient-to-r from-brand-accent/20 to-purple-500/20;
+  @apply border border-brand-accent/30;
+  @apply text-brand-accent;
+  @apply backdrop-blur-sm;
+  @apply shadow-sm;
+  transition: all 0.3s ease;
+}
+
+.ai-result-badge:hover {
+  @apply shadow-md scale-105;
+  @apply border-brand-accent/50;
+}
+
+.ai-badge-icon {
+  @apply w-4 h-4;
+  animation: sparkle 2s ease-in-out infinite;
+}
+
+.ai-badge-text {
+  @apply font-bold tracking-wide;
+}
+
+@keyframes sparkle {
+
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+/* AI Result Container */
+.ai-result-container {
+  @apply relative;
+}
+
+.ai-result-container::before {
+  content: '';
+  @apply absolute inset-0 -z-10 rounded-lg;
+  @apply bg-gradient-to-r from-brand-accent/5 to-purple-500/5;
+  @apply opacity-0;
+  transition: opacity 0.3s ease;
+}
+
+.ai-result-container:hover::before {
+  @apply opacity-100;
+}
+
+/* Candidate Result Styling */
+.candidate-result {
+  @apply opacity-90;
+}
+
+.candidate-result:hover {
+  @apply opacity-100;
+}
+
+/* Mobile Responsive Adjustments */
+@media (max-width: 640px) {
+  .ai-result-badge {
+    @apply px-2.5 py-1 text-[10px];
+  }
+
+  .ai-badge-icon {
+    @apply w-3 h-3;
+  }
+
+  .ai-badge-text {
+    @apply tracking-normal;
+  }
+}

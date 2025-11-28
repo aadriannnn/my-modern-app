@@ -4,6 +4,7 @@ import type { PdfSablonData } from '@/lib/pdf';
 import { Printer, Eye, FolderPlus, Scale, Calendar, FolderCheck } from 'lucide-react';
 import ShareButton from './ShareButton';
 import { useDosar } from '../context/DosarContext';
+import AIResultBadge from './AIResultBadge';
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
 
@@ -11,9 +12,11 @@ interface ResultItemProps {
   result: any;
   onViewCase: () => void;
   activeView: ViewType;
+  isAISelected?: boolean;
+  isCandidateCase?: boolean;
 }
 
-const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView }) => {
+const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView, isAISelected = false, isCandidateCase = false }) => {
   const { addToDosar, removeFromDosar, isCaseInDosar } = useDosar();
   const content = result?.[activeView] || 'Nu există descriere disponibilă.';
 
@@ -54,8 +57,15 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView 
 
   const title = generateTitle(result);
 
+  // Determine container class based on AI selection
+  const containerClass = isAISelected
+    ? "ai-result-container bg-white p-3 md:p-5 border border-gray-200 rounded-lg shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand-accent"
+    : isCandidateCase
+      ? "candidate-result bg-white p-3 md:p-5 border border-gray-200 rounded-lg shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand-accent"
+      : "bg-white p-3 md:p-5 border border-gray-200 rounded-lg shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand-accent";
+
   return (
-    <div className="bg-white p-3 md:p-5 border border-gray-200 rounded-lg shadow-sm transition-all duration-300 hover:shadow-md hover:border-brand-accent">
+    <div className={containerClass}>
       {/* Mobile: Icons First (Above Title) */}
       <div className="md:hidden">
         {/* Action Icons Row */}
@@ -71,9 +81,12 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView 
         </div>
 
         {/* Title - Full Width */}
-        <h3 className="text-base font-semibold text-brand-primary cursor-pointer mb-2 leading-snug" onClick={onViewCase}>
-          {title}
-        </h3>
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
+          <h3 className="text-base font-semibold text-brand-primary cursor-pointer leading-snug flex-1" onClick={onViewCase}>
+            {title}
+          </h3>
+          {isAISelected && <AIResultBadge />}
+        </div>
 
         {/* Content - More Lines Visible */}
         <div className="text-sm text-brand-text-secondary leading-relaxed cursor-pointer mb-2" onClick={onViewCase}>
@@ -90,9 +103,12 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView 
       {/* Desktop: Original Layout */}
       <div className="hidden md:block">
         <div className="flex justify-between items-start pb-3 mb-3 border-b border-gray-100">
-          <h3 className="text-lg font-semibold text-brand-primary flex-1 cursor-pointer pr-4" onClick={onViewCase}>
-            {title}
-          </h3>
+          <div className="flex items-center gap-3 flex-1">
+            <h3 className="text-lg font-semibold text-brand-primary cursor-pointer" onClick={onViewCase}>
+              {title}
+            </h3>
+            {isAISelected && <AIResultBadge />}
+          </div>
           <div className="flex items-center space-x-2">
             <IconButton
               icon={isInDosar ? <FolderCheck size={18} className="text-green-600" /> : <FolderPlus size={18} />}

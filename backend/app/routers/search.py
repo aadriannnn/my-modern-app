@@ -52,9 +52,13 @@ async def search(
         try:
             from ..models import UltimaInterogare
             from datetime import datetime
+            from ..settings_manager import settings_manager
 
-            # Limit to top 5 results for AI filtering (most semantically relevant)
-            speta_ids = [r.get('id') for r in result[:5] if r.get('id') is not None]
+            # Get candidate count from settings
+            candidate_count = settings_manager.get_value('setari_llm', 'ai_filtering_llm_candidate_count', 5)
+
+            # Limit to top N results for AI filtering (most semantically relevant)
+            speta_ids = [r.get('id') for r in result[:candidate_count] if r.get('id') is not None]
 
             # Use a separate session for saving
             with next(get_session()) as save_session:

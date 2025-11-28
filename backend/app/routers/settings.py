@@ -246,8 +246,9 @@ async def analyze_llm_data(
                 'message': 'Nu există rezultate salvate din ultima căutare.',
             }
 
-        # Generate the prompt using the helper
-        _, optimized_prompt = _generate_llm_data(session, ultima)
+        # Generate the prompt using the helper with candidate count from settings
+        candidate_count = settings_manager.get_value('setari_llm', 'ai_filtering_llm_candidate_count', 5)
+        all_candidates, optimized_prompt = _generate_llm_data(session, ultima, candidate_count=candidate_count)
 
         # Define async processor function
         async def process_llm_analysis(payload: dict):
@@ -282,14 +283,30 @@ async def analyze_llm_data(
 
             logger.info("Received response from LLM")
 
+            # Parse AI-selected IDs from response (can be single or comma-separated)
+            llm_response_text = result.get('response', '')
+            ai_selected_ids = []
+
+            # Extract all numbers from response
+            import re
+            id_matches = re.findall(r'\d+', llm_response_text)
+            ai_selected_ids = [int(id_str) for id_str in id_matches]
+
+            logger.info(f"LLM selected IDs: {ai_selected_ids}")
+
             return {
                 'success': True,
-                'response': result.get('response', ''),
+                'response': llm_response_text,
+                'ai_selected_ids': ai_selected_ids,
+                'all_candidates': payload.get('all_candidates', []),
                 'full_response': result
             }
 
         # Add to queue and get job_id immediately
-        payload = {'prompt': optimized_prompt}
+        payload = {
+            'prompt': optimized_prompt,
+            'all_candidates': all_candidates  # Include all candidates for response
+        }
         job_id, _ = await queue_manager.add_to_queue(payload, process_llm_analysis)
 
         logger.info(f"LLM analysis queued with job_id: {job_id}")
@@ -328,9 +345,11 @@ async def get_analyze_llm_status(job_id: str):
         raise HTTPException(status_code=500, detail=f"Eroare la verificarea statusului: {str(e)}")
 
 
-def _generate_llm_data(session: Session, ultima: Any):
+def _generate_llm_data(session: Session, ultima: Any, candidate_count: int = None):
     """
     Helper to generate the export data and optimized prompt.
+    Args:
+        candidate_count: Number of cases to include (default from settings)
     """
     from sqlmodel import text
     import json
@@ -338,10 +357,12 @@ def _generate_llm_data(session: Session, ultima: Any):
 
     logger = logging.getLogger(__name__)
 
-    # --- MODIFICARE CRITICĂ PENTRU VITEZĂ (CPU) ---
-    # Fără linia asta, sistemul va fi lent!
-    speta_ids_to_process = ultima.speta_ids[:5]
-    # ----------------------------------------------
+    # Get candidate count from settings if not provided
+    if candidate_count is None:
+        candidate_count = settings_manager.get_value('setari_llm', 'ai_filtering_llm_candidate_count', 5)
+
+    # Limit to available IDs
+    speta_ids_to_process = ultima.speta_ids[:candidate_count]
 
     # Construim query-ul doar pentru cele 5 ID-uri
     placeholders = ', '.join([f':id_{i}' for i in range(len(speta_ids_to_process))])
@@ -398,18 +419,21 @@ ELEMENTE DE INDIVIDUALIZARE: {text_individualizare}
 
     prompt_spete = "\n".join(spete_text_list)
 
-    # Get prompt template from settings
+    # Get settings
+    result_count = settings_manager.get_value('setari_llm', 'ai_filtering_result_count', 1)
     prompt_template = settings_manager.get_value(
         'setari_llm',
         'llm_prompt_template',
-        # Default fallback value - Updated to request single most relevant case
-        'Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n\\nSARCINA TA:\\nAnalizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele 5 spete pre-filtrate furnizate.\\nIdentifica SINGURA speta cea mai asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\\n\\nSITUATIA DE FAPT A JUSTITIABILULUI:\\n"{query_text}"\\n\\nLISTA DE SPETE PENTRU COMPARATIE (5 Spete Pre-filtrate):\\n{prompt_spete}\\n\\nFORMATUL RASPUNSULUI:\\nGenereaza EXCLUSIV ID-ul spetei celei mai relevante.\\nNu adauga niciun alt text, comentariu, explicatie sau introducere.\\nExemplu de raspuns valid: 123'
+        # Default fallback value
+        'Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n\\nSARCINA TA:\\nAnalizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele {num_candidates} spete pre-filtrate furnizate.\\nIdentifica cele mai relevante {num_results} spete asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\\n\\nSITUATIA DE FAPT A JUSTITIABILULUI:\\n"{query_text}"\\n\\nLISTA DE SPETE PENTRU COMPARATIE ({num_candidates} Spete Pre-filtrate):\\n{prompt_spete}\\n\\nFORMATUL RASPUNSULUI:\\nGenereaza EXCLUSIV ID-urile spetelor selectate, separate prin virgula.\\nNu adauga niciun alt text, comentariu, explicatie sau introducere.\\nExemplu de raspuns valid pentru 1 rezultat: 123\\nExemplu de raspuns valid pentru 3 rezultate: 123, 456, 789'
     )
 
     # Format the template with actual data
     optimized_prompt = prompt_template.format(
         query_text=ultima.query_text,
-        prompt_spete=prompt_spete
+        prompt_spete=prompt_spete,
+        num_candidates=len(spete_export),
+        num_results=result_count
     )
 
     return spete_export, optimized_prompt

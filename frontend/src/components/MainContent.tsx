@@ -142,6 +142,8 @@ const MainContent: React.FC<MainContentProps> = ({
               result={result}
               activeView={activeView}
               onViewCase={() => onViewCase(result)}
+              isAISelected={result.isAISelected || false}
+              isCandidateCase={result.isCandidateCase || false}
             />
           </div>
         ))}

@@ -199,10 +199,26 @@
             "type": "string"
         },
         "llm_prompt_template": {
-            "value": "Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n\\nSARCINA TA:\\nAnalizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele 5 spete pre-filtrate furnizate.\\nIdentifica SINGURA speta cea mai asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\\n\\nSITUATIA DE FAPT A JUSTITIABILULUI:\\n\"{query_text}\"\\n\\nLISTA DE SPETE PENTRU COMPARATIE (5 Spete Pre-filtrate):\\n{prompt_spete}\\n\\nFORMATUL RASPUNSULUI:\\nGenereaza EXCLUSIV ID-ul spetei celei mai relevante.\\nNu adauga niciun alt text, comentariu, explicatie sau introducere.\\nExemplu de raspuns valid: 123",
+            "value": "Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n\\nSARCINA TA:\\nAnalizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele {num_candidates} spete pre-filtrate furnizate.\\nIdentifica cele mai relevante {num_results} spete asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\\n\\nSITUATIA DE FAPT A JUSTITIABILULUI:\\n\"{query_text}\"\\n\\nLISTA DE SPETE PENTRU COMPARATIE ({num_candidates} Spete Pre-filtrate):\\n{prompt_spete}\\n\\nFORMATUL RASPUNSULUI:\\nGenereaza EXCLUSIV ID-urile spetelor selectate, separate prin virgula.\\nNu adauga niciun alt text, comentariu, explicatie sau introducere.\\nExemplu de raspuns valid pentru 1 rezultat: 123\\nExemplu de raspuns valid pentru 3 rezultate: 123, 456, 789",
             "label": "Template Prompt LLM",
-            "tooltip": "Template-ul prompt-ului trimis către LLM. Folosește {query_text} pentru situația utilizatorului și {prompt_spete} pentru lista de spețe.",
+            "tooltip": "Template-ul prompt-ului trimis către LLM. Folosește {query_text} pentru situația utilizatorului, {prompt_spete} pentru lista de spețe, {num_candidates} pentru număr candidați și {num_results} pentru număr rezultate.",
             "type": "text"
+        },
+        "ai_filtering_llm_candidate_count": {
+            "value": 5,
+            "label": "Număr Candidați LLM",
+            "tooltip": "Câte spețe (cele mai relevante din căutarea inițială) să fie trimise la LLM pentru analiză detaliată.",
+            "min": 3,
+            "max": 20,
+            "step": 1
+        },
+        "ai_filtering_result_count": {
+            "value": 1,
+            "label": "Număr Rezultate AI",
+            "tooltip": "Câte spețe să fie selectate de LLM ca fiind cele mai relevante și afișate cu label AI.",
+            "min": 1,
+            "max": 10,
+            "step": 1
         }
     }
 }
