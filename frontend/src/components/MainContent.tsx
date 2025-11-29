@@ -86,6 +86,7 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
 --------------------------------------------------
 `).join('\n');
 
+      // Step 1: Start document generation and get job_id
       const response = await fetch('/api/settings/generate-document', {
         method: 'POST',
         headers: {
@@ -100,12 +101,65 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
 
       const data = await response.json();
 
-      if (data.success) {
-        setGeneratedDoc(data.generated_document);
-        setShowDocModal(true);
-      } else {
-        alert(`Eroare: ${data.message}`);
+      if (!data.success || !data.job_id) {
+        alert(`Eroare: ${data.message || 'Nu s-a putut porni generarea'}`);
+        return;
       }
+
+      const jobId = data.job_id;
+      console.log('Document generation started with job_id:', jobId);
+
+      // Step 2: Poll for status
+      const pollInterval = 2000; // 2 seconds
+      const maxPolls = 600; // 20 minutes max (600 * 2 seconds)
+      let pollCount = 0;
+
+      const checkStatus = async (): Promise<boolean> => {
+        try {
+          const statusResponse = await fetch(`/api/settings/generate-document-status/${jobId}`);
+          const statusData = await statusResponse.json();
+
+          console.log('Document generation status:', statusData.status);
+
+          if (statusData.status === 'completed') {
+            if (statusData.result?.success && statusData.result?.generated_document) {
+              setGeneratedDoc(statusData.result.generated_document);
+              setShowDocModal(true);
+              return true; // Done
+            } else {
+              alert(`Eroare: ${statusData.result?.error || statusData.result?.message || 'Document generat incomplet'}`);
+              return true; // Error, stop polling
+            }
+          } else if (statusData.status === 'failed') {
+            alert(`Eroare la generare: ${statusData.error || 'Procesare eșuată'}`);
+            return true; // Error, stop polling
+          } else if (statusData.status === 'not_found') {
+            alert('Job-ul de generare nu a fost găsit.');
+            return true; // Error, stop polling
+          }
+
+          // Still processing or queued
+          return false; // Continue polling
+        } catch (error) {
+          console.error('Error checking document generation status:', error);
+          // Continue polling on error (might be temporary network issue)
+          return false;
+        }
+      };
+
+      // Polling loop
+      while (pollCount < maxPolls) {
+        const isDone = await checkStatus();
+        if (isDone) break;
+
+        await new Promise(resolve => setTimeout(resolve, pollInterval));
+        pollCount++;
+      }
+
+      if (pollCount >= maxPolls) {
+        alert('Timeout: generarea documentului a durat prea mult.');
+      }
+
     } catch (error) {
       console.error('Error generating document:', error);
       alert('A apărut o eroare la generarea documentului.');

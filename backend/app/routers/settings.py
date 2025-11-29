@@ -792,11 +792,12 @@ async def generate_document(
 ):
     """
     Generate a legal document based on a template and relevant cases.
-    Saves the prompt to a network location and polls for the response.
+    Returns job_id immediately for async processing.
+    Client should poll /generate-document-status/{job_id} for results.
     """
+    from ..logic.queue_manager import queue_manager
     import logging
     import os
-    from datetime import datetime
 
     logger = logging.getLogger(__name__)
     logger.info(f"Received document generation request for '{request.tip_act}'")
@@ -850,47 +851,94 @@ LIVRABIL:
 Doar textul actului juridic, gata de a fi copiat intr-un editor de text, fara alte comentarii conversationale.
 """
 
-        # 4. Save prompt to network
-        logger.info(f"Saving generation prompt to {retea_folder}...")
-        success, message, saved_path = NetworkFileSaver.save_to_network(
-            content=prompt_content,
-            host=retea_host,
-            shared_folder=retea_folder,
-            subfolder="" # No subfolder for now, or maybe 'generare_acte'? User didn't specify.
-        )
+        # Define async processor function
+        async def process_document_generation(payload: dict):
+            """Process the document generation in background."""
+            logger.info("[DOC GEN] Starting background processing...")
 
-        if not success:
-            logger.error(f"Failed to save prompt: {message}")
+            # 4. Save prompt to network
+            logger.info(f"[DOC GEN] Saving generation prompt to {payload['retea_folder']}...")
+            success, message, saved_path = NetworkFileSaver.save_to_network(
+                content=payload['prompt'],
+                host=payload['retea_host'],
+                shared_folder=payload['retea_folder'],
+                subfolder=""
+            )
+
+            if not success:
+                logger.error(f"[DOC GEN] Failed to save prompt: {message}")
+                return {
+                    'success': False,
+                    'error': f"Eroare la salvarea promptului: {message}"
+                }
+
+            # 5. Poll for response
+            logger.info(f"[DOC GEN] Polling for response for {saved_path}...")
+            poll_success, poll_content, response_path = await NetworkFileSaver.poll_for_response(
+                saved_path=saved_path,
+                timeout_seconds=1200,  # 20 minutes
+                poll_interval=10
+            )
+
+            if not poll_success:
+                logger.error(f"[DOC GEN] Polling failed: {poll_content}")
+                return {
+                    'success': False,
+                    'error': f"Nu s-a primit răspuns în timp util: {poll_content}"
+                }
+
+            # 6. Clean up response file
+            logger.info("[DOC GEN] Cleaning up response file...")
+            NetworkFileSaver.delete_response_file(response_path)
+
+            # 7. Return result
+            logger.info("[DOC GEN] Document generation completed successfully!")
             return {
-                'success': False,
-                'message': f"Eroare la salvarea promptului: {message}"
+                'success': True,
+                'generated_document': poll_content,
+                'message': 'Document generat cu succes!'
             }
 
-        # 5. Poll for response
-        logger.info(f"Polling for response for {saved_path}...")
-        poll_success, poll_content, response_path = await NetworkFileSaver.poll_for_response(
-            saved_path=saved_path,
-            timeout_seconds=1200, # 20 minutes
-            poll_interval=10
-        )
+        # Add to queue and get job_id immediately
+        payload = {
+            'prompt': prompt_content,
+            'retea_folder': retea_folder,
+            'retea_host': retea_host,
+            'tip_act': request.tip_act
+        }
+        job_id, _ = await queue_manager.add_to_queue(payload, process_document_generation)
 
-        if not poll_success:
-            logger.error(f"Polling failed: {poll_content}")
-            return {
-                'success': False,
-                'message': f"Nu s-a primit răspuns în timp util: {poll_content}"
-            }
+        logger.info(f"Document generation queued with job_id: {job_id}")
 
-        # 6. Clean up response file
-        NetworkFileSaver.delete_response_file(response_path)
-
-        # 7. Return result
         return {
             'success': True,
-            'generated_document': poll_content,
-            'message': 'Document generat cu succes!'
+            'job_id': job_id,
+            'message': 'Generare în curs. Folosește job_id pentru a verifica statusul.'
         }
 
+    except RuntimeError as e:
+        logger.error(f"Queue error: {e}")
+        raise HTTPException(status_code=503, detail=f"Coada este plină. Vă rugăm să încercați din nou mai târziu.")
     except Exception as e:
-        logger.error(f"Error in generate_document: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Error queuing document generation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Eroare internă: {str(e)}")
+
+
+@router.get("/generate-document-status/{job_id}", response_model=Dict[str, Any])
+async def get_generate_document_status(job_id: str):
+    """
+    Check the status of a document generation job.
+    Returns: {status: 'queued'|'processing'|'completed'|'failed'|'not_found', ...}
+    """
+    from ..logic.queue_manager import queue_manager
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        status = queue_manager.get_job_status(job_id)
+        logger.info(f"Document generation job {job_id} status: {status.get('status')}")
+        return status
+    except Exception as e:
+        logger.error(f"Error getting document generation job status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Eroare la verificarea statusului: {str(e)}")
