@@ -826,29 +826,45 @@ async def generate_document(
             }
 
         # 3. Construct the prompt
-        prompt_content = f"""ESTI UN AVOCAT EXPERT SI UN PROFESIONIST DESAVARSIT IN DREPTUL ROMANESC.
+        prompt_content = f"""ESTI UN AVOCAT EXPERT.
 
 SARCINA TA:
-Redactează un proiect complet pentru actul juridic: "{request.tip_act}".
+Redactează un proiect complet pentru actul juridic: "{request.tip_act}", structurat STRICT în format JSON.
 
 DATE DE INTRARE:
-1. SITUATIA DE FAPT A CLIENTULUI:
-"{request.situatia_de_fapt}"
+1. SITUATIA DE FAPT: "{request.situatia_de_fapt}"
+2. PRECEDENTE JUDICIARE: "{request.relevant_cases_text}"
 
-2. PRECEDENTE JUDICIARE RELEVANTE (Se vor folosi pentru motivarea în drept):
-"{request.relevant_cases_text}"
+INSTRUCTIUNI:
+- Adapteaza modelul juridic la situatia de fapt.
+- NU INVENTA DATE PERSONALE (foloseste [PLACEHOLDERS]).
+- Limbaj formal, juridic.
 
-INSTRUCTIUNI DE REDACTARE:
-- Cauta in baza ta de cunostinte un model oficial sau consacrat (de preferat modele agreate de INM - Institutul National al Magistraturii) pentru actul "{request.tip_act}".
-- Adapteaza acest model strict la situatia de fapt prezentata.
-- Integreaza argumente juridice extrase din precedentele judiciare furnizate mai sus pentru a sustine cererea.
-- NU INVENTA DATE PERSONALE: Nu genera nume de persoane, adrese specifice, CNP-uri sau numere de dosar inventate.
-- Foloseste PLACEHOLDERS intre paranteze patrate pentru datele care lipsesc (ex: [NUME RECLAMANT], [ADRESA PARATA], [INSTANTA COMPETENTA], [DATA]).
-- Limbajul trebuie sa fie juridic, formal, specific instanțelor din Romania.
-- Structura trebuie sa includa: Antet, Parti, Obiectul Cererii, Motivarea (in fapt si in drept), Probatoriu, Semnatura (placeholder).
+FORMAT DE RASPUNS (JSON OBLIGATORIU):
+Nu returna niciun text in afara JSON-ului. Foloseste schema:
+{{
+  "titlu_document": "Titlul Mare (ex: CERERE...)",
+  "sectiuni": [
+    {{
+      "titlu_sectiune": "Titlul Sectiunii (sau null)",
+      "continut": [
+        {{
+          "tip": "tipul_blocului",
+          "text": "Textul propriu-zis...",
+          "items": ["item1", "item2"]
+        }}
+      ]
+    }}
+  ]
+}}
 
-LIVRABIL:
-Doar textul actului juridic, gata de a fi copiat intr-un editor de text, fara alte comentarii conversationale.
+VALORI PERMISE PENTRU "tip":
+1. "titlu_centrat" (Antete, Instante)
+2. "paragraf" (Text narativ standard)
+3. "lista_numerotata" (Enumerari, motive) - camp "items" obligatoriu
+4. "semnatura" (Finalul actului)
+
+NOTA: Campul "items" este obligatoriu DOAR pentru "lista_numerotata", altfel nu il include.
 """
 
         # Define async processor function
@@ -887,15 +903,64 @@ Doar textul actului juridic, gata de a fi copiat intr-un editor de text, fara al
                     'error': f"Nu s-a primit răspuns în timp util: {poll_content}"
                 }
 
-            # 6. Clean up response file
+            # 6. Parse JSON response with sanitization
+            logger.info("[DOC GEN] Parsing JSON response...")
+
+            import json
+            import re
+
+            try:
+                # Sanitize: Remove Markdown code fences if present
+                sanitized_content = poll_content.strip()
+
+                # Remove ```json and ``` markers
+                sanitized_content = re.sub(r'^```json\s*', '', sanitized_content)
+                sanitized_content = re.sub(r'\s*```$', '', sanitized_content)
+
+                # Alternative: Extract content between first { and last }
+                start_idx = sanitized_content.find('{')
+                end_idx = sanitized_content.rfind('}')
+
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = sanitized_content[start_idx:end_idx+1]
+                    parsed_document = json.loads(json_str)
+                else:
+                    # Try direct parse if no braces found (shouldn't happen)
+                    parsed_document = json.loads(sanitized_content)
+
+                # Validate schema
+                if 'titlu_document' not in parsed_document or 'sectiuni' not in parsed_document:
+                    logger.error("[DOC GEN] Invalid JSON schema: missing required fields")
+                    return {
+                        'success': False,
+                        'error': 'JSON invalid: lipsesc câmpurile obligatorii (titlu_document, sectiuni)'
+                    }
+
+                logger.info("[DOC GEN] JSON parsed successfully!")
+
+            except json.JSONDecodeError as e:
+                logger.error(f"[DOC GEN] JSON parsing error: {e}")
+                logger.info(f"[DOC GEN] Raw content: {poll_content[:500]}...")
+                return {
+                    'success': False,
+                    'error': f"Răspunsul nu este un JSON valid: {str(e)}"
+                }
+            except Exception as e:
+                logger.error(f"[DOC GEN] Unexpected error during JSON parsing: {e}")
+                return {
+                    'success': False,
+                    'error': f"Eroare la procesarea răspunsului: {str(e)}"
+                }
+
+            # 7. Clean up response file
             logger.info("[DOC GEN] Cleaning up response file...")
             NetworkFileSaver.delete_response_file(response_path)
 
-            # 7. Return result
+            # 8. Return JSON object result
             logger.info("[DOC GEN] Document generation completed successfully!")
             return {
                 'success': True,
-                'generated_document': poll_content,
+                'generated_document': parsed_document,  # Return JSON object, not string
                 'message': 'Document generat cu succes!'
             }
 

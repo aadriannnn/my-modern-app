@@ -67,7 +67,7 @@ const MainContent: React.FC<MainContentProps> = ({
   // Generation state
   const [selectedAct, setSelectedAct] = useState<string>('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedDoc, setGeneratedDoc] = useState<string | null>(null);
+  const [generatedDoc, setGeneratedDoc] = useState<any | null>(null);
   const [showDocModal, setShowDocModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -171,7 +171,50 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
   const handleCopyDoc = async () => {
     if (generatedDoc) {
       try {
-        await navigator.clipboard.writeText(generatedDoc);
+        // Convert JSON document to plain text for clipboard
+        let plainText = '';
+
+        // Add title
+        if (generatedDoc.titlu_document) {
+          plainText += generatedDoc.titlu_document.toUpperCase() + '\n\n';
+        }
+
+        // Add sections
+        if (generatedDoc.sectiuni && Array.isArray(generatedDoc.sectiuni)) {
+          generatedDoc.sectiuni.forEach((sectiune: any) => {
+            // Add section title if exists
+            if (sectiune.titlu_sectiune) {
+              plainText += sectiune.titlu_sectiune.toUpperCase() + '\n\n';
+            }
+
+            // Add content blocks
+            if (sectiune.continut && Array.isArray(sectiune.continut)) {
+              sectiune.continut.forEach((bloc: any) => {
+                switch (bloc.tip) {
+                  case 'titlu_centrat':
+                    plainText += '\t\t' + bloc.text.toUpperCase() + '\n\n';
+                    break;
+                  case 'paragraf':
+                    plainText += '\t' + bloc.text + '\n\n';
+                    break;
+                  case 'lista_numerotata':
+                    if (bloc.items && Array.isArray(bloc.items)) {
+                      bloc.items.forEach((item: string, idx: number) => {
+                        plainText += `\t${idx + 1}. ${item}\n`;
+                      });
+                      plainText += '\n';
+                    }
+                    break;
+                  case 'semnatura':
+                    plainText += '\n\n\t\t\t\t' + bloc.text + '\n';
+                    break;
+                }
+              });
+            }
+          });
+        }
+
+        await navigator.clipboard.writeText(plainText);
         setCopySuccess(true);
         setTimeout(() => setCopySuccess(false), 2000);
       } catch (err) {
@@ -534,8 +577,68 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
               </div>
 
               <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
-                <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 min-h-[500px] font-serif text-gray-800 whitespace-pre-wrap leading-relaxed">
-                  {generatedDoc}
+                <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 min-h-[500px] font-serif text-gray-800 leading-relaxed">
+                  {/* Render structured JSON document */}
+                  {generatedDoc && (
+                    <div className="legal-document">
+                      {/* Document Title */}
+                      {generatedDoc.titlu_document && (
+                        <h1 className="text-center font-bold uppercase text-xl mb-6">
+                          {generatedDoc.titlu_document}
+                        </h1>
+                      )}
+
+                      {/* Sections */}
+                      {generatedDoc.sectiuni && Array.isArray(generatedDoc.sectiuni) && generatedDoc.sectiuni.map((sectiune: any, sIdx: number) => (
+                        <div key={sIdx} className="mb-6">
+                          {/* Section Title */}
+                          {sectiune.titlu_sectiune && (
+                            <h3 className="font-bold uppercase text-base mb-3 mt-6">
+                              {sectiune.titlu_sectiune}
+                            </h3>
+                          )}
+
+                          {/* Content Blocks */}
+                          {sectiune.continut && Array.isArray(sectiune.continut) && sectiune.continut.map((bloc: any, bIdx: number) => {
+                            switch (bloc.tip) {
+                              case 'titlu_centrat':
+                                return (
+                                  <div key={bIdx} className="text-center font-bold uppercase mb-4">
+                                    {bloc.text}
+                                  </div>
+                                );
+
+                              case 'paragraf':
+                                return (
+                                  <p key={bIdx} className="text-justify mb-2" style={{ textIndent: '2rem' }}>
+                                    {bloc.text}
+                                  </p>
+                                );
+
+                              case 'lista_numerotata':
+                                return (
+                                  <ol key={bIdx} className="list-decimal pl-10 space-y-1 mb-4">
+                                    {bloc.items && Array.isArray(bloc.items) && bloc.items.map((item: string, iIdx: number) => (
+                                      <li key={iIdx}>{item}</li>
+                                    ))}
+                                  </ol>
+                                );
+
+                              case 'semnatura':
+                                return (
+                                  <div key={bIdx} className="text-right mt-12 mr-10 font-bold">
+                                    {bloc.text}
+                                  </div>
+                                );
+
+                              default:
+                                return null;
+                            }
+                          })}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
 
