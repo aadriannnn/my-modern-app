@@ -350,6 +350,7 @@ const MainContent: React.FC<MainContentProps> = ({
             </label>
             <div className="relative">
               <select className="block w-full pl-4 pr-10 py-3 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent sm:text-sm rounded-lg bg-gray-50 text-brand-text appearance-none cursor-pointer hover:bg-white transition-colors duration-200">
+                <option value="" disabled selected>Selectați un act juridic relevant...</option>
                 {acteJuridice.map((act, idx) => (
                   <option key={idx} value={act}>{act}</option>
                 ))}

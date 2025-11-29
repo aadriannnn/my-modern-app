@@ -161,12 +161,36 @@ const SearchPage: React.FC = () => {
                                 setActeJuridice(extractedActe);
 
                                 if (aiSelectedIds.length > 0) {
-                                    // Find AI-selected results from initial results
+                                    // Find AI-selected results from all candidates (preferred) or initial results
                                     const aiSelectedResults = aiSelectedIds
-                                        .map((id: number) => initialResults.find((item: any) => item.id === id))
+                                        .map((id: number) => {
+                                            // Try to find in allCandidates first (contains full list sent to LLM)
+                                            const candidate = allCandidates.find((c: any) => c.id === id);
+                                            if (candidate) {
+                                                // Format candidate to match ResultItem structure (wrap in data)
+                                                // Backend returns flat object in allCandidates, but ResultItem expects { id, data: { ... } }
+                                                return {
+                                                    id: candidate.id,
+                                                    data: candidate, // Wrap flat candidate as data
+                                                    score: 100, // Assign high score to AI selected
+                                                    // Map fields for view
+                                                    situatia_de_fapt_full: candidate.situatia_de_fapt,
+                                                    argumente_instanta: candidate.argumente_instanta || 'Nu există date',
+                                                    text_individualizare: candidate.text_individualizare || 'Nu există date',
+                                                    text_doctrina: candidate.text_doctrina || 'Nu există date',
+                                                    text_ce_invatam: candidate.text_ce_invatam || 'Nu există date',
+                                                    Rezumat_generat_de_AI_Cod: candidate.Rezumat_generat_de_AI_Cod || 'Nu există date'
+                                                };
+                                            }
+                                            // Fallback to initialResults
+                                            return initialResults.find((item: any) => item.id === id);
+                                        })
                                         .filter(Boolean);
 
                                     // Find remaining candidates (not selected by AI)
+                                    // We should only show remaining candidates if they are in the initial search results
+                                    // OR if we want to show all candidates sent to LLM?
+                                    // Usually we only show what was in the initial search unless AI picked it.
                                     const candidateIds = allCandidates.map((c: any) => c.id);
                                     const remainingCandidates = initialResults
                                         .filter((item: any) =>

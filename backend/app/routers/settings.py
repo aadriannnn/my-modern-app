@@ -372,32 +372,53 @@ async def analyze_llm_data(
                 ai_selected_ids = []
                 acte_juridice = []
 
+                # Curățăm conținutul de caractere invizibile sau BOM
+                poll_content = poll_content.strip()
+
                 try:
-                    # Încercăm să găsim JSON-ul în text (poate fi înconjurat de markdown ```json ... ```)
-                    json_match = re.search(r'\{.*\}', poll_content, re.DOTALL)
-                    if json_match:
-                        json_str = json_match.group(0)
-                        data = json.loads(json_str)
+                    # 1. Încercăm parsare directă dacă e doar JSON
+                    try:
+                        data = json.loads(poll_content)
+                        logger.info("[AI FILTERING] Parsare directă JSON reușită")
+                    except json.JSONDecodeError:
+                        # 2. Căutăm bloc JSON delimitat de acolade
+                        # Folosim un regex non-greedy pentru a găsi cel mai mare bloc JSON posibil sau cel mai mic?
+                        # Cel mai sigur: căutăm de la prima acoladă { la ultima }
+                        start_idx = poll_content.find('{')
+                        end_idx = poll_content.rfind('}')
 
-                        if "numar_speta" in data and isinstance(data["numar_speta"], list):
-                            ai_selected_ids = [int(x) for x in data["numar_speta"]]
+                        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                            json_str = poll_content[start_idx:end_idx+1]
+                            data = json.loads(json_str)
+                            logger.info("[AI FILTERING] Parsare bloc JSON extras reușită")
+                        else:
+                            raise ValueError("Nu s-a găsit un bloc JSON valid")
 
-                        if "acte_juridice" in data and isinstance(data["acte_juridice"], list):
-                            acte_juridice = data["acte_juridice"]
+                    # Extragem datele
+                    if "numar_speta" in data:
+                        if isinstance(data["numar_speta"], list):
+                            ai_selected_ids = [int(x) for x in data["numar_speta"] if str(x).isdigit()]
+                        elif isinstance(data["numar_speta"], (str, int)):
+                             # Handle single value case just in case
+                             ai_selected_ids = [int(data["numar_speta"])]
 
-                        logger.info(f"[AI FILTERING] ✓ ID-uri extrase: {ai_selected_ids}")
-                        logger.info(f"[AI FILTERING] ✓ Acte juridice extrase: {acte_juridice}")
-                    else:
-                        # Fallback la vechea metodă dacă nu găsim JSON
-                        logger.warning("[AI FILTERING] ⚠️ Nu s-a găsit JSON valid, încercăm extragerea simplă de numere...")
-                        id_matches = re.findall(r'\d+', poll_content)
-                        ai_selected_ids = [int(id_str) for id_str in id_matches]
+                    if "acte_juridice" in data and isinstance(data["acte_juridice"], list):
+                        acte_juridice = [str(x) for x in data["acte_juridice"]]
+
+                    logger.info(f"[AI FILTERING] ✓ ID-uri extrase: {ai_selected_ids}")
+                    logger.info(f"[AI FILTERING] ✓ Acte juridice extrase: {acte_juridice}")
 
                 except Exception as e:
                     logger.error(f"[AI FILTERING] ❌ Eroare la parsarea JSON: {e}")
-                    # Fallback
+                    logger.info(f"[AI FILTERING] Conținut raw: {poll_content[:200]}...")
+
+                    # Fallback: Regex pentru numere, dar ATENȚIE: asta poate include numere din textul actelor juridice
+                    # Încercăm să fim mai specifici dacă putem, dar fallback-ul e fallback.
+                    logger.warning("[AI FILTERING] ⚠️ Fallback la extragerea simplă de numere...")
                     id_matches = re.findall(r'\d+', poll_content)
                     ai_selected_ids = [int(id_str) for id_str in id_matches]
+                    # La fallback nu avem acte juridice
+
 
                 # ===== ȘTERGERE FIȘIER RĂSPUNS =====
                 logger.info("[AI FILTERING] Curățăm fișierul de răspuns...")
