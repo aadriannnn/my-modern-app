@@ -264,30 +264,35 @@ async def analyze_llm_data(
             # Use more candidates for network mode (default 50 or max available)
             candidate_count = settings_manager.get_value('setari_generale', 'top_k_results', 50)
 
-            # Custom prompt for network mode - EXTREMELY STRICT
+            # Custom prompt for network mode - ULTRA-STRICT ZERO-TOLERANCE
             custom_template = (
-                "⚠️ RASPUNDE DOAR CU JSON - NIMIC ALTCEVA ⚠️\\n"
-                "NU repeta acest prompt. NU adauga explicatii. DOAR JSON.\\n\\n"
-                "SARCINA:\\n"
-                "Analizeaza situatia justitiabilului si selecteaza spetele relevante (max 10) din cele {num_candidates} candidate.\\n\\n"
-                "SITUATIA JUSTITIABILULUI:\\n"
-                "\"{query_text}\"\\n\\n"
-                "SPETE CANDIDATE ({num_candidates}):\\n"
-                "{prompt_spete}\\n\\n"
-                "⚠️ FORMATUL RASPUNSULUI (EXTREM DE IMPORTANT) ⚠️\\n"
-                "Returneaza EXCLUSIV acest JSON (fara ``` markdown, fara text explicativ):\\n"
+                "⚠️⚠️⚠️ INTERZIS TOTAL: ORICE TEXT IN AFARA JSON ⚠️⚠️⚠️\\n\\n"
+                "SARCINA: Selecteaza max 10 spete relevante din {num_candidates} candidate.\\n\\n"
+                "SITUATIA: \"{query_text}\"\\n\\n"
+                "CANDIDATE:\\n{prompt_spete}\\n\\n"
+                "═══════════════════════════════════════════════════════════════\\n"
+                "FORMATUL RASPUNSULUI - ZERO TOLERANTA LA ABATERI:\\n"
+                "═══════════════════════════════════════════════════════════════\\n\\n"
+                "PRIMUL CARACTER din raspuns: {{\\n"
+                "ULTIMUL CARACTER din raspuns: }}\\n\\n"
+                "Structura JSON (EXCLUSIV acest format):\\n"
                 "{{\\n"
-                "  \"numar_speta\": [123, 456, 789],\\n"
-                "  \"acte_juridice\": [\"Sentinta civila\", \"Decizie penala\"]\\n"
+                "  \"numar_speta\": [123, 456],\\n"
+                "  \"acte_juridice\": [\"Tip1\", \"Tip2\"]\\n"
                 "}}\\n\\n"
-                "REGULI STRICTE:\\n"
-                "✅ Incepe raspunsul cu {{\\n"
-                "✅ Termina raspunsul cu }}\\n"
-                "❌ NU adauga text inaintea sau dupa JSON\\n"
-                "❌ NU repeta promptul\\n"
-                "❌ NU explica alegerea\\n"
-                "❌ NU folosi ```json sau ```\\n\\n"
-                "RASPUNSUL TAU TREBUIE SA INCEAPA ACUM CU {{ SI SA SE TERMINE CU }}"
+                "❌❌❌ INTERZIS ABSOLUT (ZERO EXCEPTII): ❌❌❌\\n"
+                "• ZERO text INAINTE de {{\\n"
+                "• ZERO text DUPA }}\\n"
+                "• ZERO note explicative (nici in paranteze)\\n"
+                "• ZERO 'Considerente Juridice'\\n"
+                "• ZERO 'Observatii'\\n"
+                "• ZERO rationament profesional\\n"
+                "• ZERO comentarii de orice fel\\n"
+                "• ZERO markdown (```json)\\n"
+                "• ZERO repetare prompt\\n\\n"
+                "NU esti platit sa explici. Esti platit sa livrezi DOAR JSON.\\n"
+                "Orice caracter in afara {{ }} = ESEC TOTAL.\\n\\n"
+                "INCEPE ACUM CU {{ (prima litera din raspuns trebuie sa fie acolada):"
             )
         else:
             candidate_count = settings_manager.get_value('setari_llm', 'ai_filtering_llm_candidate_count', 5)
@@ -826,94 +831,63 @@ async def generate_document(
                 'message': 'Configurație rețea incompletă (lipsește host sau folder).'
             }
 
-        # 3. Construct the prompt
-        prompt_content = f"""ESTI UN AVOCAT EXPERT.
+        # 3. Construct the prompt - ULTRA-STRICT ZERO-TOLERANCE
+        prompt_content = f"""⚠️⚠️⚠️ INTERZIS TOTAL: ORICE TEXT IN AFARA JSON ⚠️⚠️⚠️
 
-SARCINA TA:
-Redactează un proiect complet pentru actul juridic: "{request.tip_act}", structurat STRICT în format JSON.
+SARCINA: Redactează "{request.tip_act}" în format JSON.
 
-DATE DE INTRARE:
-1. SITUATIA DE FAPT: "{request.situatia_de_fapt}"
-2. PRECEDENTE JUDICIARE: "{request.relevant_cases_text}"
+DATE:
+1. SITUATIE: "{request.situatia_de_fapt}"
+2. PRECEDENTE: "{request.relevant_cases_text}"
 
-INSTRUCTIUNI:
-- Adapteaza modelul juridic la situatia de fapt.
-- NU INVENTA DATE PERSONALE (foloseste [PLACEHOLDERS]).
-- Limbaj formal, juridic.
+═══════════════════════════════════════════════════════════════
+FORMATUL RASPUNSULUI - ZERO TOLERANTA LA ABATERI:
+═══════════════════════════════════════════════════════════════
 
-⚠️ ATENTIE - FORMAT JSON OBLIGATORIU ⚠️
+PRIMUL CARACTER din raspuns: {{
+ULTIMUL CARACTER din raspuns: }}
 
-TREBUIE sa returnezi DOAR JSON. NIMIC altceva. Niciun text explicativ inainte sau dupa.
-
-SCHEMA EXACTA (OBLIGATORIU):
+SCHEMA JSON (EXCLUSIV acest format, ZERO exceptii):
 {{
-  "titlu_document": "TITLUL ACTULUI JURIDIC",
+  "titlu_document": "TITLU",
   "sectiuni": [
     {{
-      "titlu_sectiune": "Numele sectiunii sau null",
+      "titlu_sectiune": "Sectiune" sau null,
       "continut": [
         {{
           "tip": "paragraf",
-          "text": "Textul..."
+          "text": "Text..."
         }}
       ]
     }}
   ]
 }}
 
-❌ NU FOLOSI aceste campuri (GRESIT):
-- "act_juridic"
-- "instanta"
-- "parti"
-- "contestatori"
-- "intimati"
+Valori "tip": "titlu_centrat", "paragraf", "lista_numerotata" (cu "items": []), "semnatura"
+Placeholders: [NUME], [ADRESA], [CNP], [INSTANTA], [DATA]
 
-✅ FOLOSESTE DOAR aceste campuri (CORECT):
-- "titlu_document" (string obligatoriu)
-- "sectiuni" (array obligatoriu)
+❌❌❌ INTERZIS ABSOLUT (ZERO EXCEPTII): ❌❌❌
+• ZERO text INAINTE de {{
+• ZERO text DUPA }}
+• ZERO note explicative (nici in paranteze la articole)
+• ZERO 'Considerente Juridice Suplimentare'
+• ZERO 'Observatii'
+• ZERO rationament profesional
+• ZERO justificari pentru formulari
+• ZERO explicatii pentru client
+• ZERO sectiuni adiacente
+• ZERO comentarii de orice fel
+• ZERO markdown (```json)
+• ZERO campuri: "act_juridic", "instanta", "parti", "contestatori"
 
-VALORI PERMISE pentru "tip":
-1. "titlu_centrat" - Pentru antete si instante
-2. "paragraf" - Pentru text normal
-3. "lista_numerotata" - Pentru enumerari (necesita campul "items": ["...", "..."])
-4. "semnatura" - Pentru final
+NU esti platit sa explici de ce ai ales o formulare.
+NU esti platit sa justifici structura.
+NU esti platit sa oferi consultanta.
+Esti platit EXCLUSIV sa livrezi JSON valid conform schemei.
 
-IMPORTANT:
-- Campul "items" este obligatoriu DOAR pentru "lista_numerotata"
-- Pentru celelalte tipuri foloseste doar "tip" si "text"
-- NU adauga campuri suplimentare
-- NU schimba numele campurilor
-- NU wrapa JSON-ul in markdown (```json)
+Orice caracter in afara {{ }} = ESEC TOTAL.
 
-EXEMPLU CORECT de continut pentru o sectiune:
-{{
-  "titlu_sectiune": "CATRE [INSTANTA COMPETENTA]",
-  "continut": [
-    {{
-      "tip": "titlu_centrat",
-      "text": "[INSTANTA JUDECATOREASCA]"
-    }},
-    {{
-      "tip": "paragraf",
-      "text": "Subsemnatul/Subsemnata [NUME CONTESTATOR], domiciliat/domiciliată în [ADRESA], identificat/identificată cu CNP [CNP], în calitate de debitor executat silită, formulez prezenta:"
-    }},
-    {{
-      "tip": "lista_numerotata",
-      "items": [
-        "Anularea actelor de executare silită emise de...",
-        "Reducerea cheltuielilor de executare la suma...",
-        "Obligarea intimatului la plata cheltuielilor de judecată"
-      ]
-    }},
-    {{
-      "tip": "semnatura",
-      "text": "[SEMNATURA CONTESTATOR]\\n[DATA]"
-    }}
-  ]
-}}
-
-RĂSPUNSUL TĂU TREBUIE SĂ ÎNCEAPĂ CU {{ ȘI SĂ SE TERMINE CU }}
-Fără niciun alt text!
+INCEPE ACUM CU {{ (prima litera din raspuns trebuie sa fie acolada):
 """
 
         # Define async processor function
