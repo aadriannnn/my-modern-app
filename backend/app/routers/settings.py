@@ -840,31 +840,79 @@ INSTRUCTIUNI:
 - NU INVENTA DATE PERSONALE (foloseste [PLACEHOLDERS]).
 - Limbaj formal, juridic.
 
-FORMAT DE RASPUNS (JSON OBLIGATORIU):
-Nu returna niciun text in afara JSON-ului. Foloseste schema:
+⚠️ ATENTIE - FORMAT JSON OBLIGATORIU ⚠️
+
+TREBUIE sa returnezi DOAR JSON. NIMIC altceva. Niciun text explicativ inainte sau dupa.
+
+SCHEMA EXACTA (OBLIGATORIU):
 {{
-  "titlu_document": "Titlul Mare (ex: CERERE...)",
+  "titlu_document": "TITLUL ACTULUI JURIDIC",
   "sectiuni": [
     {{
-      "titlu_sectiune": "Titlul Sectiunii (sau null)",
+      "titlu_sectiune": "Numele sectiunii sau null",
       "continut": [
         {{
-          "tip": "tipul_blocului",
-          "text": "Textul propriu-zis...",
-          "items": ["item1", "item2"]
+          "tip": "paragraf",
+          "text": "Textul..."
         }}
       ]
     }}
   ]
 }}
 
-VALORI PERMISE PENTRU "tip":
-1. "titlu_centrat" (Antete, Instante)
-2. "paragraf" (Text narativ standard)
-3. "lista_numerotata" (Enumerari, motive) - camp "items" obligatoriu
-4. "semnatura" (Finalul actului)
+❌ NU FOLOSI aceste campuri (GRESIT):
+- "act_juridic"
+- "instanta"
+- "parti"
+- "contestatori"
+- "intimati"
 
-NOTA: Campul "items" este obligatoriu DOAR pentru "lista_numerotata", altfel nu il include.
+✅ FOLOSESTE DOAR aceste campuri (CORECT):
+- "titlu_document" (string obligatoriu)
+- "sectiuni" (array obligatoriu)
+
+VALORI PERMISE pentru "tip":
+1. "titlu_centrat" - Pentru antete si instante
+2. "paragraf" - Pentru text normal
+3. "lista_numerotata" - Pentru enumerari (necesita campul "items": ["...", "..."])
+4. "semnatura" - Pentru final
+
+IMPORTANT:
+- Campul "items" este obligatoriu DOAR pentru "lista_numerotata"
+- Pentru celelalte tipuri foloseste doar "tip" si "text"
+- NU adauga campuri suplimentare
+- NU schimba numele campurilor
+- NU wrapa JSON-ul in markdown (```json)
+
+EXEMPLU CORECT de continut pentru o sectiune:
+{{
+  "titlu_sectiune": "CATRE [INSTANTA COMPETENTA]",
+  "continut": [
+    {{
+      "tip": "titlu_centrat",
+      "text": "[INSTANTA JUDECATOREASCA]"
+    }},
+    {{
+      "tip": "paragraf",
+      "text": "Subsemnatul/Subsemnata [NUME CONTESTATOR], domiciliat/domiciliată în [ADRESA], identificat/identificată cu CNP [CNP], în calitate de debitor executat silită, formulez prezenta:"
+    }},
+    {{
+      "tip": "lista_numerotata",
+      "items": [
+        "Anularea actelor de executare silită emise de...",
+        "Reducerea cheltuielilor de executare la suma...",
+        "Obligarea intimatului la plata cheltuielilor de judecată"
+      ]
+    }},
+    {{
+      "tip": "semnatura",
+      "text": "[SEMNATURA CONTESTATOR]\\n[DATA]"
+    }}
+  ]
+}}
+
+RĂSPUNSUL TĂU TREBUIE SĂ ÎNCEAPĂ CU {{ ȘI SĂ SE TERMINE CU }}
+Fără niciun alt text!
 """
 
         # Define async processor function
