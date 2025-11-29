@@ -264,27 +264,23 @@ async def analyze_llm_data(
                 "SARCINA TA:\\n"
                 "Analizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele {num_candidates} spete candidate furnizate.\\n"
                 "Selecteaza DOAR spetele strict relevante pentru situatia justitiabilului (maxim 10 spete).\\n"
+                "De asemenea, identifica actele juridice relevante (tip_act_juridic) asociate spetelor selectate.\\n"
                 "- Daca gasesti 10 sau mai multe spete relevante, returneaza EXACT 10 spete\\n"
-                "- Daca gasesti mai putin de 10 spete relevante, returneaza DOAR cele relevante (ex: 3, 5, 7 speteeste acceptabil)\\n"
+                "- Daca gasesti mai putin de 10 spete relevante, returneaza DOAR cele relevante\\n"
                 "- Ordoneaza rezultatele de la CEL MAI RELEVANT la CEL MAI PUTIN RELEVANT\\n"
-                "- Evalueaza relevanta luand in considerare: situatia de fapt, obiectul si elementele de individualizare\\n"
                 "SITUATIA DE FAPT A JUSTITIABILULUI:\\n"
                 "\"{query_text}\"\\n"
                 "LISTA DE SPETE CANDIDATE ({num_candidates} Spete Pre-filtrate):\\n"
                 "{prompt_spete}\\n"
                 "FORMATUL RASPUNSULUI - FOARTE IMPORTANT:\\n"
-                "Genereaza EXCLUSIV ID-urile spetelor selectate, separate prin virgula.\\n"
-                "NU adauga NICIUN alt text, comentariu, explicatie sau introducere.\\n"
-                "NU adauga text inainte, la mijloc sau dupa numerele de ID.\\n"
-                "Raspunsul trebuie sa contina DOAR numere separate prin virgule.\\n"
-                "Exemple de raspunsuri CORECTE:\\n"
-                "- Pentru 1 rezultat: 123\\n"
-                "- Pentru 3 rezultate: 123, 456, 789\\n"
-                "- Pentru 10 rezultate: 123, 456, 789, 1011, 1213, 1415, 1617, 1819, 2021, 2223\\n"
-                "Exemple de raspunsuri INCORECTE (NU face asta):\\n"
-                "- \"Iata spetele relevante: 123, 456\" (are text inainte)\\n"
-                "- \"123, 456 - acestea sunt cele mai relevante\" (are text dupa)\\n"
-                "- \"Am gasit urmatoarele 3 spete: 123, 456, 789\" (are text inainte)"
+                "Trebuie sa returnezi un JSON valid cu urmatoarea structura:\\n"
+                "{{\\n"
+                "  \"numar_speta\": [123, 456, 789],\\n"
+                "  \"acte_juridice\": [\"Sentinta civila\", \"Decizie penala\"]\\n"
+                "}}\\n"
+                "Campul \"numar_speta\" trebuie sa contina lista de ID-uri ale spetelor selectate.\\n"
+                "Campul \"acte_juridice\" trebuie sa contina lista de tipuri de acte juridice (tip_act_juridic) extrase din spetele selectate.\\n"
+                "NU adauga NICIUN alt text in afara de JSON-ul valid."
             )
         else:
             candidate_count = settings_manager.get_value('setari_llm', 'ai_filtering_llm_candidate_count', 5)
@@ -367,14 +363,41 @@ async def analyze_llm_data(
 
                 logger.info(f"[AI FILTERING] ✅ Răspuns primit din rețea!")
 
-                # ===== PARSARE ID-URI SPEȚE DIN RĂSPUNS =====
-                logger.info("[AI FILTERING] Parsăm ID-urile spețelor din răspuns...")
+                # ===== PARSARE RĂSPUNS JSON =====
+                logger.info("[AI FILTERING] Parsăm răspunsul JSON...")
 
+                import json
                 import re
-                id_matches = re.findall(r'\d+', poll_content)
-                ai_selected_ids = [int(id_str) for id_str in id_matches]
 
-                logger.info(f"[AI FILTERING] ✓ ID-uri extrase: {ai_selected_ids}")
+                ai_selected_ids = []
+                acte_juridice = []
+
+                try:
+                    # Încercăm să găsim JSON-ul în text (poate fi înconjurat de markdown ```json ... ```)
+                    json_match = re.search(r'\{.*\}', poll_content, re.DOTALL)
+                    if json_match:
+                        json_str = json_match.group(0)
+                        data = json.loads(json_str)
+
+                        if "numar_speta" in data and isinstance(data["numar_speta"], list):
+                            ai_selected_ids = [int(x) for x in data["numar_speta"]]
+
+                        if "acte_juridice" in data and isinstance(data["acte_juridice"], list):
+                            acte_juridice = data["acte_juridice"]
+
+                        logger.info(f"[AI FILTERING] ✓ ID-uri extrase: {ai_selected_ids}")
+                        logger.info(f"[AI FILTERING] ✓ Acte juridice extrase: {acte_juridice}")
+                    else:
+                        # Fallback la vechea metodă dacă nu găsim JSON
+                        logger.warning("[AI FILTERING] ⚠️ Nu s-a găsit JSON valid, încercăm extragerea simplă de numere...")
+                        id_matches = re.findall(r'\d+', poll_content)
+                        ai_selected_ids = [int(id_str) for id_str in id_matches]
+
+                except Exception as e:
+                    logger.error(f"[AI FILTERING] ❌ Eroare la parsarea JSON: {e}")
+                    # Fallback
+                    id_matches = re.findall(r'\d+', poll_content)
+                    ai_selected_ids = [int(id_str) for id_str in id_matches]
 
                 # ===== ȘTERGERE FIȘIER RĂSPUNS =====
                 logger.info("[AI FILTERING] Curățăm fișierul de răspuns...")
@@ -392,6 +415,7 @@ async def analyze_llm_data(
                     'success': True,
                     'response': poll_content,
                     'ai_selected_ids': ai_selected_ids,
+                    'acte_juridice': acte_juridice,
                     'all_candidates': payload.get('all_candidates', []),
                     'network_save': True,
                     'saved_path': saved_path,
@@ -548,18 +572,21 @@ def _generate_llm_data(session: Session, ultima: Any, candidate_count: int = Non
 
         text_individualizare = obj.get('text_individualizare', '')
         obiect = obj.get('obiect', '')
+        tip_act_juridic = obj.get('tip_act_juridic', 'Necunoscut')
 
         speta_item = {
             'id': row['id'],
             'denumire': obj.get('denumire', f'Caz #{row["id"]}'),
             'situatia_de_fapt': situatia,
             'text_individualizare': text_individualizare,
-            'obiect': obiect
+            'obiect': obiect,
+            'tip_act_juridic': tip_act_juridic
         }
         spete_export.append(speta_item)
 
         spete_text_list.append(f"""
 CAZ #{row['id']}:
+TIP ACT JURIDIC: {tip_act_juridic}
 OBIECT: {obiect}
 SITUATIA DE FAPT: {situatia}
 ELEMENTE DE INDIVIDUALIZARE: {text_individualizare}

@@ -30,6 +30,7 @@ interface MainContentProps {
   onTogglePro?: (enabled: boolean) => void;
   isProKeywordEnabled?: boolean;
   onToggleProKeyword?: (enabled: boolean) => void;
+  acteJuridice?: string[];
 }
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
@@ -56,7 +57,8 @@ const MainContent: React.FC<MainContentProps> = ({
   isProEnabled = false,
   onTogglePro,
   isProKeywordEnabled = false,
-  onToggleProKeyword
+  onToggleProKeyword,
+  acteJuridice = []
 }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
   const observer = useRef<IntersectionObserver | null>(null);
@@ -339,6 +341,30 @@ const MainContent: React.FC<MainContentProps> = ({
           onRemoveFilter={onRemoveFilter}
           onClearFilters={onClearFilters}
         />
+
+        {acteJuridice && acteJuridice.length > 0 && (
+          <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border border-brand-accent/20">
+            <label className="block text-sm font-bold text-brand-text mb-2 flex items-center">
+              <span className="w-2 h-2 bg-brand-accent rounded-full mr-2"></span>
+              Acte Juridice Identificate de AI
+            </label>
+            <div className="relative">
+              <select className="block w-full pl-4 pr-10 py-3 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent sm:text-sm rounded-lg bg-gray-50 text-brand-text appearance-none cursor-pointer hover:bg-white transition-colors duration-200">
+                {acteJuridice.map((act, idx) => (
+                  <option key={idx} value={act}>{act}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500 mt-2 italic">
+              Acestea sunt tipurile de acte juridice extrase automat din spețele selectate ca fiind relevante.
+            </p>
+          </div>
+        )}
 
         {renderContent()}
       </div>

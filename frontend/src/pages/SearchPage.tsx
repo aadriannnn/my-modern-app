@@ -27,6 +27,7 @@ const SearchPage: React.FC = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProEnabled, setIsProEnabled] = useState(false);
     const [isProKeywordEnabled, setIsProKeywordEnabled] = useState(false);
+    const [acteJuridice, setActeJuridice] = useState<string[]>([]);
 
     useEffect(() => {
         const loadFilters = async () => {
@@ -156,6 +157,8 @@ const SearchPage: React.FC = () => {
                             if (statusData.result && statusData.result.success) {
                                 const aiSelectedIds = statusData.result.ai_selected_ids || [];
                                 const allCandidates = statusData.result.all_candidates || [];
+                                const extractedActe = statusData.result.acte_juridice || [];
+                                setActeJuridice(extractedActe);
 
                                 if (aiSelectedIds.length > 0) {
                                     // Find AI-selected results from initial results
@@ -321,6 +324,7 @@ const SearchPage: React.FC = () => {
                     onTogglePro={setIsProEnabled}
                     isProKeywordEnabled={isProKeywordEnabled}
                     onToggleProKeyword={setIsProKeywordEnabled}
+                    acteJuridice={acteJuridice}
                 />
             </div>
 
