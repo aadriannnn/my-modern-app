@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, Wand2, X, Copy, Check, FileText } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
 import UserJourneyMap from './UserJourneyMap';
@@ -63,6 +63,69 @@ const MainContent: React.FC<MainContentProps> = ({
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
   const observer = useRef<IntersectionObserver | null>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Generation state
+  const [selectedAct, setSelectedAct] = useState<string>('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generatedDoc, setGeneratedDoc] = useState<string | null>(null);
+  const [showDocModal, setShowDocModal] = useState(false);
+  const [copySuccess, setCopySuccess] = useState(false);
+
+  const handleGenerateDocument = async () => {
+    if (!selectedAct) return;
+
+    setIsGenerating(true);
+    try {
+      // Construct relevant cases text from the results
+      // We take the top 10 results as context
+      const relevantCasesText = results.slice(0, 10).map((c, idx) => `
+CAZ #${idx + 1} (ID: ${c.id}):
+TITLU: ${c.titlu || c.denumire || 'Fără titlu'}
+SITUATIA DE FAPT: ${c.situatia_de_fapt || c.text_situatia_de_fapt || c.situatie || ''}
+SOLUTIE/CONSIDERENTE: ${c.solutie || c.considerente || c.rezumat || ''}
+--------------------------------------------------
+`).join('\n');
+
+      const response = await fetch('/api/settings/generate-document', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tip_act: selectedAct,
+          situatia_de_fapt: situatie,
+          relevant_cases_text: relevantCasesText
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setGeneratedDoc(data.generated_document);
+        setShowDocModal(true);
+      } else {
+        alert(`Eroare: ${data.message}`);
+      }
+    } catch (error) {
+      console.error('Error generating document:', error);
+      alert('A apărut o eroare la generarea documentului.');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleCopyDoc = async () => {
+    if (generatedDoc) {
+      try {
+        await navigator.clipboard.writeText(generatedDoc);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
+    }
+  };
+
 
   // Handle example case fill with typing animation
   const handleExampleFill = useCallback(() => {
@@ -348,24 +411,108 @@ const MainContent: React.FC<MainContentProps> = ({
               <span className="w-2 h-2 bg-brand-accent rounded-full mr-2"></span>
               Acte Juridice Identificate de AI
             </label>
-            <div className="relative">
-              <select className="block w-full pl-4 pr-10 py-3 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent sm:text-sm rounded-lg bg-gray-50 text-brand-text appearance-none cursor-pointer hover:bg-white transition-colors duration-200">
-                <option value="" disabled selected>Selectați un act juridic relevant...</option>
-                {acteJuridice.map((act, idx) => (
-                  <option key={idx} value={act}>{act}</option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
-                <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                  <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <select
+                  value={selectedAct}
+                  onChange={(e) => setSelectedAct(e.target.value)}
+                  className="block w-full pl-4 pr-10 py-3 text-base border-gray-200 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent sm:text-sm rounded-lg bg-gray-50 text-brand-text appearance-none cursor-pointer hover:bg-white transition-colors duration-200"
+                >
+                  <option value="" disabled>Selectați un act juridic relevant...</option>
+                  {acteJuridice.map((act, idx) => (
+                    <option key={idx} value={act}>{act}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
               </div>
+
+              <button
+                onClick={handleGenerateDocument}
+                disabled={!selectedAct || isGenerating}
+                className={`flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-white transition-all duration-200 shadow-sm whitespace-nowrap ${!selectedAct || isGenerating
+                    ? 'bg-gray-300 cursor-not-allowed'
+                    : 'bg-gradient-to-r from-brand-accent to-purple-600 hover:shadow-md hover:-translate-y-0.5'
+                  }`}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Se generează...</span>
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-5 h-5" />
+                    <span>Generează Act Juridic</span>
+                  </>
+                )}
+              </button>
             </div>
             <p className="text-xs text-gray-500 mt-2 italic">
-              Acestea sunt tipurile de acte juridice extrase automat din spețele selectate ca fiind relevante.
+              Selectați un tip de act și apăsați "Generează" pentru a crea un proiect personalizat bazat pe spețele de mai jos.
             </p>
           </div>
         )}
+
+        {/* Generated Document Modal */}
+        {showDocModal && generatedDoc && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col animate-in zoom-in-95 duration-200">
+              <div className="flex items-center justify-between p-6 border-b border-gray-100">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 text-purple-600 rounded-lg">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">Act Juridic Generat</h3>
+                    <p className="text-sm text-gray-500">{selectedAct}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDocModal(false)}
+                  className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+                <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 min-h-[500px] font-serif text-gray-800 whitespace-pre-wrap leading-relaxed">
+                  {generatedDoc}
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-gray-100 bg-white rounded-b-2xl flex justify-end gap-3">
+                <button
+                  onClick={() => setShowDocModal(false)}
+                  className="px-5 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  Închide
+                </button>
+                <button
+                  onClick={handleCopyDoc}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-brand-accent text-white font-medium rounded-lg hover:bg-brand-accent-dark transition-colors shadow-sm"
+                >
+                  {copySuccess ? (
+                    <>
+                      <Check className="w-5 h-5" />
+                      Copiat!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-5 h-5" />
+                      Copiază Textul
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
 
         {renderContent()}
       </div>

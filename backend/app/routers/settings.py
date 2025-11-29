@@ -18,6 +18,12 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class GenerateDocumentRequest(BaseModel):
+    tip_act: str
+    situatia_de_fapt: str
+    relevant_cases_text: str
+
+
 @router.post("/login", response_model=Dict[str, bool])
 async def login_settings(credentials: LoginRequest):
     """
@@ -772,3 +778,113 @@ async def export_materie_statistics(
             status_code=500,
             detail=f"Eroare la exportul statisticilor: {str(e)}"
         )
+
+@router.post("/generate-document", response_model=Dict[str, Any])
+async def generate_document(
+    request: GenerateDocumentRequest,
+    session: Session = Depends(get_session)
+):
+    """
+    Generate a legal document based on a template and relevant cases.
+    Saves the prompt to a network location and polls for the response.
+    """
+    import logging
+    import os
+    from datetime import datetime
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"Received document generation request for '{request.tip_act}'")
+
+    try:
+        # 1. Check if network generation is enabled
+        network_enabled = settings_manager.get_value('setari_generare_acte', 'generare_retea_enabled', True)
+
+        if not network_enabled:
+            return {
+                'success': False,
+                'message': 'Generarea în rețea este dezactivată din setări.'
+            }
+
+        # 2. Get network configuration
+        retea_folder = settings_manager.get_value('setari_generare_acte', 'retea_folder_generare', '/app/mnt_juridic_18')
+        retea_host = settings_manager.get_value('setari_generare_acte', 'retea_host_generare', '')
+
+        # Validăm configurarea
+        is_local_path = os.path.isabs(retea_folder) if retea_folder else False
+
+        if (not retea_host and not is_local_path) or not retea_folder:
+            return {
+                'success': False,
+                'message': 'Configurație rețea incompletă (lipsește host sau folder).'
+            }
+
+        # 3. Construct the prompt
+        prompt_content = f"""ESTI UN AVOCAT EXPERT SI UN PROFESIONIST DESAVARSIT IN DREPTUL ROMANESC.
+
+SARCINA TA:
+Redactează un proiect complet pentru actul juridic: "{request.tip_act}".
+
+DATE DE INTRARE:
+1. SITUATIA DE FAPT A CLIENTULUI:
+"{request.situatia_de_fapt}"
+
+2. PRECEDENTE JUDICIARE RELEVANTE (Se vor folosi pentru motivarea în drept):
+"{request.relevant_cases_text}"
+
+INSTRUCTIUNI DE REDACTARE:
+- Cauta in baza ta de cunostinte un model oficial sau consacrat (de preferat modele agreate de INM - Institutul National al Magistraturii) pentru actul "{request.tip_act}".
+- Adapteaza acest model strict la situatia de fapt prezentata.
+- Integreaza argumente juridice extrase din precedentele judiciare furnizate mai sus pentru a sustine cererea.
+- NU INVENTA DATE PERSONALE: Nu genera nume de persoane, adrese specifice, CNP-uri sau numere de dosar inventate.
+- Foloseste PLACEHOLDERS intre paranteze patrate pentru datele care lipsesc (ex: [NUME RECLAMANT], [ADRESA PARATA], [INSTANTA COMPETENTA], [DATA]).
+- Limbajul trebuie sa fie juridic, formal, specific instanțelor din Romania.
+- Structura trebuie sa includa: Antet, Parti, Obiectul Cererii, Motivarea (in fapt si in drept), Probatoriu, Semnatura (placeholder).
+
+LIVRABIL:
+Doar textul actului juridic, gata de a fi copiat intr-un editor de text, fara alte comentarii conversationale.
+"""
+
+        # 4. Save prompt to network
+        logger.info(f"Saving generation prompt to {retea_folder}...")
+        success, message, saved_path = NetworkFileSaver.save_to_network(
+            content=prompt_content,
+            host=retea_host,
+            shared_folder=retea_folder,
+            subfolder="" # No subfolder for now, or maybe 'generare_acte'? User didn't specify.
+        )
+
+        if not success:
+            logger.error(f"Failed to save prompt: {message}")
+            return {
+                'success': False,
+                'message': f"Eroare la salvarea promptului: {message}"
+            }
+
+        # 5. Poll for response
+        logger.info(f"Polling for response for {saved_path}...")
+        poll_success, poll_content, response_path = await NetworkFileSaver.poll_for_response(
+            saved_path=saved_path,
+            timeout_seconds=1200, # 20 minutes
+            poll_interval=10
+        )
+
+        if not poll_success:
+            logger.error(f"Polling failed: {poll_content}")
+            return {
+                'success': False,
+                'message': f"Nu s-a primit răspuns în timp util: {poll_content}"
+            }
+
+        # 6. Clean up response file
+        NetworkFileSaver.delete_response_file(response_path)
+
+        # 7. Return result
+        return {
+            'success': True,
+            'generated_document': poll_content,
+            'message': 'Document generat cu succes!'
+        }
+
+    except Exception as e:
+        logger.error(f"Error in generate_document: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
