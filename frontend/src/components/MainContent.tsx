@@ -581,62 +581,118 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
                   {/* Render structured JSON document */}
                   {generatedDoc && (
                     <div className="legal-document">
-                      {/* Document Title */}
-                      {generatedDoc.titlu_document && (
+                      {/* Document Title - Flexible check */}
+                      {(generatedDoc.titlu_document || generatedDoc.titlu_act || generatedDoc.titlu || generatedDoc.nume_act) && (
                         <h1 className="text-center font-bold uppercase text-xl mb-6">
-                          {generatedDoc.titlu_document}
+                          {generatedDoc.titlu_document || generatedDoc.titlu_act || generatedDoc.titlu || generatedDoc.nume_act}
                         </h1>
                       )}
 
-                      {/* Sections */}
-                      {generatedDoc.sectiuni && Array.isArray(generatedDoc.sectiuni) && generatedDoc.sectiuni.map((sectiune: any, sIdx: number) => (
-                        <div key={sIdx} className="mb-6">
-                          {/* Section Title */}
-                          {sectiune.titlu_sectiune && (
-                            <h3 className="font-bold uppercase text-base mb-3 mt-6">
-                              {sectiune.titlu_sectiune}
-                            </h3>
-                          )}
+                      {/* Sections - Flexible check */}
+                      {(() => {
+                        // Helper to find the sections array
+                        const sections = generatedDoc.sectiuni ||
+                          generatedDoc.parti_contractante ||
+                          generatedDoc.continut ||
+                          generatedDoc.clauze ||
+                          (Array.isArray(generatedDoc) ? generatedDoc : []);
 
-                          {/* Content Blocks */}
-                          {sectiune.continut && Array.isArray(sectiune.continut) && sectiune.continut.map((bloc: any, bIdx: number) => {
-                            switch (bloc.tip) {
-                              case 'titlu_centrat':
-                                return (
-                                  <div key={bIdx} className="text-center font-bold uppercase mb-4">
-                                    {bloc.text}
-                                  </div>
-                                );
+                        if (Array.isArray(sections)) {
+                          return sections.map((sectiune: any, sIdx: number) => (
+                            <div key={sIdx} className="mb-6">
+                              {/* Section Title */}
+                              {(sectiune.titlu_sectiune || sectiune.nume || sectiune.calitate) && (
+                                <h3 className="font-bold uppercase text-base mb-3 mt-6">
+                                  {sectiune.titlu_sectiune || sectiune.nume || sectiune.calitate}
+                                </h3>
+                              )}
 
-                              case 'paragraf':
-                                return (
-                                  <p key={bIdx} className="text-justify mb-2" style={{ textIndent: '2rem' }}>
-                                    {bloc.text}
-                                  </p>
-                                );
+                              {/* Content - Flexible check */}
+                              {(() => {
+                                const content = sectiune.continut || sectiune.detalii || [];
 
-                              case 'lista_numerotata':
-                                return (
-                                  <ol key={bIdx} className="list-decimal pl-10 space-y-1 mb-4">
-                                    {bloc.items && Array.isArray(bloc.items) && bloc.items.map((item: string, iIdx: number) => (
-                                      <li key={iIdx}>{item}</li>
-                                    ))}
-                                  </ol>
-                                );
+                                // Handle if content is just a string
+                                if (typeof content === 'string') {
+                                  return <p className="text-justify mb-2" style={{ textIndent: '2rem' }}>{content}</p>;
+                                }
 
-                              case 'semnatura':
-                                return (
-                                  <div key={bIdx} className="text-right mt-12 mr-10 font-bold">
-                                    {bloc.text}
-                                  </div>
-                                );
+                                // Handle if section itself is the content (e.g. parti_contractante array items)
+                                if (!sectiune.continut && !sectiune.detalii) {
+                                  // Try to render object properties as list
+                                  return (
+                                    <div className="pl-4">
+                                      {Object.entries(sectiune).map(([key, val]: [string, any]) => {
+                                        if (key === 'titlu_sectiune' || key === 'nume' || key === 'calitate') return null;
+                                        return (
+                                          <div key={key} className="mb-1">
+                                            <span className="font-semibold capitalize">{key.replace(/_/g, ' ')}: </span>
+                                            <span>{String(val)}</span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  );
+                                }
 
-                              default:
+                                if (Array.isArray(content)) {
+                                  return content.map((bloc: any, bIdx: number) => {
+                                    // Handle string blocks
+                                    if (typeof bloc === 'string') {
+                                      return <p key={bIdx} className="text-justify mb-2" style={{ textIndent: '2rem' }}>{bloc}</p>;
+                                    }
+
+                                    switch (bloc.tip) {
+                                      case 'titlu_centrat':
+                                        return (
+                                          <div key={bIdx} className="text-center font-bold uppercase mb-4">
+                                            {bloc.text}
+                                          </div>
+                                        );
+                                      case 'paragraf':
+                                        return (
+                                          <p key={bIdx} className="text-justify mb-2" style={{ textIndent: '2rem' }}>
+                                            {bloc.text}
+                                          </p>
+                                        );
+                                      case 'lista_numerotata':
+                                        return (
+                                          <ol key={bIdx} className="list-decimal pl-10 space-y-1 mb-4">
+                                            {bloc.items?.map((item: string, iIdx: number) => (
+                                              <li key={iIdx}>{item}</li>
+                                            ))}
+                                          </ol>
+                                        );
+                                      case 'semnatura':
+                                        return (
+                                          <div key={bIdx} className="text-right mt-12 mr-10 font-bold">
+                                            {bloc.text}
+                                          </div>
+                                        );
+                                      default:
+                                        // Fallback for unknown types or missing 'tip'
+                                        return (
+                                          <p key={bIdx} className="text-justify mb-2" style={{ textIndent: '2rem' }}>
+                                            {bloc.text || JSON.stringify(bloc)}
+                                          </p>
+                                        );
+                                    }
+                                  });
+                                }
                                 return null;
-                            }
-                          })}
-                        </div>
-                      ))}
+                              })()}
+                            </div>
+                          ));
+                        }
+
+                        // Fallback if no sections array found - render whole object as key-value
+                        return (
+                          <div className="whitespace-pre-wrap">
+                            {JSON.stringify(generatedDoc, null, 2)}
+                          </div>
+                        );
+                      })()}
+
+
                     </div>
                   )}
                 </div>

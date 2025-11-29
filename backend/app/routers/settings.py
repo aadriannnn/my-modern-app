@@ -951,13 +951,15 @@ INCEPE ACUM CU {{ (prima litera din raspuns trebuie sa fie acolada):
                     # Try direct parse if no braces found (shouldn't happen)
                     parsed_document = json.loads(sanitized_content)
 
-                # Validate schema
-                if 'titlu_document' not in parsed_document or 'sectiuni' not in parsed_document:
-                    logger.error("[DOC GEN] Invalid JSON schema: missing required fields")
-                    return {
-                        'success': False,
-                        'error': 'JSON invalid: lipsesc câmpurile obligatorii (titlu_document, sectiuni)'
-                    }
+                # Validate schema - REMOVED strict validation to allow flexibility
+                # if 'titlu_document' not in parsed_document or 'sectiuni' not in parsed_document:
+                #     logger.error("[DOC GEN] Invalid JSON schema: missing required fields")
+                #     return {
+                #         'success': False,
+                #         'error': 'JSON invalid: lipsesc câmpurile obligatorii (titlu_document, sectiuni)'
+                #     }
+
+                logger.info("[DOC GEN] JSON parsed successfully!")
 
                 logger.info("[DOC GEN] JSON parsed successfully!")
 
