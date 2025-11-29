@@ -80,9 +80,9 @@ const MainContent: React.FC<MainContentProps> = ({
       // We take the top 10 results as context
       const relevantCasesText = results.slice(0, 10).map((c, idx) => `
 CAZ #${idx + 1} (ID: ${c.id}):
-TITLU: ${c.titlu || c.denumire || 'Fără titlu'}
-SITUATIA DE FAPT: ${c.situatia_de_fapt || c.text_situatia_de_fapt || c.situatie || ''}
-SOLUTIE/CONSIDERENTE: ${c.solutie || c.considerente || c.rezumat || ''}
+TITLU: ${c.denumire || 'Fără titlu'}
+SITUATIA DE FAPT: ${c.situatia_de_fapt_full || c.situatia_de_fapt || c.data?.text_situatia_de_fapt || c.data?.situatia_de_fapt || c.data?.situatie || ''}
+SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.data?.argumente_instanta || c.data?.solutia || ''}
 --------------------------------------------------
 `).join('\n');
 
@@ -434,8 +434,8 @@ SOLUTIE/CONSIDERENTE: ${c.solutie || c.considerente || c.rezumat || ''}
                 onClick={handleGenerateDocument}
                 disabled={!selectedAct || isGenerating}
                 className={`flex items-center justify-center gap-2 px-6 py-3 rounded-lg font-bold text-white transition-all duration-200 shadow-sm whitespace-nowrap ${!selectedAct || isGenerating
-                    ? 'bg-gray-300 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-brand-accent to-purple-600 hover:shadow-md hover:-translate-y-0.5'
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-brand-accent to-purple-600 hover:shadow-md hover:-translate-y-0.5'
                   }`}
               >
                 {isGenerating ? (
