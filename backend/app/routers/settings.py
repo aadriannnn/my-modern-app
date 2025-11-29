@@ -601,14 +601,19 @@ def _generate_llm_data(session: Session, ultima: Any, candidate_count: int = Non
         obiect = obj.get('obiect', '')
         tip_act_juridic = obj.get('tip_act_juridic', 'Necunoscut')
 
-        speta_item = {
+        # Create speta_item with ALL fields from obj
+        speta_item = obj.copy()
+
+        # Add/Overwrite specific fields
+        speta_item.update({
             'id': row['id'],
             'denumire': obj.get('denumire', f'Caz #{row["id"]}'),
             'situatia_de_fapt': situatia,
             'text_individualizare': text_individualizare,
             'obiect': obiect,
-            'tip_act_juridic': tip_act_juridic
-        }
+            'tip_act_juridic': tip_act_juridic,
+            'data': obj  # Include original obj as 'data' property for frontend compatibility (ResultItem.tsx uses result.data)
+        })
         spete_export.append(speta_item)
 
         spete_text_list.append(f"""
