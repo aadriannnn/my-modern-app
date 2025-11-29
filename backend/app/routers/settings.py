@@ -264,29 +264,30 @@ async def analyze_llm_data(
             # Use more candidates for network mode (default 50 or max available)
             candidate_count = settings_manager.get_value('setari_generale', 'top_k_results', 50)
 
-            # Custom prompt for network mode as requested
+            # Custom prompt for network mode - EXTREMELY STRICT
             custom_template = (
-                "Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n"
-                "SARCINA TA:\\n"
-                "Analizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele {num_candidates} spete candidate furnizate.\\n"
-                "Selecteaza DOAR spetele strict relevante pentru situatia justitiabilului (maxim 10 spete).\\n"
-                "De asemenea, identifica actele juridice relevante (tip_act_juridic) asociate spetelor selectate.\\n"
-                "- Daca gasesti 10 sau mai multe spete relevante, returneaza EXACT 10 spete\\n"
-                "- Daca gasesti mai putin de 10 spete relevante, returneaza DOAR cele relevante\\n"
-                "- Ordoneaza rezultatele de la CEL MAI RELEVANT la CEL MAI PUTIN RELEVANT\\n"
-                "SITUATIA DE FAPT A JUSTITIABILULUI:\\n"
-                "\"{query_text}\"\\n"
-                "LISTA DE SPETE CANDIDATE ({num_candidates} Spete Pre-filtrate):\\n"
-                "{prompt_spete}\\n"
-                "FORMATUL RASPUNSULUI - FOARTE IMPORTANT:\\n"
-                "Trebuie sa returnezi un JSON valid cu urmatoarea structura:\\n"
+                "⚠️ RASPUNDE DOAR CU JSON - NIMIC ALTCEVA ⚠️\\n"
+                "NU repeta acest prompt. NU adauga explicatii. DOAR JSON.\\n\\n"
+                "SARCINA:\\n"
+                "Analizeaza situatia justitiabilului si selecteaza spetele relevante (max 10) din cele {num_candidates} candidate.\\n\\n"
+                "SITUATIA JUSTITIABILULUI:\\n"
+                "\"{query_text}\"\\n\\n"
+                "SPETE CANDIDATE ({num_candidates}):\\n"
+                "{prompt_spete}\\n\\n"
+                "⚠️ FORMATUL RASPUNSULUI (EXTREM DE IMPORTANT) ⚠️\\n"
+                "Returneaza EXCLUSIV acest JSON (fara ``` markdown, fara text explicativ):\\n"
                 "{{\\n"
                 "  \"numar_speta\": [123, 456, 789],\\n"
                 "  \"acte_juridice\": [\"Sentinta civila\", \"Decizie penala\"]\\n"
-                "}}\\n"
-                "Campul \"numar_speta\" trebuie sa contina lista de ID-uri ale spetelor selectate.\\n"
-                "Campul \"acte_juridice\" trebuie sa contina lista de tipuri de acte juridice (tip_act_juridic) extrase din spetele selectate.\\n"
-                "NU adauga NICIUN alt text in afara de JSON-ul valid."
+                "}}\\n\\n"
+                "REGULI STRICTE:\\n"
+                "✅ Incepe raspunsul cu {{\\n"
+                "✅ Termina raspunsul cu }}\\n"
+                "❌ NU adauga text inaintea sau dupa JSON\\n"
+                "❌ NU repeta promptul\\n"
+                "❌ NU explica alegerea\\n"
+                "❌ NU folosi ```json sau ```\\n\\n"
+                "RASPUNSUL TAU TREBUIE SA INCEAPA ACUM CU {{ SI SA SE TERMINE CU }}"
             )
         else:
             candidate_count = settings_manager.get_value('setari_llm', 'ai_filtering_llm_candidate_count', 5)
