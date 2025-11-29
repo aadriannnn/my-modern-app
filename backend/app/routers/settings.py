@@ -609,6 +609,7 @@ def _generate_llm_data(session: Session, ultima: Any, candidate_count: int = Non
             'id': row['id'],
             'denumire': obj.get('denumire', f'Caz #{row["id"]}'),
             'situatia_de_fapt': situatia,
+            'situatia_de_fapt_full': situatia,  # Map for frontend compatibility (MainContent.tsx uses this key)
             'text_individualizare': text_individualizare,
             'obiect': obiect,
             'tip_act_juridic': tip_act_juridic,
