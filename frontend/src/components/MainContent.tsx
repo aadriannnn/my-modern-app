@@ -174,47 +174,127 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
   const handleCopyDoc = async () => {
     if (generatedDoc) {
       try {
-        // Convert JSON document to plain text for clipboard
         let plainText = '';
 
-        // Add title
-        if (generatedDoc.titlu_document) {
-          plainText += generatedDoc.titlu_document.toUpperCase() + '\n\n';
-        }
+        // Helper to check if it's the classic format
+        const isClassic = generatedDoc.titlu_document || generatedDoc.sectiuni || generatedDoc.parti_contractante;
 
-        // Add sections
-        if (generatedDoc.sectiuni && Array.isArray(generatedDoc.sectiuni)) {
-          generatedDoc.sectiuni.forEach((sectiune: any) => {
-            // Add section title if exists
-            if (sectiune.titlu_sectiune) {
-              plainText += sectiune.titlu_sectiune.toUpperCase() + '\n\n';
-            }
+        if (isClassic) {
+          // Classic format handling
+          // Add title
+          if (generatedDoc.titlu_document || generatedDoc.titlu_act || generatedDoc.titlu) {
+            plainText += (generatedDoc.titlu_document || generatedDoc.titlu_act || generatedDoc.titlu).toUpperCase() + '\n\n';
+          }
 
-            // Add content blocks
-            if (sectiune.continut && Array.isArray(sectiune.continut)) {
-              sectiune.continut.forEach((bloc: any) => {
-                switch (bloc.tip) {
-                  case 'titlu_centrat':
-                    plainText += '\t\t' + bloc.text.toUpperCase() + '\n\n';
-                    break;
-                  case 'paragraf':
-                    plainText += '\t' + bloc.text + '\n\n';
-                    break;
-                  case 'lista_numerotata':
-                    if (bloc.items && Array.isArray(bloc.items)) {
-                      bloc.items.forEach((item: string, idx: number) => {
-                        plainText += `\t${idx + 1}. ${item}\n`;
-                      });
-                      plainText += '\n';
+          // Add sections
+          const sections = generatedDoc.sectiuni ||
+            generatedDoc.parti_contractante ||
+            generatedDoc.continut ||
+            generatedDoc.clauze ||
+            (Array.isArray(generatedDoc) ? generatedDoc : []);
+
+          if (Array.isArray(sections)) {
+            sections.forEach((sectiune: any) => {
+              // Add section title if exists
+              if (sectiune.titlu_sectiune || sectiune.nume || sectiune.calitate) {
+                plainText += (sectiune.titlu_sectiune || sectiune.nume || sectiune.calitate).toUpperCase() + '\n\n';
+              }
+
+              // Add content blocks
+              const content = sectiune.continut || sectiune.detalii || [];
+
+              if (typeof content === 'string') {
+                plainText += '\t' + content + '\n\n';
+              } else if (Array.isArray(content)) {
+                content.forEach((bloc: any) => {
+                  if (typeof bloc === 'string') {
+                    plainText += '\t' + bloc + '\n\n';
+                  } else {
+                    switch (bloc.tip) {
+                      case 'titlu_centrat':
+                        plainText += '\t\t' + bloc.text.toUpperCase() + '\n\n';
+                        break;
+                      case 'paragraf':
+                        plainText += '\t' + bloc.text + '\n\n';
+                        break;
+                      case 'lista_numerotata':
+                        if (bloc.items && Array.isArray(bloc.items)) {
+                          bloc.items.forEach((item: string, idx: number) => {
+                            plainText += `\t${idx + 1}. ${item}\n`;
+                          });
+                          plainText += '\n';
+                        }
+                        break;
+                      case 'semnatura':
+                        plainText += '\n\n\t\t\t\t' + bloc.text + '\n';
+                        break;
+                      default:
+                        plainText += '\t' + (bloc.text || JSON.stringify(bloc)) + '\n\n';
                     }
-                    break;
-                  case 'semnatura':
-                    plainText += '\n\n\t\t\t\t' + bloc.text + '\n';
-                    break;
+                  }
+                });
+              } else if (typeof content === 'object') {
+                // Object content
+                Object.entries(content).forEach(([k, v]) => {
+                  plainText += `\t${k}: ${v}\n`;
+                });
+                plainText += '\n';
+              } else if (!sectiune.continut && !sectiune.detalii) {
+                // Section itself is the content
+                Object.entries(sectiune).forEach(([k, v]) => {
+                  if (k !== 'titlu_sectiune' && k !== 'nume' && k !== 'calitate') {
+                    plainText += `\t${k.replace(/_/g, ' ')}: ${v}\n`;
+                  }
+                });
+                plainText += '\n';
+              }
+            });
+          }
+        } else {
+          // Generic format handling
+          const valueToText = (value: any, key?: string, depth: number = 0): string => {
+            let text = '';
+            const indent = '\t'.repeat(depth);
+
+            if (value === null || value === undefined) return '';
+
+            if (Array.isArray(value)) {
+              if (key) text += `${indent}${key.toUpperCase()}:\n`;
+              value.forEach((item, idx) => {
+                if (typeof item === 'object') {
+                  text += valueToText(item, undefined, depth + 1);
+                } else {
+                  text += `${indent}\t${idx + 1}. ${item}\n`;
                 }
               });
+              return text;
             }
-          });
+
+            if (typeof value === 'object') {
+              if (key) text += `\n${indent}${key.toUpperCase()}\n`;
+              Object.entries(value).forEach(([k, v]) => {
+                text += valueToText(v, k, depth + 1);
+              });
+              return text;
+            }
+
+            // Primitive
+            if (key) {
+              text += `${indent}${key.replace(/_/g, ' ')}: ${value}\n`;
+            } else {
+              text += `${indent}${value}\n`;
+            }
+            return text;
+          }
+
+          // Check if wrapped
+          const keys = Object.keys(generatedDoc);
+          if (keys.length === 1 && typeof generatedDoc[keys[0]] === 'object') {
+            plainText += keys[0].toUpperCase() + '\n\n';
+            plainText += valueToText(generatedDoc[keys[0]]);
+          } else {
+            plainText += valueToText(generatedDoc);
+          }
         }
 
         await navigator.clipboard.writeText(plainText);
@@ -612,121 +692,217 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
 
               <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
                 <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 min-h-[500px] font-serif text-gray-800 leading-relaxed">
-                  {/* Render structured JSON document */}
+                  {/* Render structured JSON document with flexible format support */}
                   {generatedDoc && (
                     <div className="legal-document">
-                      {/* Document Title - Flexible check */}
-                      {(generatedDoc.titlu_document || generatedDoc.titlu_act || generatedDoc.titlu || generatedDoc.nume_act) && (
-                        <h1 className="text-center font-bold uppercase text-xl mb-6">
-                          {generatedDoc.titlu_document || generatedDoc.titlu_act || generatedDoc.titlu || generatedDoc.nume_act}
-                        </h1>
-                      )}
-
-                      {/* Sections - Flexible check */}
                       {(() => {
-                        // Helper to find the sections array
-                        const sections = generatedDoc.sectiuni ||
-                          generatedDoc.parti_contractante ||
-                          generatedDoc.continut ||
-                          generatedDoc.clauze ||
-                          (Array.isArray(generatedDoc) ? generatedDoc : []);
+                        // Helper function to detect document structure type
+                        const detectStructure = (doc: any): 'classic' | 'wrapped' | 'generic' => {
+                          // Classic format with direct fields
+                          if (doc.titlu_document || doc.sectiuni || doc.parti_contractante) {
+                            return 'classic';
+                          }
 
-                        if (Array.isArray(sections)) {
-                          return sections.map((sectiune: any, sIdx: number) => (
-                            <div key={sIdx} className="mb-6">
-                              {/* Section Title */}
-                              {(sectiune.titlu_sectiune || sectiune.nume || sectiune.calitate) && (
-                                <h3 className="font-bold uppercase text-base mb-3 mt-6">
-                                  {sectiune.titlu_sectiune || sectiune.nume || sectiune.calitate}
-                                </h3>
+                          // Wrapped format: single root key containing the document
+                          const keys = Object.keys(doc);
+                          if (keys.length === 1 && typeof doc[keys[0]] === 'object' && doc[keys[0]] !== null) {
+                            return 'wrapped';
+                          }
+
+                          return 'generic';
+                        };
+
+                        // Helper function to render any value recursively
+                        const renderValue = (value: any, key?: string, depth: number = 0): JSX.Element | null => {
+                          // Handle null/undefined
+                          if (value === null || value === undefined) {
+                            return null;
+                          }
+
+                          // Handle arrays
+                          if (Array.isArray(value)) {
+                            if (value.length === 0) return null;
+
+                            return (
+                              <div className={`mb-3 ${depth > 0 ? 'pl-6' : ''}`}>
+                                {key && <div className="font-bold text-sm uppercase mb-2 text-gray-700">{key.replace(/_/g, ' ')}</div>}
+                                <ol className="list-decimal pl-6 space-y-2">
+                                  {value.map((item, idx) => (
+                                    <li key={idx} className="text-gray-800">
+                                      {typeof item === 'object' ? renderValue(item, undefined, depth + 1) : String(item)}
+                                    </li>
+                                  ))}
+                                </ol>
+                              </div>
+                            );
+                          }
+
+                          // Handle objects
+                          if (typeof value === 'object') {
+                            return (
+                              <div className={`mb-4 ${depth > 0 ? 'pl-6 border-l-2 border-gray-200' : ''}`}>
+                                {key && (
+                                  <h3 className={`font-bold uppercase mb-3 ${depth === 0 ? 'text-lg' : 'text-sm'} text-gray-800`}>
+                                    {key.replace(/_/g, ' ')}
+                                  </h3>
+                                )}
+                                <div className="space-y-2">
+                                  {Object.entries(value).map(([k, v]) => renderValue(v, k, depth + 1))}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          // Handle primitives (string, number, boolean)
+                          if (key) {
+                            return (
+                              <div className="mb-2 flex flex-wrap items-baseline gap-2">
+                                <span className="font-semibold text-gray-700 capitalize">{key.replace(/_/g, ' ')}:</span>
+                                <span className="text-gray-800">{String(value)}</span>
+                              </div>
+                            );
+                          }
+
+                          return <span className="text-gray-800">{String(value)}</span>;
+                        };
+
+                        // Helper function to render classic format (backward compatibility)
+                        const renderClassic = () => {
+                          return (
+                            <>
+                              {/* Document Title */}
+                              {(generatedDoc.titlu_document || generatedDoc.titlu_act || generatedDoc.titlu || generatedDoc.nume_act) && (
+                                <h1 className="text-center font-bold uppercase text-xl mb-6">
+                                  {generatedDoc.titlu_document || generatedDoc.titlu_act || generatedDoc.titlu || generatedDoc.nume_act}
+                                </h1>
                               )}
 
-                              {/* Content - Flexible check */}
+                              {/* Sections */}
                               {(() => {
-                                const content = sectiune.continut || sectiune.detalii || [];
+                                const sections = generatedDoc.sectiuni ||
+                                  generatedDoc.parti_contractante ||
+                                  generatedDoc.continut ||
+                                  generatedDoc.clauze ||
+                                  (Array.isArray(generatedDoc) ? generatedDoc : []);
 
-                                // Handle if content is just a string
-                                if (typeof content === 'string') {
-                                  return <p className="text-justify mb-2" style={{ textIndent: '2rem' }}>{content}</p>;
-                                }
+                                if (Array.isArray(sections)) {
+                                  return sections.map((sectiune: any, sIdx: number) => (
+                                    <div key={sIdx} className="mb-6">
+                                      {(sectiune.titlu_sectiune || sectiune.nume || sectiune.calitate) && (
+                                        <h3 className="font-bold uppercase text-base mb-3 mt-6">
+                                          {sectiune.titlu_sectiune || sectiune.nume || sectiune.calitate}
+                                        </h3>
+                                      )}
 
-                                // Handle if section itself is the content (e.g. parti_contractante array items)
-                                if (!sectiune.continut && !sectiune.detalii) {
-                                  // Try to render object properties as list
-                                  return (
-                                    <div className="pl-4">
-                                      {Object.entries(sectiune).map(([key, val]: [string, any]) => {
-                                        if (key === 'titlu_sectiune' || key === 'nume' || key === 'calitate') return null;
-                                        return (
-                                          <div key={key} className="mb-1">
-                                            <span className="font-semibold capitalize">{key.replace(/_/g, ' ')}: </span>
-                                            <span>{String(val)}</span>
-                                          </div>
-                                        );
-                                      })}
+                                      {(() => {
+                                        const content = sectiune.continut || sectiune.detalii || [];
+
+                                        if (typeof content === 'string') {
+                                          return <p className="text-justify mb-2" style={{ textIndent: '2rem' }}>{content}</p>;
+                                        }
+
+                                        if (!sectiune.continut && !sectiune.detalii) {
+                                          return (
+                                            <div className="pl-4">
+                                              {Object.entries(sectiune).map(([key, val]: [string, any]) => {
+                                                if (key === 'titlu_sectiune' || key === 'nume' || key === 'calitate') return null;
+                                                return (
+                                                  <div key={key} className="mb-1">
+                                                    <span className="font-semibold capitalize">{key.replace(/_/g, ' ')}: </span>
+                                                    <span>{String(val)}</span>
+                                                  </div>
+                                                );
+                                              })}
+                                            </div>
+                                          );
+                                        }
+
+                                        if (Array.isArray(content)) {
+                                          return content.map((bloc: any, bIdx: number) => {
+                                            if (typeof bloc === 'string') {
+                                              return <p key={bIdx} className="text-justify mb-2" style={{ textIndent: '2rem' }}>{bloc}</p>;
+                                            }
+
+                                            switch (bloc.tip) {
+                                              case 'titlu_centrat':
+                                                return (
+                                                  <div key={bIdx} className="text-center font-bold uppercase mb-4">
+                                                    {bloc.text}
+                                                  </div>
+                                                );
+                                              case 'paragraf':
+                                                return (
+                                                  <p key={bIdx} className="text-justify mb-2" style={{ textIndent: '2rem' }}>
+                                                    {bloc.text}
+                                                  </p>
+                                                );
+                                              case 'lista_numerotata':
+                                                return (
+                                                  <ol key={bIdx} className="list-decimal pl-10 space-y-1 mb-4">
+                                                    {bloc.items?.map((item: string, iIdx: number) => (
+                                                      <li key={iIdx}>{item}</li>
+                                                    ))}
+                                                  </ol>
+                                                );
+                                              case 'semnatura':
+                                                return (
+                                                  <div key={bIdx} className="text-right mt-12 mr-10 font-bold">
+                                                    {bloc.text}
+                                                  </div>
+                                                );
+                                              default:
+                                                return (
+                                                  <p key={bIdx} className="text-justify mb-2" style={{ textIndent: '2rem' }}>
+                                                    {bloc.text || JSON.stringify(bloc)}
+                                                  </p>
+                                                );
+                                            }
+                                          });
+                                        }
+                                        return null;
+                                      })()}
                                     </div>
-                                  );
-                                }
-
-                                if (Array.isArray(content)) {
-                                  return content.map((bloc: any, bIdx: number) => {
-                                    // Handle string blocks
-                                    if (typeof bloc === 'string') {
-                                      return <p key={bIdx} className="text-justify mb-2" style={{ textIndent: '2rem' }}>{bloc}</p>;
-                                    }
-
-                                    switch (bloc.tip) {
-                                      case 'titlu_centrat':
-                                        return (
-                                          <div key={bIdx} className="text-center font-bold uppercase mb-4">
-                                            {bloc.text}
-                                          </div>
-                                        );
-                                      case 'paragraf':
-                                        return (
-                                          <p key={bIdx} className="text-justify mb-2" style={{ textIndent: '2rem' }}>
-                                            {bloc.text}
-                                          </p>
-                                        );
-                                      case 'lista_numerotata':
-                                        return (
-                                          <ol key={bIdx} className="list-decimal pl-10 space-y-1 mb-4">
-                                            {bloc.items?.map((item: string, iIdx: number) => (
-                                              <li key={iIdx}>{item}</li>
-                                            ))}
-                                          </ol>
-                                        );
-                                      case 'semnatura':
-                                        return (
-                                          <div key={bIdx} className="text-right mt-12 mr-10 font-bold">
-                                            {bloc.text}
-                                          </div>
-                                        );
-                                      default:
-                                        // Fallback for unknown types or missing 'tip'
-                                        return (
-                                          <p key={bIdx} className="text-justify mb-2" style={{ textIndent: '2rem' }}>
-                                            {bloc.text || JSON.stringify(bloc)}
-                                          </p>
-                                        );
-                                    }
-                                  });
+                                  ));
                                 }
                                 return null;
                               })()}
+                            </>
+                          );
+                        };
+
+                        // Detect and render based on structure
+                        const structure = detectStructure(generatedDoc);
+
+                        if (structure === 'classic') {
+                          return renderClassic();
+                        } else if (structure === 'wrapped') {
+                          // Extract the root key as title and inner content
+                          const rootKey = Object.keys(generatedDoc)[0];
+                          const innerContent = generatedDoc[rootKey];
+
+                          return (
+                            <>
+                              <h1 className="text-center font-bold uppercase text-xl mb-6 text-gray-900">
+                                {rootKey}
+                              </h1>
+                              <div className="space-y-4">
+                                {renderValue(innerContent, undefined, 0)}
+                              </div>
+                            </>
+                          );
+                        } else {
+                          // Generic format - render all key-value pairs
+                          return (
+                            <div className="space-y-4">
+                              {Object.entries(generatedDoc).map(([key, value]) => (
+                                <div key={key}>
+                                  {renderValue(value, key, 0)}
+                                </div>
+                              ))}
                             </div>
-                          ));
+                          );
                         }
-
-                        // Fallback if no sections array found - render whole object as key-value
-                        return (
-                          <div className="whitespace-pre-wrap">
-                            {JSON.stringify(generatedDoc, null, 2)}
-                          </div>
-                        );
                       })()}
-
-
                     </div>
                   )}
                 </div>
