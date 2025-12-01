@@ -117,6 +117,7 @@ class TwoRoundLLMAnalyzer:
         logger.info("[ROUND 1] Executăm codul de filtrare...")
 
         filtered_data = self._execute_filter_code(filter_code)
+        logger.info(f"[ROUND 1] Results count: {len(filtered_data)}")
 
         return filtered_data
 
@@ -242,6 +243,10 @@ Pentru a filtra array-ul 'keywords', TREBUIE să folosești operatorul `->` (NU 
    ✅ CORECT:   b.obj->'keywords' @> '[\"furt\"]'::jsonb
    ❌ GREȘIT:   b.obj->>'keywords' @> '[\"furt\"]'  (va da eroare "operator does not exist: text @> unknown")
 
+⚠️ IMPORTANT: REGEX COMPATIBILITY
+- Pentru regex digits, folosește `[0-9]` în loc de `\d` pentru compatibilitate SQL strictă.
+- Exemplu: `[0-9]+\s*(ani|luni|zile)` în loc de `\d+\s*...`
+
 Explicație:
    - Operatorul `->>` extrage ca TEXT
    - Operatorul `@>` funcționează doar cu JSONB pe ambele părți
@@ -254,8 +259,8 @@ WHERE b.obj->>'materie' ILIKE '%penal%'
     OR b.obj->'keywords' @> '[\"furt\"]'::jsonb
   )
   AND (
-    b.obj->>'solutia' ~* '\\\\d+\\\\s*(ani|luni|zile)'
-    OR b.obj->>'considerente_speta' ~* '\\\\d+\\\\s*(ani|luni|zile)'
+    b.obj->>'solutia' ~* '[0-9]+\\s*(ani|luni|zile)'
+    OR b.obj->>'considerente_speta' ~* '[0-9]+\\s*(ani|luni|zile)'
   )
 LIMIT 300
 
@@ -399,6 +404,8 @@ filtered_results = filter_data(current_session)
                 'Any': Any,
                 'current_session': self.session # Injectăm sesiunea curentă!
             }
+
+            logger.info(f"[ROUND 1] Code to execute:\n{python_code}")
 
             # Executăm
             exec(wrapper_code, global_scope, local_scope)
