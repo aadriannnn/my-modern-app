@@ -249,8 +249,8 @@ Răspunsul tău TREBUIE să fie un JSON STRICT cu această structură:
 {{
   "python_code": "def filter_data(session):\\n    from sqlmodel import text\\n    query = text(\\\"\\\"\\\"\\n        SELECT id, obj\\n        FROM blocuri b\\n        WHERE b.obj->>'materie' ILIKE '%penal%'\\n        LIMIT 200\\n    \\\"\\\"\\\")\\n    return session.execute(query).mappings().all()",
   "description": "Descriere filtre...",
-  "expected_result_count": 200,
-  "filters_applied": ["materie ILIKE '%penal%'", "LIMIT 200"]
+  "expected_result_count": 20,
+  "filters_applied": ["materie ILIKE '%penal%'", "LIMIT 20"]
 }}
 
 ⚠️ ATENȚIE:
