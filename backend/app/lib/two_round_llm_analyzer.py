@@ -272,7 +272,7 @@ Răspunsul tău TREBUIE să fie un JSON STRICT cu această structură:
 ⚠️ ATENȚIE:
 - Nume funcție: `filter_data(session)`
 - Import `text` în interiorul funcției.
-- Folosește `r"""` (raw string) pentru query-ul SQL pentru a evita erorile de escape la regex (`\d`, `\s`).
+- Folosește r\"\"\" (raw string) pentru query-ul SQL pentru a evita erorile de escape la regex (\\d, \\s).
 - Return: `session.execute(query).mappings().all()`
 - LIMIT este OBLIGATORIU (recomandat 50)!
 - JSON valid (escape la ghilimele și newlines în JSON).
