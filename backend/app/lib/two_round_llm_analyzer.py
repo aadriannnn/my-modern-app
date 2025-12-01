@@ -307,6 +307,10 @@ LIMIT 150
 ```
 Returnează DOAR 5 câmpuri × 150 cazuri = OPTIM!
 
+**IMPORTANT**: Include ÎNTOTDEAUNA 'text_individualizare' când cauți pedepse,
+deoarece uneori câmpul 'solutia' poate fi null, dar pedeapsa se află în
+secțiunea de individualizare!
+
 **Exemplu 2: "Analizează amenzile pentru furt calificat"**
 
 ❌ GREȘIT:
@@ -412,31 +416,107 @@ CONTEXT: În ROUND 1, am extras {len(filtered_data)} cazuri relevante din baza d
 {data_json}
 
 =================================================================================== 🎯 MISIUNEA TA (ROUND 2)
-Analizează datele de mai sus și generează:
-1. Statistici descriptive (medie, mediană, etc.)
-2. Tendințe (evoluție în timp)
-3. Corelații (dacă e relevant)
-4. Interpretare în limbaj natural (concluzii clare)
+Analizează datele și generează statistici:
 
-=================================================================================== 📤 FORMAT RĂSPUNS - JSON OBLIGATORIU
+1. **Extragere valori numerice**:
+   - Dacă câmpul 'solutia'/'solutie' conține valori → extrage-le
+   - Dacă 'solutia' este null/gol → caută în 'individualizare'/'text_individualizare'
+   - Pattern-uri comune: "X ani", "X luni", "X zile", "X lei", "amenda de X lei"
+   - Folosește regex pentru extragere: r'(\d+)\s*(ani|luni|zile|lei)'
+
+2. **Calculează statistici**:
+   - Total cazuri analizate
+   - Medie, mediană, min, max
+   - Distribuție (dacă relevanță)
+   - Tendințe temporale (dacă există date)
+
+3. **Interpretare**: Rezumă descoperirile în limbaj natural
+
+=================================================================================== 🚨 REGULI CRITICE - RĂSPUNS JSON OBLIGATORIU!
+
+❌ NU RĂSPUNDE NICIODATĂ CU TEXT NORMAL:
+```
+Analiza datelor relevă că nu există valori numerice...
+```
+**DE CE E GREȘIT**: Aplicația așteaptă JSON valid și va da eroare!
+
+✅ RĂSPUNDE ÎNTOTDEAUNA CU JSON, CHIAR DACĂ NU AI DATE:
+```json
+{{
+  "results": {{
+    "total_cases_analyzed": 13,
+    "error": "Nu s-au găsit valori numerice în câmpurile solutia sau individualizare",
+    "data_quality_issues": ["Toate câmpurile 'solutia' sunt null", "Nu s-au găsit pattern-uri numerice în 'individualizare'"]
+  }},
+  "interpretation": "Datele extrase nu conțin informații numerice despre pedepse. Se recomandă verificarea bazei de date sau ajustarea filtrelor de extragere.",
+  "charts": []
+}}
+```
+
+=================================================================================== 📤 FORMAT RĂSPUNS - EXEMPLE CONCRETE
+
+**Exemplu 1: Date valide cu pedepse**
+```json
 {{
   "results": {{
     "total_cases_analyzed": 87,
     "mean_sentence_years": 15.3,
-    "trend_by_year": {{"2019": 14.5, "2020": 15.1}},
-    "statistical_significance": "..."
+    "median_sentence_years": 14.0,
+    "min_sentence_years": 5,
+    "max_sentence_years": 25,
+    "sentence_distribution": {{"5-10 ani": 12, "10-15 ani": 45, "15-20 ani": 25, "20+ ani": 5}}
   }},
-  "interpretation": "Analiza relevă...",
+  "interpretation": "Analiza a 87 de cazuri de omor relevă o pedeapsă medie de 15.3 ani, cu majoritatea pedepselor (51.7%) în intervalul 10-15 ani. Se observă aplicarea consistentă a pedepselor în limitele legale.",
   "charts": [
     {{
-      "type": "line_chart",
-      "title": "Evoluția pedepselor",
-      "data": {{"labels": ["2019", "2020"], "values": [14.5, 15.1]}}
+      "type": "bar_chart",
+      "title": "Distribuția pedepselor",
+      "data": {{"labels": ["5-10 ani", "10-15 ani", "15-20 ani", "20+ ani"], "values": [12, 45, 25, 5]}}
     }}
   ]
 }}
+```
 
-RĂSPUNDE DOAR CU JSON:
+**Exemplu 2: Date incomplete (câmpuri null)**
+```json
+{{
+  "results": {{
+    "total_cases_analyzed": 13,
+    "data_source": "individualizare",
+    "extracted_values_count": 8,
+    "mean_sentence_years": 3.2,
+    "note": "Câmpul 'solutia' era null, valorile au fost extrase din 'individualizare' folosind pattern matching"
+  }},
+  "interpretation": "Din cele 13 cazuri de furt, s-au putut extrage 8 valori numerice din secțiunea de individualizare. Pedeapsa medie este de 3.2 ani. Pentru 5 cazuri nu s-au găsit valori numerice explicite.",
+  "charts": []
+}}
+```
+
+**Exemplu 3: Lipsă date numerice (IMPORTANT!)**
+```json
+{{
+  "results": {{
+    "total_cases_analyzed": 10,
+    "error": "Extragere eșuată: nu s-au găsit valori numerice",
+    "fields_checked": ["solutia", "solutie", "individualizare", "text_individualizare"],
+    "suggestion": "Verificați dacă datele conțin informații despre pedepse în alte câmpuri sau dacă este necesară o filtrare mai specifică"
+  }},
+  "interpretation": "Analiza nu a putut identifica valori numerice în datele furnizate. Câmpurile verificate (solutia, individualizare) nu conțin pattern-uri de tipul 'X ani' sau 'X lei'. Se recomandă verificarea surselor de date.",
+  "charts": []
+}}
+```
+
+=================================================================================== ⚠️ CERINȚE ABSOLUTE
+
+1. Răspunsul TREBUIE să fie JSON valid
+2. Cheia 'results' este OBLIGATORIE
+3. Cheia 'interpretation' este OBLIGATORIE
+4. Cheia 'charts' este OBLIGATORIE (poate fi array gol [])
+5. NICIODATĂ nu răspunde cu text explicativ în afara JSON-ului
+6. Dacă nu găsești date → returnează JSON cu câmpul 'error'
+7. Folosește DOAR escape-uri valide în JSON (\n, \t, \", \\)
+
+🔥 RĂSPUNDE EXCLUSIV CU JSON (ZERO TEXT ÎNAINTE SAU DUPĂ):
 """
         return prompt
 
