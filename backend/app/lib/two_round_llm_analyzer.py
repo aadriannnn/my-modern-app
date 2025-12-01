@@ -229,7 +229,7 @@ CREATE TABLE blocuri (
 12. text_doctrina (string)
 13. text_ce_invatam (string)
 14. Rezumat_generat_de_AI_Cod (string)
-15. keywords (array[string])
+15. keywords (array[string]) - Array JSONB de cuvinte cheie
 16. data_solutiei (string/date) - ex: "2023-11-15"
 
 =================================================================================== 🎯 INSTRUCȚIUNI PENTRU COD FILTRARE
@@ -237,10 +237,26 @@ CREATE TABLE blocuri (
 2. LOGICA: Folosește filtre SQL inteligente (WHERE clauses) pe câmpurile JSONB.
 3. FORMAT: Returnează întotdeauna `SELECT id, obj FROM blocuri ...`
 
-Exemplu logică filtrare (Pedepse omor):
+⚠️ ATENȚIE LA ARRAY-URI JSONB (keywords):
+Pentru a filtra array-ul 'keywords', TREBUIE să folosești operatorul `->` (NU `->>`):
+   ✅ CORECT:   b.obj->'keywords' @> '[\"furt\"]'::jsonb
+   ❌ GREȘIT:   b.obj->>'keywords' @> '[\"furt\"]'  (va da eroare "operator does not exist: text @> unknown")
+
+Explicație:
+   - Operatorul `->>` extrage ca TEXT
+   - Operatorul `@>` funcționează doar cu JSONB pe ambele părți
+   - Deci pentru array-uri, folosește `->` pentru a păstra tipul JSONB
+
+Exemplu logică filtrare (Pedepse pentru furt):
 WHERE b.obj->>'materie' ILIKE '%penal%'
-  AND (b.obj->>'obiect' ILIKE '%omor%' OR b.obj->>'obiect' ILIKE '%omucidere%')
-  AND (b.obj->>'solutia' ~ '\\d+\\s*ani' OR b.obj->>'considerente_speta' ~ '\\d+\\s*ani')
+  AND (
+    b.obj->>'obiect' ILIKE '%furt%'
+    OR b.obj->'keywords' @> '[\"furt\"]'::jsonb
+  )
+  AND (
+    b.obj->>'solutia' ~* '\\\\d+\\\\s*(ani|luni|zile)'
+    OR b.obj->>'considerente_speta' ~* '\\\\d+\\\\s*(ani|luni|zile)'
+  )
 LIMIT 300
 
 =================================================================================== 📤 FORMAT RĂSPUNS - JSON OBLIGATORIU
@@ -259,6 +275,7 @@ Răspunsul tău TREBUIE să fie un JSON STRICT cu această structură:
 - Return: `session.execute(query).mappings().all()`
 - LIMIT este OBLIGATORIU!
 - JSON valid (escape la ghilimele și newlines)
+- Pentru keywords, folosește DOAR `->` cu `@>`, nu `->>` !
 
 RĂSPUNDE DOAR CU JSON:
 """
