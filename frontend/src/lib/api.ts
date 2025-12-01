@@ -205,6 +205,9 @@ export const subscribeToQueueStatus = (
 
       if (data.status === 'completed' || data.status === 'error') {
         eventSource.close();
+        // Pass final data (which might contain result or error details)
+        // to onUpdate before completing.
+        onUpdate(data);
         onComplete();
       } else {
         onUpdate(data);

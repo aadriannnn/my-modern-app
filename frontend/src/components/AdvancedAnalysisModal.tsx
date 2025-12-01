@@ -81,6 +81,13 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                     setJobId(null); // Stop showing queue status
                     if (eventSourceRef.current) eventSourceRef.current.close();
                 }
+
+                // Check if we have an error in the update
+                if ((statusUpdate as any).error) {
+                    setError((statusUpdate as any).error);
+                    setJobId(null);
+                    if (eventSourceRef.current) eventSourceRef.current.close();
+                }
             },
             () => {
                 // On complete, if we haven't received the result yet, we might need to fetch it.
