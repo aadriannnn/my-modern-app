@@ -713,7 +713,7 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
                         };
 
                         // Helper function to render any value recursively
-                        const renderValue = (value: any, key?: string, depth: number = 0): JSX.Element | null => {
+                        const renderValue = (value: any, key?: string, depth: number = 0): React.ReactNode | null => {
                           // Handle null/undefined
                           if (value === null || value === undefined) {
                             return null;
