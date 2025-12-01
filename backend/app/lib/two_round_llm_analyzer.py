@@ -285,8 +285,8 @@ RĂSPUNDE DOAR CU JSON:
         """Construiește promptul pentru ROUND 2 (analiza datelor filtrate)."""
 
         # Serializare date filtrate în JSON
-        # Limităm la 500 cazuri pentru a nu depăși contextul, deși filtrarea ar trebui să se ocupe de asta
-        data_to_send = filtered_data[:500]
+        # Limităm la 20 cazuri pentru a nu depăși contextul
+        data_to_send = filtered_data[:20]
         data_json = json.dumps(data_to_send, indent=2, ensure_ascii=False)
 
         prompt = f"""===================================================================================
@@ -324,6 +324,12 @@ Analizează datele de mai sus și generează:
     }}
   ]
 }}
+
+IMPORTANT:
+1. Răspunde DOAR cu blocul JSON.
+2. NU adăuga text înainte sau după JSON.
+3. NU folosi marcaje markdown (```json).
+4. Verifică validitatea JSON-ului înainte de a răspunde.
 
 RĂSPUNDE DOAR CU JSON:
 """

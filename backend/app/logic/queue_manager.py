@@ -132,12 +132,31 @@ class QueueManager:
                 'total': total,
                 'status': 'queued' if position > 1 else 'processing'
             }
+            await self._broadcast_event(request_id, update_data)
 
+    async def _broadcast_event(self, request_id: str, data: Dict[str, Any]):
+        """Generic method to broadcast any event to subscribed clients."""
+        if request_id in self.update_callbacks:
             for callback in self.update_callbacks[request_id]:
                 try:
-                    await callback(update_data)
+                    await callback(data)
                 except Exception as e:
-                    logger.error(f"Error broadcasting update for {request_id}: {e}")
+                    logger.error(f"Error broadcasting event for {request_id}: {e}")
+
+    async def _broadcast_result(self, item: QueueItem):
+        """Broadcasts the final result or error."""
+        status_data = self.get_job_status(item.request_id)
+        if status_data['status'] in ['completed', 'failed']:
+            # Ensure we send 'error' status for failed jobs to match frontend expectations if needed,
+            # but get_job_status returns 'failed'.
+            # Frontend might expect 'error' or handles 'failed'.
+            # Let's check get_job_status again. It returns 'failed'.
+            # The SSE router checks for 'completed' or 'error'.
+            # Let's map 'failed' to 'error' for consistency with frontend/router if needed.
+            if status_data['status'] == 'failed':
+                status_data['status'] = 'error'
+
+            await self._broadcast_event(item.request_id, status_data)
 
     def subscribe_updates(self, request_id: str, callback: Callable):
         """
@@ -199,15 +218,18 @@ class QueueManager:
                     # Set result
                     item.future.set_result(result)
                     logger.info(f"Request {item.request_id} completed successfully")
+                    await self._broadcast_result(item)
 
                 except asyncio.TimeoutError:
                     error = RuntimeError(f"Request timed out after {self.queue_timeout} seconds")
                     item.future.set_exception(error)
                     logger.error(f"Request {item.request_id} timed out")
+                    await self._broadcast_result(item)
 
                 except Exception as e:
                     item.future.set_exception(e)
                     logger.error(f"Error processing request {item.request_id}: {e}", exc_info=True)
+                    await self._broadcast_result(item)
 
                 finally:
                     # Clean up callbacks immediately
