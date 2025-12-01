@@ -77,8 +77,23 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
 
                 // Check if we have a result in the update (some implementations send it)
                 if ((statusUpdate as any).result) {
-                    setResult((statusUpdate as any).result);
-                    setJobId(null); // Stop showing queue status
+                    const res = (statusUpdate as any).result;
+                    // Check for success: false in the result payload
+                    if (res && res.success === false) {
+                        setError(res.error || 'A apărut o eroare necunoscută.');
+                        setJobId(null);
+                        if (eventSourceRef.current) eventSourceRef.current.close();
+                    } else {
+                        setResult(res);
+                        setJobId(null); // Stop showing queue status
+                        if (eventSourceRef.current) eventSourceRef.current.close();
+                    }
+                }
+
+                // Check if we have an error in the update
+                if ((statusUpdate as any).error) {
+                    setError((statusUpdate as any).error);
+                    setJobId(null);
                     if (eventSourceRef.current) eventSourceRef.current.close();
                 }
 
