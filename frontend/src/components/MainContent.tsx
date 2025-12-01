@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters';
 import { Loader2, Search, Wand2, X, Copy, Check, FileText } from 'lucide-react';
@@ -63,6 +63,7 @@ const MainContent: React.FC<MainContentProps> = ({
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
   const observer = useRef<IntersectionObserver | null>(null);
   const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Generation state
   const [selectedAct, setSelectedAct] = useState<string>('');
@@ -250,7 +251,29 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
     }, 10); // Fast typing speed for better UX
 
     return () => clearInterval(typingInterval);
-  }, [onSituatieChange])
+  }, [onSituatieChange]);
+
+  // Auto-resize textarea based on content
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Reset height to auto to get accurate scrollHeight
+    textarea.style.height = 'auto';
+
+    // Determine if mobile or desktop
+    const isMobile = window.innerWidth < 768;
+    const lineHeight = 24; // px
+    const minRows = 4;
+    const maxRows = isMobile ? 10 : 7;
+
+    const minHeight = minRows * lineHeight;
+    const maxHeight = maxRows * lineHeight;
+
+    // Calculate new height
+    const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
+    textarea.style.height = `${newHeight}px`;
+  }, [situatie]);
 
 
 
@@ -331,11 +354,12 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
           <div className="relative group">
             <ExampleCaseButton onExampleClick={handleExampleFill} />
             <textarea
+              ref={textareaRef}
               value={situatie}
               onChange={(e) => onSituatieChange(e.target.value)}
               placeholder="Introduceți situația de fapt sau cuvinte cheie relevante. Utilizați filtrele din meniu pentru a rafina rezultatele..."
-              rows={3}
-              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl bg-white text-brand-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent shadow-sm transition-all duration-200 resize-y min-h-[80px]"
+              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl bg-white text-brand-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent shadow-sm transition-all duration-200 resize-none overflow-y-auto min-h-[96px]"
+              style={{ lineHeight: '24px' }}
             />
             <div className="absolute left-4 top-6 transform -translate-y-1/2 pointer-events-none">
               <Search size={22} className="text-gray-400 group-focus-within:text-brand-accent transition-colors duration-200" />
