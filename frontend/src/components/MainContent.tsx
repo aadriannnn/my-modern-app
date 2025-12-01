@@ -6,6 +6,7 @@ import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
 import UserJourneyMap from './UserJourneyMap';
 import ExampleCaseButton from './ExampleCaseButton';
+import AdvancedAnalysisModal from './AdvancedAnalysisModal';
 
 interface MainContentProps {
   results: any[];
@@ -71,6 +72,7 @@ const MainContent: React.FC<MainContentProps> = ({
   const [generatedDoc, setGeneratedDoc] = useState<any | null>(null);
   const [showDocModal, setShowDocModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
 
   const handleGenerateDocument = async () => {
     if (!selectedAct) return;
@@ -422,6 +424,14 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
             <Search size={24} className="mr-2" />
             Căutare Avansată
           </button>
+
+          <button
+            onClick={() => setShowAdvancedAnalysis(true)}
+            className="mt-2 w-full bg-white text-brand-accent border-2 border-brand-accent/20 px-6 py-2.5 rounded-xl flex items-center justify-center font-bold text-sm hover:bg-brand-accent/5 transition-all duration-200"
+          >
+            <span className="mr-2">🔬</span>
+            Analiză Juridică AI (Experimental)
+          </button>
         </div>
 
         {/* Features Section & User Journey - Show when no search has been performed */}
@@ -753,6 +763,11 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
 
         {renderContent()}
       </div>
+
+      <AdvancedAnalysisModal
+        isOpen={showAdvancedAnalysis}
+        onClose={() => setShowAdvancedAnalysis(false)}
+      />
     </main>
   );
 };

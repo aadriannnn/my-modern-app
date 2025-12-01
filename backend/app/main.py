@@ -19,7 +19,8 @@ from .routers import (
     auth as auth_router,
     settings as settings_router,
     queue_status as queue_router,
-    feedback as feedback_router
+    feedback as feedback_router,
+    advanced_analysis as advanced_analysis_router
 )
 
 # Configure logging
@@ -95,6 +96,7 @@ api_router.include_router(auth_router.router)
 api_router.include_router(settings_router.router)
 api_router.include_router(queue_router.router)
 api_router.include_router(feedback_router.router)
+api_router.include_router(advanced_analysis_router.router)
 
 app.include_router(api_router)
 

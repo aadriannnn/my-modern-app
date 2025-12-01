@@ -275,3 +275,20 @@ export const getFeedbackStats = async (): Promise<FeedbackStats> => {
 
   return response.json();
 };
+
+export const startAdvancedAnalysis = async (query: string) => {
+  const response = await fetch(`${API_URL}/advanced-analysis/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ query }),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to start analysis');
+  }
+  return response.json();
+};
