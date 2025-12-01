@@ -64,6 +64,7 @@ class TwoRoundLLMAnalyzer:
             Lista de cazuri filtrate
         """
         from ..lib.network_file_saver import NetworkFileSaver
+        from ..lib.prompt_logger import PromptLogger
 
         # Construire PROMPT 1
         prompt_round_1 = self._build_filter_prompt(user_query)
@@ -98,6 +99,11 @@ class TwoRoundLLMAnalyzer:
         # Parsare JSON cu cod Python
         logger.info("[ROUND 1] Primim răspuns... parsăm codul...")
 
+        filter_code = ""
+        filtered_data = []
+        execution_status = "error"
+        error_message = None
+
         try:
             code_response = self._parse_json_response(poll_content)
             filter_code = code_response.get('python_code', '')
@@ -106,8 +112,22 @@ class TwoRoundLLMAnalyzer:
                 raise ValueError("Răspunsul JSON nu conține cheia 'python_code'")
 
         except Exception as e:
+            error_message = f"Eroare parsare răspuns: {str(e)}"
             logger.error(f"Eroare parsare răspuns Round 1: {e}")
             logger.error(f"Conținut primit: {poll_content}")
+
+            # Log eroare de parsare
+            PromptLogger.save_round_1_entry(
+                user_query=user_query,
+                prompt=prompt_round_1,
+                python_code_response=poll_content[:5000],  # Limitare la 5000 chars pentru siguranță
+                execution_status="parse_error",
+                filtered_cases_count=0,
+                error_message=error_message,
+                retea_host=retea_host,
+                retea_folder=retea_folder
+            )
+
             raise ValueError(f"LLM a returnat un răspuns invalid în Round 1: {e}")
 
         # Cleanup fișier răspuns
@@ -116,7 +136,41 @@ class TwoRoundLLMAnalyzer:
         # Execuție cod filtrare
         logger.info("[ROUND 1] Executăm codul de filtrare...")
 
-        filtered_data = self._execute_filter_code(filter_code)
+        try:
+            filtered_data = self._execute_filter_code(filter_code)
+            execution_status = "success"
+            logger.info(f"[ROUND 1] ✅ Execuție reușită: {len(filtered_data)} cazuri filtrate")
+
+        except Exception as e:
+            execution_status = "execution_error"
+            error_message = f"Eroare execuție cod: {str(e)}"
+            logger.error(f"[ROUND 1] ❌ Eroare execuție: {e}")
+
+            # Log eroare de execuție
+            PromptLogger.save_round_1_entry(
+                user_query=user_query,
+                prompt=prompt_round_1,
+                python_code_response=filter_code,
+                execution_status=execution_status,
+                filtered_cases_count=0,
+                error_message=error_message,
+                retea_host=retea_host,
+                retea_folder=retea_folder
+            )
+
+            raise
+
+        # Log succes
+        PromptLogger.save_round_1_entry(
+            user_query=user_query,
+            prompt=prompt_round_1,
+            python_code_response=filter_code,
+            execution_status=execution_status,
+            filtered_cases_count=len(filtered_data),
+            error_message=error_message,
+            retea_host=retea_host,
+            retea_folder=retea_folder
+        )
 
         return filtered_data
 
