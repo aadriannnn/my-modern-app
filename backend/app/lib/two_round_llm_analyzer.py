@@ -1,7 +1,6 @@
 """
 Modul pentru analiza avansată în 3 etape (Map-Reduce) cu LLM worker.
 """
-
 import logging
 import json
 import os
@@ -29,37 +28,38 @@ class TwoRoundLLMAnalyzer:
 
     async def analyze(self, user_query: str) -> Dict[str, Any]:
         """
-        Wrapper principal care execută secvențial cei 3 pași ai analizei.
-        Păstrat pentru compatibilitate cu apelurile existente.
+        Procesul complet de analiză (Wrapper pentru compatibilitate).
+        Execută secvențial cele 3 etape ale noii arhitecturi.
         """
         try:
-            logger.info(f"--- START 3-PHASE ANALYSIS: {user_query[:50]}... ---")
+            logger.info(f"--- START ANALYSIS (Three-Stage Engine): {user_query[:50]}... ---")
 
-            # PHASE 1: Discovery & Planning
-            plan_result = await self.create_plan(user_query)
-            if not plan_result['success']:
-                return plan_result
+            # Phase 1: Discovery & Planning
+            plan_res = await self.create_plan(user_query)
+            if not plan_res['success']:
+                return plan_res
 
-            plan_id = plan_result['plan_id']
-            total_chunks = plan_result['total_chunks']
-            logger.info(f"Plan {plan_id} creat. Se execută {total_chunks} chunk-uri...")
+            plan_id = plan_res['plan_id']
+            total_chunks = plan_res['total_chunks']
 
-            # PHASE 2: Batch Execution (Map)
-            # Executăm chunk-urile secvențial (se poate paralela în viitor)
+            logger.info(f"[ORCHESTRATOR] Plan {plan_id} created. Processing {total_chunks} chunks...")
+
+            # Phase 2: Batch Execution (Map)
+            # Executăm secvențial chunk-urile (pentru acest wrapper simplu)
+            # Într-un mediu full-async, acestea ar putea rula paralel via queue
             for i in range(total_chunks):
                 chunk_res = await self.execute_chunk(plan_id, i)
                 if not chunk_res['success']:
-                    logger.error(f"Chunk {i} failed: {chunk_res.get('error')}")
-                    # Continuăm execuția celorlalte chunk-uri, faza 3 va gestiona datele lipsă
+                    logger.error(f"[ORCHESTRATOR] Chunk {i} failed: {chunk_res.get('error')}")
+                    # Continuăm cu celelalte chunk-uri, Phase 3 va gestiona lipsurile
 
-            # PHASE 3: Final Synthesis (Reduce)
-            logger.info(f"Toate chunk-urile procesate. Se începe sinteza...")
+            # Phase 3: Final Synthesis (Reduce)
             final_result = await self.synthesize_results(plan_id)
 
             return final_result
 
         except Exception as e:
-            logger.error(f"[ANALYZER] Eroare critică în procesul complet: {e}", exc_info=True)
+            logger.error(f"[ORCHESTRATOR] Eroare critică: {e}", exc_info=True)
             return {
                 'success': False,
                 'error': str(e)
@@ -110,7 +110,7 @@ class TwoRoundLLMAnalyzer:
             # 5. Salvare Plan
             self._save_plan(plan)
 
-            # 6. Preview (Opțional - primele 3 cazuri pentru UI/Log)
+            # 6. Preview (Opțional - primele 3 cazuri pentru UI)
             preview_ids = all_ids[:3]
             preview_data = self._fetch_chunk_data(preview_ids, strategy['selected_columns'])
 
@@ -162,6 +162,7 @@ class TwoRoundLLMAnalyzer:
 
             # 2.1. Validare și Truncare (Safety Net)
             # Chiar dacă avem chunk-uri mici, textele pot fi enorme.
+            # Folosim funcția restaurată pentru a garanta că nu depășim limita.
             truncated_data, metadata = self._validate_and_truncate_data(chunk_data, user_query, max_chars=30000)
 
             if metadata['truncated']:
@@ -321,7 +322,7 @@ class TwoRoundLLMAnalyzer:
             }
 
     # =================================================================================================
-    # HELPER METHODS - PROMPTS & EXECUTION
+    # HELPER METHODS - PHASE 3
     # =================================================================================================
 
     def _build_synthesis_prompt(self, user_query: str, aggregated_data: List[Dict], missing_chunks: List[int]) -> str:
@@ -424,6 +425,10 @@ NU încerca să răspunzi final la întrebare! Doar extrage datele brute sau sta
 RĂSPUNDE DOAR CU JSON:
 """
 
+    # =================================================================================================
+    # HELPER METHODS - PHASE 1
+    # =================================================================================================
+
     async def _generate_discovery_strategy(self, user_query: str) -> Dict[str, Any]:
         """
         Folosește LLM pentru a genera SQL-ul de discovery și lista de coloane necesare.
@@ -432,7 +437,7 @@ RĂSPUNDE DOAR CU JSON:
 
         prompt = self._build_discovery_prompt(user_query)
 
-        # Logică de rețea
+        # Logică de rețea (similară cu TwoRoundLLMAnalyzer)
         retea_host = settings_manager.get_value('setari_retea', 'retea_host', '')
         retea_folder = settings_manager.get_value('setari_retea', 'retea_folder_partajat', '')
 
@@ -676,7 +681,9 @@ RĂSPUNDE DOAR CU JSON:
     ) -> Tuple[List[Dict], Dict[str, Any]]:
         """
         Validează și truncă datele pentru a nu depăși max_chars.
-        Returns: Tuple[truncated_data, metadata]
+
+        Returns:
+            Tuple[truncated_data, metadata]
         """
 
         # Construim un prompt gol pentru a estima dimensiunea de bază
@@ -771,27 +778,13 @@ RĂSPUNDE DOAR CU JSON:
 
         return truncated_data, metadata
 
-    def _parse_json_response(self, content: str) -> Dict[str, Any]:
+    def _parse_json_response(self, response_content: str) -> Dict[str, Any]:
         """Parsează răspunsul JSON de la LLM, curățând eventualele markdown fences."""
-        cleaned = content.strip()
+        cleaned = response_content.strip()
         if cleaned.startswith("```json"):
             cleaned = cleaned[7:]
-        elif cleaned.startswith("```"):
+        if cleaned.startswith("```"):
             cleaned = cleaned[3:]
-
         if cleaned.endswith("```"):
             cleaned = cleaned[:-3]
-
-        # Eliminare caractere invizibile/spații
-        cleaned = cleaned.strip()
-
-        try:
-            return json.loads(cleaned)
-        except json.JSONDecodeError:
-             # Fallback: încercăm să găsim primul { și ultimul }
-            start = cleaned.find("{")
-            end = cleaned.rfind("}")
-            if start != -1 and end != -1:
-                json_str = cleaned[start:end+1]
-                return json.loads(json_str)
-            raise
+        return json.loads(cleaned)
