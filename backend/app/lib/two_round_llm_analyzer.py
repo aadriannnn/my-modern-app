@@ -1,869 +1,572 @@
 """
-Modul pentru analiza avansată în 2 runde cu LLM worker.
+Modul pentru analiza avansată în 3 etape (Map-Reduce) cu LLM worker.
 """
 import logging
 import json
-import re
+import os
+import time
+import uuid
 from sqlmodel import Session, text
-from typing import Dict, Any, List, Tuple
+from typing import Dict, Any, List, Tuple, Optional
 from ..settings_manager import settings_manager
 
 logger = logging.getLogger(__name__)
 
 class TwoRoundLLMAnalyzer:
     """
-    Orchestrează analiza în 2 runde:
-    Round 1: LLM generează cod filtrare
-    Round 2: LLM analizează datele filtrate
+    Orchestrează analiza avansată (Map-Reduce) cu LLM worker.
+    Deși numele este TwoRoundLLMAnalyzer (pentru compatibilitate), intern folosește o arhitectură în 3 etape:
+    Phase 1: Discovery & Planning (Smart Projection)
+    Phase 2: Batch Execution (Map)
+    Phase 3: Final Synthesis (Reduce)
     """
 
     def __init__(self, session: Session):
         self.session = session
+        self.plans_dir = "analyzer_plans"  # Directory for saving plans
+        os.makedirs(self.plans_dir, exist_ok=True)
 
-    async def analyze(self, user_query: str) -> Dict[str, Any]:
+    async def create_plan(self, user_query: str) -> Dict[str, Any]:
         """
-        Procesul complet de analiză în 4 pași.
-
-        Args:
-            user_query: Întrebarea utilizatorului
-
-        Returns:
-            Dict cu rezultate finale
+        PHASE 1: Discovery & Planning
+        Analizează cererea și creează un plan de execuție optimizat.
         """
         try:
-            logger.info(f"--- START TWO-ROUND ANALYSIS: {user_query[:50]}... ---")
+            logger.info(f"--- START PHASE 1: DISCOVERY & PLANNING for: {user_query[:50]}... ---")
 
-            # PAS 1 + 2: Generare și execuție cod filtrare
-            filtered_data = await self._round_1_filter_data(user_query)
+            # 1. Generare strategie (SQL + Coloane)
+            strategy = await self._generate_discovery_strategy(user_query)
 
-            if not filtered_data:
+            # 2. Execuție query-uri de descoperire (COUNT + ID_LIST)
+            total_cases, all_ids = self._execute_discovery_queries(strategy)
+
+            if total_cases == 0:
                 return {
                     'success': False,
-                    'error': 'Nu s-au găsit date relevante după filtrare (0 rezultate).'
+                    'error': 'Nu s-au găsit date relevante pentru această interogare.'
                 }
 
-            logger.info(f"[ROUND 1] Extras {len(filtered_data)} cazuri relevante")
+            # 3. Calculare Chunks
+            # Estimăm mărimea unui caz pe baza numărului de coloane selectate
+            # Un caz full are ~2000 tokens. Dacă selectăm doar 3-4 coloane, avem ~200-300 tokens.
+            # 30k tokens limită / 300 tokens = ~100 cazuri per chunk.
+            # Fiind conservatori, folosim 50 cazuri per chunk.
+            chunk_size = 50
+            chunks = [all_ids[i:i + chunk_size] for i in range(0, len(all_ids), chunk_size)]
 
-            # PAS 3 + 4: Analiza datelor filtrate
-            final_result = await self._round_2_analyze_data(user_query, filtered_data)
+            # 4. Generare Plan Object
+            plan_id = str(uuid.uuid4())
+            plan = {
+                "plan_id": plan_id,
+                "user_query": user_query,
+                "strategy": strategy, # Conține coloanele selectate
+                "total_cases": total_cases,
+                "total_chunks": len(chunks),
+                "chunk_size": chunk_size,
+                "chunks": chunks, # Lista de liste de ID-uri
+                "created_at": time.time(),
+                "status": "created"
+            }
 
-            return final_result
+            # 5. Salvare Plan
+            self._save_plan(plan)
+
+            # 6. Preview (Opțional - primele 3 cazuri pentru UI)
+            preview_ids = all_ids[:3]
+            preview_data = self._fetch_chunk_data(preview_ids, strategy['selected_columns'])
+
+            logger.info(f"[PHASE 1] Plan creat: {plan_id}. Total cazuri: {total_cases}. Chunks: {len(chunks)}.")
+
+            return {
+                'success': True,
+                'plan_id': plan_id,
+                'total_cases': total_cases,
+                'total_chunks': len(chunks),
+                'estimated_time_seconds': len(chunks) * 5, # Estimare grosieră
+                'preview_data': preview_data,
+                'strategy_summary': strategy.get('rationale', 'Strategie generată automat.')
+            }
 
         except Exception as e:
-            logger.error(f"[TWO-ROUND] Eroare critică: {e}", exc_info=True)
+            logger.error(f"[PHASE 1] Eroare critică: {e}", exc_info=True)
             return {
                 'success': False,
                 'error': str(e)
             }
 
-    async def _round_1_filter_data(self, user_query: str) -> List[Dict]:
+    async def execute_chunk(self, plan_id: str, chunk_index: int) -> Dict[str, Any]:
         """
-        ROUND 1: LLM generează cod Python pentru filtrare, apoi îl rulăm.
+        PHASE 2: Batch Execution (Worker)
+        Execută analiza pentru un singur chunk.
+        """
+        try:
+            # 1. Încărcare Plan
+            plan_path = os.path.join(self.plans_dir, f"{plan_id}.json")
+            if not os.path.exists(plan_path):
+                raise FileNotFoundError(f"Planul {plan_id} nu există.")
 
-        Returns:
-            Lista de cazuri filtrate
+            with open(plan_path, 'r', encoding='utf-8') as f:
+                plan = json.load(f)
+
+            chunks = plan['chunks']
+            if chunk_index < 0 or chunk_index >= len(chunks):
+                raise IndexError(f"Chunk index {chunk_index} invalid. Total chunks: {len(chunks)}")
+
+            chunk_ids = chunks[chunk_index]
+            selected_columns = plan['strategy']['selected_columns']
+            user_query = plan['user_query']
+
+            logger.info(f"[PHASE 2] Executing Chunk {chunk_index + 1}/{len(chunks)} for Plan {plan_id}. IDs: {len(chunk_ids)}")
+
+            # 2. Smart Fetch
+            chunk_data = self._fetch_chunk_data(chunk_ids, selected_columns)
+
+            # 2.1. Validare și Truncare (Safety Net)
+            # Chiar dacă avem chunk-uri mici, textele pot fi enorme.
+            # Folosim funcția restaurată pentru a garanta că nu depășim limita.
+            truncated_data, metadata = self._validate_and_truncate_data(chunk_data, user_query, max_chars=30000)
+
+            if metadata['truncated']:
+                logger.warning(f"[PHASE 2] Chunk {chunk_index} truncated: {metadata['cases_included_in_prompt']}/{len(chunk_data)} cases included.")
+
+            # 3. Analiză LLM (Map)
+            from ..lib.network_file_saver import NetworkFileSaver
+
+            prompt = self._build_chunk_analysis_prompt(user_query, truncated_data, chunk_index, len(chunks))
+
+            # Logică de rețea
+            retea_host = settings_manager.get_value('setari_retea', 'retea_host', '')
+            retea_folder = settings_manager.get_value('setari_retea', 'retea_folder_partajat', '')
+
+            success, message, saved_path = NetworkFileSaver.save_to_network(
+                content=prompt,
+                host=retea_host,
+                shared_folder=retea_folder,
+                subfolder=''
+            )
+
+            if not success:
+                raise RuntimeError(f"Eroare salvare prompt Chunk {chunk_index}: {message}")
+
+            poll_success, poll_content, response_path = await NetworkFileSaver.poll_for_response(
+                saved_path=saved_path,
+                timeout_seconds=600,
+                poll_interval=5
+            )
+
+            if not poll_success:
+                raise RuntimeError(f"Timeout Chunk {chunk_index}: {poll_content}")
+
+            # Parsare rezultat
+            try:
+                chunk_result = self._parse_json_response(poll_content)
+                NetworkFileSaver.delete_response_file(response_path)
+            except Exception as e:
+                logger.error(f"Eroare parsare răspuns Chunk {chunk_index}: {e}")
+                # Nu crăpăm tot procesul, returnăm eroare pentru acest chunk
+                return {
+                    'success': False,
+                    'chunk_index': chunk_index,
+                    'error': str(e),
+                    'raw_response': poll_content[:1000]
+                }
+
+            # 4. Salvare Rezultat Chunk
+            result_file = os.path.join(self.plans_dir, f"{plan_id}_chunk_{chunk_index}.json")
+            with open(result_file, 'w', encoding='utf-8') as f:
+                json.dump(chunk_result, f, indent=2, ensure_ascii=False)
+
+            return {
+                'success': True,
+                'chunk_index': chunk_index,
+                'cases_analyzed': len(chunk_data),
+                'result_summary': chunk_result.get('summary', 'N/A')
+            }
+
+        except Exception as e:
+            logger.error(f"[PHASE 2] Eroare Chunk {chunk_index}: {e}", exc_info=True)
+            return {
+                'success': False,
+                'chunk_index': chunk_index,
+                'error': str(e)
+            }
+
+    async def synthesize_results(self, plan_id: str) -> Dict[str, Any]:
+        """
+        PHASE 3: Final Synthesis (Analyst)
+        Agregă rezultatele și generează răspunsul final.
+        """
+        try:
+            # 1. Încărcare Plan
+            plan_path = os.path.join(self.plans_dir, f"{plan_id}.json")
+            if not os.path.exists(plan_path):
+                raise FileNotFoundError(f"Planul {plan_id} nu există.")
+
+            with open(plan_path, 'r', encoding='utf-8') as f:
+                plan = json.load(f)
+
+            user_query = plan['user_query']
+            total_chunks = plan['total_chunks']
+
+            # 2. Încărcare Rezultate Chunks
+            aggregated_data = []
+            missing_chunks = []
+
+            for i in range(total_chunks):
+                chunk_file = os.path.join(self.plans_dir, f"{plan_id}_chunk_{i}.json")
+                if os.path.exists(chunk_file):
+                    with open(chunk_file, 'r', encoding='utf-8') as f:
+                        chunk_res = json.load(f)
+                        aggregated_data.append(chunk_res)
+                else:
+                    missing_chunks.append(i)
+
+            if not aggregated_data:
+                return {
+                    'success': False,
+                    'error': 'Nu există rezultate de la chunks pentru a fi agregate.'
+                }
+
+            logger.info(f"[PHASE 3] Synthesizing results from {len(aggregated_data)} chunks. Missing: {len(missing_chunks)}")
+
+            # 3. Sinteză LLM (Reduce)
+            from ..lib.network_file_saver import NetworkFileSaver
+
+            prompt = self._build_synthesis_prompt(user_query, aggregated_data, missing_chunks)
+
+            # Logică de rețea
+            retea_host = settings_manager.get_value('setari_retea', 'retea_host', '')
+            retea_folder = settings_manager.get_value('setari_retea', 'retea_folder_partajat', '')
+
+            success, message, saved_path = NetworkFileSaver.save_to_network(
+                content=prompt,
+                host=retea_host,
+                shared_folder=retea_folder,
+                subfolder=''
+            )
+
+            if not success:
+                raise RuntimeError(f"Eroare salvare prompt Synthesis: {message}")
+
+            poll_success, poll_content, response_path = await NetworkFileSaver.poll_for_response(
+                saved_path=saved_path,
+                timeout_seconds=600,
+                poll_interval=5
+            )
+
+            if not poll_success:
+                raise RuntimeError(f"Timeout Synthesis: {poll_content}")
+
+            # Parsare rezultat final
+            try:
+                final_result = self._parse_json_response(poll_content)
+                NetworkFileSaver.delete_response_file(response_path)
+            except Exception as e:
+                logger.error(f"Eroare parsare răspuns Synthesis: {e}")
+                raise ValueError(f"LLM a returnat un răspuns invalid în Phase 3: {e}")
+
+            # Adăugăm metadate despre proces
+            final_result['process_metadata'] = {
+                'plan_id': plan_id,
+                'total_cases': plan['total_cases'],
+                'chunks_processed': len(aggregated_data),
+                'chunks_missing': len(missing_chunks)
+            }
+
+            return final_result
+
+        except Exception as e:
+            logger.error(f"[PHASE 3] Eroare Synthesis: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
+    # =================================================================================================
+    # HELPER METHODS - PHASE 3
+    # =================================================================================================
+
+    def _build_synthesis_prompt(self, user_query: str, aggregated_data: List[Dict], missing_chunks: List[int]) -> str:
+        # Minimizăm datele trimise la sinteză pentru a nu depăși contextul
+        # Trimitem doar 'extracted_data' și 'partial_stats' din fiecare chunk
+
+        clean_aggregation = []
+        for chunk in aggregated_data:
+            clean_aggregation.append({
+                "chunk_index": chunk.get("chunk_index"),
+                "extracted_data": chunk.get("extracted_data"),
+                "partial_stats": chunk.get("partial_stats")
+            })
+
+        data_json = json.dumps(clean_aggregation, indent=2, ensure_ascii=False)
+
+        missing_info = ""
+        if missing_chunks:
+            missing_info = f"\n⚠️ ATENȚIE: Lipsesc datele din chunks: {missing_chunks}. Rezultatul poate fi incomplet."
+
+        return f"""===================================================================================
+🔬 PHASE 3: FINAL SYNTHESIS (REDUCE)
+===================================================================================
+Tu ești Analistul Șef. Ai primit rapoarte parțiale de la mai mulți workeri (chunks).
+Trebuie să agregezi aceste date și să formulezi RĂSPUNSUL FINAL pentru utilizator.
+
+TASK UTILIZATOR: "{user_query}"
+{missing_info}
+
+=================================================================================== 📦 REZULTATE AGREGATE (CHUNKS)
+{data_json}
+
+=================================================================================== 🎯 MISIUNEA TA
+1. Agregă datele numerice (calculează medii ponderate, sume totale etc.).
+2. Identifică tendințele calitative din datele extrase.
+3. Formulează un răspuns final clar, profesional și bazat STRICT pe date.
+
+=================================================================================== 📤 FORMAT RĂSPUNS (JSON)
+{{
+  "results": {{
+      "total_analyzed": 150,
+      "final_stats": {{ "mean": 5.5, "median": 5, "unit": "ani" }},
+      "distribution": {{ "1-3 ani": 10, "3-5 ani": 20 }}
+  }},
+  "interpretation": "Analiza a 150 de cazuri arată că media pedepselor este de 5.5 ani...",
+  "charts": [
+      {{ "type": "bar", "title": "Distribuție", "data": ... }}
+  ]
+}}
+
+RĂSPUNDE DOAR CU JSON:
+"""
+
+    def _build_chunk_analysis_prompt(self, user_query: str, chunk_data: List[Dict], chunk_index: int, total_chunks: int) -> str:
+        data_json = json.dumps(chunk_data, indent=2, ensure_ascii=False)
+        return f"""===================================================================================
+🔬 PHASE 2: BATCH EXECUTION (CHUNK {chunk_index + 1}/{total_chunks})
+===================================================================================
+Tu ești un Analist de Date (Worker). Analizezi un mic lot de date (Chunk) ca parte a unui proces mai mare.
+
+TASK UTILIZATOR: "{user_query}"
+
+=================================================================================== 📦 DATELE TALE (CHUNK)
+{data_json}
+
+=================================================================================== 🎯 MISIUNEA TA
+Analizează ACEST set de date și extrage informațiile relevante pentru task.
+NU încerca să răspunzi final la întrebare! Doar extrage datele brute sau statistici parțiale.
+
+1. **Extragere valori numerice**:
+   - Caută pattern-uri: "X ani", "X luni", "X lei".
+   - Dacă câmpul principal e gol, caută în celelalte câmpuri selectate.
+
+2. **Sinteză parțială**:
+   - Numără cazurile relevante din acest chunk.
+   - Calculează sume/medii parțiale dacă e posibil.
+
+=================================================================================== 📤 FORMAT RĂSPUNS (JSON)
+{{
+  "chunk_index": {chunk_index},
+  "analyzed_count": {len(chunk_data)},
+  "extracted_data": [
+      {{ "id": 123, "valoare": 5, "unitate": "ani", "context": "pedeapsa principala" }},
+      {{ "id": 124, "valoare": null, "motiv": "nu s-a gasit in text" }}
+  ],
+  "partial_stats": {{
+      "sum": 5,
+      "count": 1,
+      "min": 5,
+      "max": 5
+  }},
+  "qualitative_notes": "Un caz relevant identificat."
+}}
+
+⚠️ REGULI:
+- Răspunde DOAR cu JSON.
+- Nu inventa date.
+- Dacă nu găsești nimic, returnează liste goale.
+
+RĂSPUNDE DOAR CU JSON:
+"""
+
+    # =================================================================================================
+    # HELPER METHODS - PHASE 1
+    # =================================================================================================
+
+    async def _generate_discovery_strategy(self, user_query: str) -> Dict[str, Any]:
+        """
+        Folosește LLM pentru a genera SQL-ul de discovery și lista de coloane necesare.
         """
         from ..lib.network_file_saver import NetworkFileSaver
-        from ..lib.prompt_logger import PromptLogger
 
-        # Construire PROMPT 1
-        prompt_round_1 = self._build_filter_prompt(user_query)
+        prompt = self._build_discovery_prompt(user_query)
 
-        logger.info("[ROUND 1] Trimitem prompt pentru generare cod filtrare...")
-
-        # Obținem setările de rețea
+        # Logică de rețea (similară cu TwoRoundLLMAnalyzer)
         retea_host = settings_manager.get_value('setari_retea', 'retea_host', '')
         retea_folder = settings_manager.get_value('setari_retea', 'retea_folder_partajat', '')
 
-        # Salvare prompt în rețea
         success, message, saved_path = NetworkFileSaver.save_to_network(
-            content=prompt_round_1,
+            content=prompt,
             host=retea_host,
             shared_folder=retea_folder,
             subfolder=''
         )
 
         if not success:
-            raise RuntimeError(f"Eroare salvare prompt Round 1: {message}")
+            raise RuntimeError(f"Eroare salvare prompt Discovery: {message}")
 
-        # Polling pentru răspuns
-        poll_success, poll_content, response_path = await NetworkFileSaver.poll_for_response(
-            saved_path=saved_path,
-            timeout_seconds=600, # 10 minute timeout
-            poll_interval=10
-        )
-
-        if not poll_success:
-            raise RuntimeError(f"Timeout Round 1: {poll_content}")
-
-        # Parsare JSON cu cod Python
-        logger.info("[ROUND 1] Primim răspuns... parsăm codul...")
-
-        filter_code = ""
-        filtered_data = []
-        execution_status = "error"
-        error_message = None
-
-        try:
-            code_response = self._parse_json_response(poll_content)
-            filter_code = code_response.get('python_code', '')
-
-            if not filter_code:
-                raise ValueError("Răspunsul JSON nu conține cheia 'python_code'")
-
-        except Exception as e:
-            error_message = f"Eroare parsare răspuns: {str(e)}"
-            logger.error(f"Eroare parsare răspuns Round 1: {e}")
-            logger.error(f"Conținut primit: {poll_content}")
-
-            # Log eroare de parsare
-            PromptLogger.save_round_1_entry(
-                user_query=user_query,
-                prompt=prompt_round_1,
-                python_code_response=poll_content[:5000],  # Limitare la 5000 chars pentru siguranță
-                execution_status="parse_error",
-                filtered_cases_count=0,
-                error_message=error_message,
-                retea_host=retea_host,
-                retea_folder=retea_folder
-            )
-
-            raise ValueError(f"LLM a returnat un răspuns invalid în Round 1: {e}")
-
-        # Cleanup fișier răspuns
-        NetworkFileSaver.delete_response_file(response_path)
-
-        # Execuție cod filtrare
-        logger.info("[ROUND 1] Executăm codul de filtrare...")
-
-        try:
-            filtered_data = self._execute_filter_code(filter_code)
-            execution_status = "success"
-            logger.info(f"[ROUND 1] ✅ Execuție reușită: {len(filtered_data)} cazuri filtrate")
-
-        except Exception as e:
-            execution_status = "execution_error"
-            error_message = f"Eroare execuție cod: {str(e)}"
-            logger.error(f"[ROUND 1] ❌ Eroare execuție: {e}")
-
-            # Log eroare de execuție
-            PromptLogger.save_round_1_entry(
-                user_query=user_query,
-                prompt=prompt_round_1,
-                python_code_response=filter_code,
-                execution_status=execution_status,
-                filtered_cases_count=0,
-                error_message=error_message,
-                retea_host=retea_host,
-                retea_folder=retea_folder
-            )
-
-            raise
-
-        # Log succes
-        PromptLogger.save_round_1_entry(
-            user_query=user_query,
-            prompt=prompt_round_1,
-            python_code_response=filter_code,
-            execution_status=execution_status,
-            filtered_cases_count=len(filtered_data),
-            error_message=error_message,
-            retea_host=retea_host,
-            retea_folder=retea_folder
-        )
-
-        return filtered_data
-
-    async def _round_2_analyze_data(
-        self,
-        user_query: str,
-        filtered_data: List[Dict]
-    ) -> Dict[str, Any]:
-        """
-        ROUND 2: Trimitem datele filtrate către LLM pentru analiză finală.
-
-        Returns:
-            Rezultatul final în format JSON
-        """
-        from ..lib.network_file_saver import NetworkFileSaver
-
-        # 1. Extragere câmpuri relevante
-        relevant_data = self._extract_relevant_fields(user_query, filtered_data)
-
-        # 2. Validare și truncare pentru a respecta limita de 30k caractere
-        truncated_data, metadata = self._validate_and_truncate_data(relevant_data, user_query, max_chars=30000)
-
-        logger.info(f"[ROUND 2] Trimitem {len(truncated_data)}/{len(filtered_data)} cazuri (după optimizare)")
-        logger.info(f"[ROUND 2] Prompt estimat: {metadata['estimated_prompt_size']} caractere")
-
-        # 3. Construire PROMPT 2 optimizat
-        prompt_round_2 = self._build_analysis_prompt(user_query, truncated_data, metadata)
-
-        logger.info(f"[ROUND 2] Trimitem {len(filtered_data)} cazuri pentru analiză...")
-
-        # Obținem setările de rețea
-        retea_host = settings_manager.get_value('setari_retea', 'retea_host', '')
-        retea_folder = settings_manager.get_value('setari_retea', 'retea_folder_partajat', '')
-
-        # Salvare prompt în rețea
-        success, message, saved_path = NetworkFileSaver.save_to_network(
-            content=prompt_round_2,
-            host=retea_host,
-            shared_folder=retea_folder,
-            subfolder=''
-        )
-
-        if not success:
-            raise RuntimeError(f"Eroare salvare prompt Round 2: {message}")
-
-        # Polling pentru răspuns
         poll_success, poll_content, response_path = await NetworkFileSaver.poll_for_response(
             saved_path=saved_path,
             timeout_seconds=600,
-            poll_interval=10
+            poll_interval=5
         )
 
         if not poll_success:
-            raise RuntimeError(f"Timeout Round 2: {poll_content}")
+            raise RuntimeError(f"Timeout Discovery: {poll_content}")
 
-        # Parsare JSON cu rezultate
-        logger.info("[ROUND 2] Primim analiza finală...")
-
+        # Parsare
         try:
-            analysis_result = self._parse_json_response(poll_content)
+            strategy = self._parse_json_response(poll_content)
+            NetworkFileSaver.delete_response_file(response_path)
+            return strategy
         except Exception as e:
-            logger.error(f"Eroare parsare răspuns Round 2: {e}")
-            logger.error(f"Conținut primit: {poll_content}")
-            raise ValueError(f"LLM a returnat un răspuns invalid în Round 2: {e}")
+            logger.error(f"Eroare parsare răspuns Discovery: {e}")
+            raise ValueError(f"LLM a returnat un răspuns invalid în Phase 1: {e}")
 
-        # Cleanup
-        NetworkFileSaver.delete_response_file(response_path)
-
-        return {
-            'success': True,
-            'results': analysis_result.get('results', {}),
-            'interpretation': analysis_result.get('interpretation', ''),
-            'charts': analysis_result.get('charts', []),
-            'cases_analyzed': len(filtered_data),
-            'cases_sent_to_llm': len(truncated_data),
-            'prompt_metadata': metadata
-        }
-
-    def _build_filter_prompt(self, user_query: str) -> str:
-        """Construiește promptul pentru ROUND 1 (generare cod filtrare)."""
-
-        prompt = f"""===================================================================================
-🔬 ROUND 1: GENERARE COD PYTHON PENTRU FILTRARE DATE
+    def _build_discovery_prompt(self, user_query: str) -> str:
+        return f"""===================================================================================
+🔬 PHASE 1: DISCOVERY & PLANNING (SMART PROJECTION)
 ===================================================================================
-Tu ești un Senior Python & SQL Developer specializat în optimizarea query-urilor pe baze de date juridice PostgreSQL.
+Tu ești Arhitectul Sistemului. Scopul tău este să planifici execuția eficientă pentru o analiză Big Data pe cazuri juridice.
 
-=================================================================================== 📋 TASK-UL UTILIZATORULUI
-{user_query}
+TASK UTILIZATOR: "{user_query}"
 
-=================================================================================== 🎯 MISIUNEA TA (ROUND 1)
-Generează cod Python care să FILTREZE și să EXTRAGĂ **DOAR CÂMPURILE STRICT NECESARE** din baza de date PostgreSQL pentru task-ul de mai sus.
-
-⚠️ IMPORTANT: NU trebuie să faci analiza statistică acum! Doar FILTREAZĂ datele!
-Analiza se va face în ROUND 2, după ce datele sunt extrase.
-
-=================================================================================== 📊 SCHEMA BAZEI DE DATE (PostgreSQL)
-
-Tabel: blocuri
-CREATE TABLE blocuri (
-    id INTEGER PRIMARY KEY,
-    obj JSONB  -- Conține 16+ câmpuri juridice
-);
-
-Câmpuri disponibile în obj (JSONB):
-1. număr_dosar (string) - Ex: "Sentinţa Civilă nr.93", "Decizie nr. 1405/2021", "Dosar nr. ####/98/2022"
-2. tip_solutie (string) - Ex: "Stabileşte competenţa", "Respinge apelul", "Menține sentința"
+=================================================================================== 📊 SCHEMA BAZEI DE DATE
+Tabel: blocuri (id INTEGER PRIMARY KEY, obj JSONB)
+Câmpuri JSONB disponibile:
+1. număr_dosar (string) - Ex: "Sentinţa Civilă nr.93", "Decizie nr. 1405/2021"
+2. tip_solutie (string) - Ex: "Stabileşte competenţa", "Respinge apelul"
 3. tip_cale_atac (string) - Ex: "Definitivă", "Apel", "Recurs"
-4. cereri_accesorii (string) - Ex: "cheltuieli de judecată", "daune materiale și morale"
-5. tip_act_juridic (string) - Ex: "Cerere de chemare în judecată", "Contestație la executare", "Tentativă la omor"
-6. probele_retinute (string) - Ex: "null", "înscrisuri", "Declarații martori, expertiză medico-legală"
-7. keywords (array/string) - Ex: ["Conflict de competență", "Litigii de muncă"], ["executare silită", "perimare"]
+4. cereri_accesorii (string) - Ex: "cheltuieli de judecată", "daune materiale"
+5. tip_act_juridic (string) - Ex: "Cerere de chemare în judecată", "Contestație la executare"
+6. probele_retinute (string) - Ex: "înscrisuri", "Declarații martori"
+7. keywords (array/string) - Ex: ["Conflict de competență"], ["executare silită"]
 8. titlu (string) - Titlul complet al deciziei
 9. text_denumire_articol (string) - Titlul articolului pentru SEO
-10. text_situatia_de_fapt (string) - Descriere detaliată a faptelor cauzei
+10. text_situatia_de_fapt (string) - Descriere detaliată a faptelor (FOARTE MARE!)
 11. text_ce_invatam (string) - Principii de drept și lecții extrase
-12. text_individualizare (string) - Elementele unice care particularizează speța
-13. text_doctrina (string) - Referințe doctrinare (poate fi "null")
-14. sursa (string) - Ex: "preluat din www.rolii.ro"
-15. obiect (string) - Ex: "conflict negativ de competenţă", "contestație la executare"
-16. materie (string) - Ex: "Codul Muncii", "CoduldeProceduraCivila", "Codul Penal"
-17. articol_incident (string) - Lista articolelor de lege invocate
-18. Rezumat_generat_de_AI_Cod (string) - Rezumat AI al deciziei
-19. analiza_judecator (string) - Analiza critică a judecătorului
-20. Considerentele (string) - Considerentele instanței
-21. Dispozitivul (string) - Dispozitivul deciziei
-22. argumente_instanta (string) - Argumentele utilizate de instanță
-23. solutia (string) - Soluția pronunțată (poate include pedepse/amenzi)
-24. considerente_speta (string) - Motivarea specifică
-25. data_solutiei (string/date) - Data pronunțării
+12. text_individualizare (string) - Elementele unice, pedepse (FOARTE IMPORTANT!)
+13. text_doctrina (string) - Referințe doctrinare
+14. sursa (string) - Sursa datelor
+15. obiect (string) - Ex: "conflict negativ de competenţă", "omor"
+16. materie (string) - Ex: "Codul Muncii", "Codul Penal"
+17. articol_incident (string) - Articole de lege invocate
+18. Rezumat_generat_de_AI_Cod (string) - Rezumat concis
+19. analiza_judecator (string) - Analiza critică
+20. Considerentele (string) - Motivarea instanței (FOARTE MARE!)
+21. Dispozitivul (string) - Minuta deciziei
+22. argumente_instanta (string) - Argumentele instanței
+23. solutia (string) - Soluția pe scurt (poate include pedepse)
+24. considerente_speta (string) - Motivare specifică
+25. data_solutiei (string) - Data pronunțării (YYYY-MM-DD)
 
-=================================================================================== 🚨 REGULI CRITICE - CITEȘTE CU ATENȚIE!
+=================================================================================== 🎯 MISIUNEA TA
+1. Generează un SQL COUNT query pentru a vedea volumul total.
+2. Generează un SQL ID_LIST query pentru a obține toate ID-urile relevante.
+3. IDENTIFICĂ STRICT COLOANELE NECESARE din JSONB (Smart Projection).
+   - NU selecta niciodată 'obj' complet!
+   - Selectează doar câmpurile care răspund la întrebare.
 
-❌ NU FACE NICIODATĂ ASA:
-```sql
-SELECT id, obj FROM blocuri WHERE ...
-```
-**DE CE E GREȘIT**: Returnează TOATE cele 16+ câmpuri din obj, când ai nevoie doar de 3-5!
-Acest lucru creează un prompt URIAȘ care depășește limita de context!
+=================================================================================== 📚 EXEMPLE DE STRATEGIE
 
-✅ FACE ÎNTOTDEAUNA ASA:
-```sql
-SELECT
-  id,
-  obj->>'obiect' as obiect,
-  obj->>'materie' as materie,
-  obj->>'solutia' as solutie
-FROM blocuri WHERE ...
-```
-**DE CE E CORECT**: Extrage DOAR câmpurile necesare pentru task. Prompt mic, eficient!
-
-=================================================================================== 📝 GHID PAS-CU-PAS PENTRU GENERAREA QUERY-ULUI
-
-**PASUL 1**: Analizează task-ul utilizatorului și identifică ce tip de date îi trebuie:
-
-- **Durate pedepse** → număr_dosar, obiect, materie, text_individualizare, solutia, tip_solutie, Rezumat_generat_de_AI_Cod
-- **Amenzi** → număr_dosar, obiect, materie, solutia, considerente_speta, tip_solutie
-- **Tendințe temporale** → număr_dosar, obiect, materie, solutia, data_solutiei, tip_solutie
-- **Motive/argumentare** → număr_dosar, obiect, materie, considerente_speta, argumente_instanta, analiza_judecator
-- **Principii de drept** → număr_dosar, obiect, materie, text_ce_invatam, Rezumat_generat_de_AI_Cod, articol_incident
-- **Cai de atac** → număr_dosar, tip_cale_atac, tip_solutie, obiect, materie
-- **Competență** → număr_dosar, obiect, materie, tip_solutie, argumente_instanta, Considerentele
-- **Probe** → număr_dosar, probele_retinute, tip_act_juridic, obiect, materie
-- **Keywords/categorii** → număr_dosar, keywords, obiect, materie, titlu
-- **Legislație** → număr_dosar, articol_incident, obiect, materie, text_ce_invatam
-
-**PASUL 2**: Construiește SELECT cu DOAR câmpurile identificate:
-```sql
-SELECT
-  id,                                    -- Întotdeauna include ID
-  obj->>'camp1' as camp1,                -- Câmp relevant 1
-  obj->>'camp2' as camp2,                -- Câmp relevant 2
-  obj->>'camp3' as camp3                 -- Câmp relevant 3
-FROM blocuri b
-```
-
-**PASUL 3**: Adaugă filtre WHERE inteligente pentru a găsi DOAR cazurile relevante:
-- Folosește pattern matching pentru valori numerice: `obj->>'solutia' ~ '\\d+\\s*ani'`
-- Filtrează după materie: `obj->>'materie' ILIKE '%penal%'`
-- Filtrează după obiect: `obj->>'obiect' ILIKE '%omor%'`
-
-**PASUL 4**: Adaugă LIMIT responsabil (100-250 cazuri max)
-
-=================================================================================== 📚 EXEMPLE CONCRETE
-
-**Exemplu 1: "Care este durata medie a pedepselor pentru omor?"**
-
-❌ GREȘIT:
-```sql
-SELECT id, obj FROM blocuri
-WHERE obj->>'materie' ILIKE '%penal%'
-LIMIT 200
-```
-Returnează TOT: 16+ câmpuri × 200 cazuri = PREA MULT!
-
-✅ CORECT:
-```sql
-SELECT
-  id,
-  obj->>'obiect' as obiect,
-  obj->>'materie' as materie,
-  obj->>'text_individualizare' as individualizare,
-  obj->>'solutia' as solutie
-FROM blocuri b
-WHERE obj->>'materie' ILIKE '%penal%'
-  AND obj->>'obiect' ILIKE '%omor%'
-  AND (obj->>'solutia' ~ '\\d+\\s*(ani|luni)'
-       OR obj->>'text_individualizare' ~ '\\d+\\s*(ani|luni)')
-LIMIT 150
-```
-Returnează DOAR 5 câmpuri × 150 cazuri = OPTIM!
-
-**IMPORTANT**: Include ÎNTOTDEAUNA 'text_individualizare' când cauți pedepse,
-deoarece uneori câmpul 'solutia' poate fi null, dar pedeapsa se află în
-secțiunea de individualizare!
-
-**Exemplu 2: "Analizează amenzile pentru furt calificat"**
-
-❌ GREȘIT:
-```sql
-SELECT id, obj FROM blocuri
-WHERE obj->>'obiect' ILIKE '%furt%'
-LIMIT 300
-```
-
-✅ CORECT:
-```sql
-SELECT
-  id,
-  obj->>'obiect' as obiect,
-  obj->>'materie' as materie,
-  obj->>'solutia' as solutie,
-  obj->>'considerente_speta' as considerente
-FROM blocuri b
-WHERE obj->>'obiect' ILIKE '%furt%calificat%'
-  AND obj->>'solutia' ~ '\\d+(\\.\\d+)?\\s*lei'
-LIMIT 200
-```
-
-**Exemplu 3: "Evoluția pedepselor în ultimii 5 ani"**
-
-✅ CORECT:
-```sql
-SELECT
-  id,
-  obj->>'obiect' as obiect,
-  obj->>'materie' as materie,
-  obj->>'solutia' as solutie,
-  obj->>'data_solutiei' as data_solutiei
-FROM blocuri b
-WHERE obj->>'data_solutiei' IS NOT NULL
-  AND obj->>'data_solutiei' >= '2019-01-01'
-  AND obj->>'solutia' ~ '\\d+\\s*(ani|luni)'
-ORDER BY obj->>'data_solutiei' DESC
-LIMIT 250
-```
-
-=================================================================================== 📚 EXEMPLE REALE DIN BAZA DE DATE - STRUCTURA COMPLETĂ
-
-**IMPORTANT**: Aceste exemple arată STRUCTURA COMPLETĂ a datelor din baza de date.
-Când construiești query-ul, trebuie să extragi DOAR câmpurile necesare pentru task!
-
-**Exemplu Record 1: Conflict de Competență (Litigii de Muncă)**
-```json
+Exemplu 1: "Care este durata medie a pedepselor pentru omor?"
 {{
-  "număr_dosar": "Sentinţa Civilă nr.93",
-  "tip_solutie": "Stabileşte competenţa de soluţionare a cauzei în favoarea Tribunalului G______",
-  "tip_cale_atac": "Definitivă",
-  "cereri_accesorii": "cheltuielile de judecata",
-  "tip_act_juridic": "Cerere de chemare în judecată",
-  "probele_retinute": "null",
-  "keywords": ["Conflict de competență", "Litigii de muncă", "Competență materială"],
-  "titlu": "Sentinta nr. 93/2021 din 27-sept-2021, Curtea de Apel Bucuresti",
-  "text_situatia_de_fapt": "Reclamantul A_________ A____ a introdus o acțiune în răspundere patrimonială...",
-  "text_ce_invatam": "Principiul de drept reținut este că, în litigiile de muncă...",
-  "text_individualizare": "Speța se individualizează prin faptul că instanțele inferioare...",
-  "obiect": "conflict negativ de competenţă",
-  "materie": "Codul Muncii",
-  "articol_incident": "art. 268 alin. (1) lit. c) C. muncii, art. 296 alin. (1) C. muncii...",
-  "argumente_instanta": "Or, în cauza de faţă a se considera că judecătoria...",
-  "Considerentele": "Analizând conflictul negativ de competenţă cu care a fost sesizată..."
-}}
-```
-
-**Query corect pentru a căuta conflicte de competență în litigii de muncă:**
-```sql
-SELECT
-  id,
-  obj->>'număr_dosar' as numar_dosar,
-  obj->>'tip_solutie' as tip_solutie,
-  obj->>'obiect' as obiect,
-  obj->>'materie' as materie,
-  obj->>'keywords' as keywords,
-  obj->>'text_ce_invatam' as principii_drept
-FROM blocuri b
-WHERE obj->>'materie' ILIKE '%munc%'
-  AND obj->>'obiect' ILIKE '%conflict%competenţ%'
-  AND obj->>'keywords' ~ 'Litigii de munc'
-LIMIT 100
-```
-
-**Exemplu Record 2: Contestație la Executare (Perimare)**
-```json
-{{
-  "număr_dosar": "Decizie nr. 1405/2021",
-  "tip_solutie": "Respinge apelul",
-  "tip_cale_atac": "Apel",
-  "cereri_accesorii": "cheltuieli de judecată",
-  "tip_act_juridic": "Contestație la executare",
-  "probele_retinute": "înscrisuri",
-  "keywords": ["executare silită", "perimare", "termen decădere"],
-  "titlu": "Decizie nr. 1405/2021 din 13-mai-2021, Tribunalul Bucuresti",
-  "text_situatia_de_fapt": "O persoană fizică a formulat o contestație la executarea silită...",
-  "text_ce_invatam": "Din această decizie, înțelegem că termenul pentru formularea unei contestații...",
-  "text_individualizare": "Speța se particularizează prin interpretarea termenului de 15 zile...",
-  "obiect": "contestație la executare",
-  "materie": "CoduldeProceduraCivila",
-  "articol_incident": "art. 714 alin. 1 pct. 1 C proc civ, art. 715 C__, art. 697 alin. 1...",
-  "analiza_judecator": "Intervenirea perimării constituie un motiv de contestaţie..."
-}}
-```
-
-**Query corect pentru contestații la executare cu perimare:**
-```sql
-SELECT
-  id,
-  obj->>'număr_dosar' as numar_dosar,
-  obj->>'tip_act_juridic' as tip_act,
-  obj->>'obiect' as obiect,
-  obj->>'keywords' as keywords,
-  obj->>'text_ce_invatam' as lectii,
-  obj->>'analiza_judecator' as analiza
-FROM blocuri b
-WHERE obj->>'tip_act_juridic' ILIKE '%contestaţi%executare%'
-  AND (obj->>'keywords' ~ 'perimare' OR obj->>'text_situatia_de_fapt' ILIKE '%perimare%')
-  AND obj->>'materie' ILIKE '%procedur%civil%'
-LIMIT 150
-```
-
-**Exemplu Record 3: Tentativă la Omor (Penal)**
-```json
-{{
-  "număr_dosar": "Dosar nr. ####/98/2022 (292/2023) Decizia penală nr. ###/A",
-  "tip_solutie": "Respinge apelul ca nefondat. Menține sentința penală",
-  "tip_cale_atac": "Apel",
-  "cereri_accesorii": "Cheltuieli judiciare, daune materiale și morale",
-  "tip_act_juridic": "Tentativă la omor (art. 32 rap. la art. 188 C. pen.)",
-  "probele_retinute": "Declarații inculpat, declarație parte civilă, expertiză medico-legală",
-  "keywords": ["Tentativă la omor", "Individualizare pedeapsă", "Lovituri cu cuțitul"],
-  "titlu": "Decizie nr. RJ 59g949d4e/2023 din 05-apr-2023, Curtea de Apel Bucuresti",
-  "text_situatia_de_fapt": "Inculpatul, în seara zilei de 09.08.2022, a aplicat părții civile mai multe lovituri...",
-  "text_ce_invatam": "Lecția principală este că provocarea nu justifică violența de o gravitate extremă...",
-  "text_individualizare": "Elementele unice sunt: contextul faptei (conflict degenerat din cauza infidelității)...",
-  "obiect": "Apel (Sentință penală - Tentativă la omor)",
-  "materie": "Codul Penal",
-  "articol_incident": "art. 32 Cod penal, art. 188 Cod penal, art. 396 alin. 10 C. proc. pen...",
-  "Rezumat_generat_de_AI_Cod": "Inculpatul a fost condamnat la 3 ani și 6 luni închisoare...",
-  "analiza_judecator": "Ceea ce este evident este faptul că inculpatul a sfidat orice normă..."
-}}
-```
-
-**Query corect pentru tentativă la omor cu individualizare pedeapsă:**
-```sql
-SELECT
-  id,
-  obj->>'număr_dosar' as numar_dosar,
-  obj->>'tip_solutie' as solutie,
-  obj->>'obiect' as obiect,
-  obj->>'materie' as materie,
-  obj->>'text_individualizare' as individualizare,
-  obj->>'keywords' as keywords,
-  obj->>'Rezumat_generat_de_AI_Cod' as rezumat,
-  obj->>'analiza_judecator' as analiza
-FROM blocuri b
-WHERE obj->>'materie' ILIKE '%penal%'
-  AND (obj->>'obiect' ILIKE '%tentativ%omor%' OR obj->>'keywords' ~ 'Tentativă la omor')
-  AND obj->>'text_individualizare' IS NOT NULL
-LIMIT 120
-```
-
-**🔑 LECȚII CHEIE DIN EXEMPLE:**
-1. **keywords** este adesea un array - folosește `~` pentru pattern matching, NU `ILIKE`
-2. **text_ce_invatam** conține principiile juridice - util pentru căutări de doctrină
-3. **text_individualizare** conține informații despre circumstanțe - esențial pentru pedepse
-4. **analiza_judecator** este prezent în unele cazuri și conține raționamentul instanței
-5. **Rezumat_generat_de_AI_Cod** oferă un rezumat concis perfect pentru analize rapide
-6. **articol_incident** conține TOATĂ legislația aplicabilă - util pentru căutări legislative
-
-=================================================================================== 🎯 PATTERN-URI REGEX UTILE
-
-Pentru filtrare precisă în WHERE:
-- Durate: `~ '\\d+\\s*(ani|luni|zile)'`
-- Amenzi: `~ '\\d+(\\.\\d+)?\\s*(lei|RON)'`
-- Numere generale: `~ '\\d+'`
-- Date: `~ '\\d{{4}}-\\d{{2}}-\\d{{2}}'`
-- Keywords array: `~ 'pattern'` (NU ILIKE pentru array!)
-- Articole de lege: `~ 'art\\.\\s*\\d+'`
-
-=================================================================================== ✅ CHECKLIST ÎNAINTE DE RĂSPUNS
-
-Verifică că query-ul tău:
-- [ ] NU folosește `SELECT id, obj FROM blocuri`
-- [ ] Folosește `SELECT id, obj->>'camp1' as camp1, obj->>'camp2' as camp2, ...`
-- [ ] Include DOAR 3-7 câmpuri relevante pentru task
-- [ ] Are filtre WHERE inteligente cu pattern matching
-- [ ] Are LIMIT între 100-250
-- [ ] Caută în secțiuni specifice (solutia, individualizare, considerente)
-
-=================================================================================== 📤 FORMAT RĂSPUNS - JSON OBLIGATORIU
-
-{{
-  "python_code": "def filter_data(session):\\n    from sqlmodel import text\\n    query = text(\\\"\\\"\\\"\\n        SELECT \\n          id,\\n          obj->>'obiect' as obiect,\\n          obj->>'materie' as materie,\\n          obj->>'solutia' as solutie\\n        FROM blocuri b\\n        WHERE obj->>'materie' ILIKE '%penal%'\\n          AND obj->>'solutia' ~ '\\\\d+\\\\s*ani'\\n        LIMIT 150\\n    \\\"\\\"\\\")\\n    return session.execute(query).mappings().all()",
-  "description": "Extrage cazuri penale cu pedepse în ani, folosind doar 4 câmpuri relevante",
-  "expected_result_count": 150,
-  "filters_applied": ["materie ILIKE '%penal%'", "pattern matching pe solutia", "LIMIT 150"],
-  "fields_selected": ["id", "obiect", "materie", "solutia"],
-  "rationale": "Pentru analiza duratelor, am selectat doar câmpurile esențiale: obiect, materie și solutia (care conține pedeapsa). Nu am inclus cele 16+ câmpuri pentru a optimiza dimensiunea răspunsului."
+  "count_query": "SELECT COUNT(*) FROM blocuri WHERE obj->>'materie' ILIKE '%penal%' AND obj->>'obiect' ILIKE '%omor%'",
+  "id_list_query": "SELECT id FROM blocuri WHERE obj->>'materie' ILIKE '%penal%' AND obj->>'obiect' ILIKE '%omor%'",
+  "selected_columns": ["solutia", "text_individualizare", "obiect", "materie"],
+  "rationale": "Am selectat 'solutia' și 'text_individualizare' pentru a extrage durata pedepselor. 'obiect' și 'materie' sunt pentru context."
 }}
 
-⚠️ CERINȚE OBLIGATORII:
-- Nume funcție: `filter_data(session)`
-- Import `text` în interiorul funcției
-- Return: `session.execute(query).mappings().all()`
-- LIMIT este OBLIGATORIU (100-250)!
-- SELECT cu câmpuri specifice (NU `SELECT id, obj`)
-- Include `fields_selected` și `rationale` în JSON
+Exemplu 2: "Evoluția amenzilor pentru furt în ultimii 5 ani"
+{{
+  "count_query": "SELECT COUNT(*) FROM blocuri WHERE obj->>'obiect' ILIKE '%furt%' AND obj->>'solutia' ~ '\\\\d+(\\\\.\\\\d+)?\\\\s*lei' AND obj->>'data_solutiei' >= '2020-01-01'",
+  "id_list_query": "SELECT id FROM blocuri WHERE obj->>'obiect' ILIKE '%furt%' AND obj->>'solutia' ~ '\\\\d+(\\\\.\\\\d+)?\\\\s*lei' AND obj->>'data_solutiei' >= '2020-01-01'",
+  "selected_columns": ["solutia", "data_solutiei", "obiect"],
+  "rationale": "Am nevoie de 'solutia' pentru sume și 'data_solutiei' pentru evoluția în timp."
+}}
 
-🔥 RĂSPUNDE DOAR CU JSON (FĂRĂ TEXT ÎNAINTE SAU DUPĂ):
+=================================================================================== 📤 FORMAT RĂSPUNS (JSON)
+{{
+  "count_query": "SELECT COUNT(*) FROM blocuri WHERE ...",
+  "id_list_query": "SELECT id FROM blocuri WHERE ...",
+  "selected_columns": ["col1", "col2"],
+  "rationale": "Explicatie..."
+}}
+
+⚠️ REGULI:
+- Queries trebuie să fie PostgreSQL valid.
+- id_list_query trebuie să returneze DOAR coloana 'id'.
+- selected_columns trebuie să fie o listă de string-uri (chei din JSONB).
+- Fii strict cu filtrele WHERE pentru a elimina zgomotul.
+- Folosește operatorul `->>` pentru a accesa câmpuri JSONB ca text.
+- Pentru array-uri (ex: keywords), folosește `~` (regex) nu `ILIKE`.
+
+RĂSPUNDE DOAR CU JSON:
 """
-        return prompt
 
-    def _build_analysis_prompt(self, user_query: str, filtered_data: List[Dict], metadata: Dict[str, Any] = None) -> str:
-        """Construiește promptul pentru ROUND 2 (analiza datelor filtrate)."""
+    def _execute_discovery_queries(self, strategy: Dict[str, Any]) -> Tuple[int, List[int]]:
+        """Execută query-urile generate pentru a obține count și lista de ID-uri."""
 
-        # Datele sunt deja validate și truncate
-        data_json = json.dumps(filtered_data, indent=2, ensure_ascii=False)
+        # Validare basic
+        if "count_query" not in strategy or "id_list_query" not in strategy:
+            raise ValueError("Strategia nu conține query-urile necesare.")
 
-        # Info despre truncare dacă există
-        truncation_info = ""
-        if metadata and metadata.get('truncated', False):
-            truncation_info = f"\n⚠️ NOTĂ: Din {metadata['total_cases_filtered']} cazuri filtrate, am inclus {metadata['cases_included_in_prompt']} pentru a respecta limita de context.\n"
+        count_sql = strategy['count_query']
+        ids_sql = strategy['id_list_query']
 
-        prompt = f"""===================================================================================
-🔬 ROUND 2: ANALIZA DATELOR FILTRATE
-Tu ești un Data Scientist și Analist Juridic Senior.
-
-TASK-UL ORIGINAL AL UTILIZATORULUI: {user_query}
-{truncation_info}
-CONTEXT: În ROUND 1, am extras {len(filtered_data)} cazuri relevante din baza de date. Acum trebuie să ANALIZEZI aceste date și să returnezi rezultate statistice.
-
-=================================================================================== 📦 DATELE EXTRASE ({len(filtered_data)} cazuri)
-{data_json}
-
-=================================================================================== 🎯 MISIUNEA TA (ROUND 2)
-Analizează datele și generează statistici:
-
-1. **Extragere valori numerice**:
-   - Dacă câmpul 'solutia'/'solutie' conține valori → extrage-le
-   - Dacă 'solutia' este null/gol → caută în 'individualizare'/'text_individualizare'
-   - Pattern-uri comune: "X ani", "X luni", "X zile", "X lei", "amenda de X lei"
-   - Folosește regex pentru extragere: r'(\d+)\s*(ani|luni|zile|lei)'
-
-2. **Calculează statistici**:
-   - Total cazuri analizate
-   - Medie, mediană, min, max
-   - Distribuție (dacă relevanță)
-   - Tendințe temporale (dacă există date)
-
-3. **Interpretare**: Rezumă descoperirile în limbaj natural
-
-=================================================================================== 🚨 REGULI CRITICE - RĂSPUNS JSON OBLIGATORIU!
-
-❌ NU RĂSPUNDE NICIODATĂ CU TEXT NORMAL:
-```
-Analiza datelor relevă că nu există valori numerice...
-```
-**DE CE E GREȘIT**: Aplicația așteaptă JSON valid și va da eroare!
-
-✅ RĂSPUNDE ÎNTOTDEAUNA CU JSON, CHIAR DACĂ NU AI DATE:
-```json
-{{
-  "results": {{
-    "total_cases_analyzed": 13,
-    "error": "Nu s-au găsit valori numerice în câmpurile solutia sau individualizare",
-    "data_quality_issues": ["Toate câmpurile 'solutia' sunt null", "Nu s-au găsit pattern-uri numerice în 'individualizare'"]
-  }},
-  "interpretation": "Datele extrase nu conțin informații numerice despre pedepse. Se recomandă verificarea bazei de date sau ajustarea filtrelor de extragere.",
-  "charts": []
-}}
-```
-
-=================================================================================== 📤 FORMAT RĂSPUNS - EXEMPLE CONCRETE
-
-**Exemplu 1: Date valide cu pedepse**
-```json
-{{
-  "results": {{
-    "total_cases_analyzed": 87,
-    "mean_sentence_years": 15.3,
-    "median_sentence_years": 14.0,
-    "min_sentence_years": 5,
-    "max_sentence_years": 25,
-    "sentence_distribution": {{"5-10 ani": 12, "10-15 ani": 45, "15-20 ani": 25, "20+ ani": 5}}
-  }},
-  "interpretation": "Analiza a 87 de cazuri de omor relevă o pedeapsă medie de 15.3 ani, cu majoritatea pedepselor (51.7%) în intervalul 10-15 ani. Se observă aplicarea consistentă a pedepselor în limitele legale.",
-  "charts": [
-    {{
-      "type": "bar_chart",
-      "title": "Distribuția pedepselor",
-      "data": {{"labels": ["5-10 ani", "10-15 ani", "15-20 ani", "20+ ani"], "values": [12, 45, 25, 5]}}
-    }}
-  ]
-}}
-```
-
-**Exemplu 2: Date incomplete (câmpuri null)**
-```json
-{{
-  "results": {{
-    "total_cases_analyzed": 13,
-    "data_source": "individualizare",
-    "extracted_values_count": 8,
-    "mean_sentence_years": 3.2,
-    "note": "Câmpul 'solutia' era null, valorile au fost extrase din 'individualizare' folosind pattern matching"
-  }},
-  "interpretation": "Din cele 13 cazuri de furt, s-au putut extrage 8 valori numerice din secțiunea de individualizare. Pedeapsa medie este de 3.2 ani. Pentru 5 cazuri nu s-au găsit valori numerice explicite.",
-  "charts": []
-}}
-```
-
-**Exemplu 3: Lipsă date numerice (IMPORTANT!)**
-```json
-{{
-  "results": {{
-    "total_cases_analyzed": 10,
-    "error": "Extragere eșuată: nu s-au găsit valori numerice",
-    "fields_checked": ["solutia", "solutie", "individualizare", "text_individualizare"],
-    "suggestion": "Verificați dacă datele conțin informații despre pedepse în alte câmpuri sau dacă este necesară o filtrare mai specifică"
-  }},
-  "interpretation": "Analiza nu a putut identifica valori numerice în datele furnizate. Câmpurile verificate (solutia, individualizare) nu conțin pattern-uri de tipul 'X ani' sau 'X lei'. Se recomandă verificarea surselor de date.",
-  "charts": []
-}}
-```
-
-=================================================================================== ⚠️ CERINȚE ABSOLUTE
-
-1. Răspunsul TREBUIE să fie JSON valid
-2. Cheia 'results' este OBLIGATORIE
-3. Cheia 'interpretation' este OBLIGATORIE
-4. Cheia 'charts' este OBLIGATORIE (poate fi array gol [])
-5. NICIODATĂ nu răspunde cu text explicativ în afara JSON-ului
-6. Dacă nu găsești date → returnează JSON cu câmpul 'error'
-7. Folosește DOAR escape-uri valide în JSON (\n, \t, \", \\)
-
-🔥 RĂSPUNDE EXCLUSIV CU JSON (ZERO TEXT ÎNAINTE SAU DUPĂ):
-"""
-        return prompt
-
-    def _execute_filter_code(self, python_code: str) -> List[Dict]:
-        """
-        Execută codul Python de filtrare generat de LLM.
-        """
-        from ..lib.python_executor import SecurePythonExecutor
-
-        executor = SecurePythonExecutor()
-
-        # 1. Validare cod
+        # Execuție COUNT
         try:
-            executor.validate_code(python_code)
-        except ValueError as e:
-            raise ValueError(f"Codul generat de LLM nu este sigur: {e}")
-
-        # 2. Wrapper pentru a injecta session-ul DB
-        # Definim o funcție wrapper care primește session-ul curent din self.session
-        # Dar SecurePythonExecutor rulează exec(), deci trebuie să-i pasăm session-ul cumva.
-        # Soluția: Injectăm session-ul în global_scope al executorului sau folosim un closure.
-        # Aici vom folosi o abordare unde codul generat folosește 'session' care va fi disponibil în scope.
-
-        # Codul generat este de forma:
-        # def filter_data(session):
-        #    ...
-        #    return ...
-
-        # Noi trebuie să-l apelăm.
-
-        wrapper_code = f"""
-{python_code}
-
-# Execuție
-# Variabila 'current_session' va fi injectată în globals
-filtered_results = filter_data(current_session)
-"""
-
-        # Injectăm session-ul curent
-        # Modificăm SecurePythonExecutor să accepte variabile extra în scope
-
-        # HACK: Pentru a nu modifica prea mult SecurePythonExecutor acum,
-        # vom face un mic bypass controlat sau îl actualizăm.
-        # Mai bine actualizăm apelul către executor să suporte context custom.
-
-        # Dar stai, SecurePythonExecutor.execute_code_with_db_access folosește un `exec` simplu.
-        # Trebuie să-i dăm session-ul.
-
-        # Rescriem un pic logica de execuție locală aici pentru simplitate,
-        # sau instanțiem executorul și îi dăm ce trebuie.
-
-        # Să folosim executorul definit anterior, dar trebuie să-i dăm session-ul.
-        # Executorul definit în pasul anterior nu primea session ca parametru la execute.
-        # Voi face o mică modificare la logică:
-
-        try:
-            # Pregătim scope-ul
-            local_scope = {}
-            global_scope = {
-                'text': text,
-                'Session': Session,
-                'List': List,
-                'Dict': Dict,
-                'Any': Any,
-                'current_session': self.session # Injectăm sesiunea curentă!
-            }
-
-            # Executăm
-            exec(wrapper_code, global_scope, local_scope)
-
-            if 'filtered_results' in local_scope:
-                raw_data = local_scope['filtered_results']
-            else:
-                raise RuntimeError("Codul nu a returnat 'filtered_results'")
-
+            count_res = self.session.execute(text(count_sql)).scalar()
         except Exception as e:
-            raise RuntimeError(f"Eroare execuție cod filtrare: {e}")
+            logger.error(f"Eroare execuție COUNT query: {e}")
+            raise ValueError(f"Query COUNT invalid: {e}")
 
-        # Procesare rezultate (Flatten)
-        processed = []
-        for row in raw_data:
-            # row este un RowMapping sau dict
-            # Poate conține fie 'obj' (JSONB complet) fie câmpuri individuale
+        # Execuție ID LIST
+        try:
+            ids_res = self.session.execute(text(ids_sql)).scalars().all()
+        except Exception as e:
+            logger.error(f"Eroare execuție ID_LIST query: {e}")
+            raise ValueError(f"Query ID_LIST invalid: {e}")
 
-            # Dacă e RowMapping, accesăm ca dict
-            if hasattr(row, '_mapping'):
-                row_dict = dict(row._mapping)
-            else:
-                row_dict = dict(row)
+        return count_res, list(ids_res)
 
-            # Verificăm dacă avem câmpul 'obj' (query vechi: SELECT id, obj)
-            if 'obj' in row_dict:
-                obj_data = row_dict.get('obj', {})
+    def _fetch_chunk_data(self, ids: List[int], columns: List[str]) -> List[Dict]:
+        """
+        Smart Fetch: Extrage doar coloanele specificate pentru o listă de ID-uri.
+        Construiește dinamic query-ul SQL.
+        """
+        if not ids:
+            return []
 
-                if isinstance(obj_data, str):
-                    try:
-                        obj_data = json.loads(obj_data)
-                    except:
-                        obj_data = {}
+        # Construire SELECT dinamic
+        # SELECT id, obj->>'col1' as col1, obj->>'col2' as col2 FROM blocuri WHERE id IN (...)
 
-                if not isinstance(obj_data, dict):
-                    obj_data = {}
+        select_parts = ["id"]
+        for col in columns:
+            # Sanitizare simplă pentru a preveni injecții grosolane, deși coloanele vin din LLM
+            clean_col = col.replace("'", "")
+            select_parts.append(f"obj->>'{clean_col}' as \"{clean_col}\"")
 
-                # Combinăm ID cu datele din obj
-                flat_item = {
-                    'id': row_dict.get('id'),
-                    **obj_data
-                }
-            else:
-                # Query nou: SELECT id, obj->>'field1' as field1, obj->>'field2' as field2
-                # Deja avem câmpurile ca și coloane separate
-                flat_item = row_dict
+        select_clause = ", ".join(select_parts)
+        ids_str = ",".join(map(str, ids))
 
-            processed.append(flat_item)
+        sql = f"SELECT {select_clause} FROM blocuri WHERE id IN ({ids_str})"
 
-        return processed
+        results = self.session.execute(text(sql)).mappings().all()
+        return [dict(r) for r in results]
 
-    def _parse_json_response(self, content: str) -> Dict:
-        """Parse răspuns JSON de la LLM, gestionând potențiale markdown blocks."""
-        content = content.strip()
-
-        # Eliminăm markdown code blocks ```json ... ```
-        if content.startswith("```"):
-            # Căutăm primul {
-            start = content.find("{")
-            # Căutăm ultimul }
-            end = content.rfind("}")
-            if start != -1 and end != -1:
-                content = content[start:end+1]
-
-        # Încercăm să găsim JSON-ul dacă e îngropat în text
-        start = content.find('{')
-        end = content.rfind('}')
-
-        if start != -1 and end != -1:
-            json_str = content[start:end+1]
-            return json.loads(json_str)
-
-        raise ValueError("Nu s-a găsit JSON valid în răspuns")
+    def _save_plan(self, plan: Dict[str, Any]):
+        """Salvează planul pe disk."""
+        file_path = os.path.join(self.plans_dir, f"{plan['plan_id']}.json")
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(plan, f, indent=2, ensure_ascii=False)
 
     def _identify_query_type(self, query: str) -> str:
         """Identifică tipul query-ului bazat pe cuvinte cheie."""
@@ -1035,3 +738,14 @@ RĂSPUNDE DOAR CU JSON:
             logger.warning(f"[VALIDARE] ⚠️ ATENȚIE: Prompt estimat ({estimated_total}) depășește limita ({max_chars})!")
 
         return truncated_data, metadata
+
+    def _parse_json_response(self, response_content: str) -> Dict[str, Any]:
+        """Parsează răspunsul JSON de la LLM, curățând eventualele markdown fences."""
+        cleaned = response_content.strip()
+        if cleaned.startswith("```json"):
+            cleaned = cleaned[7:]
+        if cleaned.startswith("```"):
+            cleaned = cleaned[3:]
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3]
+        return json.loads(cleaned)
