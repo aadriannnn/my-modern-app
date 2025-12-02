@@ -295,3 +295,16 @@ export const startAdvancedAnalysis = async (query: string) => {
   }
   return response.json();
 };
+
+export const getAdvancedAnalysisStatus = async (jobId: string) => {
+  const response = await fetch(`${API_URL}/advanced-analysis/status/${jobId}`, {
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to get analysis status');
+  }
+
+  return response.json();
+};

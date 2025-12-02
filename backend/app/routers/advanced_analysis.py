@@ -70,3 +70,18 @@ async def advanced_statistical_analysis(
     except Exception as e:
         logger.error(f"Eroare endpoint advanced-analysis: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/status/{job_id}")
+async def get_advanced_analysis_status(job_id: str):
+    """
+    Check the status of an advanced analysis job.
+    Returns: {status: 'queued'|'processing'|'completed'|'failed'|'not_found', result: {...}}
+    """
+    try:
+        status = queue_manager.get_job_status(job_id)
+        logger.info(f"Advanced analysis job {job_id} status: {status.get('status')}")
+        return status
+    except Exception as e:
+        logger.error(f"Error getting advanced analysis job status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Eroare la verificarea statusului: {str(e)}")

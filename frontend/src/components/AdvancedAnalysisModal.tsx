@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, BrainCircuit, Play, AlertCircle } from 'lucide-react';
-import { startAdvancedAnalysis, subscribeToQueueStatus } from '../lib/api';
+import { startAdvancedAnalysis, subscribeToQueueStatus, getAdvancedAnalysisStatus } from '../lib/api';
 import QueueStatus from './QueueStatus';
 import AnalysisResults from './AnalysisResults';
 
@@ -97,13 +97,33 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                     if (eventSourceRef.current) eventSourceRef.current.close();
                 }
             },
-            () => {
-                // On complete, if we haven't received the result yet, we might need to fetch it.
-                // But usually the last message contains it or we should have it.
-                // If we don't have it, let's try to fetch it or assume it was sent.
-                // For this implementation, let's assume the backend sends the result in the last SSE message
-                // OR we need a separate endpoint to get the result.
-                // Given the previous code, let's assume we need to wait for the result in the stream.
+            async () => {
+                // On complete from SSE, fetch the actual result from the status endpoint
+                console.log('[Advanced Analysis] SSE completed, fetching result...');
+                try {
+                    const statusData = await getAdvancedAnalysisStatus(id);
+                    console.log('[Advanced Analysis] Status data:', statusData);
+
+                    if (statusData.status === 'completed' && statusData.result) {
+                        // Check if the result itself has success: false
+                        if (statusData.result.success === false) {
+                            setError(statusData.result.error || 'A apărut o eroare necunoscută.');
+                        } else {
+                            setResult(statusData.result);
+                        }
+                        setJobId(null);
+                    } else if (statusData.status === 'failed' || statusData.error) {
+                        setError(statusData.error || 'Analiza a eșuat.');
+                        setJobId(null);
+                    } else {
+                        // Still processing or unknown state
+                        console.warn('[Advanced Analysis] Unexpected status:', statusData.status);
+                    }
+                } catch (err: any) {
+                    console.error('[Advanced Analysis] Error fetching result:', err);
+                    setError(err.message || 'Eroare la preluarea rezultatului.');
+                    setJobId(null);
+                }
                 setQueueStatus(prev => ({ ...prev, status: 'completed' }));
             },
             (err) => {
