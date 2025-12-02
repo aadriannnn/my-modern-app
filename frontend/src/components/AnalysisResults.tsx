@@ -54,11 +54,13 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ data }) => {
 
     // Helper to render charts dynamically
     const renderChart = (chartData: any, index: number) => {
-        if (!chartData || !chartData.data) return null;
+        if (!chartData || !chartData.data || !Array.isArray(chartData.data.labels) || !Array.isArray(chartData.data.values)) {
+            return null;
+        }
 
         const formattedData = chartData.data.labels.map((label: string, i: number) => ({
             name: label,
-            value: chartData.data.values[i]
+            value: chartData.data.values[i] || 0
         }));
 
         return (
