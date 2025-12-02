@@ -818,15 +818,17 @@ RĂSPUNDE DOAR CU JSON:
     def _parse_json_response(self, content: str) -> Dict[str, Any]:
         """Parsează răspunsul JSON de la LLM, curățând eventualele markdown fences."""
         cleaned = content.strip()
-        if cleaned.startswith("```json"):
-            cleaned = cleaned[7:]
-        elif cleaned.startswith("```"):
-            cleaned = cleaned[3:]
 
-        if cleaned.endswith("```"):
-            cleaned = cleaned[:-3]
+        # Folosim regex pentru a elimina markdown code fences (```json sau ```)
+        # Pattern: ^```(json)?\s* la început și \s*```$ la sfârșit
 
-        # Eliminare caractere invizibile/spații
+        # Eliminare fence de început (```json sau ```) cu newlines opționale
+        cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
+
+        # Eliminare fence de sfârșit (```) cu newlines opționale
+        cleaned = re.sub(r'\s*```\s*$', '', cleaned)
+
+        # Eliminare caractere invizibile/spații suplimentare
         cleaned = cleaned.strip()
 
         try:
