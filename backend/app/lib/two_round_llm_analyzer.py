@@ -275,17 +275,31 @@ CREATE TABLE blocuri (
 );
 
 Câmpuri disponibile în obj (JSONB):
-1. materie (string) - "Penal", "Civil"
-2. obiect (string) - "Omor", "Furt calificat"
-3. solutia (string) - Soluția instanței cu pedepse/amenzi
-4. considerente_speta (string) - Motivarea instanței
-5. argumente_instanta (string) - Argumentele instanței
-6. text_individualizare (string) - Circumstanțe individualizare pedeapsă
-7. data_solutiei (string/date) - Data pronunțării
-8. tip_speta (string) - "Apel", "Recurs"
-9. parte (string) - "Reclamant", "Inculpat"
-10. text_situatia_de_fapt (string) - Faptele cauzei
-... și alte 6+ câmpuri
+1. număr_dosar (string) - Ex: "Sentinţa Civilă nr.93", "Decizie nr. 1405/2021", "Dosar nr. ####/98/2022"
+2. tip_solutie (string) - Ex: "Stabileşte competenţa", "Respinge apelul", "Menține sentința"
+3. tip_cale_atac (string) - Ex: "Definitivă", "Apel", "Recurs"
+4. cereri_accesorii (string) - Ex: "cheltuieli de judecată", "daune materiale și morale"
+5. tip_act_juridic (string) - Ex: "Cerere de chemare în judecată", "Contestație la executare", "Tentativă la omor"
+6. probele_retinute (string) - Ex: "null", "înscrisuri", "Declarații martori, expertiză medico-legală"
+7. keywords (array/string) - Ex: ["Conflict de competență", "Litigii de muncă"], ["executare silită", "perimare"]
+8. titlu (string) - Titlul complet al deciziei
+9. text_denumire_articol (string) - Titlul articolului pentru SEO
+10. text_situatia_de_fapt (string) - Descriere detaliată a faptelor cauzei
+11. text_ce_invatam (string) - Principii de drept și lecții extrase
+12. text_individualizare (string) - Elementele unice care particularizează speța
+13. text_doctrina (string) - Referințe doctrinare (poate fi "null")
+14. sursa (string) - Ex: "preluat din www.rolii.ro"
+15. obiect (string) - Ex: "conflict negativ de competenţă", "contestație la executare"
+16. materie (string) - Ex: "Codul Muncii", "CoduldeProceduraCivila", "Codul Penal"
+17. articol_incident (string) - Lista articolelor de lege invocate
+18. Rezumat_generat_de_AI_Cod (string) - Rezumat AI al deciziei
+19. analiza_judecator (string) - Analiza critică a judecătorului
+20. Considerentele (string) - Considerentele instanței
+21. Dispozitivul (string) - Dispozitivul deciziei
+22. argumente_instanta (string) - Argumentele utilizate de instanță
+23. solutia (string) - Soluția pronunțată (poate include pedepse/amenzi)
+24. considerente_speta (string) - Motivarea specifică
+25. data_solutiei (string/date) - Data pronunțării
 
 =================================================================================== 🚨 REGULI CRITICE - CITEȘTE CU ATENȚIE!
 
@@ -310,10 +324,17 @@ FROM blocuri WHERE ...
 =================================================================================== 📝 GHID PAS-CU-PAS PENTRU GENERAREA QUERY-ULUI
 
 **PASUL 1**: Analizează task-ul utilizatorului și identifică ce tip de date îi trebuie:
-- Durate pedepse → obiect, materie, text_individualizare, solutia
-- Amenzi → obiect, materie, solutia, considerente_speta
-- Tendințe temporale → obiect, materie, solutia, data_solutiei
-- Motive/argumentare → obiect, materie, considerente_speta, argumente_instanta
+
+- **Durate pedepse** → număr_dosar, obiect, materie, text_individualizare, solutia, tip_solutie, Rezumat_generat_de_AI_Cod
+- **Amenzi** → număr_dosar, obiect, materie, solutia, considerente_speta, tip_solutie
+- **Tendințe temporale** → număr_dosar, obiect, materie, solutia, data_solutiei, tip_solutie
+- **Motive/argumentare** → număr_dosar, obiect, materie, considerente_speta, argumente_instanta, analiza_judecator
+- **Principii de drept** → număr_dosar, obiect, materie, text_ce_invatam, Rezumat_generat_de_AI_Cod, articol_incident
+- **Cai de atac** → număr_dosar, tip_cale_atac, tip_solutie, obiect, materie
+- **Competență** → număr_dosar, obiect, materie, tip_solutie, argumente_instanta, Considerentele
+- **Probe** → număr_dosar, probele_retinute, tip_act_juridic, obiect, materie
+- **Keywords/categorii** → număr_dosar, keywords, obiect, materie, titlu
+- **Legislație** → număr_dosar, articol_incident, obiect, materie, text_ce_invatam
 
 **PASUL 2**: Construiește SELECT cu DOAR câmpurile identificate:
 ```sql
@@ -406,6 +427,137 @@ ORDER BY obj->>'data_solutiei' DESC
 LIMIT 250
 ```
 
+=================================================================================== 📚 EXEMPLE REALE DIN BAZA DE DATE - STRUCTURA COMPLETĂ
+
+**IMPORTANT**: Aceste exemple arată STRUCTURA COMPLETĂ a datelor din baza de date.
+Când construiești query-ul, trebuie să extragi DOAR câmpurile necesare pentru task!
+
+**Exemplu Record 1: Conflict de Competență (Litigii de Muncă)**
+```json
+{{
+  "număr_dosar": "Sentinţa Civilă nr.93",
+  "tip_solutie": "Stabileşte competenţa de soluţionare a cauzei în favoarea Tribunalului G______",
+  "tip_cale_atac": "Definitivă",
+  "cereri_accesorii": "cheltuielile de judecata",
+  "tip_act_juridic": "Cerere de chemare în judecată",
+  "probele_retinute": "null",
+  "keywords": ["Conflict de competență", "Litigii de muncă", "Competență materială"],
+  "titlu": "Sentinta nr. 93/2021 din 27-sept-2021, Curtea de Apel Bucuresti",
+  "text_situatia_de_fapt": "Reclamantul A_________ A____ a introdus o acțiune în răspundere patrimonială...",
+  "text_ce_invatam": "Principiul de drept reținut este că, în litigiile de muncă...",
+  "text_individualizare": "Speța se individualizează prin faptul că instanțele inferioare...",
+  "obiect": "conflict negativ de competenţă",
+  "materie": "Codul Muncii",
+  "articol_incident": "art. 268 alin. (1) lit. c) C. muncii, art. 296 alin. (1) C. muncii...",
+  "argumente_instanta": "Or, în cauza de faţă a se considera că judecătoria...",
+  "Considerentele": "Analizând conflictul negativ de competenţă cu care a fost sesizată..."
+}}
+```
+
+**Query corect pentru a căuta conflicte de competență în litigii de muncă:**
+```sql
+SELECT
+  id,
+  obj->>'număr_dosar' as numar_dosar,
+  obj->>'tip_solutie' as tip_solutie,
+  obj->>'obiect' as obiect,
+  obj->>'materie' as materie,
+  obj->>'keywords' as keywords,
+  obj->>'text_ce_invatam' as principii_drept
+FROM blocuri b
+WHERE obj->>'materie' ILIKE '%munc%'
+  AND obj->>'obiect' ILIKE '%conflict%competenţ%'
+  AND obj->>'keywords' ~ 'Litigii de munc'
+LIMIT 100
+```
+
+**Exemplu Record 2: Contestație la Executare (Perimare)**
+```json
+{{
+  "număr_dosar": "Decizie nr. 1405/2021",
+  "tip_solutie": "Respinge apelul",
+  "tip_cale_atac": "Apel",
+  "cereri_accesorii": "cheltuieli de judecată",
+  "tip_act_juridic": "Contestație la executare",
+  "probele_retinute": "înscrisuri",
+  "keywords": ["executare silită", "perimare", "termen decădere"],
+  "titlu": "Decizie nr. 1405/2021 din 13-mai-2021, Tribunalul Bucuresti",
+  "text_situatia_de_fapt": "O persoană fizică a formulat o contestație la executarea silită...",
+  "text_ce_invatam": "Din această decizie, înțelegem că termenul pentru formularea unei contestații...",
+  "text_individualizare": "Speța se particularizează prin interpretarea termenului de 15 zile...",
+  "obiect": "contestație la executare",
+  "materie": "CoduldeProceduraCivila",
+  "articol_incident": "art. 714 alin. 1 pct. 1 C proc civ, art. 715 C__, art. 697 alin. 1...",
+  "analiza_judecator": "Intervenirea perimării constituie un motiv de contestaţie..."
+}}
+```
+
+**Query corect pentru contestații la executare cu perimare:**
+```sql
+SELECT
+  id,
+  obj->>'număr_dosar' as numar_dosar,
+  obj->>'tip_act_juridic' as tip_act,
+  obj->>'obiect' as obiect,
+  obj->>'keywords' as keywords,
+  obj->>'text_ce_invatam' as lectii,
+  obj->>'analiza_judecator' as analiza
+FROM blocuri b
+WHERE obj->>'tip_act_juridic' ILIKE '%contestaţi%executare%'
+  AND (obj->>'keywords' ~ 'perimare' OR obj->>'text_situatia_de_fapt' ILIKE '%perimare%')
+  AND obj->>'materie' ILIKE '%procedur%civil%'
+LIMIT 150
+```
+
+**Exemplu Record 3: Tentativă la Omor (Penal)**
+```json
+{{
+  "număr_dosar": "Dosar nr. ####/98/2022 (292/2023) Decizia penală nr. ###/A",
+  "tip_solutie": "Respinge apelul ca nefondat. Menține sentința penală",
+  "tip_cale_atac": "Apel",
+  "cereri_accesorii": "Cheltuieli judiciare, daune materiale și morale",
+  "tip_act_juridic": "Tentativă la omor (art. 32 rap. la art. 188 C. pen.)",
+  "probele_retinute": "Declarații inculpat, declarație parte civilă, expertiză medico-legală",
+  "keywords": ["Tentativă la omor", "Individualizare pedeapsă", "Lovituri cu cuțitul"],
+  "titlu": "Decizie nr. RJ 59g949d4e/2023 din 05-apr-2023, Curtea de Apel Bucuresti",
+  "text_situatia_de_fapt": "Inculpatul, în seara zilei de 09.08.2022, a aplicat părții civile mai multe lovituri...",
+  "text_ce_invatam": "Lecția principală este că provocarea nu justifică violența de o gravitate extremă...",
+  "text_individualizare": "Elementele unice sunt: contextul faptei (conflict degenerat din cauza infidelității)...",
+  "obiect": "Apel (Sentință penală - Tentativă la omor)",
+  "materie": "Codul Penal",
+  "articol_incident": "art. 32 Cod penal, art. 188 Cod penal, art. 396 alin. 10 C. proc. pen...",
+  "Rezumat_generat_de_AI_Cod": "Inculpatul a fost condamnat la 3 ani și 6 luni închisoare...",
+  "analiza_judecator": "Ceea ce este evident este faptul că inculpatul a sfidat orice normă..."
+}}
+```
+
+**Query corect pentru tentativă la omor cu individualizare pedeapsă:**
+```sql
+SELECT
+  id,
+  obj->>'număr_dosar' as numar_dosar,
+  obj->>'tip_solutie' as solutie,
+  obj->>'obiect' as obiect,
+  obj->>'materie' as materie,
+  obj->>'text_individualizare' as individualizare,
+  obj->>'keywords' as keywords,
+  obj->>'Rezumat_generat_de_AI_Cod' as rezumat,
+  obj->>'analiza_judecator' as analiza
+FROM blocuri b
+WHERE obj->>'materie' ILIKE '%penal%'
+  AND (obj->>'obiect' ILIKE '%tentativ%omor%' OR obj->>'keywords' ~ 'Tentativă la omor')
+  AND obj->>'text_individualizare' IS NOT NULL
+LIMIT 120
+```
+
+**🔑 LECȚII CHEIE DIN EXEMPLE:**
+1. **keywords** este adesea un array - folosește `~` pentru pattern matching, NU `ILIKE`
+2. **text_ce_invatam** conține principiile juridice - util pentru căutări de doctrină
+3. **text_individualizare** conține informații despre circumstanțe - esențial pentru pedepse
+4. **analiza_judecator** este prezent în unele cazuri și conține raționamentul instanței
+5. **Rezumat_generat_de_AI_Cod** oferă un rezumat concis perfect pentru analize rapide
+6. **articol_incident** conține TOATĂ legislația aplicabilă - util pentru căutări legislative
+
 =================================================================================== 🎯 PATTERN-URI REGEX UTILE
 
 Pentru filtrare precisă în WHERE:
@@ -413,6 +565,8 @@ Pentru filtrare precisă în WHERE:
 - Amenzi: `~ '\\d+(\\.\\d+)?\\s*(lei|RON)'`
 - Numere generale: `~ '\\d+'`
 - Date: `~ '\\d{{4}}-\\d{{2}}-\\d{{2}}'`
+- Keywords array: `~ 'pattern'` (NU ILIKE pentru array!)
+- Articole de lege: `~ 'art\\.\\s*\\d+'`
 
 =================================================================================== ✅ CHECKLIST ÎNAINTE DE RĂSPUNS
 
