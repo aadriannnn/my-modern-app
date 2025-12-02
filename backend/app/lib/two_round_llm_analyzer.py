@@ -6,6 +6,7 @@ import json
 import os
 import time
 import uuid
+import re
 from sqlmodel import Session, text
 from typing import Dict, Any, List, Tuple, Optional
 from ..settings_manager import settings_manager
@@ -46,7 +47,6 @@ class TwoRoundLLMAnalyzer:
 
             # Phase 2: Batch Execution (Map)
             # Executăm secvențial chunk-urile (pentru acest wrapper simplu)
-            # Într-un mediu full-async, acestea ar putea rula paralel via queue
             for i in range(total_chunks):
                 chunk_res = await self.execute_chunk(plan_id, i)
                 if not chunk_res['success']:
@@ -161,8 +161,6 @@ class TwoRoundLLMAnalyzer:
             chunk_data = self._fetch_chunk_data(chunk_ids, selected_columns)
 
             # 2.1. Validare și Truncare (Safety Net)
-            # Chiar dacă avem chunk-uri mici, textele pot fi enorme.
-            # Folosim funcția restaurată pentru a garanta că nu depășim limita.
             truncated_data, metadata = self._validate_and_truncate_data(chunk_data, user_query, max_chars=30000)
 
             if metadata['truncated']:
@@ -202,7 +200,6 @@ class TwoRoundLLMAnalyzer:
                 NetworkFileSaver.delete_response_file(response_path)
             except Exception as e:
                 logger.error(f"Eroare parsare răspuns Chunk {chunk_index}: {e}")
-                # Nu crăpăm tot procesul, returnăm eroare pentru acest chunk
                 return {
                     'success': False,
                     'chunk_index': chunk_index,
@@ -255,15 +252,19 @@ class TwoRoundLLMAnalyzer:
                 chunk_file = os.path.join(self.plans_dir, f"{plan_id}_chunk_{i}.json")
                 if os.path.exists(chunk_file):
                     with open(chunk_file, 'r', encoding='utf-8') as f:
-                        chunk_res = json.load(f)
-                        aggregated_data.append(chunk_res)
+                        try:
+                            chunk_res = json.load(f)
+                            aggregated_data.append(chunk_res)
+                        except json.JSONDecodeError:
+                            missing_chunks.append(i)
                 else:
                     missing_chunks.append(i)
 
-            if not aggregated_data:
-                return {
+            # Notă: Dacă nu avem niciun rezultat (toate chunks au eșuat), tot încercăm sinteza pentru a raporta eroarea
+            if not aggregated_data and len(missing_chunks) == total_chunks:
+                 return {
                     'success': False,
-                    'error': 'Nu există rezultate de la chunks pentru a fi agregate.'
+                    'error': 'Toate etapele de procesare (chunks) au eșuat. Nu se poate realiza sinteza.'
                 }
 
             logger.info(f"[PHASE 3] Synthesizing results from {len(aggregated_data)} chunks. Missing: {len(missing_chunks)}")
@@ -302,12 +303,21 @@ class TwoRoundLLMAnalyzer:
                 NetworkFileSaver.delete_response_file(response_path)
             except Exception as e:
                 logger.error(f"Eroare parsare răspuns Synthesis: {e}")
-                raise ValueError(f"LLM a returnat un răspuns invalid în Phase 3: {e}")
+                # Fallback manual pentru UI dacă parsarea eșuează total chiar și cu fallback-ul din parser
+                return {
+                     "results": {"error": "Formatare incorectă de la LLM"},
+                     "interpretation": f"Sistemul a primit un răspuns, dar nu l-a putut formata automat. Conținut brut: {poll_content[:500]}...",
+                     "charts": [],
+                     "process_metadata": {
+                        'plan_id': plan_id,
+                        'chunks_processed': len(aggregated_data)
+                    }
+                }
 
             # Adăugăm metadate despre proces
             final_result['process_metadata'] = {
                 'plan_id': plan_id,
-                'total_cases': plan['total_cases'],
+                'total_cases': plan.get('total_cases', 0),
                 'chunks_processed': len(aggregated_data),
                 'chunks_missing': len(missing_chunks)
             }
@@ -322,13 +332,10 @@ class TwoRoundLLMAnalyzer:
             }
 
     # =================================================================================================
-    # HELPER METHODS - PHASE 3
+    # HELPER METHODS - PHASE 3 (REDUCE)
     # =================================================================================================
 
     def _build_synthesis_prompt(self, user_query: str, aggregated_data: List[Dict], missing_chunks: List[int]) -> str:
-        # Minimizăm datele trimise la sinteză pentru a nu depăși contextul
-        # Trimitem doar 'extracted_data' și 'partial_stats' din fiecare chunk
-
         clean_aggregation = []
         for chunk in aggregated_data:
             clean_aggregation.append({
@@ -360,6 +367,10 @@ TASK UTILIZATOR: "{user_query}"
 2. Identifică tendințele calitative din datele extrase.
 3. Formulează un răspuns final clar, profesional și bazat STRICT pe date.
 
+⚠️ DACĂ DATELE SUNT INSUFICIENTE:
+Nu refuza să răspunzi! Formulează o concluzie calitativă despre de ce nu s-au putut extrage datele și pune-o în câmpul "interpretation".
+Returnează TOTUȘI UN JSON VALID.
+
 =================================================================================== 📤 FORMAT RĂSPUNS (JSON)
 {{
   "results": {{
@@ -381,7 +392,7 @@ RĂSPUNDE DOAR CU JSON:
         return f"""===================================================================================
 🔬 PHASE 2: BATCH EXECUTION (CHUNK {chunk_index + 1}/{total_chunks})
 ===================================================================================
-Tu ești un Analist de Date (Worker). Analizezi un mic lot de date (Chunk) ca parte a unui proces mai mare.
+Tu ești un Data Scientist și Analist Juridic Senior (Worker). Analizezi un mic lot de date (Chunk) ca parte a unui proces mai mare.
 
 TASK UTILIZATOR: "{user_query}"
 
@@ -393,8 +404,9 @@ Analizează ACEST set de date și extrage informațiile relevante pentru task.
 NU încerca să răspunzi final la întrebare! Doar extrage datele brute sau statistici parțiale.
 
 1. **Extragere valori numerice**:
-   - Caută pattern-uri: "X ani", "X luni", "X lei".
-   - Dacă câmpul principal e gol, caută în celelalte câmpuri selectate.
+   - Dacă câmpul principal (ex: 'solutia') e gol, caută în 'text_individualizare' sau 'considerente'.
+   - Pattern-uri comune: "X ani", "X luni", "X zile", "X lei", "amenda de X lei".
+   - Folosește regex pentru extragere: `r'(\\d+)\\s*(ani|luni|zile|lei)'`.
 
 2. **Sinteză parțială**:
    - Numără cazurile relevante din acest chunk.
@@ -426,7 +438,7 @@ RĂSPUNDE DOAR CU JSON:
 """
 
     # =================================================================================================
-    # HELPER METHODS - PHASE 1
+    # HELPER METHODS - PHASE 1 (DISCOVERY)
     # =================================================================================================
 
     async def _generate_discovery_strategy(self, user_query: str) -> Dict[str, Any]:
@@ -437,7 +449,7 @@ RĂSPUNDE DOAR CU JSON:
 
         prompt = self._build_discovery_prompt(user_query)
 
-        # Logică de rețea (similară cu TwoRoundLLMAnalyzer)
+        # Logică de rețea
         retea_host = settings_manager.get_value('setari_retea', 'retea_host', '')
         retea_folder = settings_manager.get_value('setari_retea', 'retea_folder_partajat', '')
 
@@ -473,54 +485,81 @@ RĂSPUNDE DOAR CU JSON:
         return f"""===================================================================================
 🔬 PHASE 1: DISCOVERY & PLANNING (SMART PROJECTION)
 ===================================================================================
-Tu ești Arhitectul Sistemului. Scopul tău este să planifici execuția eficientă pentru o analiză Big Data pe cazuri juridice.
+Tu ești un Senior Python & SQL Developer specializat în optimizarea query-urilor pe baze de date juridice PostgreSQL.
+Scopul tău este să planifici execuția eficientă pentru o analiză Big Data pe cazuri juridice.
 
 TASK UTILIZATOR: "{user_query}"
 
 =================================================================================== 📊 SCHEMA BAZEI DE DATE
 Tabel: blocuri (id INTEGER PRIMARY KEY, obj JSONB)
-Câmpuri JSONB disponibile:
+Câmpuri JSONB disponibile în 'obj':
 1. număr_dosar (string) - Ex: "Sentinţa Civilă nr.93", "Decizie nr. 1405/2021"
-2. tip_solutie (string) - Ex: "Stabileşte competenţa", "Respinge apelul"
+2. tip_solutie (string) - Ex: "Stabileşte competenţa", "Respinge apelul", "Menține sentința"
 3. tip_cale_atac (string) - Ex: "Definitivă", "Apel", "Recurs"
-4. cereri_accesorii (string) - Ex: "cheltuieli de judecată", "daune materiale"
+4. cereri_accesorii (string) - Ex: "cheltuieli de judecată", "daune materiale și morale"
 5. tip_act_juridic (string) - Ex: "Cerere de chemare în judecată", "Contestație la executare"
-6. probele_retinute (string) - Ex: "înscrisuri", "Declarații martori"
-7. keywords (array/string) - Ex: ["Conflict de competență"], ["executare silită"]
+6. probele_retinute (string) - Ex: "null", "înscrisuri", "Declarații martori, expertiză medico-legală"
+7. keywords (array/string) - Ex: ["Conflict de competență", "Litigii de muncă"], ["executare silită", "perimare"]
 8. titlu (string) - Titlul complet al deciziei
 9. text_denumire_articol (string) - Titlul articolului pentru SEO
-10. text_situatia_de_fapt (string) - Descriere detaliată a faptelor (FOARTE MARE!)
+10. text_situatia_de_fapt (string) - Descriere detaliată a faptelor cauzei (FOARTE MARE!)
 11. text_ce_invatam (string) - Principii de drept și lecții extrase
-12. text_individualizare (string) - Elementele unice, pedepse (FOARTE IMPORTANT!)
-13. text_doctrina (string) - Referințe doctrinare
-14. sursa (string) - Sursa datelor
-15. obiect (string) - Ex: "conflict negativ de competenţă", "omor"
-16. materie (string) - Ex: "Codul Muncii", "Codul Penal"
-17. articol_incident (string) - Articole de lege invocate
-18. Rezumat_generat_de_AI_Cod (string) - Rezumat concis
-19. analiza_judecator (string) - Analiza critică
-20. Considerentele (string) - Motivarea instanței (FOARTE MARE!)
-21. Dispozitivul (string) - Minuta deciziei
-22. argumente_instanta (string) - Argumentele instanței
-23. solutia (string) - Soluția pe scurt (poate include pedepse)
-24. considerente_speta (string) - Motivare specifică
-25. data_solutiei (string) - Data pronunțării (YYYY-MM-DD)
+12. text_individualizare (string) - Elementele unice care particularizează speța (FOARTE IMPORTANT PENTRU PEDEPSE!)
+13. text_doctrina (string) - Referințe doctrinare (poate fi "null")
+14. sursa (string) - Ex: "preluat din www.rolii.ro"
+15. obiect (string) - Ex: "conflict negativ de competenţă", "contestație la executare", "omor", "furt"
+16. materie (string) - Ex: "Codul Muncii", "CoduldeProceduraCivila", "Codul Penal"
+17. articol_incident (string) - Lista articolelor de lege invocate
+18. Rezumat_generat_de_AI_Cod (string) - Rezumat AI al deciziei
+19. analiza_judecator (string) - Analiza critică a judecătorului
+20. Considerentele (string) - Considerentele instanței (FOARTE MARE!)
+21. Dispozitivul (string) - Dispozitivul deciziei
+22. argumente_instanta (string) - Argumentele utilizate de instanță
+23. solutia (string) - Soluția pronunțată (poate include pedepse/amenzi)
+24. considerente_speta (string) - Motivarea specifică
+25. data_solutiei (string/date) - Data pronunțării (YYYY-MM-DD)
 
-=================================================================================== 🎯 MISIUNEA TA
-1. Generează un SQL COUNT query pentru a vedea volumul total.
-2. Generează un SQL ID_LIST query pentru a obține toate ID-urile relevante.
-3. IDENTIFICĂ STRICT COLOANELE NECESARE din JSONB (Smart Projection).
-   - NU selecta niciodată 'obj' complet!
-   - Selectează doar câmpurile care răspund la întrebare.
+=================================================================================== 🚨 REGULI CRITICE DE SQL - CITEȘTE CU ATENȚIE!
+
+❌ NU FACE NICIODATĂ ASA:
+```sql
+SELECT id, obj FROM blocuri WHERE ...
+```
+**DE CE E GREȘIT**: Returnează TOATE cele 16+ câmpuri din obj, când ai nevoie doar de 3-5!
+Acest lucru creează un prompt URIAȘ care depășește limita de context!
+
+✅ FACE ÎNTOTDEAUNA ASA:
+```sql
+SELECT
+  id,
+  obj->>'obiect' as obiect,
+  obj->>'materie' as materie,
+  obj->>'solutia' as solutie
+FROM blocuri WHERE ...
+```
+**DE CE E CORECT**: Extrage DOAR câmpurile necesare pentru task (Smart Projection).
+
+=================================================================================== 📝 GHID PAS-CU-PAS PENTRU GENERAREA QUERY-ULUI
+
+**PASUL 1**: Analizează task-ul utilizatorului și identifică ce tip de date îi trebuie:
+- **Durate pedepse** → număr_dosar, obiect, materie, text_individualizare, solutia, tip_solutie, Rezumat_generat_de_AI_Cod
+- **Amenzi** → număr_dosar, obiect, materie, solutia, considerente_speta, tip_solutie
+- **Tendințe temporale** → număr_dosar, obiect, materie, solutia, data_solutiei, tip_solutie
+- **Motive/argumentare** → număr_dosar, obiect, materie, considerente_speta, argumente_instanta, analiza_judecator
+
+**PASUL 2**: Construiește filtre WHERE inteligente:
+- Folosește operatorul `->>` pentru a accesa câmpuri JSONB ca text.
+- Pentru array-uri (ex: keywords), folosește `~` (regex) nu `ILIKE`.
+- Folosește pattern matching pentru valori numerice: `obj->>'solutia' ~ '\\d+\\s*ani'`.
 
 =================================================================================== 📚 EXEMPLE DE STRATEGIE
 
 Exemplu 1: "Care este durata medie a pedepselor pentru omor?"
 {{
   "count_query": "SELECT COUNT(*) FROM blocuri WHERE obj->>'materie' ILIKE '%penal%' AND obj->>'obiect' ILIKE '%omor%'",
-  "id_list_query": "SELECT id FROM blocuri WHERE obj->>'materie' ILIKE '%penal%' AND obj->>'obiect' ILIKE '%omor%'",
+  "id_list_query": "SELECT id FROM blocuri WHERE obj->>'materie' ILIKE '%penal%' AND obj->>'obiect' ILIKE '%omor%' AND (obj->>'solutia' ~ '\\\\d+\\\\s*(ani|luni)' OR obj->>'text_individualizare' ~ '\\\\d+\\\\s*(ani|luni)')",
   "selected_columns": ["solutia", "text_individualizare", "obiect", "materie"],
-  "rationale": "Am selectat 'solutia' și 'text_individualizare' pentru a extrage durata pedepselor. 'obiect' și 'materie' sunt pentru context."
+  "rationale": "Am selectat 'solutia' și 'text_individualizare' pentru a extrage durata pedepselor. Filtrul asigură că avem valori numerice."
 }}
 
 Exemplu 2: "Evoluția amenzilor pentru furt în ultimii 5 ani"
@@ -531,6 +570,12 @@ Exemplu 2: "Evoluția amenzilor pentru furt în ultimii 5 ani"
   "rationale": "Am nevoie de 'solutia' pentru sume și 'data_solutiei' pentru evoluția în timp."
 }}
 
+=================================================================================== 🎯 PATTERN-URI REGEX UTILE (PENTRU WHERE)
+- Durate: `~ '\\d+\\s*(ani|luni|zile)'`
+- Amenzi: `~ '\\d+(\\.\\d+)?\\s*(lei|RON)'`
+- Date: `~ '\\d{{4}}-\\d{{2}}-\\d{{2}}'`
+- Keywords array: `~ 'pattern'`
+
 =================================================================================== 📤 FORMAT RĂSPUNS (JSON)
 {{
   "count_query": "SELECT COUNT(*) FROM blocuri WHERE ...",
@@ -538,14 +583,6 @@ Exemplu 2: "Evoluția amenzilor pentru furt în ultimii 5 ani"
   "selected_columns": ["col1", "col2"],
   "rationale": "Explicatie..."
 }}
-
-⚠️ REGULI:
-- Queries trebuie să fie PostgreSQL valid.
-- id_list_query trebuie să returneze DOAR coloana 'id'.
-- selected_columns trebuie să fie o listă de string-uri (chei din JSONB).
-- Fii strict cu filtrele WHERE pentru a elimina zgomotul.
-- Folosește operatorul `->>` pentru a accesa câmpuri JSONB ca text.
-- Pentru array-uri (ex: keywords), folosește `~` (regex) nu `ILIKE`.
 
 RĂSPUNDE DOAR CU JSON:
 """
@@ -778,13 +815,38 @@ RĂSPUNDE DOAR CU JSON:
 
         return truncated_data, metadata
 
-    def _parse_json_response(self, response_content: str) -> Dict[str, Any]:
+    def _parse_json_response(self, content: str) -> Dict[str, Any]:
         """Parsează răspunsul JSON de la LLM, curățând eventualele markdown fences."""
-        cleaned = response_content.strip()
+        cleaned = content.strip()
         if cleaned.startswith("```json"):
             cleaned = cleaned[7:]
-        if cleaned.startswith("```"):
+        elif cleaned.startswith("```"):
             cleaned = cleaned[3:]
+
         if cleaned.endswith("```"):
             cleaned = cleaned[:-3]
-        return json.loads(cleaned)
+
+        # Eliminare caractere invizibile/spații
+        cleaned = cleaned.strip()
+
+        try:
+            return json.loads(cleaned)
+        except json.JSONDecodeError:
+             # Fallback 1: încercăm să găsim primul { și ultimul }
+            start = cleaned.find("{")
+            end = cleaned.rfind("}")
+            if start != -1 and end != -1:
+                try:
+                    json_str = cleaned[start:end+1]
+                    return json.loads(json_str)
+                except json.JSONDecodeError:
+                    pass
+
+            # Fallback 2: Dacă tot eșuează, considerăm că e text (non-JSON) și îl împachetăm
+            # pentru a evita crăparea UI-ului.
+            logger.warning(f"Failed to parse JSON response. Wrapping content as interpretation. Content preview: {content[:100]}...")
+            return {
+                "results": {"status": "parsed_as_text", "note": "LLM response was not strict JSON"},
+                "interpretation": content, # Întoarcem textul brut ca interpretare
+                "charts": []
+            }
