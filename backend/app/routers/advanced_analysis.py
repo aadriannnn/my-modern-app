@@ -33,8 +33,10 @@ async def create_analysis_plan(
     Returns the plan with chunks and strategy, waiting for approval.
     """
     try:
+        logger.info(f"[API] Received request to CREATE PLAN for query: {request.query}")
         analyzer = ThreeStageAnalyzer(session)
         result = await analyzer.create_plan(request.query)
+        logger.info(f"[API] Plan created successfully. Returning to client for approval.")
         return result
     except Exception as e:
         logger.error(f"Error creating plan: {e}", exc_info=True)
@@ -50,6 +52,7 @@ async def execute_analysis_plan(
     Returns a job_id for tracking.
     """
     try:
+        logger.info(f"[API] Received request to EXECUTE PLAN: {plan_id}")
         async def process_three_stage_execution(payload: dict):
             # Create new session for worker
             from ..db import engine

@@ -78,6 +78,7 @@ class ThreeStageAnalyzer:
             preview_data = self._fetch_chunk_data(preview_ids, strategy['selected_columns'])
 
             logger.info(f"[PHASE 1] Plan created: {plan_id}. Total cases: {total_cases}. Chunks: {len(chunks)}.")
+            logger.info(f"[HUMAN-IN-THE-LOOP] 🛑 PHASE 1 COMPLETE. Returning plan to UI. WAITING FOR USER CONFIRMATION to proceed to Phase 2.")
 
             return {
                 'success': True,
@@ -106,6 +107,8 @@ class ThreeStageAnalyzer:
         Resumes from a saved plan ID.
         """
         try:
+            logger.info(f"[HUMAN-IN-THE-LOOP] ▶️ USER CONFIRMED PLAN {plan_id}. Starting Phase 2 execution.")
+
             # 1. Load Plan
             plan_path = os.path.join(self.plans_dir, f"{plan_id}.json")
             if not os.path.exists(plan_path):

@@ -279,6 +279,39 @@ export const getFeedbackStats = async (): Promise<FeedbackStats> => {
   return response.json();
 };
 
+// Human-in-the-Loop: Create analysis plan (Phase 1)
+export const createAnalysisPlan = async (query: string) => {
+  const response = await fetch(`${API_URL}/advanced-analysis/plan`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ query }),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to create analysis plan');
+  }
+  return response.json();
+};
+
+// Human-in-the-Loop: Execute analysis plan (Phase 2 & 3)
+export const executeAnalysisPlan = async (planId: string) => {
+  const response = await fetch(`${API_URL}/advanced-analysis/execute/${planId}`, {
+    method: 'POST',
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to execute analysis plan');
+  }
+  return response.json();
+};
+
+// Legacy endpoint: Auto-creates and executes plan (Best Effort)
 export const startAdvancedAnalysis = async (query: string) => {
   const response = await fetch(`${API_URL}/advanced-analysis/`, {
     method: 'POST',
