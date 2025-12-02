@@ -93,6 +93,30 @@ class PromptLogger:
             return False
 
     @staticmethod
+    def _get_prompt_file_path(retea_host: str, retea_folder: str) -> str:
+        """
+        Construiește calea către fișierul prompt.json în mod consistent.
+        Această metodă asigură că citirea și scrierea folosesc EXACT aceeași cale.
+
+        Args:
+            retea_host: Host-ul din rețea
+            retea_folder: Folderul partajat din rețea
+
+        Returns:
+            str: Calea completă către prompt.json
+        """
+        is_posix = os.name == 'posix'
+
+        if not retea_host or (is_posix and retea_host.lower() in ['local', 'localhost']):
+            # Cale locală (POSIX sau Windows local path)
+            file_path = os.path.join(retea_folder, PromptLogger.PROMPT_LOG_FILENAME)
+        else:
+            # Cale UNC Windows
+            file_path = f"\\\\{retea_host}\\{retea_folder}\\{PromptLogger.PROMPT_LOG_FILENAME}"
+
+        return file_path
+
+    @staticmethod
     def _load_existing_data(retea_host: str, retea_folder: str) -> Dict[str, Any]:
         """
         Încarcă datele existente din prompt.json sau creează structura inițială.
@@ -107,21 +131,18 @@ class PromptLogger:
         try:
             logger.info("[PROMPT LOGGER] Verificăm dacă există prompt.json...")
 
-            # Construim calea către fișier
-            is_posix = os.name == 'posix'
+            # Folosim metoda centralizată pentru calea fișierului
+            file_path = PromptLogger._get_prompt_file_path(retea_host, retea_folder)
 
-            if not retea_host or (is_posix and retea_host.lower() in ['local', 'localhost']):
-                # Cale locală
-                file_path = os.path.join(retea_folder, PromptLogger.PROMPT_LOG_FILENAME)
-            else:
-                # Cale UNC Windows
-                file_path = f"\\\\{retea_host}\\{retea_folder}\\{PromptLogger.PROMPT_LOG_FILENAME}"
+            logger.info(f"[PROMPT LOGGER] Cale fișier (READ): {file_path}")
 
-            logger.info(f"[PROMPT LOGGER] Cale fișier: {file_path}")
+            # Log file size if exists
+            if os.path.exists(file_path):
+                file_size = os.path.getsize(file_path)
+                logger.info(f"[PROMPT LOGGER] Fișierul există, dimensiune: {file_size} bytes")
 
             # Verificăm dacă fișierul există
             if os.path.exists(file_path):
-                logger.info("[PROMPT LOGGER] Fișierul există, îl citim...")
 
                 with open(file_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -131,7 +152,8 @@ class PromptLogger:
                     logger.warning("[PROMPT LOGGER] Structură invalidă, recreăm...")
                     data = {"round_1_entries": []}
 
-                logger.info(f"[PROMPT LOGGER] ✓ Încarcat cu {len(data['round_1_entries'])} intrări")
+                entries_count = len(data['round_1_entries'])
+                logger.info(f"[PROMPT LOGGER] ✓ Încarcat cu {entries_count} intrări")
                 return data
             else:
                 logger.info("[PROMPT LOGGER] Fișierul nu există, creăm structură nouă")
@@ -158,24 +180,47 @@ class PromptLogger:
             bool: True dacă salvarea a reușit, False altfel
         """
         try:
-            logger.info("[PROMPT LOGGER] Salvăm datele în rețea...")
+            entries_count = len(data.get('round_1_entries', []))
+            logger.info(f"[PROMPT LOGGER] Salvăm datele în rețea (total {entries_count} intrări)...")
 
             # Convertim datele în JSON string
             json_content = json.dumps(data, ensure_ascii=False, indent=2)
 
             logger.info(f"[PROMPT LOGGER] Dimensiune JSON: {len(json_content)} caractere")
 
-            # Salvăm folosind NetworkFileSaver
+            # Salvăm folosind NetworkFileSaver cu filename fix pentru a rescrie fișierul complet
             success, message, saved_path = NetworkFileSaver.save_to_network(
                 content=json_content,
                 host=retea_host,
                 shared_folder=retea_folder,
                 subfolder='',
-                filename=PromptLogger.PROMPT_LOG_FILENAME
+                filename=PromptLogger.PROMPT_LOG_FILENAME  # Nume fix pentru a overwrite
             )
 
             if success:
                 logger.info(f"[PROMPT LOGGER] ✅ Salvat: {saved_path}")
+
+                # VERIFICARE POST-SALVARE: Confirmăm că datele au fost scrise corect
+                verify_path = PromptLogger._get_prompt_file_path(retea_host, retea_folder)
+                logger.info(f"[PROMPT LOGGER] Cale verificare (WRITE): {verify_path}")
+
+                if os.path.exists(verify_path):
+                    verify_size = os.path.getsize(verify_path)
+                    logger.info(f"[PROMPT LOGGER] ✓ Verificare: fișier există, {verify_size} bytes")
+
+                    # Verificăm că numărul de intrări e corect
+                    try:
+                        with open(verify_path, 'r', encoding='utf-8') as f:
+                            verify_data = json.load(f)
+                        verify_entries = len(verify_data.get('round_1_entries', []))
+                        logger.info(f"[PROMPT LOGGER] ✓ Verificare: {verify_entries} intrări confirmate")
+
+                        if verify_entries != entries_count:
+                            logger.error(f"[PROMPT LOGGER] ⚠️ ATENȚIE: Am salvat {entries_count} intrări dar verificarea arată {verify_entries}!")
+                    except Exception as ve:
+                        logger.warning(f"[PROMPT LOGGER] Nu am putut verifica conținutul: {ve}")
+                else:
+                    logger.error(f"[PROMPT LOGGER] ⚠️ ATENȚIE: Fișierul NU există după salvare la {verify_path}!")
             else:
                 logger.error(f"[PROMPT LOGGER] ❌ Eroare salvare: {message}")
 
