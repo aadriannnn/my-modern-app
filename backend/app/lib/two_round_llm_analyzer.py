@@ -53,7 +53,7 @@ class ThreeStageAnalyzer:
                 logger.info(f"[PHASE 1] Strategy Generation Attempt {attempt}/{max_retries + 1}")
 
                 # 1.1 Generate Strategy
-                strategy = await self._generate_discovery_strategy(user_query, feedback)
+                strategy = await self._generate_discovery_strategy(user_query, feedback, attempt)
 
                 # 1.2 Execute Discovery Queries
                 try:
@@ -66,7 +66,20 @@ class ThreeStageAnalyzer:
                 if total_cases == 0:
                     if attempt <= max_retries:
                         logger.warning(f"[PHASE 1] No cases found. Retrying with feedback...")
-                        feedback = "Strategia a returnat 0 rezultate. Încearcă să relaxezi condițiile de căutare."
+                        # Progressive relaxation strategy
+                        if attempt == 1:
+                            feedback = """Prima încercare a returnat 0 rezultate. Încearcă următoarea strategie:
+1. Relaxează filtrele WHERE pentru materie (folosește ILIKE '%penal%' în loc de =)
+2. Caută în MAI MULTE câmpuri: keywords, obiect, text_situatia_de_fapt
+3. NU impune condiții stricte pe toate câmpurile simultan - folosește OR
+4. Asigură-te că filtrezi doar pentru câmpurile esențiale (ex: pentru pedeapsă, verifică că solutia/text_individualizare nu este NULL)"""
+                        else:  # attempt == 2
+                            feedback = """A doua încercare a eșuat. Ultima strategie - maxim de relaxare:
+1. Folosește DOAR filtre ILIKE pe câmpurile largi (keywords, text_situatia_de_fapt, solutia)
+2. NU folosi filtre stricte de egalitate (=)
+3. Acceptă orice caz care conține cuvintele cheie în ORICARE câmp relevant
+Exemplu: Pentru 'omor', caută în (keywords ILIKE '%omor%' OR obiect ILIKE '%omor%' OR text_situatia_de_fapt ILIKE '%omor%')"""
+                        logger.info(f"[PHASE 1] Retry Feedback for attempt {attempt + 1}:\n{feedback}")
                         continue
                     else:
                         return {
@@ -407,11 +420,17 @@ class ThreeStageAnalyzer:
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(plan, f, indent=2, ensure_ascii=False)
 
-    async def _generate_discovery_strategy(self, user_query: str, feedback: str = "") -> Dict[str, Any]:
+    async def _generate_discovery_strategy(self, user_query: str, feedback: str = "", attempt: int = 1) -> Dict[str, Any]:
         """
         Uses LLM to generate discovery SQL and column list.
         """
         prompt = self._build_discovery_prompt(user_query, feedback)
+
+        # LOG COMPLETE PROMPT
+        logger.info("="*80)
+        logger.info(f"[PHASE 1] Complete prompt being sent (attempt {attempt}, {len(prompt)} chars):")
+        logger.info(prompt)
+        logger.info("="*80)
 
         retea_host = settings_manager.get_value('setari_retea', 'retea_host', '')
         retea_folder = settings_manager.get_value('setari_retea', 'retea_folder_partajat', '')
@@ -435,8 +454,15 @@ class ThreeStageAnalyzer:
         if not poll_success:
             raise RuntimeError(f"Timeout Discovery: {poll_content}")
 
+        # LOG COMPLETE RESPONSE
+        logger.info("="*80)
+        logger.info(f"[PHASE 1] LLM Response received ({len(poll_content)} chars):")
+        logger.info(poll_content)
+        logger.info("="*80)
+
         try:
             strategy = self._parse_json_response(poll_content)
+            logger.info(f"[PHASE 1] Parsed strategy: {json.dumps(strategy, indent=2, ensure_ascii=False)}")
             NetworkFileSaver.delete_response_file(response_path)
             return strategy
         except Exception as e:
@@ -489,19 +515,35 @@ class ThreeStageAnalyzer:
         count_sql = strategy['count_query']
         ids_sql = strategy['id_list_query']
 
+        # LOG SQL QUERIES
+        logger.info("="*80)
+        logger.info("[PHASE 1] Executing COUNT query:")
+        logger.info(count_sql)
+        logger.info("="*80)
+
         try:
             count_res = self.session.execute(text(count_sql)).scalar()
+            logger.info(f"[PHASE 1] Count result: {count_res} cases found")
         except Exception as e:
             logger.error(f"Eroare execuție COUNT query: {e}")
             raise ValueError(f"Query COUNT invalid: {e}")
 
+        logger.info("="*80)
+        logger.info("[PHASE 1] Executing ID_LIST query:")
+        logger.info(ids_sql)
+        logger.info("="*80)
+
         try:
             ids_res = self.session.execute(text(ids_sql)).scalars().all()
+            ids_list = list(ids_res)
+            logger.info(f"[PHASE 1] Found {len(ids_list)} IDs")
+            if len(ids_list) > 0:
+                logger.info(f"[PHASE 1] First 5 IDs: {ids_list[:5]}")
         except Exception as e:
             logger.error(f"Eroare execuție ID_LIST query: {e}")
             raise ValueError(f"Query ID_LIST invalid: {e}")
 
-        return count_res, list(ids_res)
+        return count_res, ids_list
 
     def _fetch_chunk_data(self, ids: List[int], columns: List[str]) -> List[Dict]:
         """
@@ -621,17 +663,66 @@ TASK UTILIZATOR: "{user_query}"
 
 =================================================================================== 📊 SCHEMA BAZEI DE DATE
 Tabel: blocuri (id INTEGER PRIMARY KEY, obj JSONB)
-Câmpuri JSONB disponibile în 'obj':
-(Lista standard: număr_dosar, tip_solutie, keywords, text_situatia_de_fapt, solutia, materie, obiect, etc.)
+
+Câmpuri JSONB disponibile în 'obj' (LISTA COMPLETĂ):
+- 'materie': materia cazului (ex: 'Penal', 'Civil', 'Execuție penală', etc.)
+- 'obiect': obiectul cazului (ex: 'omor', 'viol', 'furt calificat', etc.)
+- 'text_situatia_de_fapt': textul complet al situației de fapt (câmp lung)
+- 'solutia': soluția/decizia completă a instanței (include PEDEPSE) (câmp lung)
+- 'keywords': array JSONB cu cuvinte cheie (ex: ["omor", "tentativă"])
+- 'denumire': titlul/denumirea cazului
+- 'argumente_instanta': argumentele instanței (câmp lung)
+- 'considerente_speta': considerentele speței (câmp lung)
+- 'text_individualizare': text privind individualizarea pedepsei (câmp lung, IMPORTANT pentru pedepse)
+- 'text_doctrina': text doctrinar (câmp lung)
+- 'text_ce_invatam': lecții învățate din caz (câmp lung)
+- 'Rezumat_generat_de_AI_Cod': rezumat generat AI
+- 'tip_speta': tipul speței
+- 'parte': părțile implicate
+- 'număr_dosar': numărul dosarului
+- 'tip_solutie': tipul soluției (ex: 'Condamnare', 'Achitare', etc.)
 
 IMPORTANT: Unele câmpuri pot fi NULL sau lipsă.
 Dacă task-ul cere "soluția" sau "pedeapsa", asigură-te că filtrezi cazurile care au acest câmp populat!
-Ex: ... AND (obj->>'solutia' IS NOT NULL AND length(obj->>'solutia') > 10)
+Ex: ... AND (obj->>'solutia' IS NOT NULL AND length(obj->>'solutia') > 10 OR obj->>'text_individualizare' IS NOT NULL)
 
 =================================================================================== 🚨 REGULI CRITICE DE SQL
 ❌ NU FACE NICIODATĂ ASA: SELECT id, obj FROM blocuri...
 ✅ FACE ÎNTOTDEAUNA ASA: SELECT id, obj->>'solutia' as solutia FROM blocuri...
 **SMART PROJECTION**: Extrage DOAR câmpurile necesare.
+
+FILTRARE:
+- Folosește ILIKE în loc de = pentru flexibilitate (ex: ILIKE '%penal%' în loc de = 'Penal')
+- Pentru arrays (keywords), folosește: obj->>'keywords' ILIKE '%cuvânt%'
+- Combină multiple câmpuri cu OR pentru rezultate mai bune
+- NU impune condiții prea stricte simultan - relaxează!
+
+=================================================================================== 📚 EXEMPLE DE QUERY-URI
+
+❌ GREȘIT (prea restrictiv):
+{{
+  "count_query": "SELECT COUNT(*) FROM blocuri WHERE obj->>'materie' = 'Penal' AND obj->>'obiect' = 'omor'",
+  "id_list_query": "SELECT id FROM blocuri WHERE obj->>'materie' = 'Penal' AND obj->>'obiect' = 'omor'",
+  "selected_columns": ["solutia", "obiect"],
+  "rationale": "Caut cazuri de omor"
+}}
+MOTIV GREȘIT: Folosește egalitate strictă (=) care eșuează dacă există variații ("penal" vs "Penal" vs "PENAL")
+
+✅ CORECT (flexibil):
+{{
+  "count_query": "SELECT COUNT(*) FROM blocuri WHERE (obj->>'materie' ILIKE '%penal%') AND (obj->>'obiect' ILIKE '%omor%' OR obj->>'keywords' ILIKE '%omor%')",
+  "id_list_query": "SELECT id FROM blocuri WHERE (obj->>'materie' ILIKE '%penal%') AND (obj->>'obiect' ILIKE '%omor%' OR obj->>'keywords' ILIKE '%omor%')",
+  "selected_columns": ["solutia", "obiect", "materie"],
+  "rationale": "Folosesc ILIKE pentru flexibilitate și caut 'omor' în două câmpuri (obiect și keywords)"
+}}
+
+✅ FOARTE BUN (maxim flexibil pentru întrebări despre pedeapsă):
+{{
+  "count_query": "SELECT COUNT(*) FROM blocuri WHERE (obj->>'materie' ILIKE '%penal%') AND (obj->>'obiect' ILIKE '%omor%' OR obj->>'keywords' ILIKE '%omor%' OR obj->>'text_situatia_de_fapt' ILIKE '%omor%') AND (obj->>'solutia' IS NOT NULL AND length(obj->>'solutia') > 10 OR obj->>'text_individualizare' IS NOT NULL)",
+  "id_list_query": "SELECT id FROM blocuri WHERE (obj->>'materie' ILIKE '%penal%') AND (obj->>'obiect' ILIKE '%omor%' OR obj->>'keywords' ILIKE '%omor%' OR obj->>'text_situatia_de_fapt' ILIKE '%omor%') AND (obj->>'solutia' IS NOT NULL AND length(obj->>'solutia') > 10 OR obj->>'text_individualizare' IS NOT NULL)",
+  "selected_columns": ["solutia", "text_individualizare", "obiect", "materie", "text_situatia_de_fapt"],
+  "rationale": "Am inclus două câmpuri relevante pentru pedeapsă (solutia și text_individualizare) și am căutat 'omor' în multiple locuri (obiect, keywords, situatia_de_fapt)"
+}}
 
 =================================================================================== 📤 FORMAT RĂSPUNS (JSON)
 {{
