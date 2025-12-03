@@ -69,16 +69,19 @@ class ThreeStageAnalyzer:
                         # Progressive relaxation strategy
                         if attempt == 1:
                             feedback = """Prima încercare a returnat 0 rezultate. Încearcă următoarea strategie:
-1. Relaxează filtrele WHERE pentru materie (folosește ILIKE '%penal%' în loc de =)
-2. Caută în MAI MULTE câmpuri: keywords, obiect, text_situatia_de_fapt
-3. NU impune condiții stricte pe toate câmpurile simultan - folosește OR
-4. Asigură-te că filtrezi doar pentru câmpurile esențiale (ex: pentru pedeapsă, verifică că solutia/text_individualizare nu este NULL)"""
+1. NU căuta expresii exacte (ex: 'închisoare de') - folosește doar CUVINTE CHEIE (ex: 'omor', 'condamn')
+2. Relaxează filtrele WHERE - folosește ILIKE '%penal%' în loc de egalitate strictă
+3. Caută în MAI MULTE câmpuri simultan: keywords, obiect, text_situatia_de_fapt (cu OR)
+4. Pentru pedepse, verifică doar că solutia SAU text_individualizare nu este NULL - NU căuta text specific!
+5. În loc de "solutia ILIKE '%închisoare de%'", folosește doar "solutia IS NOT NULL AND length(solutia) > 10""""
                         else:  # attempt == 2
-                            feedback = """A doua încercare a eșuat. Ultima strategie - maxim de relaxare:
-1. Folosește DOAR filtre ILIKE pe câmpurile largi (keywords, text_situatia_de_fapt, solutia)
-2. NU folosi filtre stricte de egalitate (=)
-3. Acceptă orice caz care conține cuvintele cheie în ORICARE câmp relevant
-Exemplu: Pentru 'omor', caută în (keywords ILIKE '%omor%' OR obiect ILIKE '%omor%' OR text_situatia_de_fapt ILIKE '%omor%')"""
+                            feedback = """A doua încercare a eșuat. Ultima strategie - MAXIMUM de relaxare:
+1. Caută DOAR cuvinte cheie din query (ex: 'omor') cu ILIKE
+2. NU folosi condiții de tip "solutia ILIKE '%text specific%'" - acestea sunt PREA STRICTE!
+3. Pentru filtrare generală: verifică doar că câmpurile esențiale nu sunt NULL
+4. Folosește MULTE câmpuri cu OR: (obiect ILIKE '%cuvant%' OR keywords ILIKE '%cuvant%' OR text_situatia_de_fapt ILIKE '%cuvant%')
+5. Evită filtre pe formatul textual al pedepsei - lasă extragerea pentru faza 2!
+Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keywords ILIKE '%omor%') AND solutia IS NOT NULL"""
                         logger.info(f"[PHASE 1] Retry Feedback for attempt {attempt + 1}:\n{feedback}")
                         continue
                     else:
@@ -691,11 +694,14 @@ Ex: ... AND (obj->>'solutia' IS NOT NULL AND length(obj->>'solutia') > 10 OR obj
 ✅ FACE ÎNTOTDEAUNA ASA: SELECT id, obj->>'solutia' as solutia FROM blocuri...
 **SMART PROJECTION**: Extrage DOAR câmpurile necesare.
 
-FILTRARE:
+FILTRARE - REGULI CRITICE:
+- **IGNORĂ GREȘELILE DE SCRIERE** din query-ul utilizatorului - extrage doar ESENȚA (ex: "petru ifractiuea de omor" → caută "omor")
 - Folosește ILIKE în loc de = pentru flexibilitate (ex: ILIKE '%penal%' în loc de = 'Penal')
 - Pentru arrays (keywords), folosește: obj->>'keywords' ILIKE '%cuvânt%'
 - Combină multiple câmpuri cu OR pentru rezultate mai bune
-- NU impune condiții prea stricte simultan - relaxează!
+- **NU căuta expresii textuale exacte** (ex: "închisoare de", "ani închisoare") - acestea variază prea mult!
+- Pentru pedepse: verifică doar că solutia/text_individualizare există (IS NOT NULL), NU căuta formatul textual!
+- Relaxează cât mai mult - este mai bine să găsești 100 cazuri și să filtrezi în Faza 2 decât să găsești 0!
 
 =================================================================================== 📚 EXEMPLE DE QUERY-URI
 
