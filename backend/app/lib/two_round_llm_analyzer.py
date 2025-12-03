@@ -624,6 +624,10 @@ Tabel: blocuri (id INTEGER PRIMARY KEY, obj JSONB)
 Câmpuri JSONB disponibile în 'obj':
 (Lista standard: număr_dosar, tip_solutie, keywords, text_situatia_de_fapt, solutia, materie, obiect, etc.)
 
+IMPORTANT: Unele câmpuri pot fi NULL sau lipsă.
+Dacă task-ul cere "soluția" sau "pedeapsa", asigură-te că filtrezi cazurile care au acest câmp populat!
+Ex: ... AND (obj->>'solutia' IS NOT NULL AND length(obj->>'solutia') > 10)
+
 =================================================================================== 🚨 REGULI CRITICE DE SQL
 ❌ NU FACE NICIODATĂ ASA: SELECT id, obj FROM blocuri...
 ✅ FACE ÎNTOTDEAUNA ASA: SELECT id, obj->>'solutia' as solutia FROM blocuri...

@@ -30,16 +30,31 @@ async def create_analysis_plan(
 ):
     """
     PHASE 1: Create an analysis plan (Smart Projection).
-    Returns the plan with chunks and strategy, waiting for approval.
+    Returns a job_id. Client must poll /status/{job_id} to get the plan.
     """
     try:
         logger.info(f"[API] Received request to CREATE PLAN for query: {request.query}")
-        analyzer = ThreeStageAnalyzer(session)
-        result = await analyzer.create_plan(request.query)
-        logger.info(f"[API] Plan created successfully. Returning to client for approval.")
-        return result
+
+        async def process_create_plan(payload: dict):
+            # Create new session for worker
+            from ..db import engine
+            from sqlmodel import Session
+            with Session(engine) as worker_session:
+                analyzer = ThreeStageAnalyzer(worker_session)
+                result = await analyzer.create_plan(payload['query'])
+                return result
+
+        payload = {'query': request.query, 'type': 'create_plan'}
+        job_id, _ = await queue_manager.add_to_queue(payload, process_create_plan)
+
+        logger.info(f"[API] Plan creation queued. Job ID: {job_id}")
+        return {
+            'success': True,
+            'job_id': job_id,
+            'message': 'Plan creation started. Check status for result.'
+        }
     except Exception as e:
-        logger.error(f"Error creating plan: {e}", exc_info=True)
+        logger.error(f"Error queuing plan creation: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/execute/{plan_id}")
@@ -62,7 +77,7 @@ async def execute_analysis_plan(
                 result = await analyzer.execute_plan(payload['plan_id'])
                 return result
 
-        payload = {'plan_id': plan_id}
+        payload = {'plan_id': plan_id, 'type': 'execute_plan'}
         job_id, _ = await queue_manager.add_to_queue(payload, process_three_stage_execution)
 
         return {
@@ -87,6 +102,8 @@ async def get_advanced_analysis_status(job_id: str):
         if status.get('status') in ['processing', 'queued']:
             # Try to find plan_id from queue items
             item = queue_manager.items.get(job_id)
+
+            # Only calculate progress for execution jobs that have a plan_id
             if item and 'plan_id' in item.payload:
                 plan_id = item.payload['plan_id']
 
@@ -113,6 +130,10 @@ async def get_advanced_analysis_status(job_id: str):
                         'total': total_chunks,
                         'percent': int((processed_chunks / total_chunks * 100)) if total_chunks > 0 else 0
                     }
+
+            # For 'create_plan' jobs, we don't have detailed progress, just 'processing'
+            elif item and item.payload.get('type') == 'create_plan':
+                 status['message'] = "Generating strategy and verifying data..."
 
         return status
     except Exception as e:

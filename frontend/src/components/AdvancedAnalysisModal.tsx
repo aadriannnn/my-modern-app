@@ -9,7 +9,7 @@ interface AdvancedAnalysisModalProps {
     onClose: () => void;
 }
 
-type WorkflowStep = 'input' | 'preview' | 'executing';
+type WorkflowStep = 'input' | 'creating_plan' | 'preview' | 'executing';
 
 interface PlanData {
     plan_id: string;
@@ -70,17 +70,20 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         try {
             const response = await createAnalysisPlan(query);
 
-            if (response.success && response.plan_id) {
-                console.log('[Frontend] Plan received:', response);
-                console.log('[Frontend] 🛑 WAITING FOR USER CONFIRMATION. Showing preview.');
-                setPlanData(response);
-                setCurrentStep('preview');
+            if (response.success && response.job_id) {
+                console.log('[Frontend] Plan creation queued. Job ID:', response.job_id);
+                setJobId(response.job_id);
+                setCurrentStep('creating_plan');
+                startPolling(response.job_id, (plan) => {
+                    setPlanData(plan);
+                    setCurrentStep('preview');
+                });
             } else {
                 setError(response.error || 'Nu s-a putut crea planul de analiză.');
+                setIsLoading(false);
             }
         } catch (err: any) {
             setError(err.message || 'Eroare de conexiune.');
-        } finally {
             setIsLoading(false);
         }
     };
@@ -100,20 +103,22 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
             if (response.success && response.job_id) {
                 console.log('[Frontend] Execution started. Job ID:', response.job_id);
                 setJobId(response.job_id);
-                startPolling(response.job_id);
+                startPolling(response.job_id, (res) => {
+                    setResult(res);
+                });
             } else {
                 setError(response.message || 'Nu s-a putut executa planul.');
                 setCurrentStep('preview');
+                setIsLoading(false);
             }
         } catch (err: any) {
             setError(err.message || 'Eroare de conexiune.');
             setCurrentStep('preview');
-        } finally {
             setIsLoading(false);
         }
     };
 
-    const startPolling = (id: string) => {
+    const startPolling = (id: string, onSuccess: (data: any) => void) => {
         if (eventSourceRef.current) {
             eventSourceRef.current.close();
         }
@@ -133,11 +138,15 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                     if (res && res.success === false) {
                         setError(res.error || 'A apărut o eroare necunoscută.');
                         setJobId(null);
-                        setCurrentStep('preview');
+                        setIsLoading(false);
+                        if (currentStep === 'creating_plan') setCurrentStep('input');
+                        else setCurrentStep('preview');
+
                         if (eventSourceRef.current) eventSourceRef.current.close();
                     } else {
-                        setResult(res);
+                        onSuccess(res);
                         setJobId(null);
+                        setIsLoading(false);
                         if (eventSourceRef.current) eventSourceRef.current.close();
                     }
                 }
@@ -146,7 +155,9 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                 if ((statusUpdate as any).error) {
                     setError((statusUpdate as any).error);
                     setJobId(null);
-                    setCurrentStep('preview');
+                    setIsLoading(false);
+                    if (currentStep === 'creating_plan') setCurrentStep('input');
+                    else setCurrentStep('preview');
                     if (eventSourceRef.current) eventSourceRef.current.close();
                 }
             },
@@ -160,21 +171,27 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                     if (statusData.status === 'completed' && statusData.result) {
                         if (statusData.result.success === false) {
                             setError(statusData.result.error || 'A apărut o eroare necunoscută.');
-                            setCurrentStep('preview');
+                            if (currentStep === 'creating_plan') setCurrentStep('input');
+                            else setCurrentStep('preview');
                         } else {
-                            setResult(statusData.result);
+                            onSuccess(statusData.result);
                         }
                         setJobId(null);
+                        setIsLoading(false);
                     } else if (statusData.status === 'failed' || statusData.error) {
                         setError(statusData.error || 'Analiza a eșuat.');
                         setJobId(null);
-                        setCurrentStep('preview');
+                        setIsLoading(false);
+                        if (currentStep === 'creating_plan') setCurrentStep('input');
+                        else setCurrentStep('preview');
                     }
                 } catch (err: any) {
                     console.error('[Advanced Analysis] Error fetching result:', err);
                     setError(err.message || 'Eroare la preluarea rezultatului.');
                     setJobId(null);
-                    setCurrentStep('preview');
+                    setIsLoading(false);
+                    if (currentStep === 'creating_plan') setCurrentStep('input');
+                    else setCurrentStep('preview');
                 }
                 setQueueStatus(prev => ({ ...prev, status: 'completed' }));
             },
@@ -411,6 +428,32 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         );
     };
 
+    // Render Step 1.5: Creating Plan
+    const renderCreatingPlanStep = () => (
+        <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
+            <div className="py-12">
+                <QueueStatus
+                    position={queueStatus.position}
+                    total={queueStatus.total}
+                    status={queueStatus.status}
+                />
+                <div className="text-center mt-6">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">Generare Plan Analiză</h4>
+                    <p className="text-sm text-gray-500 max-w-md mx-auto">
+                        AI-ul analizează cererea dvs. și verifică datele disponibile.
+                        <br />
+                        Acest proces poate dura 1-3 minute.
+                    </p>
+                </div>
+            </div>
+            {error && (
+                <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 text-sm mt-4">
+                    {error}
+                </div>
+            )}
+        </div>
+    );
+
     // Render Step 3: Executing / Results
     const renderExecutingStep = () => (
         <>
@@ -472,6 +515,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                             <h3 className="text-xl font-bold text-gray-900">Analiză Juridică Avansată (AI)</h3>
                             <p className="text-sm text-gray-500">
                                 {currentStep === 'input' && 'Pas 1: Introduceți întrebarea'}
+                                {currentStep === 'creating_plan' && 'Pas 1.5: Generare Plan...'}
                                 {currentStep === 'preview' && 'Pas 2: Revizuiți planul'}
                                 {currentStep === 'executing' && 'Pas 3: Execuție și rezultate'}
                             </p>
@@ -487,6 +531,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
 
                 {/* Content - Render based on current step */}
                 {currentStep === 'input' && renderInputStep()}
+                {currentStep === 'creating_plan' && renderCreatingPlanStep()}
                 {currentStep === 'preview' && renderPreviewStep()}
                 {currentStep === 'executing' && renderExecutingStep()}
 
