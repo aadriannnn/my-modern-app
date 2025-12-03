@@ -73,7 +73,7 @@ class ThreeStageAnalyzer:
 2. Relaxează filtrele WHERE - folosește ILIKE '%penal%' în loc de egalitate strictă
 3. Caută în MAI MULTE câmpuri simultan: keywords, obiect, text_situatia_de_fapt (cu OR)
 4. Pentru pedepse, verifică doar că solutia SAU text_individualizare nu este NULL - NU căuta text specific!
-5. În loc de "solutia ILIKE '%închisoare de%'", folosește doar "solutia IS NOT NULL AND length(solutia) > 10""""
+5. În loc de "solutia ILIKE '%închisoare de%'", folosește doar "solutia IS NOT NULL AND length(solutia) > 10"""
                         else:  # attempt == 2
                             feedback = """A doua încercare a eșuat. Ultima strategie - MAXIMUM de relaxare:
 1. Caută DOAR cuvinte cheie din query (ex: 'omor') cu ILIKE
