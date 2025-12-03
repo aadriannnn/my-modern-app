@@ -74,10 +74,17 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                 console.log('[Frontend] Plan creation queued. Job ID:', response.job_id);
                 setJobId(response.job_id);
                 setCurrentStep('creating_plan');
-                startPolling(response.job_id, (plan) => {
-                    setPlanData(plan);
-                    setCurrentStep('preview');
-                });
+                startPolling(
+                    response.job_id,
+                    (plan) => {
+                        setPlanData(plan);
+                        setCurrentStep('preview');
+                    },
+                    (err) => {
+                        setError(err);
+                        setCurrentStep('input');
+                    }
+                );
             } else {
                 setError(response.error || 'Nu s-a putut crea planul de analiză.');
                 setIsLoading(false);
@@ -103,9 +110,16 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
             if (response.success && response.job_id) {
                 console.log('[Frontend] Execution started. Job ID:', response.job_id);
                 setJobId(response.job_id);
-                startPolling(response.job_id, (res) => {
-                    setResult(res);
-                });
+                startPolling(
+                    response.job_id,
+                    (res) => {
+                        setResult(res);
+                    },
+                    (err) => {
+                        setError(err);
+                        setCurrentStep('preview');
+                    }
+                );
             } else {
                 setError(response.message || 'Nu s-a putut executa planul.');
                 setCurrentStep('preview');
@@ -118,7 +132,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         }
     };
 
-    const startPolling = (id: string, onSuccess: (data: any) => void) => {
+    const startPolling = (id: string, onSuccess: (data: any) => void, onError: (msg: string) => void) => {
         if (eventSourceRef.current) {
             eventSourceRef.current.close();
         }
@@ -136,12 +150,9 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                 if ((statusUpdate as any).result) {
                     const res = (statusUpdate as any).result;
                     if (res && res.success === false) {
-                        setError(res.error || 'A apărut o eroare necunoscută.');
                         setJobId(null);
                         setIsLoading(false);
-                        if (currentStep === 'creating_plan') setCurrentStep('input');
-                        else setCurrentStep('preview');
-
+                        onError(res.error || 'A apărut o eroare necunoscută.');
                         if (eventSourceRef.current) eventSourceRef.current.close();
                     } else {
                         onSuccess(res);
@@ -153,11 +164,9 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
 
                 // Check if we have an error in the update
                 if ((statusUpdate as any).error) {
-                    setError((statusUpdate as any).error);
                     setJobId(null);
                     setIsLoading(false);
-                    if (currentStep === 'creating_plan') setCurrentStep('input');
-                    else setCurrentStep('preview');
+                    onError((statusUpdate as any).error);
                     if (eventSourceRef.current) eventSourceRef.current.close();
                 }
             },
@@ -170,28 +179,22 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
 
                     if (statusData.status === 'completed' && statusData.result) {
                         if (statusData.result.success === false) {
-                            setError(statusData.result.error || 'A apărut o eroare necunoscută.');
-                            if (currentStep === 'creating_plan') setCurrentStep('input');
-                            else setCurrentStep('preview');
+                            onError(statusData.result.error || 'A apărut o eroare necunoscută.');
                         } else {
                             onSuccess(statusData.result);
                         }
                         setJobId(null);
                         setIsLoading(false);
                     } else if (statusData.status === 'failed' || statusData.error) {
-                        setError(statusData.error || 'Analiza a eșuat.');
+                        onError(statusData.error || 'Analiza a eșuat.');
                         setJobId(null);
                         setIsLoading(false);
-                        if (currentStep === 'creating_plan') setCurrentStep('input');
-                        else setCurrentStep('preview');
                     }
                 } catch (err: any) {
                     console.error('[Advanced Analysis] Error fetching result:', err);
-                    setError(err.message || 'Eroare la preluarea rezultatului.');
+                    onError(err.message || 'Eroare la preluarea rezultatului.');
                     setJobId(null);
                     setIsLoading(false);
-                    if (currentStep === 'creating_plan') setCurrentStep('input');
-                    else setCurrentStep('preview');
                 }
                 setQueueStatus(prev => ({ ...prev, status: 'completed' }));
             },
