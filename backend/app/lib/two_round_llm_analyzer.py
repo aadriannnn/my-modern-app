@@ -135,12 +135,18 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
             logger.info(f"[PHASE 1] Plan created: {plan_id}. Total cases: {total_cases}. Chunks: {len(chunks)}.")
             logger.info(f"[HUMAN-IN-THE-LOOP] 🛑 PHASE 1 COMPLETE. Returning plan to UI. WAITING FOR USER CONFIRMATION to proceed to Phase 2.")
 
+            # Realistic time estimation based on logs: ~60 seconds per LLM query
+            # Phase 2 (Chunks) + Phase 3 (Synthesis)
+            estimated_seconds = (len(chunks) + 1) * 60
+            estimated_minutes = round(estimated_seconds / 60, 1)
+
             return {
                 'success': True,
                 'plan_id': plan_id,
                 'total_cases': total_cases,
                 'total_chunks': len(chunks),
-                'estimated_time_seconds': len(chunks) * 5, # Rough estimate
+                'estimated_time_seconds': estimated_seconds,
+                'estimated_time_minutes': estimated_minutes,  # Added for better UX
                 'preview_data': preview_data,
                 'strategy_summary': strategy.get('rationale', 'Strategie generată automat.')
             }
