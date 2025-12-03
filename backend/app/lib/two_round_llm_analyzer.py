@@ -39,16 +39,59 @@ class ThreeStageAnalyzer:
         try:
             logger.info(f"--- START PHASE 1: DISCOVERY & PLANNING for: {user_query[:50]}... ---")
 
-            # 1. Generate Strategy (SQL + Columns)
-            strategy = await self._generate_discovery_strategy(user_query)
+            # 1. Strategy Generation Loop (Self-Correction)
+            max_retries = 2
+            attempt = 0
+            feedback = ""
+            strategy = None
+            preview_data = []
+            total_cases = 0
+            all_ids = []
 
-            # 2. Execute Discovery Queries (COUNT + ID_LIST)
-            total_cases, all_ids = self._execute_discovery_queries(strategy)
+            while attempt <= max_retries:
+                attempt += 1
+                logger.info(f"[PHASE 1] Strategy Generation Attempt {attempt}/{max_retries + 1}")
 
-            if total_cases == 0:
-                return {
+                # 1.1 Generate Strategy
+                strategy = await self._generate_discovery_strategy(user_query, feedback)
+
+                # 1.2 Execute Discovery Queries
+                try:
+                    total_cases, all_ids = self._execute_discovery_queries(strategy)
+                except Exception as e:
+                    logger.warning(f"[PHASE 1] Query execution failed: {e}. Retrying...")
+                    feedback = f"Query-ul generat a eșuat: {e}. Te rog corectează SQL-ul."
+                    continue
+
+                if total_cases == 0:
+                    if attempt <= max_retries:
+                        logger.warning(f"[PHASE 1] No cases found. Retrying with feedback...")
+                        feedback = "Strategia a returnat 0 rezultate. Încearcă să relaxezi condițiile de căutare."
+                        continue
+                    else:
+                        return {
+                            'success': False,
+                            'error': 'Nu s-au găsit date relevante pentru această interogare după mai multe încercări.'
+                        }
+
+                # 1.3 Preview Data for Verification
+                preview_ids = all_ids[:3]
+                preview_data = self._fetch_chunk_data(preview_ids, strategy['selected_columns'])
+
+                # 1.4 Self-Verification
+                verification = await self._verify_strategy(user_query, strategy, preview_data)
+
+                if verification['valid']:
+                    logger.info(f"[PHASE 1] Strategy Verified Successfully: {verification.get('reason', 'OK')}")
+                    break
+                else:
+                    logger.warning(f"[PHASE 1] Strategy Verification Failed: {verification.get('feedback')}")
+                    feedback = f"Rezultatele obținute nu sunt satisfăcătoare. Feedback: {verification.get('feedback')}. Încearcă din nou."
+
+            if not strategy:
+                 return {
                     'success': False,
-                    'error': 'Nu s-au găsit date relevante pentru această interogare.'
+                    'error': 'Nu s-a putut genera o strategie validă.'
                 }
 
             # 3. Calculate Chunks
@@ -72,10 +115,6 @@ class ThreeStageAnalyzer:
 
             # 5. Save Plan
             self._save_plan(plan)
-
-            # 6. Preview (3 sample cases)
-            preview_ids = all_ids[:3]
-            preview_data = self._fetch_chunk_data(preview_ids, strategy['selected_columns'])
 
             logger.info(f"[PHASE 1] Plan created: {plan_id}. Total cases: {total_cases}. Chunks: {len(chunks)}.")
             logger.info(f"[HUMAN-IN-THE-LOOP] 🛑 PHASE 1 COMPLETE. Returning plan to UI. WAITING FOR USER CONFIRMATION to proceed to Phase 2.")
@@ -368,11 +407,11 @@ class ThreeStageAnalyzer:
         with open(file_path, 'w', encoding='utf-8') as f:
             json.dump(plan, f, indent=2, ensure_ascii=False)
 
-    async def _generate_discovery_strategy(self, user_query: str) -> Dict[str, Any]:
+    async def _generate_discovery_strategy(self, user_query: str, feedback: str = "") -> Dict[str, Any]:
         """
         Uses LLM to generate discovery SQL and column list.
         """
-        prompt = self._build_discovery_prompt(user_query)
+        prompt = self._build_discovery_prompt(user_query, feedback)
 
         retea_host = settings_manager.get_value('setari_retea', 'retea_host', '')
         retea_folder = settings_manager.get_value('setari_retea', 'retea_folder_partajat', '')
@@ -403,6 +442,44 @@ class ThreeStageAnalyzer:
         except Exception as e:
             logger.error(f"Eroare parsare răspuns Discovery: {e}")
             raise ValueError(f"LLM a returnat un răspuns invalid în Phase 1: {e}")
+
+    async def _verify_strategy(self, user_query: str, strategy: Dict[str, Any], preview_data: List[Dict]) -> Dict[str, Any]:
+        """
+        Verifies if the strategy produced useful results.
+        """
+        prompt = self._build_verification_prompt(user_query, strategy, preview_data)
+
+        retea_host = settings_manager.get_value('setari_retea', 'retea_host', '')
+        retea_folder = settings_manager.get_value('setari_retea', 'retea_folder_partajat', '')
+
+        success, message, saved_path = NetworkFileSaver.save_to_network(
+            content=prompt,
+            host=retea_host,
+            shared_folder=retea_folder,
+            subfolder=''
+        )
+
+        if not success:
+            logger.warning(f"Could not save verification prompt: {message}. Skipping verification.")
+            return {"valid": True} # Fail open
+
+        poll_success, poll_content, response_path = await NetworkFileSaver.poll_for_response(
+            saved_path=saved_path,
+            timeout_seconds=300,
+            poll_interval=5
+        )
+
+        if not poll_success:
+            logger.warning(f"Timeout Verification: {poll_content}. Skipping verification.")
+            return {"valid": True}
+
+        try:
+            result = self._parse_json_response(poll_content)
+            NetworkFileSaver.delete_response_file(response_path)
+            return result
+        except Exception as e:
+            logger.error(f"Error parsing verification response: {e}")
+            return {"valid": True}
 
     def _execute_discovery_queries(self, strategy: Dict[str, Any]) -> Tuple[int, List[int]]:
         """Executes generated queries to get count and ID list."""
@@ -484,15 +561,26 @@ class ThreeStageAnalyzer:
         return truncated_data, metadata
 
     def _parse_json_response(self, content: str) -> Dict[str, Any]:
-        """Parses JSON response from LLM, cleaning markdown fences."""
+        """Parses JSON response from LLM, cleaning markdown fences and headers."""
         cleaned = content.strip()
+
+        # Remove markdown code fences
         cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
         cleaned = re.sub(r'\s*```\s*$', '', cleaned)
+
+        # Remove common separator lines (e.g. ====, ----) that LLM might repeat
+        cleaned = re.sub(r'^={10,}.*$', '', cleaned, flags=re.MULTILINE)
+        cleaned = re.sub(r'^-{10,}.*$', '', cleaned, flags=re.MULTILINE)
+
+        # Remove "PHASE X" headers if repeated
+        cleaned = re.sub(r'^🔬 PHASE \d+:.*$', '', cleaned, flags=re.MULTILINE)
+
         cleaned = cleaned.strip()
 
         try:
             return json.loads(cleaned)
         except json.JSONDecodeError:
+            # Try to find the first '{' and last '}'
             start = cleaned.find("{")
             end = cleaned.rfind("}")
             if start != -1 and end != -1:
@@ -512,7 +600,16 @@ class ThreeStageAnalyzer:
     # PROMPTS
     # =================================================================================================
 
-    def _build_discovery_prompt(self, user_query: str) -> str:
+    def _build_discovery_prompt(self, user_query: str, feedback: str = "") -> str:
+        feedback_section = ""
+        if feedback:
+            feedback_section = f"""
+=================================================================================== ⚠️ FEEDBACK ANTERIOR
+Am încercat o strategie anterioară dar a eșuat sau a dat rezultate slabe.
+MOTIV: "{feedback}"
+Te rog să ajustezi strategia (SQL sau coloane) pentru a rezolva această problemă.
+"""
+
         return f"""===================================================================================
 🔬 PHASE 1: DISCOVERY & PLANNING (SMART PROJECTION)
 ===================================================================================
@@ -520,6 +617,7 @@ Tu ești un Senior Python & SQL Developer specializat în optimizarea query-uril
 Scopul tău este să planifici execuția eficientă pentru o analiză Big Data pe cazuri juridice.
 
 TASK UTILIZATOR: "{user_query}"
+{feedback_section}
 
 =================================================================================== 📊 SCHEMA BAZEI DE DATE
 Tabel: blocuri (id INTEGER PRIMARY KEY, obj JSONB)
@@ -596,6 +694,40 @@ TASK UTILIZATOR: "{user_query}"
   "results": {{ ... }},
   "interpretation": "Concluzia finală...",
   "charts": [ ... ]
+}}
+
+RĂSPUNDE DOAR CU JSON:
+"""
+
+    def _build_verification_prompt(self, user_query: str, strategy: Dict[str, Any], preview_data: List[Dict]) -> str:
+        data_json = json.dumps(preview_data, indent=2, ensure_ascii=False)
+        strategy_json = json.dumps(strategy, indent=2, ensure_ascii=False)
+
+        return f"""===================================================================================
+🕵️ SELF-VERIFICATION (QUALITY CONTROL)
+===================================================================================
+Tu ești un Auditor de Calitate. Verifici dacă strategia de căutare generată a produs rezultate utile pentru task-ul utilizatorului.
+
+TASK UTILIZATOR: "{user_query}"
+
+STRATEGIA FOLOSITĂ:
+{strategy_json}
+
+REZULTATE OBȚINUTE (Eșantion):
+{data_json}
+
+=================================================================================== 🎯 MISIUNEA TA
+Analizează rezultatele:
+1. Sunt câmpurile extrase populate? (Nu sunt toate null?)
+2. Sunt rezultatele relevante pentru task?
+3. Există suficientă informație pentru a răspunde la întrebarea utilizatorului?
+
+Dacă vezi câmpuri NULL care ar fi trebuit să fie populate, sau dacă rezultatele sunt irelevante, respinge strategia.
+
+=================================================================================== 📤 FORMAT RĂSPUNS (JSON)
+{{
+  "valid": true/false,
+  "feedback": "Dacă false, explică ce trebuie corectat (ex: 'Câmpul X este null', 'Nu am găsit informații despre Y'). Dacă true, lasă gol."
 }}
 
 RĂSPUNDE DOAR CU JSON:
