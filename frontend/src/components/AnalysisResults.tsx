@@ -146,7 +146,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ data }) => {
                         <Info className="text-brand-accent" />
                         <h3 className="text-lg font-bold text-gray-900">Interpretare AI</h3>
                     </div>
-                    <div className="text-gray-700 leading-relaxed text-justify whitespace-pre-wrap">
+                    <div className="text-gray-700 leading-relaxed text-justify whitespace-pre-wrap max-h-96 overflow-y-auto pr-2 custom-scrollbar">
                         {interpretationContent.split('\n').map((line: string, i: number) => {
                             if (line.startsWith('**')) {
                                 const parts = line.split('**');
