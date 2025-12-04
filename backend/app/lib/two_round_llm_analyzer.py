@@ -215,13 +215,24 @@ class ThreeStageAnalyzer:
                 term = primary_strategy.get("term", "")
                 pro_queries = build_pro_search_query_sql(term, limit=100)
                 if sql_filters:
-                    # Add SQL filters to the Pro Search queries
-                    combined_count = pro_queries['count_query'].replace(
-                        "WHERE", f"WHERE ({sql_filters}) AND ("
-                    ) + ")"
-                    combined_id_list = pro_queries['id_list_query'].replace(
-                        "WHERE", f"WHERE ({sql_filters}) AND ("
-                    ).replace("ORDER BY", ") ORDER BY")
+                    # Safer combination logic for Pro Search
+                    original_count = pro_queries['count_query']
+                    if "WHERE" in original_count:
+                        # Insert filters after WHERE
+                        combined_count = original_count.replace("WHERE", f"WHERE ({sql_filters}) AND", 1)
+                    else:
+                        combined_count = original_count + f" WHERE {sql_filters}"
+
+                    original_ids = pro_queries['id_list_query']
+                    if "WHERE" in original_ids:
+                        combined_id_list = original_ids.replace("WHERE", f"WHERE ({sql_filters}) AND", 1)
+                    else:
+                        # Insert before ORDER BY or at end
+                        if "ORDER BY" in original_ids:
+                            combined_id_list = original_ids.replace("ORDER BY", f"WHERE {sql_filters} ORDER BY")
+                        else:
+                            combined_id_list = original_ids + f" WHERE {sql_filters}"
+
                     strategy['count_query'] = combined_count
                     strategy['id_list_query'] = combined_id_list
                 else:
@@ -231,14 +242,27 @@ class ThreeStageAnalyzer:
                 term = primary_strategy.get("term", "")
                 vector_queries = build_vector_search_query_sql(term, limit=100)
                 if sql_filters:
-                     # Add to existing WHERE if present, or new
+                    # Safer combination logic for Vector Search
                     id_list = vector_queries['id_list_query']
-                    if "WHERE" in id_list:
-                        combined_id_list = id_list.replace("ORDER BY", f"WHERE {sql_filters} ORDER BY") # Heuristic: add to end before order
-                    else:
-                        combined_id_list = id_list.replace("ORDER BY", f"WHERE {sql_filters} ORDER BY")
 
-                    strategy['count_query'] = vector_queries['count_query'] # Approximate
+                    # Vector query from build_vector_search_query_sql usually looks like:
+                    # SELECT id, embedding <=> [...] as distance FROM blocuri ORDER BY distance LIMIT 100
+                    # It might NOT have a WHERE clause initially.
+
+                    if "WHERE" in id_list:
+                        combined_id_list = id_list.replace("WHERE", f"WHERE ({sql_filters}) AND", 1)
+                    else:
+                        if "ORDER BY" in id_list:
+                            combined_id_list = id_list.replace("ORDER BY", f"WHERE {sql_filters} ORDER BY")
+                        else:
+                            combined_id_list = id_list + f" WHERE {sql_filters}"
+
+                    # Approximate count query logic
+                    # Vector search counts are tricky because they depend on similarity threshold,
+                    # but typically we just count filtered results or use the total if just sorting.
+                    # Here we construct a count query based on filters only, as 'similarity' is a sort, not a hard filter usually unless thresholded.
+                    # But for 'combined', we assume filters reduce the scope.
+                    strategy['count_query'] = f"SELECT COUNT(*) FROM blocuri WHERE {sql_filters}"
                     strategy['id_list_query'] = combined_id_list
                 else:
                     strategy.update(vector_queries)
