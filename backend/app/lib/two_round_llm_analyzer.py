@@ -30,6 +30,30 @@ class ThreeStageAnalyzer:
         self.session = session
         self.plans_dir = "analyzer_plans"  # Directory for saving plans
         os.makedirs(self.plans_dir, exist_ok=True)
+        self.prompts = self._load_prompts()
+
+    def _load_prompts(self) -> Dict[str, str]:
+        """Loads prompts from the external JSON configuration file."""
+        try:
+            # Assumes backend/llm_default.json is relative to the backend root
+            # Path calculation:
+            # __file__ = backend/app/lib/two_round_llm_analyzer.py
+            # os.path.dirname(__file__) = backend/app/lib
+            # ../.. from there = backend/
+
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            config_path = os.path.abspath(os.path.join(current_dir, "../../llm_default.json"))
+
+            if not os.path.exists(config_path):
+                logger.error(f"Prompt configuration file not found at {config_path}")
+                return {}
+
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                return config.get("prompturi_three_stage", {})
+        except Exception as e:
+            logger.error(f"Failed to load prompts: {e}")
+            return {}
 
     async def create_plan(self, user_query: str) -> Dict[str, Any]:
         """
@@ -809,120 +833,28 @@ Am încercat o strategie anterioară dar a eșuat sau a dat rezultate slabe.
 MOTIV: "{feedback}"
 Te rog să ajustezi strategia (SQL sau coloane) pentru a rezolva această problemă.
 """
+        template = self.prompts.get("discovery_prompt", "")
+        if not template:
+            return "EROARE: Prompt discovery_prompt lipsă."
 
-        return f"""===================================================================================
-🔬 PHASE 1: DISCOVERY & PLANNING (SMART PROJECTION)
-===================================================================================
-Tu ești un Senior Python & SQL Developer specializat în optimizarea query-urilor pe baze de date juridice PostgreSQL.
-Scopul tău este să planifici execuția eficientă pentru o analiză Big Data pe cazuri juridice.
-
-TASK UTILIZATOR: "{user_query}"
-{feedback_section}
-
-=================================================================================== 📊 SCHEMA BAZEI DE DATE
-Tabel: blocuri (id INTEGER PRIMARY KEY, obj JSONB)
-
-Câmpuri JSONB disponibile în 'obj' (LISTA COMPLETĂ):
-- 'materie': materia cazului (ex: 'Penal', 'Civil', 'Execuție penală', etc.)
-- 'obiect': obiectul cazului (ex: 'omor', 'viol', 'furt calificat', etc.)
-- 'text_situatia_de_fapt': textul complet al situației de fapt (câmp lung)
-- 'solutia': soluția/decizia completă a instanței (include PEDEPSE) (câmp lung)
-- 'keywords': array JSONB cu cuvinte cheie (ex: ["omor", "tentativă"])
-- 'denumire': titlul/denumirea cazului
-- 'argumente_instanta': argumentele instanței (câmp lung)
-- 'considerente_speta': considerentele speței (câmp lung)
-- 'text_individualizare': text privind individualizarea pedepsei (câmp lung, IMPORTANT pentru pedepse)
-- 'text_doctrina': text doctrinar (câmp lung)
-- 'text_ce_invatam': lecții învățate din caz (câmp lung)
-- 'Rezumat_generat_de_AI_Cod': rezumat generat AI
-- 'tip_speta': tipul speței
-- 'parte': părțile implicate
-- 'număr_dosar': numărul dosarului
-- 'tip_solutie': tipul soluției (ex: 'Condamnare', 'Achitare', etc.)
-
-IMPORTANT: Unele câmpuri pot fi NULL sau lipsă.
-Dacă task-ul cere "soluția" sau "pedeapsa", asigură-te că filtrezi cazurile care au acest câmp populat!
-Ex: ... AND (obj->>'solutia' IS NOT NULL AND length(obj->>'solutia') > 10 OR obj->>'text_individualizare' IS NOT NULL)
-
-=================================================================================== 🚨 REGULI CRITICE DE SQL
-❌ NU FACE NICIODATĂ ASA: SELECT id, obj FROM blocuri...
-✅ FACE ÎNTOTDEAUNA ASA: SELECT id, obj->>'solutia' as solutia FROM blocuri...
-**SMART PROJECTION**: Extrage DOAR câmpurile necesare.
-
-FILTRARE - REGULI CRITICE:
-- **IGNORĂ GREȘELILE DE SCRIERE** din query-ul utilizatorului - extrage doar ESENȚA (ex: "petru ifractiuea de omor" → caută "omor")
-- Folosește ILIKE în loc de = pentru flexibilitate (ex: ILIKE '%penal%' în loc de = 'Penal')
-- Pentru arrays (keywords), folosește: obj->>'keywords' ILIKE '%cuvânt%'
-- Combină multiple câmpuri cu OR pentru rezultate mai bune
-- **NU căuta expresii textuale exacte** (ex: "închisoare de", "ani închisoare") - acestea variază prea mult!
-- Pentru pedepse: verifică doar că solutia/text_individualizare există (IS NOT NULL), NU căuta formatul textual!
-- Relaxează cât mai mult - este mai bine să găsești 100 cazuri și să filtrezi în Faza 2 decât să găsești 0!
-
-=================================================================================== 📚 EXEMPLE DE QUERY-URI
-
-❌ GREȘIT (prea restrictiv):
-{{
-  "count_query": "SELECT COUNT(*) FROM blocuri WHERE obj->>'materie' = 'Penal' AND obj->>'obiect' = 'omor'",
-  "id_list_query": "SELECT id FROM blocuri WHERE obj->>'materie' = 'Penal' AND obj->>'obiect' = 'omor'",
-  "selected_columns": ["solutia", "obiect"],
-  "rationale": "Caut cazuri de omor"
-}}
-MOTIV GREȘIT: Folosește egalitate strictă (=) care eșuează dacă există variații ("penal" vs "Penal" vs "PENAL")
-
-✅ CORECT (flexibil):
-{{
-  "count_query": "SELECT COUNT(*) FROM blocuri WHERE (obj->>'materie' ILIKE '%penal%') AND (obj->>'obiect' ILIKE '%omor%' OR obj->>'keywords' ILIKE '%omor%')",
-  "id_list_query": "SELECT id FROM blocuri WHERE (obj->>'materie' ILIKE '%penal%') AND (obj->>'obiect' ILIKE '%omor%' OR obj->>'keywords' ILIKE '%omor%')",
-  "selected_columns": ["solutia", "obiect", "materie"],
-  "rationale": "Folosesc ILIKE pentru flexibilitate și caut 'omor' în două câmpuri (obiect și keywords)"
-}}
-
-✅ FOARTE BUN (maxim flexibil pentru întrebări despre pedeapsă):
-{{
-  "count_query": "SELECT COUNT(*) FROM blocuri WHERE (obj->>'materie' ILIKE '%penal%') AND (obj->>'obiect' ILIKE '%omor%' OR obj->>'keywords' ILIKE '%omor%' OR obj->>'text_situatia_de_fapt' ILIKE '%omor%') AND (obj->>'solutia' IS NOT NULL AND length(obj->>'solutia') > 10 OR obj->>'text_individualizare' IS NOT NULL)",
-  "id_list_query": "SELECT id FROM blocuri WHERE (obj->>'materie' ILIKE '%penal%') AND (obj->>'obiect' ILIKE '%omor%' OR obj->>'keywords' ILIKE '%omor%' OR obj->>'text_situatia_de_fapt' ILIKE '%omor%') AND (obj->>'solutia' IS NOT NULL AND length(obj->>'solutia') > 10 OR obj->>'text_individualizare' IS NOT NULL)",
-  "selected_columns": ["solutia", "text_individualizare", "obiect", "materie", "text_situatia_de_fapt"],
-  "rationale": "Am inclus două câmpuri relevante pentru pedeapsă (solutia și text_individualizare) și am căutat 'omor' în multiple locuri (obiect, keywords, situatia_de_fapt)"
-}}
-
-=================================================================================== 📤 FORMAT RĂSPUNS (JSON)
-{{
-  "count_query": "SELECT COUNT(*) FROM blocuri WHERE ...",
-  "id_list_query": "SELECT id FROM blocuri WHERE ...",
-  "selected_columns": ["solutia", "obiect", "materie"],
-  "rationale": "Am selectat aceste coloane pentru că..."
-}}
-
-RĂSPUNDE DOAR CU JSON:
-"""
+        return template.format(
+            user_query=user_query,
+            feedback_section=feedback_section
+        )
 
     def _build_chunk_analysis_prompt(self, user_query: str, chunk_data: List[Dict], chunk_index: int, total_chunks: int) -> str:
         data_json = json.dumps(chunk_data, indent=2, ensure_ascii=False)
-        return f"""===================================================================================
-🔬 PHASE 2: BATCH EXECUTION (CHUNK {chunk_index + 1}/{total_chunks})
-===================================================================================
-Tu ești un Data Scientist (Worker). Analizezi un mic lot de date.
+        template = self.prompts.get("chunk_analysis_prompt", "")
+        if not template:
+             return "EROARE: Prompt chunk_analysis_prompt lipsă."
 
-TASK UTILIZATOR: "{user_query}"
-
-=================================================================================== 📦 DATELE TALE (CHUNK)
-{data_json}
-
-=================================================================================== 🎯 MISIUNEA TA
-1. Extragere valori numerice.
-2. Sinteză parțială.
-
-=================================================================================== 📤 FORMAT RĂSPUNS (JSON)
-{{
-  "chunk_index": {chunk_index},
-  "analyzed_count": {len(chunk_data)},
-  "extracted_data": [ ... ],
-  "partial_stats": {{ ... }},
-  "summary": "Scurt rezumat al acestui chunk"
-}}
-
-RĂSPUNDE DOAR CU JSON:
-"""
+        return template.format(
+            user_query=user_query,
+            data_json=data_json,
+            chunk_index=chunk_index,
+            total_chunks=total_chunks,
+            analyzed_count=len(chunk_data)
+        )
 
     def _build_synthesis_prompt(self, user_query: str, aggregated_data: List[Dict], missing_chunks: List[int]) -> str:
         clean_aggregation = []
@@ -934,60 +866,28 @@ RĂSPUNDE DOAR CU JSON:
             })
 
         data_json = json.dumps(clean_aggregation, indent=2, ensure_ascii=False)
+        template = self.prompts.get("synthesis_prompt", "")
+        if not template:
+             return "EROARE: Prompt synthesis_prompt lipsă."
 
-        return f"""===================================================================================
-🔬 PHASE 3: FINAL SYNTHESIS (REDUCE)
-===================================================================================
-Tu ești Analistul Șef. Agregă datele parțiale și răspunde utilizatorului.
-
-TASK UTILIZATOR: "{user_query}"
-
-=================================================================================== 📦 REZULTATE AGREGATE
-{data_json}
-
-=================================================================================== 📤 FORMAT RĂSPUNS (JSON)
-{{
-  "results": {{ ... }},
-  "interpretation": "Concluzia finală...",
-  "charts": [ ... ]
-}}
-
-RĂSPUNDE DOAR CU JSON:
-"""
+        return template.format(
+            user_query=user_query,
+            data_json=data_json
+        )
 
     def _build_verification_prompt(self, user_query: str, strategy: Dict[str, Any], preview_data: List[Dict]) -> str:
         data_json = json.dumps(preview_data, indent=2, ensure_ascii=False)
         strategy_json = json.dumps(strategy, indent=2, ensure_ascii=False)
 
-        return f"""===================================================================================
-🕵️ SELF-VERIFICATION (QUALITY CONTROL)
-===================================================================================
-Tu ești un Auditor de Calitate. Verifici dacă strategia de căutare generată a produs rezultate utile pentru task-ul utilizatorului.
+        template = self.prompts.get("verification_prompt", "")
+        if not template:
+             return "EROARE: Prompt verification_prompt lipsă."
 
-TASK UTILIZATOR: "{user_query}"
-
-STRATEGIA FOLOSITĂ:
-{strategy_json}
-
-REZULTATE OBȚINUTE (Eșantion):
-{data_json}
-
-=================================================================================== 🎯 MISIUNEA TA
-Analizează rezultatele:
-1. Sunt câmpurile extrase populate? (Nu sunt toate null?)
-2. Sunt rezultatele relevante pentru task?
-3. Există suficientă informație pentru a răspunde la întrebarea utilizatorului?
-
-Dacă vezi câmpuri NULL care ar fi trebuit să fie populate, sau dacă rezultatele sunt irelevante, respinge strategia.
-
-=================================================================================== 📤 FORMAT RĂSPUNS (JSON)
-{{
-  "valid": true/false,
-  "feedback": "Dacă false, explică ce trebuie corectat (ex: 'Câmpul X este null', 'Nu am găsit informații despre Y'). Dacă true, lasă gol."
-}}
-
-RĂSPUNDE DOAR CU JSON:
-"""
+        return template.format(
+            user_query=user_query,
+            strategy_json=strategy_json,
+            data_json=data_json
+        )
 
 # Alias for backward compatibility
 TwoRoundLLMAnalyzer = ThreeStageAnalyzer
