@@ -3,7 +3,7 @@ import requests
 import unicodedata
 import re
 from sqlmodel import Session, text
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 from ..config import get_settings
 from ..schemas import SearchRequest
@@ -48,7 +48,7 @@ def embed_text(text_to_embed: str) -> List[float]:
         logger.warning(f"Failed to get embedding, returning zero vector. Error: {e}")
         return [0.0] * settings.VECTOR_DIM
 
-def _build_common_where_clause(req: SearchRequest, dialect: str) -> (str, Dict[str, Any]):
+def _build_common_where_clause(req: SearchRequest, dialect: str) -> Tuple[str, Dict[str, Any]]:
     """Builds the filter part of the WHERE clause, aware of SQL dialect."""
     where_clauses = []
     params = {}
@@ -476,12 +476,18 @@ def normalize_query(text: str) -> str:
 def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
     """
     Main search function that orchestrates the search logic.
+    - Routes to Pro Keyword Search if enabled.
     - Routes to keyword search for short queries (<= 3 words).
     - Routes to semantic/vector search for longer queries.
     - Handles embedding failures by falling back to keyword search.
     - Handles searches with only "obiect" selected.
     """
     dialect = session.bind.dialect.name
+
+    # Check for Pro Search first
+    if getattr(search_request, 'pro_search', False):
+        return _search_pro_keyword(session, search_request)
+
     word_count = len(search_request.situatie.split())
     use_keyword_search = True
 
@@ -527,89 +533,174 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
         else:
             return _search_by_keywords_sqlite(session, search_request)
 
+def _build_pro_search_components(term: str) -> Dict[str, Any]:
+    """
+    Internal helper to build shared components for Pro Search.
+    Returns:
+        Dict with:
+            - terms_to_search: List[str]
+            - total_occurrences: str (SQL expression)
+            - match_conditions: List[str] (SQL conditions)
+    """
+    raw_query = term.strip()
+    if not raw_query:
+        return {
+            "terms_to_search": [],
+            "total_occurrences": "0",
+            "match_conditions": ["1=0"]
+        }
+
+    # Strict Diacritics Logic
+    normalized_query = _normalize_text(raw_query)
+    terms_to_search = [raw_query]
+
+    if raw_query != normalized_query:
+        terms_to_search.append(normalized_query)
+
+    terms_to_search = list(set(terms_to_search))
+
+    # Build Expressions
+    target_field = "COALESCE(b.obj->>'considerente_speta', '')"
+
+    # Relevance Score (Occurrence Count)
+    occurrence_exprs = []
+    for term_str in terms_to_search:
+        # SQL Injection Protection: Escape single quotes for string literals
+        safe_term = term_str.replace("'", "''")
+        expr = f"(LENGTH({target_field}) - LENGTH(REPLACE(LOWER({target_field}), LOWER('{safe_term}'), ''))) / LENGTH('{safe_term}')"
+        occurrence_exprs.append(expr)
+
+    total_occurrences = " + ".join(occurrence_exprs) if occurrence_exprs else "0"
+
+    # WHERE conditions (Regex Word Boundaries)
+    match_conditions = []
+    for term_str in terms_to_search:
+        # SQL Injection Protection:
+        # 1. Escape regex special characters (e.g. '.', '*', etc.)
+        regex_safe = re.escape(term_str)
+        # 2. Escape single quotes for SQL string literal (after regex escape)
+        # This prevents breaking the SQL string: '... ~* ''...'''
+        sql_safe_regex = regex_safe.replace("'", "''")
+
+        # In SQL: '... ~* ''\yterm\y'''
+        match_conditions.append(f"{target_field} ~* '\\y{sql_safe_regex}\\y'")
+
+    return {
+        "terms_to_search": terms_to_search,
+        "total_occurrences": total_occurrences,
+        "match_conditions": match_conditions
+    }
+
+def build_pro_search_query_sql(term: str, limit: int = 20, offset: int = 0) -> Dict[str, str]:
+    """
+    Builds the SQL queries for Pro Keyword Search without executing them.
+    Useful for LLM Analyzer to generate valid strategies.
+
+    Returns:
+        Dict with keys: 'count_query', 'id_list_query'
+    """
+    components = _build_pro_search_components(term)
+
+    if not components["terms_to_search"]:
+         return {"count_query": "", "id_list_query": ""}
+
+    where_sql = f"WHERE ({' OR '.join(components['match_conditions'])})"
+
+    # Construct Final Queries
+    count_query = f"SELECT COUNT(*) FROM blocuri b {where_sql}"
+
+    id_list_query = f"""
+        SELECT id FROM blocuri b
+        {where_sql}
+        ORDER BY ({components['total_occurrences']}) DESC
+        LIMIT {limit} OFFSET {offset}
+    """
+
+    return {
+        "count_query": count_query,
+        "id_list_query": id_list_query
+    }
+
+def build_vector_search_query_sql(term: str, limit: int = 100) -> Dict[str, str]:
+    """
+    Builds the SQL queries for Vector Search (Embeddings).
+    Synchronously calls the embedding service and constructs the SQL.
+    Useful for LLM Analyzer.
+
+    Returns:
+        Dict with keys: 'count_query', 'id_list_query'
+    """
+    if not term or not term.strip():
+        return {"count_query": "", "id_list_query": ""}
+
+    logger.info(f"Generating embedding for Vector Search Strategy: {term}")
+
+    try:
+        # 1. Generate embedding (synchronous call)
+        embedding = embed_text(term)
+
+        # 2. Format vector literal for pgvector
+        # Format: '[0.1,0.2,...]'
+        vector_literal = str(embedding)
+
+        # 3. Construct SQL
+        # We perform a hybrid sort or just pure vector distance.
+        # For simplicity in Analyzer phase, we rely on vector distance.
+        # We need filtering on NULLs usually, but the LLM strategy implies broad search.
+        # However, to be safe, we might want to ensure we don't get junk.
+
+        # Query for Count is tricky with vector search because standard vector search usually does KNN (limit).
+        # COUNT(*) on all records ordered by distance is meaningless without a threshold.
+        # Usually we just return a fixed number of most relevant results.
+        # So count_query will be effectively "LIMIT" size or we can use a distance threshold if we knew it.
+        # Let's return a count of the LIMIT we are imposing, or just a generic count.
+        # Actually, Analyzer uses count_query to show "Total cases found".
+        # For KNN, "Total cases" is technically the whole DB, but "Relevant cases" is top K.
+        # Let's set count query to return the limit number as a proxy for "relevant found".
+
+        count_query = f"SELECT {limit}"
+
+        id_list_query = f"""
+            SELECT b.id
+            FROM blocuri b
+            JOIN vectori v ON b.id = v.speta_id
+            ORDER BY v.embedding <=> '{vector_literal}'
+            LIMIT {limit}
+        """
+
+        return {
+            "count_query": count_query,
+            "id_list_query": id_list_query
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to build vector search query: {e}")
+        return {"count_query": "", "id_list_query": ""}
+
 def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
     """
     Pro Keyword Search:
     - Searches in 'considerente' (mapped to 'argumente_instanta' or similar in JSON).
     - Logic:
         - If query has diacritics: Search for exact match AND normalized match.
-        - If query has NO diacritics: Search ONLY for normalized match (exact match without diacritics).
+        - If query has NO diacritics: Search ONLY for normalized match.
     - Ranking: Descending order of keyword occurrences.
     """
     logger.info("[search] using PRO keyword mode")
 
-    # 1. Prepare terms
-    raw_query = req.situatie.strip()
-    if not raw_query:
+    components = _build_pro_search_components(req.situatie)
+
+    if not components["terms_to_search"]:
         return []
 
-    # Strict Diacritics Logic Implementation:
-    normalized_query = _normalize_text(raw_query)
-
-    # Start with the raw query (exact text)
-    terms_to_search = [raw_query]
-
-    # Check if input has diacritics
-    if raw_query != normalized_query:
-        # Case 1: Input WITH diacritics (e.g., "școală")
-        # Logic: Search for "școală" OR "scoala" (normalized).
-        terms_to_search.append(normalized_query)
-    else:
-        # Case 2: Input WITHOUT diacritics (e.g., "scoala")
-        # Logic: Search ONLY for "scoala" (exact match).
-        # We do NOT add any other variants.
-        # This assumes Postgres ILIKE is accent-sensitive by default (which it is for standard collations),
-        # so "scoala" will NOT match "școală".
-        pass
-
-    # Remove duplicates
-    terms_to_search = list(set(terms_to_search))
-    logger.info(f"[search] Pro terms: {terms_to_search}")
-
-    # 2. Build Query
-    # We need to access the JSON field safely.
-    target_field = "COALESCE(b.obj->>'considerente_speta', '')"
-
-    # Build the occurrence counting expression
-    # We sum occurrences of all terms
-    occurrence_exprs = []
-    for term in terms_to_search:
-        # Escape single quotes in term for SQL safety (basic)
-        safe_term = term.replace("'", "''")
-        # We use simple string replacement counting for score, but WHERE clause filters strictly for words
-        expr = f"(LENGTH({target_field}) - LENGTH(REPLACE(LOWER({target_field}), LOWER('{safe_term}'), ''))) / LENGTH('{safe_term}')"
-        occurrence_exprs.append(expr)
-
-    total_occurrences = " + ".join(occurrence_exprs)
-
-    # Build WHERE clause
+    # Mix with common filters
+    filter_clause, params = _build_common_where_clause(req, 'postgresql')
     where_conditions = []
-
-    # Add filters
-    filter_clause, params = _build_common_where_clause(req, 'postgresql') # Assuming PG for Pro features usually
     if filter_clause:
         where_conditions.append(filter_clause)
 
-    # Add match condition using Regex Word Boundaries (\y) to avoid partial matches (e.g. 'fund' inside 'fundații')
-    # Use re.escape to handle any special regex characters in the term
-    match_conditions = []
-    for i, term in enumerate(terms_to_search):
-        # Escape for regex safe usage
-        safe_regex_term = re.escape(term)
-        # Postgres regex uses \y for word boundaries
-        match_conditions.append(f"{target_field} ~* '\\y{safe_regex_term}\\y'")
-        # No parameter needed for regex literal in string, but let's be careful about injection if we didn't escape.
-        # Ideally we pass as parameter, but ~* :param syntax with boundaries is tricky.
-        # Better: use parameter for the term and concat in SQL: ~* ('\y' || :term || '\y')
-        # But we need to escape the term for regex interpretation first.
-        # Since we re.escape in python, we can inject it safely-ish if we trust re.escape,
-        # OR better: pass the full regex string as parameter.
-        param_name = f"pro_term_regex_{i}"
-        match_conditions.append(f"{target_field} ~* :{param_name}")
-        # We need to double backslash for python string literal to get single backslash in regex string
-        params[param_name] = f"\\y{safe_regex_term}\\y"
-
-    where_conditions.append(f"({' OR '.join(match_conditions)})")
+    # Add Pro Search conditions
+    where_conditions.append(f"({' OR '.join(components['match_conditions'])})")
 
     where_sql = "WHERE " + " AND ".join(where_conditions)
 
@@ -622,7 +713,7 @@ def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
         SELECT
             b.id,
             b.obj,
-            ({total_occurrences}) as relevance_score
+            ({components['total_occurrences']}) as relevance_score
         FROM blocuri b
         {where_sql}
         ORDER BY relevance_score DESC
@@ -638,72 +729,13 @@ def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
         # Inject highlight terms into the data dictionary of each result
         for res in results:
             if 'data' in res:
-                res['data']['highlight_terms'] = terms_to_search
+                res['data']['highlight_terms'] = components["terms_to_search"]
 
         return results
     except Exception as e:
         logger.error(f"[search] Pro keyword search failed: {e}")
-        # Fallback to standard search if this fails (e.g. on SQLite where functions might differ)
-        logger.info("Falling back to standard keyword search")
+        # Fallback to standard search
         return _search_by_keywords_sqlite(session, req)
-
-
-def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
-    """
-    Main search function that orchestrates the search logic.
-    - Routes to Pro Keyword Search if enabled.
-    - Routes to keyword search for short queries (<= 3 words).
-    - Routes to semantic/vector search for longer queries.
-    """
-    # Check for Pro Search first
-    if getattr(search_request, 'pro_search', False):
-        return _search_pro_keyword(session, search_request)
-
-    dialect = session.bind.dialect.name
-    word_count = len(search_request.situatie.split())
-    use_keyword_search = True
-
-    if not search_request.situatie.strip() and search_request.obiect:
-        logger.info("[search] using 'obiect' only mode")
-        filter_clause, params = _build_common_where_clause(search_request, dialect)
-
-        limit = search_request.limit if search_request.limit is not None else settings.TOP_K
-        offset = search_request.offset if search_request.offset is not None else 0
-        params["limit"] = limit
-        params["offset"] = offset
-
-        where_sql = f"WHERE {filter_clause}" if filter_clause else ""
-        query_str = f"""
-            SELECT id, obj
-            FROM blocuri b
-            {where_sql}
-            LIMIT :limit OFFSET :offset;
-        """.replace("ILIKE", "LIKE")
-        result = session.execute(text(query_str), params)
-        return _process_results(result.mappings().all(), score_metric=None)
-
-    if word_count > 3:
-        logger.info("[search] using embedding mode (>3 words)")
-        embedding = embed_text(search_request.situatie)
-
-        # Check if embedding failed (indicated by a zero vector)
-        if any(v != 0.0 for v in embedding):
-            use_keyword_search = False
-            if dialect == 'postgresql':
-                return _search_postgres(session, search_request, embedding)
-            else:
-                # Fallback for SQLite when embedding is successful but platform is not PG
-                return _search_sqlite(session, search_request)
-        else:
-            logger.warning("[search] embedding failed, falling back to keyword search.")
-            # Fallback to keyword search is implicitly handled below
-
-    # This block is executed if word_count <= 3 OR if embedding failed
-    if use_keyword_search:
-        if dialect == 'postgresql':
-            return _search_by_keywords_postgres(session, search_request)
-        else:
-            return _search_by_keywords_sqlite(session, search_request)
 
 def get_case_by_id(session: Session, case_id: int) -> Dict[str, Any] | None:
     """
