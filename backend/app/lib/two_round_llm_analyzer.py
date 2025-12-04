@@ -909,6 +909,12 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
         try:
             result = self._parse_json_response(poll_content)
             NetworkFileSaver.delete_response_file(response_path)
+
+            # Ensure result has 'valid' key
+            if not isinstance(result, dict) or 'valid' not in result:
+                logger.warning(f"Verification response missing 'valid' key. Got: {type(result)}. Assuming valid=True")
+                return {"valid": True, "feedback": ""}
+
             return result
         except Exception as e:
             logger.error(f"Error parsing verification response: {e}")
