@@ -8,12 +8,14 @@ import os
 import time
 import uuid
 import re
+import asyncio
 from sqlmodel import Session, text
 from typing import Dict, Any, List, Tuple, Optional, Callable, Awaitable
 from ..settings_manager import settings_manager
 from ..lib.network_file_saver import NetworkFileSaver
 from ..lib.prompt_logger import PromptLogger
 from ..logic.search_logic import build_pro_search_query_sql, build_vector_search_query_sql
+from ..multi_strategy_config import MultiStrategyConfig
 
 logger = logging.getLogger(__name__)
 
@@ -89,6 +91,48 @@ class ThreeStageAnalyzer:
                     feedback = f"Query-ul generat a eșuat: {e}. Te rog corectează SQL-ul."
                     continue
 
+                # ===== NOUĂ LOGICĂ: AUTO-EXPANSION =====
+                if MultiStrategyConfig.AUTO_EXPAND_ENABLED:
+                    if 0 < total_cases < MultiStrategyConfig.MIN_RESULTS_THRESHOLD:
+                        logger.warning(
+                            f"[PHASE 1] ⚠️ Only {total_cases} cases found. "
+                            f"Triggering AUTO-EXPANSION..."
+                        )
+
+                        try:
+                            # Pass initial results to auto-expansion to avoid re-running primary strategy if possible
+                            # Though our _execute_multi_strategy relies on re-running or heuristics currently.
+                            # Enhancing primary_strategy with results
+                            if "initial_ids" not in strategy:
+                                strategy["initial_ids"] = all_ids
+
+                            expanded_results = await self._execute_multi_strategy(
+                                user_query,
+                                strategy,
+                                mode="auto_expand"
+                            )
+
+                            # Update cu rezultatele expandate
+                            total_cases = expanded_results["total_cases"]
+                            all_ids = expanded_results["merged_ids"]
+
+                            # Update rationale să includă info despre expansion
+                            strategies_list = ', '.join(expanded_results['strategies_used'])
+                            strategy["rationale"] = (
+                                f"🔄 AUTO-EXPANDED: {strategy.get('rationale', '')}\n\n"
+                                f"Initial: {strategy.get('strategy_type', 'unknown')} găsit {len(strategy.get('initial_ids', []))} cazuri. "
+                                f"Extended cu {strategies_list} -> "
+                                f"Total: {total_cases} cazuri."
+                            )
+                            strategy["strategies_used"] = expanded_results["strategies_used"]
+                            strategy["strategy_breakdown"] = expanded_results["breakdown"]
+
+                            logger.info(f"[PHASE 1] ✅ Auto-expansion successful: {total_cases} total cases")
+                        except Exception as e:
+                            logger.error(f"[PHASE 1] Auto-expansion failed: {e}", exc_info=True)
+                            # Continue with original results if expansion fails
+                # ===== SFÂRȘIT AUTO-EXPANSION =====
+
                 if total_cases == 0:
                     if attempt <= max_retries:
                         logger.warning(f"[PHASE 1] No cases found. Retrying with feedback...")
@@ -152,7 +196,9 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
                 "chunk_size": chunk_size,
                 "chunks": chunks, # List of lists of IDs
                 "created_at": time.time(),
-                "status": "created"
+                "status": "created",
+                "strategies_used": strategy.get("strategies_used", [strategy.get("strategy_type")]),
+                "strategy_breakdown": strategy.get("strategy_breakdown", {})
             }
 
             # 5. Save Plan
@@ -174,7 +220,9 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
                 'estimated_time_seconds': estimated_seconds,
                 'estimated_time_minutes': estimated_minutes,  # Added for better UX
                 'preview_data': preview_data,
-                'strategy_summary': strategy.get('rationale', 'Strategie generată automat.')
+                'strategy_summary': strategy.get('rationale', 'Strategie generată automat.'),
+                'strategies_used': plan.get("strategies_used"),
+                'strategy_breakdown': plan.get("strategy_breakdown")
             }
 
         except Exception as e:
@@ -587,6 +635,44 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
             logger.info(f"[PHASE 1] Strategy Type Detected: {strategy_type}")
             logger.info(f"[PHASE 1] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
+            # ===== DETECT EXHAUSTIVE MODE =====
+            if strategy_type == "exhaustive":
+                logger.info("[PHASE 1] 🔍 EXHAUSTIVE SEARCH MODE detected")
+
+                # Execute toate strategiile în paralel
+                exhaustive_results = await self._execute_multi_strategy(
+                    user_query,
+                    strategy,
+                    mode="exhaustive"
+                )
+
+                # Construiește strategy object cu toate rezultatele
+                strategy = {
+                    "strategy_type": "exhaustive",
+                    "count_query": "",  # Nu e folosit pentru exhaustive
+                    "id_list_query": "", # Nu e folosit pentru exhaustive
+                    "selected_columns": [
+                        "solutia", "text_individualizare", "text_situatia_de_fapt",
+                        "obiect", "materie", "considerente_speta"
+                    ],
+                    "rationale": exhaustive_results["rationale"],
+                    "strategies_used": exhaustive_results["strategies_used"],
+                    "strategy_breakdown": exhaustive_results["breakdown"]
+                }
+
+                # Pentru compatibilitate cu execute_discovery_queries, trebuie să furnizăm rezultatele
+                # Însă execute_discovery_queries se așteaptă la SQL queries.
+                # Pentru exhaustive, vom sări peste execute_discovery_queries în fluxul principal
+                # prin setarea ids direct în strategie și folosind un flag, sau
+                # modificând fluxul în create_plan.
+                # Soluția aleasă: injectăm ID-urile în strategie și modificăm execute_discovery_queries să le returneze direct.
+                strategy["precomputed_count"] = exhaustive_results["total_cases"]
+                strategy["precomputed_ids"] = exhaustive_results["merged_ids"]
+
+                NetworkFileSaver.delete_response_file(response_path)
+                return strategy
+            # ===== END EXHAUSTIVE DETECTION =====
+
             # ═══════════════════════════════════════════════════════════
             # STRATEGY TYPE: PRO SEARCH (Regex in Considerente)
             # ═══════════════════════════════════════════════════════════
@@ -922,6 +1008,12 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
 
     def _execute_discovery_queries(self, strategy: Dict[str, Any]) -> Tuple[int, List[int]]:
         """Executes generated queries to get count and ID list."""
+
+        # Check for precomputed results (from exhaustive search)
+        if "precomputed_count" in strategy and "precomputed_ids" in strategy:
+            logger.info(f"[PHASE 1] 🚀 Using precomputed results for {strategy.get('strategy_type', 'exhaustive')}")
+            return strategy["precomputed_count"], strategy["precomputed_ids"]
+
         if "count_query" not in strategy or "id_list_query" not in strategy:
             raise ValueError("Strategia nu conține query-urile necesare.")
 
@@ -1150,6 +1242,312 @@ Te rog să iei în considerare serios utilizarea strategiei VECTOR SEARCH (Varia
             strategy_json=strategy_json,
             data_json=data_json
         )
+
+    # =================================================================================================
+    # MULTI-STRATEGY METHODS
+    # =================================================================================================
+
+    async def _execute_multi_strategy(
+        self,
+        user_query: str,
+        primary_strategy: Dict[str, Any],
+        mode: str = "auto_expand"  # sau "exhaustive"
+    ) -> Dict[str, Any]:
+        """
+        Execute multiple search strategies and merge results.
+
+        Args:
+            user_query: Query-ul utilizatorului
+            primary_strategy: Strategia primară deja executată
+            mode: "auto_expand" (doar 1-2 extra) sau "exhaustive" (toate)
+
+        Returns:
+            Dict cu rezultate combinate și metadata strategii
+        """
+        logger.info(f"[MULTI-STRATEGY] Mode: {mode}")
+
+        # 1. Determine care strategii să rulezi
+        strategies_to_run = self._determine_expansion_strategies(
+            primary_strategy,
+            mode
+        )
+
+        if not strategies_to_run:
+            logger.info("[MULTI-STRATEGY] No expansion strategies identified.")
+            # Wrap current results
+            # For exhaustive, we need to execute the primary one as well if it hasn't been executed
+            # but primary_strategy object here is just the definition, usually without results unless passed
+            # In auto_expand, primary_strategy has just finished execution.
+
+            # Since auto_expand happens AFTER primary execution, we need to gather what we have
+            # But the primary results are not passed here.
+            # We should assume primary was executed and its IDs are handled by caller?
+            # NO, the caller expects a merged result including everything.
+
+            # Let's check how this is called.
+            # In create_plan: auto_expand called after _execute_discovery_queries.
+            # We need to include the primary strategy results in the merger.
+            pass
+
+        # We need to execute the additional strategies
+        # AND we need to include the primary strategy's result if we have it,
+        # OR re-execute it if this is exhaustive mode (where everything runs in parallel)
+
+        tasks = []
+
+        # Helper to run a single strategy
+        async def run_strategy_wrapper(strat_name: str) -> Dict[str, Any]:
+            return await self._execute_single_strategy_by_name(user_query, strat_name)
+
+        # For auto-expand: primary is already run. We run others.
+        # For exhaustive: primary is NOT run (it was just a plan). We run ALL.
+
+        if mode == "auto_expand":
+            # Add tasks for expansion
+            tasks = [run_strategy_wrapper(s) for s in strategies_to_run]
+        elif mode == "exhaustive":
+            # Run everything including what might have been the "primary" suggestion
+            all_strats = MultiStrategyConfig.get_all_strategies()
+            tasks = [run_strategy_wrapper(s) for s in all_strats]
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        valid_results = []
+        for i, res in enumerate(results):
+            if isinstance(res, Exception):
+                logger.error(f"[MULTI-STRATEGY] Strategy failed: {res}")
+            else:
+                valid_results.append(res)
+
+        # If auto-expand, we need to mix in the primary result
+        if mode == "auto_expand":
+            # We need to reconstruct the primary result format from what we have
+            # The caller has `total_cases` and `all_ids`.
+            # However, `primary_strategy` passed here is just the dict.
+            # It's better if `_execute_multi_strategy` is self-contained or explicitly passed previous results.
+            # Let's modify the flow slightly:
+            # In `create_plan`, we call this. We should pass the initial IDs.
+            # OR, simpler: we re-run the primary strategy logic here as a "result object"
+            # But that's inefficient.
+            # Ideally, `primary_strategy` should contain the IDs if already run.
+
+            # Let's retro-fit the primary result into a result object
+            if "initial_ids" in primary_strategy: # We should inject this in caller
+                primary_res = {
+                    "strategy_type": primary_strategy.get("strategy_type", "unknown"),
+                    "ids": primary_strategy["initial_ids"],
+                    "count": len(primary_strategy["initial_ids"])
+                }
+                valid_results.append(primary_res)
+            else:
+                # Fallback: maybe we shouldn't have called this without IDs.
+                # In create_plan, let's inject `initial_ids` into `primary_strategy` before calling this.
+                pass
+
+        # 3. Merge și deduplică rezultate
+        merged_results = self._merge_strategy_results(valid_results)
+
+        # 4. Rank rezultate
+        ranked_results = self._rank_merged_results(merged_results)
+
+        strategies_used = [r["strategy_type"] for r in valid_results]
+
+        return {
+            "total_cases": len(ranked_results["unique_ids"]),
+            "strategies_used": strategies_used,
+            "breakdown": {
+                s["strategy_type"]: s["count"]
+                for s in valid_results
+            },
+            "merged_ids": ranked_results["unique_ids"],
+            "rationale": self._build_multi_strategy_rationale(valid_results, mode)
+        }
+
+    async def _execute_single_strategy_by_name(self, user_query: str, strategy_name: str) -> Dict[str, Any]:
+        """Executes a single named strategy (sql_standard, pro_search, vector_search)."""
+        try:
+            strategy_def = {}
+            if strategy_name == "sql_standard":
+                # We need to ask LLM for SQL, or use a heuristic.
+                # Since we are in auto-expand/exhaustive, we might not want to call LLM again for SQL.
+                # But SQL Standard relies on specific filters.
+                # If we are here, we might have skipped the LLM for SQL if we started with something else?
+                # Actually, in exhaustive mode, we want the LLM to give us the SQL.
+                # BUT, we already called LLM in Phase 1 and it gave us a strategy.
+                # If it gave us "exhaustive", it didn't give us SQL.
+
+                # So we need to generate SQL for "sql_standard".
+                # We can reuse _generate_discovery_strategy but force it? No, that loops.
+                # We can use _generate_fallback_strategy as a quick SQL standard.
+                strategy_def = self._generate_fallback_strategy(user_query)
+                strategy_def["strategy_type"] = "sql_standard"
+
+            elif strategy_name == "pro_search":
+                # Extract term from query? heuristic?
+                # Use query as term
+                term = user_query
+                # Maybe clean it?
+                pro_queries = build_pro_search_query_sql(term, limit=100)
+                strategy_def = {
+                    "strategy_type": "pro_search",
+                    "count_query": pro_queries["count_query"],
+                    "id_list_query": pro_queries["id_list_query"],
+                    "selected_columns": ["considerente_speta", "solutia", "obiect"]
+                }
+
+            elif strategy_name == "vector_search":
+                vector_queries = build_vector_search_query_sql(user_query, limit=100)
+                strategy_def = {
+                    "strategy_type": "vector_search",
+                    "count_query": vector_queries["count_query"],
+                    "id_list_query": vector_queries["id_list_query"],
+                    "selected_columns": ["text_situatia_de_fapt", "solutia"]
+                }
+
+            # Execute
+            count, ids = self._execute_discovery_queries(strategy_def)
+
+            return {
+                "strategy_type": strategy_name,
+                "ids": ids,
+                "count": count,
+                "strategy_def": strategy_def
+            }
+
+        except Exception as e:
+            logger.error(f"Error executing {strategy_name}: {e}")
+            raise
+
+    def _determine_expansion_strategies(
+        self,
+        primary: Dict[str, Any],
+        mode: str
+    ) -> List[str]:
+        """Determine care strategii suplimentare să rulezi."""
+        primary_type = primary.get("strategy_type", "sql_standard")
+
+        if mode == "exhaustive":
+            # Toate strategiile minus primary (if primary exists/was run)
+            # Actually for exhaustive we run ALL.
+            # But the caller of this method might separate primary from others.
+            # In my implementation of _execute_multi_strategy, for exhaustive I run ALL.
+            # So here I should probably return nothing or all?
+            # Let's align with the calling logic.
+            # If mode is exhaustive, the caller runs ALL.
+            # This method seems designed for auto-expand primarily.
+            return [] # Logic handled in caller for exhaustive
+
+        elif mode == "auto_expand":
+            # Doar 1 strategie complementară
+            priority_map = MultiStrategyConfig.EXPANSION_PRIORITY
+            if primary_type in priority_map:
+                return [priority_map[primary_type][0]]
+            return ["vector_search"] # Fallback
+
+        return []
+
+    def _merge_strategy_results(
+        self,
+        results: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        Combină rezultate din multiple strategii cu deduplicare.
+
+        Returns:
+            {
+                "unique_ids": [1, 2, 3, ...],  # Deduplicate
+                "source_map": {1: ["pro_search"], 2: ["sql_standard", "pro_search"], ...}
+            }
+        """
+        unique_ids = set()
+        source_map = {}
+
+        for result in results:
+            strategy_type = result["strategy_type"]
+            for case_id in result["ids"]:
+                unique_ids.add(case_id)
+                if case_id not in source_map:
+                    source_map[case_id] = []
+                if strategy_type not in source_map[case_id]:
+                    source_map[case_id].append(strategy_type)
+
+        return {
+            "unique_ids": list(unique_ids),
+            "source_map": source_map
+        }
+
+    def _rank_merged_results(
+        self,
+        merged: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Rankează rezultatele:
+        - Priority 1: Găsite de Pro Search (cel mai relevant pentru considerente)
+        - Priority 2: Găsite de Pro Search + altceva (confirmat de 2 strategii)
+        - Priority 3: SQL Standard only
+        - Priority 4: Vector Search only
+        """
+        ranking = {
+            "pro_search_only": [],
+            "multi_strategy": [],  # Găsite de 2+ strategii
+            "sql_only": [],
+            "vector_only": []
+        }
+
+        for case_id, sources in merged["source_map"].items():
+            if len(sources) > 1:
+                ranking["multi_strategy"].append(case_id)
+            elif "pro_search" in sources:
+                ranking["pro_search_only"].append(case_id)
+            elif "sql_standard" in sources:
+                ranking["sql_only"].append(case_id)
+            else:
+                ranking["vector_only"].append(case_id)
+
+        # Combină în ordine de prioritate (Configurable via MultiStrategyConfig usually)
+        # Using hardcoded preference for now as per spec
+        # Spec says: Pro > Multi > SQL > Vector?
+        # Re-reading spec:
+        # "Rankează rezultatele:
+        # - Priority 1: Găsite de Pro Search (cel mai relevant pentru considerente)
+        # - Priority 2: Găsite de Pro Search + altceva (confirmat de 2 strategii) -- wait, multi usually better?
+        # - Priority 3: SQL Standard only
+        # - Priority 4: Vector Search only"
+
+        # Actually in code example:
+        # "multi_strategy matches primele"
+
+        # Correct order logic based on priority list comments:
+        # 1. multi_strategy
+        # 2. pro_search_only
+        # 3. sql_only
+        # 4. vector_only
+
+        final_order = (
+            ranking["multi_strategy"] +
+            ranking["pro_search_only"] +
+            ranking["sql_only"] +
+            ranking["vector_only"]
+        )
+
+        return {
+            "unique_ids": final_order,
+            "ranking_breakdown": ranking
+        }
+
+    def _build_multi_strategy_rationale(self, results: List[Dict[str, Any]], mode: str) -> str:
+        """Builds rationale string for multi-strategy results."""
+        lines = []
+        if mode == "exhaustive":
+            lines.append("🔍 Căutare Exhaustivă Executată.")
+        else:
+            lines.append("🔄 Strategie extinsă automat.")
+
+        lines.append("Rezultate pe strategii:")
+        for res in results:
+            lines.append(f"- {res['strategy_type']}: {res['count']} cazuri")
+
+        return "\n".join(lines)
 
 # Alias for backward compatibility
 TwoRoundLLMAnalyzer = ThreeStageAnalyzer

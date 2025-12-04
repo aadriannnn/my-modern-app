@@ -19,6 +19,8 @@ interface PlanData {
     preview_data: any[];
     strategy_summary: string;
     original_total_cases?: number;
+    strategies_used?: string[];
+    strategy_breakdown?: Record<string, number>;
 }
 
 const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, onClose }) => {
@@ -379,6 +381,33 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                                             </span>
                                         )}
                                     </p>
+
+                                    {/* Strategy Breakdown Badges */}
+                                    {planData.strategies_used && planData.strategies_used.length > 1 && (
+                                        <div className="mt-3 flex gap-2 flex-wrap">
+                                            <span className="text-xs text-gray-500 self-center">Strategii folosite:</span>
+                                            {planData.strategies_used.map(strategy => (
+                                                <span
+                                                    key={strategy}
+                                                    className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
+                                                >
+                                                    {strategy === 'pro_search' && '⚡ Pro Search'}
+                                                    {strategy === 'sql_standard' && '📊 SQL'}
+                                                    {strategy === 'vector_search' && '🧠 Vector'}
+                                                    {strategy === 'exhaustive' && '🔍 Exhaustive'}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    {/* Numeric Breakdown */}
+                                    {planData.strategy_breakdown && (
+                                        <div className="mt-2 text-xs text-gray-600">
+                                            {Object.entries(planData.strategy_breakdown).map(([strategy, count]) => (
+                                                <div key={strategy}>• {strategy}: {count} cazuri</div>
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
