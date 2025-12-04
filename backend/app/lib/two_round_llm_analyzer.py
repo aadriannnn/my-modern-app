@@ -542,8 +542,26 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
         logger.info(poll_content)
         logger.info("="*80)
 
+        # CRITICAL: Detect LLM echo (service returning prompt instead of response)
+        prompt_start = prompt[:200].strip()
+        response_start = poll_content[:200].strip()
+        if prompt_start == response_start:
+            logger.error("[PHASE 1] ❌ LLM ECHO DETECTED! Service returned prompt instead of response.")
+            logger.error("[PHASE 1] This indicates the external LLM service is not functioning correctly.")
+            NetworkFileSaver.delete_response_file(response_path)
+
+            # Generate fallback strategy using keywords from query
+            return self._generate_fallback_strategy(user_query)
+
         try:
             strategy = self._parse_json_response(poll_content)
+
+            # Validate that strategy has required fields
+            if "count_query" not in strategy or "id_list_query" not in strategy:
+                logger.warning(f"[PHASE 1] Strategy missing required fields. Parsed: {list(strategy.keys())}")
+                NetworkFileSaver.delete_response_file(response_path)
+                return self._generate_fallback_strategy(user_query)
+
             logger.info(f"[PHASE 1] Parsed strategy: {json.dumps(strategy, indent=2, ensure_ascii=False)}")
             NetworkFileSaver.delete_response_file(response_path)
 
@@ -576,6 +594,38 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
             )
 
             raise ValueError(f"LLM a returnat un răspuns invalid în Phase 1: {e}")
+
+    def _generate_fallback_strategy(self, user_query: str) -> Dict[str, Any]:
+        """
+        Generates a fallback strategy when LLM fails.
+        Extracts keywords from user query and creates a flexible search.
+        """
+        logger.info(f"[PHASE 1] Generating fallback strategy for query: {user_query}")
+
+        # Extract meaningful keywords (words longer than 3 chars, excluding common words)
+        common_words = {'care', 'este', 'pentru', 'unde', 'când', 'cum', 'cine', 'de', 'la', 'în', 'pe', 'cu', 'și', 'sau', 'dar'}
+        words = user_query.lower().split()
+        keywords = [w for w in words if len(w) > 3 and w not in common_words]
+
+        if not keywords:
+            keywords = ['penal']  # Default fallback
+
+        # Build flexible WHERE conditions
+        keyword_conditions = []
+        for kw in keywords[:3]:  # Use up to 3 keywords
+            keyword_conditions.append(f"(obj->>'obiect' ILIKE '%{kw}%' OR obj->>'keywords' ILIKE '%{kw}%' OR obj->>'text_situatia_de_fapt' ILIKE '%{kw}%')")
+
+        where_clause = " OR ".join(keyword_conditions)
+
+        fallback_strategy = {
+            "count_query": f"SELECT COUNT(*) FROM blocuri WHERE ({where_clause}) AND obj->>'solutia' IS NOT NULL",
+            "id_list_query": f"SELECT id FROM blocuri WHERE ({where_clause}) AND obj->>'solutia' IS NOT NULL LIMIT 100",
+            "selected_columns": ["solutia", "obiect", "materie", "keywords", "text_situatia_de_fapt"],
+            "rationale": f"Strategie fallback generată automat deoarece serviciul LLM nu a răspuns corect. Căutăm cazuri care conțin cuvintele cheie: {', '.join(keywords)}. Vă rugăm verificați că serviciul AI extern funcționează."
+        }
+
+        logger.info(f"[PHASE 1] Fallback strategy generated: {json.dumps(fallback_strategy, indent=2, ensure_ascii=False)}")
+        return fallback_strategy
 
     async def _verify_strategy(self, user_query: str, strategy: Dict[str, Any], preview_data: List[Dict]) -> Dict[str, Any]:
         """
