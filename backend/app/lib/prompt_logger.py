@@ -96,7 +96,8 @@ class PromptLogger:
     def _get_prompt_file_path(retea_host: str, retea_folder: str) -> str:
         """
         Construiește calea către fișierul prompt.json în mod consistent.
-        Această metodă asigură că citirea și scrierea folosesc EXACT aceeași cale.
+        Această metodă asigură că citirea și scrierea folosesc EXACT aceeași cale,
+        utilizând metoda centralizată din NetworkFileSaver.
 
         Args:
             retea_host: Host-ul din rețea
@@ -105,16 +106,12 @@ class PromptLogger:
         Returns:
             str: Calea completă către prompt.json
         """
-        is_posix = os.name == 'posix'
-
-        if not retea_host or (is_posix and retea_host.lower() in ['local', 'localhost']):
-            # Cale locală (POSIX sau Windows local path)
-            file_path = os.path.join(retea_folder, PromptLogger.PROMPT_LOG_FILENAME)
-        else:
-            # Cale UNC Windows
-            file_path = f"\\\\{retea_host}\\{retea_folder}\\{PromptLogger.PROMPT_LOG_FILENAME}"
-
-        return file_path
+        return NetworkFileSaver.get_network_path(
+            host=retea_host,
+            shared_folder=retea_folder,
+            subfolder="",
+            filename=PromptLogger.PROMPT_LOG_FILENAME
+        )
 
     @staticmethod
     def _load_existing_data(retea_host: str, retea_folder: str) -> Dict[str, Any]:
@@ -201,6 +198,7 @@ class PromptLogger:
                 logger.info(f"[PROMPT LOGGER] ✅ Salvat: {saved_path}")
 
                 # VERIFICARE POST-SALVARE: Confirmăm că datele au fost scrise corect
+                # Folosim aceeași cale ca la citire, care acum este GARANTAT identică cu cea de scriere
                 verify_path = PromptLogger._get_prompt_file_path(retea_host, retea_folder)
                 logger.info(f"[PROMPT LOGGER] Cale verificare (WRITE): {verify_path}")
 
