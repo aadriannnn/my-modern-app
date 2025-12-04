@@ -23,13 +23,29 @@ interface PlanData {
     strategy_breakdown?: Record<string, number>;
 }
 
+// LocalStorage Keys
+const STORAGE_KEY_PREFIX = 'advanced_analysis_';
+const KEY_STEP = `${STORAGE_KEY_PREFIX}step`;
+const KEY_QUERY = `${STORAGE_KEY_PREFIX}query`;
+const KEY_PLAN = `${STORAGE_KEY_PREFIX}plan`;
+const KEY_JOB_ID = `${STORAGE_KEY_PREFIX}job_id`;
+const KEY_RESULT = `${STORAGE_KEY_PREFIX}result`;
+
 const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, onClose }) => {
-    const [query, setQuery] = useState('');
-    const [currentStep, setCurrentStep] = useState<WorkflowStep>('input');
-    const [planData, setPlanData] = useState<PlanData | null>(null);
-    const [jobId, setJobId] = useState<string | null>(null);
+    // Initialize state from localStorage if available
+    const [query, setQuery] = useState(() => localStorage.getItem(KEY_QUERY) || '');
+    const [currentStep, setCurrentStep] = useState<WorkflowStep>(() => (localStorage.getItem(KEY_STEP) as WorkflowStep) || 'input');
+    const [planData, setPlanData] = useState<PlanData | null>(() => {
+        const saved = localStorage.getItem(KEY_PLAN);
+        return saved ? JSON.parse(saved) : null;
+    });
+    const [jobId, setJobId] = useState<string | null>(() => localStorage.getItem(KEY_JOB_ID) || null);
+    const [result, setResult] = useState<any | null>(() => {
+        const saved = localStorage.getItem(KEY_RESULT);
+        return saved ? JSON.parse(saved) : null;
+    });
+
     const [isLoading, setIsLoading] = useState(false);
-    const [result, setResult] = useState<any | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [adjustedCases, setAdjustedCases] = useState<number | null>(null);
     const [isUpdatingPlan, setIsUpdatingPlan] = useState(false);
@@ -44,6 +60,40 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
 
     const eventSourceRef = useRef<{ close: () => void } | null>(null);
 
+    // Persist state to localStorage whenever it changes
+    useEffect(() => {
+        localStorage.setItem(KEY_QUERY, query);
+    }, [query]);
+
+    useEffect(() => {
+        localStorage.setItem(KEY_STEP, currentStep);
+    }, [currentStep]);
+
+    useEffect(() => {
+        if (planData) {
+            localStorage.setItem(KEY_PLAN, JSON.stringify(planData));
+        } else {
+            localStorage.removeItem(KEY_PLAN);
+        }
+    }, [planData]);
+
+    useEffect(() => {
+        if (jobId) {
+            localStorage.setItem(KEY_JOB_ID, jobId);
+        } else {
+            localStorage.removeItem(KEY_JOB_ID);
+        }
+    }, [jobId]);
+
+    useEffect(() => {
+        if (result) {
+            localStorage.setItem(KEY_RESULT, JSON.stringify(result));
+        } else {
+            localStorage.removeItem(KEY_RESULT);
+        }
+    }, [result]);
+
+
     // Cleanup on unmount or close
     useEffect(() => {
         if (!isOpen) {
@@ -54,17 +104,42 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         }
     }, [isOpen]);
 
-    // Reset state when modal opens
+    // Resume polling on mount if there's an active job
     useEffect(() => {
-        if (isOpen) {
-            setCurrentStep('input');
-            setPlanData(null);
-            setJobId(null);
-            setResult(null);
-            setError(null);
-            setAdjustedCases(null);
+        if (jobId && !result && !error) {
+            console.log('[Frontend] Resuming polling for job:', jobId);
+
+            // Determine context based on step
+            if (currentStep === 'creating_plan') {
+                startPolling(
+                    jobId,
+                    (plan) => {
+                        setPlanData(plan);
+                        setCurrentStep('preview');
+                        setJobId(null); // Job done
+                    },
+                    (err) => {
+                        setError(err);
+                        setCurrentStep('input');
+                        setJobId(null);
+                    }
+                );
+            } else if (currentStep === 'executing') {
+                startPolling(
+                    jobId,
+                    (res) => {
+                        setResult(res);
+                        setJobId(null); // Job done
+                    },
+                    (err) => {
+                        setError(err);
+                        setCurrentStep('preview'); // Go back to preview on error
+                        setJobId(null);
+                    }
+                );
+            }
         }
-    }, [isOpen]);
+    }, []); // Run once on mount
 
     // PHASE 1: Create Plan
     const handleCreatePlan = async () => {
@@ -86,10 +161,12 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                     (plan) => {
                         setPlanData(plan);
                         setCurrentStep('preview');
+                        setJobId(null);
                     },
                     (err) => {
                         setError(err);
                         setCurrentStep('input');
+                        setJobId(null);
                     }
                 );
             } else {
@@ -121,10 +198,12 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                     response.job_id,
                     (res) => {
                         setResult(res);
+                        setJobId(null);
                     },
                     (err) => {
                         setError(err);
                         setCurrentStep('preview');
+                        setJobId(null);
                     }
                 );
             } else {
@@ -204,13 +283,11 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                 if ((statusUpdate as any).result) {
                     const res = (statusUpdate as any).result;
                     if (res && res.success === false) {
-                        setJobId(null);
                         setIsLoading(false);
                         onError(res.error || 'A apărut o eroare necunoscută.');
                         if (eventSourceRef.current) eventSourceRef.current.close();
                     } else {
                         onSuccess(res);
-                        setJobId(null);
                         setIsLoading(false);
                         if (eventSourceRef.current) eventSourceRef.current.close();
                     }
@@ -218,7 +295,6 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
 
                 // Check if we have an error in the update
                 if ((statusUpdate as any).error) {
-                    setJobId(null);
                     setIsLoading(false);
                     onError((statusUpdate as any).error);
                     if (eventSourceRef.current) eventSourceRef.current.close();
@@ -237,23 +313,22 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                         } else {
                             onSuccess(statusData.result);
                         }
-                        setJobId(null);
                         setIsLoading(false);
                     } else if (statusData.status === 'failed' || statusData.error) {
                         onError(statusData.error || 'Analiza a eșuat.');
-                        setJobId(null);
                         setIsLoading(false);
                     }
                 } catch (err: any) {
                     console.error('[Advanced Analysis] Error fetching result:', err);
                     onError(err.message || 'Eroare la preluarea rezultatului.');
-                    setJobId(null);
                     setIsLoading(false);
                 }
                 setQueueStatus(prev => ({ ...prev, status: 'completed' }));
             },
             (err) => {
                 console.error("Queue error:", err);
+                // Don't kill the process on connection error, retry logic is handled by EventSource usually,
+                // but here we might want to just let it reconnect or show a warning.
             }
         );
     };
@@ -262,6 +337,9 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         setCurrentStep('input');
         setPlanData(null);
         setError(null);
+        // Clear persistence for plan but keep query
+        localStorage.removeItem(KEY_PLAN);
+        localStorage.removeItem(KEY_STEP); // Will reset to input
     };
 
     const handleNewAnalysis = () => {
@@ -271,6 +349,13 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         setJobId(null);
         setError(null);
         setQueueStatus({ position: 0, total: 0, status: 'queued' });
+
+        // Clear all persistence
+        localStorage.removeItem(KEY_QUERY);
+        localStorage.removeItem(KEY_PLAN);
+        localStorage.removeItem(KEY_JOB_ID);
+        localStorage.removeItem(KEY_RESULT);
+        localStorage.removeItem(KEY_STEP);
     };
 
     const formatTime = (seconds: number): string => {
@@ -292,6 +377,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                                 <li>Descrieți ce doriți să analizați (ex: "Tendința pedepselor pentru omor în ultimii 5 ani")</li>
                                 <li>Veți vedea un preview cu strategia AI și costul estimat înainte de execuție.</li>
                                 <li>După confirmare, AI-ul va analiza datele și va genera rezultatele.</li>
+                                <li><strong>Puteți închide această fereastră</strong> - analiza va continua în fundal.</li>
                             </ul>
                         </div>
                     </div>
@@ -647,6 +733,8 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                         AI-ul analizează cererea dvs. și verifică datele disponibile.
                         <br />
                         Acest proces poate dura 1-3 minute.
+                        <br />
+                        <span className="text-xs text-gray-400 mt-2 block">Puteți închide fereastra, procesul va continua.</span>
                     </p>
                 </div>
             </div>
@@ -662,7 +750,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
     const renderExecutingStep = () => (
         <>
             <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
-                {jobId && !result && (
+                {!result && (
                     <div className="py-12">
                         <QueueStatus
                             position={queueStatus.position}
@@ -671,6 +759,10 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                         />
                         <p className="text-center text-sm text-gray-500 mt-6 max-w-md mx-auto">
                             Această operațiune poate dura între 2 și 10 minute, în funcție de complexitatea interogării și volumul de date.
+                            <br />
+                            <span className="font-semibold text-brand-accent">Puteți închide această pagină în siguranță.</span>
+                            <br />
+                            Când reveniți, veți găsi rezultatele aici.
                         </p>
                     </div>
                 )}
