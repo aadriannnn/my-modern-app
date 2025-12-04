@@ -159,6 +159,78 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
                 'error': str(e)
             }
 
+    def update_plan_case_limit(self, plan_id: str, max_cases: int) -> Dict[str, Any]:
+        """
+        Updates an existing plan to limit the number of cases to analyze.
+        This allows users to reduce the scope before execution.
+        """
+        try:
+            logger.info(f"[PLAN UPDATE] Limiting plan {plan_id} to {max_cases} cases")
+
+            # 1. Load existing plan
+            plan_path = os.path.join(self.plans_dir, f"{plan_id}.json")
+            if not os.path.exists(plan_path):
+                return {
+                    'success': False,
+                    'error': f'Planul {plan_id} nu există.'
+                }
+
+            with open(plan_path, 'r', encoding='utf-8') as f:
+                plan = json.load(f)
+
+            original_total = plan.get('total_cases', 0)
+
+            # 2. Validate max_cases
+            if max_cases < 1:
+                max_cases = 1
+            if max_cases > original_total:
+                max_cases = original_total
+
+            # 3. Limit the IDs in chunks
+            all_ids = []
+            for chunk in plan.get('chunks', []):
+                all_ids.extend(chunk)
+
+            # Limit to max_cases
+            limited_ids = all_ids[:max_cases]
+
+            # 4. Recalculate chunks
+            chunk_size = plan.get('chunk_size', 50)
+            new_chunks = [limited_ids[i:i + chunk_size] for i in range(0, len(limited_ids), chunk_size)]
+
+            # 5. Update plan
+            plan['total_cases'] = len(limited_ids)
+            plan['total_chunks'] = len(new_chunks)
+            plan['chunks'] = new_chunks
+            plan['original_total_cases'] = original_total  # Keep track of original
+
+            # 6. Recalculate estimated time
+            estimated_seconds = (len(new_chunks) + 1) * 60
+            estimated_minutes = round(estimated_seconds / 60, 1)
+
+            # 7. Save updated plan
+            with open(plan_path, 'w', encoding='utf-8') as f:
+                json.dump(plan, f, indent=2, ensure_ascii=False)
+
+            logger.info(f"[PLAN UPDATE] Updated plan {plan_id}: {original_total} -> {len(limited_ids)} cases, {len(new_chunks)} chunks")
+
+            return {
+                'success': True,
+                'plan_id': plan_id,
+                'total_cases': len(limited_ids),
+                'original_total_cases': original_total,
+                'total_chunks': len(new_chunks),
+                'estimated_time_seconds': estimated_seconds,
+                'estimated_time_minutes': estimated_minutes
+            }
+
+        except Exception as e:
+            logger.error(f"[PLAN UPDATE] Error: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
     async def execute_plan(
         self,
         plan_id: str,

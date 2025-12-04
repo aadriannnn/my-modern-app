@@ -23,6 +23,9 @@ class AdvancedAnalysisRequest(BaseModel):
 class ExecutePlanRequest(BaseModel):
     plan_id: str
 
+class UpdatePlanRequest(BaseModel):
+    max_cases: int
+
 @router.post("/plan")
 async def create_analysis_plan(
     request: AdvancedAnalysisRequest,
@@ -55,6 +58,32 @@ async def create_analysis_plan(
         }
     except Exception as e:
         logger.error(f"Error queuing plan creation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.patch("/plan/{plan_id}")
+async def update_analysis_plan(
+    plan_id: str,
+    request: UpdatePlanRequest,
+    session: Session = Depends(get_session)
+):
+    """
+    Update an existing plan to limit the number of cases.
+    This is used before execution to reduce scope.
+    """
+    try:
+        logger.info(f"[API] Received request to UPDATE PLAN: {plan_id} with max_cases: {request.max_cases}")
+
+        analyzer = ThreeStageAnalyzer(session)
+        result = analyzer.update_plan_case_limit(plan_id, request.max_cases)
+
+        if not result.get('success'):
+            raise HTTPException(status_code=400, detail=result.get('error', 'Update failed'))
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating plan: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/execute/{plan_id}")

@@ -311,6 +311,25 @@ export const executeAnalysisPlan = async (planId: string) => {
   return response.json();
 };
 
+// Human-in-the-Loop: Update plan case limit
+export const updateAnalysisPlan = async (planId: string, maxCases: number) => {
+  const response = await fetch(`${API_URL}/advanced-analysis/plan/${planId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ max_cases: maxCases }),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to update analysis plan');
+  }
+  return response.json();
+};
+
+
 // Legacy endpoint: Auto-creates and executes plan (Best Effort)
 export const startAdvancedAnalysis = async (query: string) => {
   const response = await fetch(`${API_URL}/advanced-analysis/`, {

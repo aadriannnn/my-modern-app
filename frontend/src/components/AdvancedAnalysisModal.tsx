@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, BrainCircuit, Play, AlertCircle, CheckCircle, Clock, Database, ArrowLeft } from 'lucide-react';
-import { createAnalysisPlan, executeAnalysisPlan, subscribeToQueueStatus, getAdvancedAnalysisStatus } from '../lib/api';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, BrainCircuit, Play, AlertCircle, CheckCircle, Clock, Database, ArrowLeft, SlidersHorizontal } from 'lucide-react';
+import { createAnalysisPlan, executeAnalysisPlan, updateAnalysisPlan, subscribeToQueueStatus, getAdvancedAnalysisStatus } from '../lib/api';
 import QueueStatus from './QueueStatus';
 import AnalysisResults from './AnalysisResults';
 
@@ -18,6 +18,7 @@ interface PlanData {
     estimated_time_seconds: number;
     preview_data: any[];
     strategy_summary: string;
+    original_total_cases?: number;
 }
 
 const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, onClose }) => {
@@ -28,6 +29,8 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<any | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [adjustedCases, setAdjustedCases] = useState<number | null>(null);
+    const [isUpdatingPlan, setIsUpdatingPlan] = useState(false);
 
     // Queue status state
     const [queueStatus, setQueueStatus] = useState<{
@@ -56,6 +59,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
             setJobId(null);
             setResult(null);
             setError(null);
+            setAdjustedCases(null);
         }
     }, [isOpen]);
 
@@ -131,6 +135,44 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
             setIsLoading(false);
         }
     };
+
+    // Handle case limit change
+    const handleCaseLimitChange = useCallback(async (newValue: number) => {
+        if (!planData) return;
+
+        const originalTotal = planData.original_total_cases || planData.total_cases;
+        const clampedValue = Math.max(10, Math.min(newValue, originalTotal));
+
+        setAdjustedCases(clampedValue);
+
+        // Don't call API if value equals original
+        if (clampedValue === originalTotal) {
+            return;
+        }
+
+        setIsUpdatingPlan(true);
+        setError(null);
+
+        try {
+            const response = await updateAnalysisPlan(planData.plan_id, clampedValue);
+
+            if (response.success) {
+                setPlanData(prev => prev ? {
+                    ...prev,
+                    total_cases: response.total_cases,
+                    total_chunks: response.total_chunks,
+                    estimated_time_seconds: response.estimated_time_seconds,
+                    original_total_cases: response.original_total_cases
+                } : null);
+            }
+        } catch (err: any) {
+            console.error('Error updating plan:', err);
+            setError(err.message || 'Eroare la actualizarea planului.');
+        } finally {
+            setIsUpdatingPlan(false);
+        }
+    }, [planData]);
+
 
     const startPolling = (id: string, onSuccess: (data: any) => void, onError: (msg: string) => void) => {
         if (eventSourceRef.current) {
@@ -357,6 +399,89 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                                         <p className="text-lg font-bold text-gray-900">
                                             {formatTime(planData.estimated_time_seconds)}
                                         </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Case Limit Adjustment */}
+                        <div className="bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-5 shadow-sm">
+                            <div className="flex items-start gap-3 mb-4">
+                                <div className="p-2 bg-amber-100 rounded-lg">
+                                    <SlidersHorizontal className="w-5 h-5 text-amber-600" />
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-gray-900 mb-1">Ajustează Numărul de Spețe</h4>
+                                    <p className="text-sm text-gray-600">
+                                        {planData.original_total_cases
+                                            ? `Din ${planData.original_total_cases} spețe găsite, puteți selecta un număr mai mic pentru o analiză mai rapidă.`
+                                            : 'Dacă doriți o analiză mai rapidă, puteți reduce numărul de spețe analizate.'}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {/* Slider + Input Row */}
+                                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+                                    {/* Slider */}
+                                    <div className="flex-1">
+                                        <input
+                                            type="range"
+                                            min="10"
+                                            max={planData.original_total_cases || planData.total_cases}
+                                            value={adjustedCases ?? planData.total_cases}
+                                            onChange={(e) => handleCaseLimitChange(parseInt(e.target.value, 10))}
+                                            disabled={isUpdatingPlan}
+                                            className="w-full h-2 bg-amber-200 rounded-lg appearance-none cursor-pointer accent-amber-500 disabled:opacity-50"
+                                            style={{
+                                                background: `linear-gradient(to right, #f59e0b 0%, #f59e0b ${((adjustedCases ?? planData.total_cases) - 10) / ((planData.original_total_cases || planData.total_cases) - 10) * 100}%, #fde68a ${((adjustedCases ?? planData.total_cases) - 10) / ((planData.original_total_cases || planData.total_cases) - 10) * 100}%, #fde68a 100%)`
+                                            }}
+                                        />
+                                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                                            <span>10</span>
+                                            <span>{planData.original_total_cases || planData.total_cases}</span>
+                                        </div>
+                                    </div>
+
+                                    {/* Numeric Input */}
+                                    <div className="flex items-center gap-2 sm:min-w-[140px]">
+                                        <input
+                                            type="number"
+                                            min="10"
+                                            max={planData.original_total_cases || planData.total_cases}
+                                            value={adjustedCases ?? planData.total_cases}
+                                            onChange={(e) => {
+                                                const val = parseInt(e.target.value, 10);
+                                                if (!isNaN(val)) {
+                                                    handleCaseLimitChange(val);
+                                                }
+                                            }}
+                                            disabled={isUpdatingPlan}
+                                            className="w-20 px-3 py-2 text-center font-bold text-gray-900 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-400 focus:border-transparent disabled:opacity-50"
+                                        />
+                                        <span className="text-sm text-gray-600 whitespace-nowrap">spețe</span>
+                                    </div>
+                                </div>
+
+                                {/* Status Row */}
+                                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-2 border-t border-amber-200">
+                                    <div className="flex items-center gap-2">
+                                        {isUpdatingPlan && (
+                                            <div className="flex items-center gap-2 text-amber-700">
+                                                <div className="w-4 h-4 border-2 border-amber-500 border-t-transparent rounded-full animate-spin"></div>
+                                                <span className="text-sm">Se actualizează...</span>
+                                            </div>
+                                        )}
+                                        {!isUpdatingPlan && planData.original_total_cases && planData.total_cases < planData.original_total_cases && (
+                                            <div className="flex items-center gap-1 text-green-700 text-sm">
+                                                <CheckCircle className="w-4 h-4" />
+                                                <span>Redus de la {planData.original_total_cases} la {planData.total_cases} spețe</span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="text-sm text-gray-600">
+                                        <span className="font-medium">Timp nou estimat:</span>{' '}
+                                        <span className="font-bold text-gray-900">{formatTime(planData.estimated_time_seconds)}</span>
                                     </div>
                                 </div>
                             </div>
