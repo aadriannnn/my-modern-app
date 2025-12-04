@@ -23,6 +23,9 @@ interface PlanData {
     strategy_breakdown?: Record<string, number>;
 }
 
+// Key for localStorage
+const STORAGE_KEY = 'advancedAnalysisState';
+
 const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, onClose }) => {
     const [query, setQuery] = useState('');
     const [currentStep, setCurrentStep] = useState<WorkflowStep>('input');
@@ -54,17 +57,120 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         }
     }, [isOpen]);
 
-    // Reset state when modal opens
+    // Save state to localStorage whenever critical data changes
+    useEffect(() => {
+        // Only save if we have some meaningful state
+        if (query || jobId || planData || result) {
+            const stateToSave = {
+                query,
+                currentStep,
+                planData,
+                jobId,
+                result,
+                timestamp: Date.now()
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
+        }
+    }, [query, currentStep, planData, jobId, result]);
+
+    // Restore state on mount
     useEffect(() => {
         if (isOpen) {
-            setCurrentStep('input');
-            setPlanData(null);
-            setJobId(null);
-            setResult(null);
-            setError(null);
-            setAdjustedCases(null);
+            const savedState = localStorage.getItem(STORAGE_KEY);
+            if (savedState) {
+                try {
+                    const parsed = JSON.parse(savedState);
+                    console.log('[Frontend] Restoring session from localStorage:', parsed);
+
+                    // Restore basic fields
+                    if (parsed.query) setQuery(parsed.query);
+                    if (parsed.planData) setPlanData(parsed.planData);
+                    if (parsed.result) setResult(parsed.result);
+
+                    // Logic to resume based on status
+                    if (parsed.jobId) {
+                        setJobId(parsed.jobId);
+
+                        // If we were processing, check status immediately
+                        if (parsed.currentStep === 'creating_plan' || parsed.currentStep === 'executing') {
+                            setCurrentStep(parsed.currentStep);
+                            checkJobStatus(parsed.jobId, parsed.currentStep);
+                        } else {
+                            // If we were in a static state (preview or input), just restore step
+                            setCurrentStep(parsed.currentStep);
+                        }
+                    } else {
+                        // No active job, just restore step
+                        setCurrentStep(parsed.currentStep);
+                    }
+
+                } catch (e) {
+                    console.error('Error parsing saved state:', e);
+                    localStorage.removeItem(STORAGE_KEY);
+                }
+            }
         }
     }, [isOpen]);
+
+    // Helper to check status of a restored job
+    const checkJobStatus = async (id: string, step: WorkflowStep) => {
+        try {
+            const status = await getAdvancedAnalysisStatus(id);
+            console.log('[Frontend] Checked restored job status:', status);
+
+            if (status.status === 'completed' && status.result) {
+                 if (status.result.success === false) {
+                     setError(status.result.error || 'Job failed.');
+                     setCurrentStep('input');
+                 } else {
+                     // Job finished while we were away
+                     if (step === 'creating_plan') {
+                         setPlanData(status.result);
+                         setCurrentStep('preview');
+                     } else if (step === 'executing') {
+                         setResult(status.result);
+                         setCurrentStep('executing');
+                     }
+                 }
+                 setJobId(null); // Clear job ID as it's done
+            } else if (status.status === 'failed' || status.error) {
+                setError(status.error || 'Job failed.');
+                setCurrentStep('input');
+                setJobId(null);
+            } else {
+                // Still running, resume polling
+                if (step === 'creating_plan') {
+                    startPolling(
+                        id,
+                        (plan) => {
+                            setPlanData(plan);
+                            setCurrentStep('preview');
+                        },
+                        (err) => {
+                            setError(err);
+                            setCurrentStep('input');
+                        }
+                    );
+                } else {
+                    startPolling(
+                        id,
+                        (res) => {
+                            setResult(res);
+                        },
+                        (err) => {
+                            setError(err);
+                            // If execution fails, try to stay on preview if we have plan
+                            setCurrentStep(planData ? 'preview' : 'input');
+                        }
+                    );
+                }
+            }
+        } catch (e) {
+            console.error('Error checking restored job:', e);
+            // If check fails (e.g. 404), maybe clear state
+             setError("Nu s-a putut restaura sesiunea anterioară.");
+        }
+    };
 
     // PHASE 1: Create Plan
     const handleCreatePlan = async () => {
@@ -265,12 +371,16 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
     };
 
     const handleNewAnalysis = () => {
+        // Clear local storage and reset state
+        localStorage.removeItem(STORAGE_KEY);
+
         setCurrentStep('input');
         setPlanData(null);
         setResult(null);
         setJobId(null);
         setError(null);
         setQueueStatus({ position: 0, total: 0, status: 'queued' });
+        setQuery('');
     };
 
     const formatTime = (seconds: number): string => {
