@@ -581,46 +581,228 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
         try:
             strategy = self._parse_json_response(poll_content)
 
-            # Handle Strategies: Pro Search (Regex) vs Vector Search
+            # Handle Strategies: SQL Standard, Pro Search, Vector Search, or Combined
             strategy_type = strategy.get("strategy_type", "sql_standard")
+            logger.info(f"[PHASE 1] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            logger.info(f"[PHASE 1] Strategy Type Detected: {strategy_type}")
+            logger.info(f"[PHASE 1] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
 
+            # ═══════════════════════════════════════════════════════════
+            # STRATEGY TYPE: PRO SEARCH (Regex in Considerente)
+            # ═══════════════════════════════════════════════════════════
             if strategy_type == "pro_search" and strategy.get("pro_search_term"):
                 term = strategy.get("pro_search_term")
-                logger.info(f"[PHASE 1] Pro Search Strategy Triggered for term: {term}")
+                logger.info(f"[PHASE 1] ⚡ Pro Search Strategy Triggered")
+                logger.info(f"[PHASE 1] ═══════════════════════════════════════════════════")
+                logger.info(f"[PHASE 1] 🎯 OPPORTUNITY ANALYSIS: Pro Search")
+                logger.info(f"[PHASE 1] Search Term: '{term}'")
+                logger.info(f"[PHASE 1] Target Field: considerente_speta")
+                logger.info(f"[PHASE 1] ═══════════════════════════════════════════════════")
+
                 try:
+                    logger.info(f"[PHASE 1] 🔧 Building Pro Search SQL queries...")
+
+                    # Build SQL queries using Pro Search function
                     pro_queries = build_pro_search_query_sql(term, limit=100)
+
+                    if not pro_queries.get('count_query') or not pro_queries.get('id_list_query'):
+                        raise ValueError("Pro Search failed to generate valid queries")
+
                     strategy['count_query'] = pro_queries['count_query']
                     strategy['id_list_query'] = pro_queries['id_list_query']
-                    if not strategy.get('selected_columns'):
-                        strategy['selected_columns'] = ['considerente_speta', 'solutia', 'text_individualizare']
 
-                    rationale_prefix = "⚡ STRATEGIE PRO (Regex):"
+                    logger.info(f"[PHASE 1] ✅ Pro Search queries generated successfully")
+                    logger.info(f"[PHASE 1] 📝 COUNT QUERY:")
+                    logger.info(f"[PHASE 1] {pro_queries['count_query']}")
+                    logger.info(f"[PHASE 1] 📝 ID LIST QUERY (first 100 matches):")
+                    logger.info(f"[PHASE 1] {pro_queries['id_list_query']}")
+
+                    # Set default columns if not specified
+                    if not strategy.get('selected_columns'):
+                        strategy['selected_columns'] = [
+                            'considerente_speta',
+                            'solutia',
+                            'text_individualizare',
+                            'materie',
+                            'obiect'
+                        ]
+                        logger.info(f"[PHASE 1] 📋 Using default columns for Pro Search")
+                    else:
+                        logger.info(f"[PHASE 1] 📋 Using LLM-specified columns: {strategy['selected_columns']}")
+
+                    # Add visual prefix to rationale
+                    rationale_prefix = "⚡ STRATEGIE PRO (Regex în Considerente):"
                     if 'rationale' in strategy:
                         strategy['rationale'] = f"{rationale_prefix} {strategy['rationale']}"
                     else:
                         strategy['rationale'] = f"{rationale_prefix} Căutare avansată în considerente pentru '{term}'."
-                except Exception as e:
-                    logger.error(f"Failed to build Pro Search query: {e}")
 
+                    logger.info(f"[PHASE 1] 📊 Rationale: {strategy['rationale']}")
+                    logger.info(f"[PHASE 1] 🧪 Pro Search will be TESTED next via _execute_discovery_queries()")
+                    logger.info(f"[PHASE 1] 🧪 This will execute the COUNT and ID queries to verify results exist")
+
+                except Exception as e:
+                    logger.error(f"[PHASE 1] ❌ Failed to build Pro Search query: {e}")
+                    logger.error(f"[PHASE 1] Stack trace:", exc_info=True)
+                    raise
+
+            # ═══════════════════════════════════════════════════════════
+            # STRATEGY TYPE: VECTOR SEARCH (Embeddings / Semantic)
+            # ═══════════════════════════════════════════════════════════
             elif strategy_type == "vector_search" and strategy.get("vector_search_term"):
                 term = strategy.get("vector_search_term")
-                logger.info(f"[PHASE 1] Vector Search Strategy Triggered for term: {term}")
+                logger.info(f"[PHASE 1] 🧠 Vector Search Strategy Triggered")
+                logger.info(f"[PHASE 1] Search Description: '{term}'")
+
                 try:
                     # Build SQL using Embeddings
                     vector_queries = build_vector_search_query_sql(term, limit=100)
                     strategy['count_query'] = vector_queries['count_query']
                     strategy['id_list_query'] = vector_queries['id_list_query']
 
+                    # Set default columns if not specified
                     if not strategy.get('selected_columns'):
-                        strategy['selected_columns'] = ['solutia', 'text_individualizare', 'text_situatia_de_fapt', 'obiect', 'materie']
+                        strategy['selected_columns'] = [
+                            'solutia',
+                            'text_individualizare',
+                            'text_situatia_de_fapt',
+                            'obiect',
+                            'materie'
+                        ]
+                        logger.info(f"[PHASE 1] Using default columns for Vector Search")
 
+                    # Add visual prefix to rationale
                     rationale_prefix = "🧠 STRATEGIE VECTOR (Embeddings):"
                     if 'rationale' in strategy:
                         strategy['rationale'] = f"{rationale_prefix} {strategy['rationale']}"
                     else:
                         strategy['rationale'] = f"{rationale_prefix} Căutare semantică (embeddings) pentru '{term}'."
+
+                    logger.info(f"[PHASE 1] Vector Search queries generated successfully")
+
                 except Exception as e:
-                    logger.error(f"Failed to build Vector Search query: {e}")
+                    logger.error(f"[PHASE 1] Failed to build Vector Search query: {e}")
+                    raise
+
+            # ═══════════════════════════════════════════════════════════
+            # STRATEGY TYPE: COMBINED (Primary Strategy + SQL Filters)
+            # ═══════════════════════════════════════════════════════════
+            elif strategy_type == "combined":
+                logger.info(f"[PHASE 1] 🔗 Combined Strategy Triggered")
+
+                primary_strategy = strategy.get("primary_strategy", {})
+                sql_filters = strategy.get("sql_filters", "")
+                primary_type = primary_strategy.get("type", "")
+
+                logger.info(f"[PHASE 1] Primary Strategy: {primary_type}")
+                logger.info(f"[PHASE 1] SQL Filters: {sql_filters}")
+
+                try:
+                    # Handle primary strategy (pro_search or vector_search)
+                    if primary_type == "pro_search":
+                        term = primary_strategy.get("term", "")
+                        logger.info(f"[PHASE 1] Building Pro Search for term: '{term}'")
+
+                        # Build Pro Search queries
+                        pro_queries = build_pro_search_query_sql(term, limit=100)
+
+                        # Extract WHERE clause from Pro Search and combine with SQL filters
+                        if sql_filters:
+                            # Add SQL filters to the Pro Search queries
+                            combined_count = pro_queries['count_query'].replace(
+                                "WHERE", f"WHERE ({sql_filters}) AND ("
+                            ) + ")"
+                            combined_id_list = pro_queries['id_list_query'].replace(
+                                "WHERE", f"WHERE ({sql_filters}) AND ("
+                            ).replace("ORDER BY", ") ORDER BY")
+
+                            strategy['count_query'] = combined_count
+                            strategy['id_list_query'] = combined_id_list
+                        else:
+                            strategy['count_query'] = pro_queries['count_query']
+                            strategy['id_list_query'] = pro_queries['id_list_query']
+
+                        # Set default columns
+                        if not strategy.get('selected_columns'):
+                            strategy['selected_columns'] = [
+                                'considerente_speta',
+                                'solutia',
+                                'text_individualizare',
+                                'materie',
+                                'obiect'
+                            ]
+
+                        # Update rationale
+                        rationale_prefix = "🔗 STRATEGIE COMBINATĂ (Pro Search + SQL):"
+                        if 'rationale' in strategy:
+                            strategy['rationale'] = f"{rationale_prefix} {strategy['rationale']}"
+                        else:
+                            strategy['rationale'] = f"{rationale_prefix} Pro Search pentru '{term}' combinat cu filtre SQL."
+
+                    elif primary_type == "vector_search":
+                        term = primary_strategy.get("term", "")
+                        logger.info(f"[PHASE 1] Building Vector Search for term: '{term}'")
+
+                        # Build Vector Search queries
+                        vector_queries = build_vector_search_query_sql(term, limit=100)
+
+                        # Combine with SQL filters if provided
+                        if sql_filters:
+                            # For vector search, we need to add JOIN condition + filters
+                            # The id_list_query already has the JOIN, so we add WHERE to it
+                            if "WHERE" in vector_queries['id_list_query']:
+                                # Add to existing WHERE
+                                combined_id_list = vector_queries['id_list_query'].replace(
+                                    "ORDER BY", f"WHERE {sql_filters} ORDER BY"
+                                )
+                            else:
+                                # Add new WHERE before ORDER BY
+                                combined_id_list = vector_queries['id_list_query'].replace(
+                                    "ORDER BY", f"WHERE {sql_filters} ORDER BY"
+                                )
+
+                            strategy['count_query'] = vector_queries['count_query']  # Count stays approximate
+                            strategy['id_list_query'] = combined_id_list
+                        else:
+                            strategy['count_query'] = vector_queries['count_query']
+                            strategy['id_list_query'] = vector_queries['id_list_query']
+
+                        # Set default columns
+                        if not strategy.get('selected_columns'):
+                            strategy['selected_columns'] = [
+                                'solutia',
+                                'text_individualizare',
+                                'text_situatia_de_fapt',
+                                'obiect',
+                                'materie'
+                            ]
+
+                        # Update rationale
+                        rationale_prefix = "🔗 STRATEGIE COMBINATĂ (Vector Search + SQL):"
+                        if 'rationale' in strategy:
+                            strategy['rationale'] = f"{rationale_prefix} {strategy['rationale']}"
+                        else:
+                            strategy['rationale'] = f"{rationale_prefix} Vector Search pentru '{term}' combinat cu filtre SQL."
+
+                    else:
+                        logger.error(f"[PHASE 1] Unknown primary strategy type in combined strategy: {primary_type}")
+                        raise ValueError(f"Invalid primary strategy type: {primary_type}")
+
+                    logger.info(f"[PHASE 1] Combined strategy queries generated successfully")
+
+                except Exception as e:
+                    logger.error(f"[PHASE 1] Failed to build Combined strategy: {e}")
+                    raise
+
+            # ═══════════════════════════════════════════════════════════
+            # STRATEGY TYPE: SQL STANDARD (Already has queries from LLM)
+            # ═══════════════════════════════════════════════════════════
+            elif strategy_type == "sql_standard":
+                logger.info(f"[PHASE 1] 📊 SQL Standard Strategy")
+                logger.info(f"[PHASE 1] Using LLM-generated SQL queries")
+                # LLM already provided count_query and id_list_query
+                # Nothing to do here
+
 
 
             # Validate that strategy has required fields (either from LLM or injected)
@@ -739,16 +921,38 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
 
         count_sql = strategy['count_query']
         ids_sql = strategy['id_list_query']
+        strategy_type = strategy.get('strategy_type', 'sql_standard')
 
-        # LOG SQL QUERIES
+        # LOG SQL QUERIES with strategy type identification
         logger.info("="*80)
-        logger.info("[PHASE 1] Executing COUNT query:")
+        logger.info(f"[PHASE 1] 🧪 EXECUTING OPPORTUNITY ANALYSIS for: {strategy_type.upper()}")
+
+        if strategy_type == "pro_search":
+            logger.info(f"[PHASE 1] ⚡ PRO SEARCH EXECUTION - Testing regex search in considerente_speta")
+            logger.info(f"[PHASE 1] 🔍 Search term: {strategy.get('pro_search_term', 'N/A')}")
+        elif strategy_type == "vector_search":
+            logger.info(f"[PHASE 1] 🧠 VECTOR SEARCH EXECUTION - Testing semantic search with embeddings")
+            logger.info(f"[PHASE 1] 🔍 Search description: {strategy.get('vector_search_term', 'N/A')}")
+        elif strategy_type == "combined":
+            logger.info(f"[PHASE 1] 🔗 COMBINED STRATEGY EXECUTION - Testing hybrid search")
+            primary = strategy.get('primary_strategy', {})
+            logger.info(f"[PHASE 1] 🔍 Primary: {primary.get('type', 'N/A')}, Term: {primary.get('term', 'N/A')}")
+        else:
+            logger.info(f"[PHASE 1] 📊 SQL STANDARD EXECUTION - Testing custom SQL query")
+
+        logger.info(f"[PHASE 1] Executing COUNT query:")
         logger.info(count_sql)
         logger.info("="*80)
 
         try:
             count_res = self.session.execute(text(count_sql)).scalar()
-            logger.info(f"[PHASE 1] Count result: {count_res} cases found")
+            logger.info(f"[PHASE 1] ✅ Count result: {count_res} cases found")
+
+            if strategy_type == "pro_search":
+                if count_res > 0:
+                    logger.info(f"[PHASE 1] ⚡ PRO SEARCH SUCCESS: Found {count_res} cases with term in considerente")
+                else:
+                    logger.warning(f"[PHASE 1] ⚠️ PRO SEARCH returned 0 results - term not found in considerente")
         except Exception as e:
             logger.error(f"Eroare execuție COUNT query: {e}")
             raise ValueError(f"Query COUNT invalid: {e}")
