@@ -621,6 +621,62 @@ def build_pro_search_query_sql(term: str, limit: int = 20, offset: int = 0) -> D
         "id_list_query": id_list_query
     }
 
+def build_vector_search_query_sql(term: str, limit: int = 100) -> Dict[str, str]:
+    """
+    Builds the SQL queries for Vector Search (Embeddings).
+    Synchronously calls the embedding service and constructs the SQL.
+    Useful for LLM Analyzer.
+
+    Returns:
+        Dict with keys: 'count_query', 'id_list_query'
+    """
+    if not term or not term.strip():
+        return {"count_query": "", "id_list_query": ""}
+
+    logger.info(f"Generating embedding for Vector Search Strategy: {term}")
+
+    try:
+        # 1. Generate embedding (synchronous call)
+        embedding = embed_text(term)
+
+        # 2. Format vector literal for pgvector
+        # Format: '[0.1,0.2,...]'
+        vector_literal = str(embedding)
+
+        # 3. Construct SQL
+        # We perform a hybrid sort or just pure vector distance.
+        # For simplicity in Analyzer phase, we rely on vector distance.
+        # We need filtering on NULLs usually, but the LLM strategy implies broad search.
+        # However, to be safe, we might want to ensure we don't get junk.
+
+        # Query for Count is tricky with vector search because standard vector search usually does KNN (limit).
+        # COUNT(*) on all records ordered by distance is meaningless without a threshold.
+        # Usually we just return a fixed number of most relevant results.
+        # So count_query will be effectively "LIMIT" size or we can use a distance threshold if we knew it.
+        # Let's return a count of the LIMIT we are imposing, or just a generic count.
+        # Actually, Analyzer uses count_query to show "Total cases found".
+        # For KNN, "Total cases" is technically the whole DB, but "Relevant cases" is top K.
+        # Let's set count query to return the limit number as a proxy for "relevant found".
+
+        count_query = f"SELECT {limit}"
+
+        id_list_query = f"""
+            SELECT b.id
+            FROM blocuri b
+            JOIN vectori v ON b.id = v.speta_id
+            ORDER BY v.embedding <=> '{vector_literal}'
+            LIMIT {limit}
+        """
+
+        return {
+            "count_query": count_query,
+            "id_list_query": id_list_query
+        }
+
+    except Exception as e:
+        logger.error(f"Failed to build vector search query: {e}")
+        return {"count_query": "", "id_list_query": ""}
+
 def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
     """
     Pro Keyword Search:
