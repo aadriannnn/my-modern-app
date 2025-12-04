@@ -1,13 +1,13 @@
-import logging
-import uuid
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from typing import Dict, Any, Optional, List
 from sqlmodel import Session
-
 from ..db import get_session
 from ..lib.two_round_llm_analyzer import ThreeStageAnalyzer
 from ..logic.queue_manager import queue_manager
+import logging
+import os
+import glob
+import json
 
 router = APIRouter(
     prefix="/advanced-analysis",
@@ -17,54 +17,74 @@ router = APIRouter(
 
 logger = logging.getLogger(__name__)
 
-# --- Models ---
-
-class PlanRequest(BaseModel):
+class AdvancedAnalysisRequest(BaseModel):
     query: str
 
-class PlanUpdate(BaseModel):
-    max_cases: int
-
-class ExecuteRequest(BaseModel):
+class ExecutePlanRequest(BaseModel):
     plan_id: str
 
-# --- Endpoints ---
+class UpdatePlanRequest(BaseModel):
+    max_cases: int
 
 @router.post("/plan")
 async def create_analysis_plan(
-    request: PlanRequest,
+    request: AdvancedAnalysisRequest,
     session: Session = Depends(get_session)
 ):
     """
-    PHASE 1: Initiates the creation of an analysis plan (Async).
-    Returns a job_id to poll for status.
+    PHASE 1: Create an analysis plan (Smart Projection).
+    Returns a job_id. Client must poll /status/{job_id} to get the plan.
     """
     try:
-        logger.info(f"[API] Requesting Analysis Plan for: {request.query}")
+        logger.info(f"[API] Received request to CREATE PLAN for query: {request.query}")
 
-        # Initialize Analyzer
-        analyzer = ThreeStageAnalyzer(session)
+        async def process_create_plan(payload: dict):
+            # Create new session for worker
+            from ..db import engine
+            from sqlmodel import Session
+            with Session(engine) as worker_session:
+                analyzer = ThreeStageAnalyzer(worker_session)
+                result = await analyzer.create_plan(payload['query'])
+                return result
 
-        # Define the processor function that will run in the background
-        async def process_plan_creation(payload):
-            return await analyzer.create_plan(payload['query'])
+        payload = {'query': request.query, 'type': 'create_plan'}
+        job_id, _ = await queue_manager.add_to_queue(payload, process_create_plan)
 
-        # Add to queue
-        job_id, _ = await queue_manager.add_to_queue(
-            payload={'query': request.query},
-            processor=process_plan_creation
-        )
-
+        logger.info(f"[API] Plan creation queued. Job ID: {job_id}")
         return {
-            "success": True,
-            "job_id": job_id,
-            "message": "Plan creation queued"
+            'success': True,
+            'job_id': job_id,
+            'message': 'Plan creation started. Check status for result.'
         }
-
     except Exception as e:
-        logger.error(f"[API] Error queueing plan creation: {e}", exc_info=True)
+        logger.error(f"Error queuing plan creation: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.patch("/plan/{plan_id}")
+async def update_analysis_plan(
+    plan_id: str,
+    request: UpdatePlanRequest,
+    session: Session = Depends(get_session)
+):
+    """
+    Update an existing plan to limit the number of cases.
+    This is used before execution to reduce scope.
+    """
+    try:
+        logger.info(f"[API] Received request to UPDATE PLAN: {plan_id} with max_cases: {request.max_cases}")
+
+        analyzer = ThreeStageAnalyzer(session)
+        result = analyzer.update_plan_case_limit(plan_id, request.max_cases)
+
+        if not result.get('success'):
+            raise HTTPException(status_code=400, detail=result.get('error', 'Update failed'))
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating plan: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/execute/{plan_id}")
 async def execute_analysis_plan(
@@ -72,69 +92,117 @@ async def execute_analysis_plan(
     session: Session = Depends(get_session)
 ):
     """
-    PHASE 2 & 3: Initiates the execution of an approved plan (Async).
-    Returns a job_id to poll for status.
+    PHASE 2 & 3: Execute the plan (Batch Processing + Synthesis).
+    Returns a job_id for tracking.
     """
     try:
-        logger.info(f"[API] Requesting Execution for Plan: {plan_id}")
+        logger.info(f"[API] Received request to EXECUTE PLAN: {plan_id}")
+        async def process_three_stage_execution(payload: dict):
+            # Create new session for worker
+            from ..db import engine
+            from sqlmodel import Session
+            with Session(engine) as worker_session:
+                analyzer = ThreeStageAnalyzer(worker_session)
+                result = await analyzer.execute_plan(payload['plan_id'])
+                return result
 
-        # Initialize Analyzer
-        analyzer = ThreeStageAnalyzer(session)
-
-        # Define the processor function
-        async def process_execution(payload):
-            # We can pass a progress callback if needed, but for now we'll rely on the final result
-            return await analyzer.execute_plan(payload['plan_id'])
-
-        # Add to queue
-        job_id, _ = await queue_manager.add_to_queue(
-            payload={'plan_id': plan_id},
-            processor=process_execution
-        )
+        payload = {'plan_id': plan_id, 'type': 'execute_plan'}
+        job_id, _ = await queue_manager.add_to_queue(payload, process_three_stage_execution)
 
         return {
-            "success": True,
-            "job_id": job_id,
-            "message": "Plan execution queued"
+            'success': True,
+            'job_id': job_id,
+            'message': 'Plan execution started. Check status for progress.'
         }
-
     except Exception as e:
-        logger.error(f"[API] Error queueing execution: {e}", exc_info=True)
+        logger.error(f"Error starting execution: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/status/{job_id}")
+async def get_advanced_analysis_status(job_id: str):
+    """
+    Check the status of an analysis job.
+    Includes progress tracking for running jobs.
+    """
+    try:
+        status = queue_manager.get_job_status(job_id)
 
-@router.patch("/plan/{plan_id}")
-async def update_analysis_plan(
-    plan_id: str,
-    update: PlanUpdate,
+        # Augment with progress if processing
+        if status.get('status') in ['processing', 'queued']:
+            # Try to find plan_id from queue items
+            item = queue_manager.items.get(job_id)
+
+            # Only calculate progress for execution jobs that have a plan_id
+            if item and 'plan_id' in item.payload:
+                plan_id = item.payload['plan_id']
+
+                # Check chunks progress
+                plans_dir = "analyzer_plans" # Should match analyzer's dir
+                if os.path.exists(plans_dir):
+                    # Count chunk files: plan_id_chunk_*.json
+                    chunk_files = glob.glob(os.path.join(plans_dir, f"{plan_id}_chunk_*.json"))
+                    processed_chunks = len(chunk_files)
+
+                    # We need total chunks. Read plan file.
+                    plan_file = os.path.join(plans_dir, f"{plan_id}.json")
+                    total_chunks = 0
+                    if os.path.exists(plan_file):
+                        try:
+                            with open(plan_file, 'r') as f:
+                                plan = json.load(f)
+                                total_chunks = plan.get('total_chunks', 0)
+                        except:
+                            pass
+
+                    status['progress'] = {
+                        'current': processed_chunks,
+                        'total': total_chunks,
+                        'percent': int((processed_chunks / total_chunks * 100)) if total_chunks > 0 else 0
+                    }
+
+            # For 'create_plan' jobs, we don't have detailed progress, just 'processing'
+            elif item and item.payload.get('type') == 'create_plan':
+                 status['message'] = "Generating strategy and verifying data..."
+
+        return status
+    except Exception as e:
+        logger.error(f"Error getting status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Eroare la verificarea statusului: {str(e)}")
+
+@router.post("/")
+async def advanced_statistical_analysis(
+    request: AdvancedAnalysisRequest,
     session: Session = Depends(get_session)
 ):
     """
-    Updates the case limit for a plan.
-    This is fast enough to be synchronous.
+    Legacy endpoint: Auto-creates and executes plan (Best Effort).
     """
     try:
+        # Create plan
         analyzer = ThreeStageAnalyzer(session)
-        result = analyzer.update_plan_case_limit(plan_id, update.max_cases)
+        plan_res = await analyzer.create_plan(request.query)
+        if not plan_res['success']:
+             return plan_res
 
-        if not result['success']:
-             raise HTTPException(status_code=400, detail=result.get('error'))
+        plan_id = plan_res['plan_id']
 
-        return result
+        # Execute immediately via queue
+        async def process_legacy(payload: dict):
+            from ..db import engine
+            from sqlmodel import Session
+            with Session(engine) as worker_session:
+                analyzer = ThreeStageAnalyzer(worker_session)
+                result = await analyzer.execute_plan(payload['plan_id'])
+                return result
 
+        payload = {'plan_id': plan_id}
+        job_id, _ = await queue_manager.add_to_queue(payload, process_legacy)
+
+        return {
+            'success': True,
+            'job_id': job_id,
+            'message': 'Analysis started (Legacy Mode).'
+        }
     except Exception as e:
-        logger.error(f"[API] Error updating plan: {e}", exc_info=True)
+        logger.error(f"Legacy endpoint error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/status/{job_id}")
-async def get_analysis_status(job_id: str):
-    """
-    Gets the status of a background job (Plan Creation or Execution).
-    """
-    status = queue_manager.get_job_status(job_id)
-
-    if status['status'] == 'not_found':
-        raise HTTPException(status_code=404, detail="Job not found")
-
-    return status
