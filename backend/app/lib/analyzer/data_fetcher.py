@@ -51,7 +51,11 @@ class DataFetcher:
         select_parts = ["id"]
         for col in columns:
             clean_col = col.replace("'", "")
-            select_parts.append(f"obj->>'{clean_col}' as \"{clean_col}\"")
+            # Truncate potentially long text fields to avoid LLM context overflow (Echo Error)
+            if clean_col in ['considerente_speta', 'text_situatia_de_fapt', 'solutia', 'text_individualizare', 'argumente_instanta', 'text_doctrina', 'text_ce_invatam']:
+                select_parts.append(f"substring(obj->>'{clean_col}' from 1 for 4000) as \"{clean_col}\"")
+            else:
+                select_parts.append(f"obj->>'{clean_col}' as \"{clean_col}\"")
 
         select_clause = ", ".join(select_parts)
         ids_str = ",".join(map(str, ids))
