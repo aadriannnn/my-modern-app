@@ -13,6 +13,7 @@ from typing import Dict, Any, List, Tuple, Optional, Callable, Awaitable
 from ..settings_manager import settings_manager
 from ..lib.network_file_saver import NetworkFileSaver
 from ..lib.prompt_logger import PromptLogger
+from ..logic.search_logic import build_pro_search_query_sql, build_vector_search_query_sql
 
 logger = logging.getLogger(__name__)
 
@@ -580,7 +581,49 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
         try:
             strategy = self._parse_json_response(poll_content)
 
-            # Validate that strategy has required fields
+            # Handle Strategies: Pro Search (Regex) vs Vector Search
+            strategy_type = strategy.get("strategy_type", "sql_standard")
+
+            if strategy_type == "pro_search" and strategy.get("pro_search_term"):
+                term = strategy.get("pro_search_term")
+                logger.info(f"[PHASE 1] Pro Search Strategy Triggered for term: {term}")
+                try:
+                    pro_queries = build_pro_search_query_sql(term, limit=100)
+                    strategy['count_query'] = pro_queries['count_query']
+                    strategy['id_list_query'] = pro_queries['id_list_query']
+                    if not strategy.get('selected_columns'):
+                        strategy['selected_columns'] = ['considerente_speta', 'solutia', 'text_individualizare']
+
+                    rationale_prefix = "⚡ STRATEGIE PRO (Regex):"
+                    if 'rationale' in strategy:
+                        strategy['rationale'] = f"{rationale_prefix} {strategy['rationale']}"
+                    else:
+                        strategy['rationale'] = f"{rationale_prefix} Căutare avansată în considerente pentru '{term}'."
+                except Exception as e:
+                    logger.error(f"Failed to build Pro Search query: {e}")
+
+            elif strategy_type == "vector_search" and strategy.get("vector_search_term"):
+                term = strategy.get("vector_search_term")
+                logger.info(f"[PHASE 1] Vector Search Strategy Triggered for term: {term}")
+                try:
+                    # Build SQL using Embeddings
+                    vector_queries = build_vector_search_query_sql(term, limit=100)
+                    strategy['count_query'] = vector_queries['count_query']
+                    strategy['id_list_query'] = vector_queries['id_list_query']
+
+                    if not strategy.get('selected_columns'):
+                        strategy['selected_columns'] = ['solutia', 'text_individualizare', 'text_situatia_de_fapt', 'obiect', 'materie']
+
+                    rationale_prefix = "🧠 STRATEGIE VECTOR (Embeddings):"
+                    if 'rationale' in strategy:
+                        strategy['rationale'] = f"{rationale_prefix} {strategy['rationale']}"
+                    else:
+                        strategy['rationale'] = f"{rationale_prefix} Căutare semantică (embeddings) pentru '{term}'."
+                except Exception as e:
+                    logger.error(f"Failed to build Vector Search query: {e}")
+
+
+            # Validate that strategy has required fields (either from LLM or injected)
             if "count_query" not in strategy or "id_list_query" not in strategy:
                 logger.warning(f"[PHASE 1] Strategy missing required fields. Parsed: {list(strategy.keys())}")
                 NetworkFileSaver.delete_response_file(response_path)
@@ -833,13 +876,22 @@ Am încercat o strategie anterioară dar a eșuat sau a dat rezultate slabe.
 MOTIV: "{feedback}"
 Te rog să ajustezi strategia (SQL sau coloane) pentru a rezolva această problemă.
 """
+
+        # Force suggestion if user mentions "embeddings" explicitly and no strategy selected yet
+        force_suggestion = ""
+        if "embeddings" in user_query.lower() or "vector" in user_query.lower() or "semantic" in user_query.lower():
+             force_suggestion = """
+⚠️ NOTĂ IMPORTANTĂ: Utilizatorul a menționat termeni legați de 'embeddings', 'vector', sau 'semantic'.
+Te rog să iei în considerare serios utilizarea strategiei VECTOR SEARCH (Varianta C) dacă este relevantă.
+"""
+
         template = self.prompts.get("discovery_prompt", "")
         if not template:
             return "EROARE: Prompt discovery_prompt lipsă."
 
         return template.format(
             user_query=user_query,
-            feedback_section=feedback_section
+            feedback_section=feedback_section + force_suggestion
         )
 
     def _build_chunk_analysis_prompt(self, user_query: str, chunk_data: List[Dict], chunk_index: int, total_chunks: int) -> str:
