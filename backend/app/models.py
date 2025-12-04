@@ -24,7 +24,7 @@ class Blocuri(SQLModel, table=True):
 
 class Vectori(SQLModel, table=True):
     speta_id: int = Field(foreign_key="blocuri.id", primary_key=True)
-    embedding: List[float] = Field(sa_column=Column(Vector(768)))
+    embedding: List[float] = Field(sa_column=Column(Vector(1536)))
 
 
 class FiltreCache(SQLModel, table=True):

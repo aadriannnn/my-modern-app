@@ -876,13 +876,22 @@ Am încercat o strategie anterioară dar a eșuat sau a dat rezultate slabe.
 MOTIV: "{feedback}"
 Te rog să ajustezi strategia (SQL sau coloane) pentru a rezolva această problemă.
 """
+
+        # Force suggestion if user mentions "embeddings" explicitly and no strategy selected yet
+        force_suggestion = ""
+        if "embeddings" in user_query.lower() or "vector" in user_query.lower() or "semantic" in user_query.lower():
+             force_suggestion = """
+⚠️ NOTĂ IMPORTANTĂ: Utilizatorul a menționat termeni legați de 'embeddings', 'vector', sau 'semantic'.
+Te rog să iei în considerare serios utilizarea strategiei VECTOR SEARCH (Varianta C) dacă este relevantă.
+"""
+
         template = self.prompts.get("discovery_prompt", "")
         if not template:
             return "EROARE: Prompt discovery_prompt lipsă."
 
         return template.format(
             user_query=user_query,
-            feedback_section=feedback_section
+            feedback_section=feedback_section + force_suggestion
         )
 
     def _build_chunk_analysis_prompt(self, user_query: str, chunk_data: List[Dict], chunk_index: int, total_chunks: int) -> str:
