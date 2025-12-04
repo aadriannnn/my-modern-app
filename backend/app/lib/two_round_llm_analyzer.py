@@ -12,6 +12,7 @@ from sqlmodel import Session, text
 from typing import Dict, Any, List, Tuple, Optional, Callable, Awaitable
 from ..settings_manager import settings_manager
 from ..lib.network_file_saver import NetworkFileSaver
+from ..lib.prompt_logger import PromptLogger
 
 logger = logging.getLogger(__name__)
 
@@ -473,9 +474,35 @@ Exemplu CORECT: WHERE materie ILIKE '%penal%' AND (obiect ILIKE '%omor%' OR keyw
             strategy = self._parse_json_response(poll_content)
             logger.info(f"[PHASE 1] Parsed strategy: {json.dumps(strategy, indent=2, ensure_ascii=False)}")
             NetworkFileSaver.delete_response_file(response_path)
+
+            # Log Round 1 interaction to prompt.json for pattern analysis
+            PromptLogger.save_round_1_entry(
+                user_query=user_query,
+                prompt=prompt,
+                python_code_response=poll_content,
+                execution_status="success",
+                filtered_cases_count=0,  # Will be updated after query execution
+                error_message=None,
+                retea_host=retea_host,
+                retea_folder=retea_folder
+            )
+
             return strategy
         except Exception as e:
             logger.error(f"Eroare parsare răspuns Discovery: {e}")
+
+            # Log failed Round 1 interaction
+            PromptLogger.save_round_1_entry(
+                user_query=user_query,
+                prompt=prompt,
+                python_code_response=poll_content,
+                execution_status="error",
+                filtered_cases_count=0,
+                error_message=str(e),
+                retea_host=retea_host,
+                retea_folder=retea_folder
+            )
+
             raise ValueError(f"LLM a returnat un răspuns invalid în Phase 1: {e}")
 
     async def _verify_strategy(self, user_query: str, strategy: Dict[str, Any], preview_data: List[Dict]) -> Dict[str, Any]:
