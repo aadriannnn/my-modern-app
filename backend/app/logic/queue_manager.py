@@ -54,7 +54,8 @@ class QueueManager:
             self.processing: bool = False
             self.worker_task: Optional[asyncio.Task] = None
             self.max_queue_size: int = 50
-            self.queue_timeout: int = 1200  # seconds (20 minutes for LLM)
+            # Increase timeout to 1 hour for long analysis
+            self.queue_timeout: int = 3600
             self.update_callbacks: Dict[str, list] = {}
             self.initialized = True
             logger.info("QueueManager initialized")
@@ -147,12 +148,6 @@ class QueueManager:
         """Broadcasts the final result or error."""
         status_data = self.get_job_status(item.request_id)
         if status_data['status'] in ['completed', 'failed']:
-            # Ensure we send 'error' status for failed jobs to match frontend expectations if needed,
-            # but get_job_status returns 'failed'.
-            # Frontend might expect 'error' or handles 'failed'.
-            # Let's check get_job_status again. It returns 'failed'.
-            # The SSE router checks for 'completed' or 'error'.
-            # Let's map 'failed' to 'error' for consistency with frontend/router if needed.
             if status_data['status'] == 'failed':
                 status_data['status'] = 'error'
 
@@ -236,15 +231,15 @@ class QueueManager:
                     if item.request_id in self.update_callbacks:
                         del self.update_callbacks[item.request_id]
 
-                    # Schedule delayed cleanup for completed/failed jobs (keep results for 30 min)
-                    # Only delete from items if it's done, after a delay
+                    # Schedule delayed cleanup for completed/failed jobs (keep results for 24 hours)
+                    # This allows users to come back next day and see results if server hasn't restarted
                     if item.future.done():
-                        logger.info(f"Scheduling delayed cleanup for job {item.request_id} in 30 minutes")
+                        logger.info(f"Scheduling delayed cleanup for job {item.request_id} in 24 hours")
 
                         async def delayed_cleanup():
-                            logger.info(f"Delayed cleanup starting 30-min wait for job {item.request_id}")
-                            await asyncio.sleep(1800)  # 30 minutes
-                            logger.info(f"Delayed cleanup 30-min wait finished, now deleting job {item.request_id}")
+                            # 24 hours = 86400 seconds
+                            await asyncio.sleep(86400)
+                            logger.info(f"Delayed cleanup 24h wait finished, now deleting job {item.request_id}")
                             if item.request_id in self.items:
                                 del self.items[item.request_id]
                                 logger.info(f"Cleaned up completed job {item.request_id}")
@@ -253,7 +248,6 @@ class QueueManager:
 
                         asyncio.create_task(delayed_cleanup())
                     else:
-                        # If not done (shouldn't happen), delete immediately
                         logger.warning(f"Job {item.request_id} future not done in finally block - deleting immediately")
                         if item.request_id in self.items:
                             del self.items[item.request_id]
@@ -324,16 +318,23 @@ class QueueManager:
 
         item = self.items[request_id]
 
+        # Include type in status if available
+        job_type = item.payload.get('type')
+
         if item.future.done():
             try:
                 result = item.future.result()
                 return {
                     'status': 'completed',
+                    'job_id': request_id,
+                    'type': job_type,
                     'result': result
                 }
             except Exception as e:
                 return {
                     'status': 'failed',
+                    'job_id': request_id,
+                    'type': job_type,
                     'error': str(e)
                 }
 
@@ -341,11 +342,15 @@ class QueueManager:
         if item.position > 0:
             return {
                 'status': 'queued',
+                'job_id': request_id,
+                'type': job_type,
                 'position': item.position
             }
         else:
             return {
-                'status': 'processing'
+                'status': 'processing',
+                'job_id': request_id,
+                'type': job_type
             }
 
 
