@@ -188,3 +188,64 @@ async def search(
             status_code=500,
             detail="An internal error occurred during the search process."
         )
+
+@router.get("/by-ids")
+async def search_by_ids(
+    ids: str,
+    session: Session = Depends(get_session)
+):
+    """
+    Search for legal cases by comma-separated IDs.
+    Example: /search/by-ids?ids=122,1566,234
+
+    Returns cases in the same format as the standard search endpoint.
+    """
+    from ..logic.search_logic import get_case_by_id
+
+    logger.info(f"Received search by IDs request: {ids}")
+
+    try:
+        # Parse comma-separated IDs
+        id_list = [id_str.strip() for id_str in ids.split(',') if id_str.strip()]
+
+        if not id_list:
+            raise HTTPException(
+                status_code=400,
+                detail="Vă rugăm să furnizați cel puțin un ID valid."
+            )
+
+        # Convert to integers and validate
+        try:
+            id_integers = [int(id_str) for id_str in id_list]
+        except ValueError:
+            raise HTTPException(
+                status_code=400,
+                detail="ID-urile trebuie să fie numere întregi valide."
+            )
+
+        # Fetch cases
+        results = []
+        not_found_ids = []
+
+        for case_id in id_integers:
+            case_data = get_case_by_id(session, case_id)
+            if case_data:
+                results.append(case_data)
+            else:
+                not_found_ids.append(case_id)
+
+        logger.info(f"Search by IDs completed. Found {len(results)} cases, {len(not_found_ids)} not found.")
+
+        if not_found_ids:
+            logger.warning(f"IDs not found: {not_found_ids}")
+
+        return results
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"An unexpected error occurred during search by IDs: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail="A apărut o eroare la căutarea după ID-uri."
+        )

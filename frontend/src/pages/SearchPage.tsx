@@ -316,6 +316,14 @@ const SearchPage: React.FC = () => {
         });
     }, []);
 
+    const handleSearchByIds = useCallback((results: any[], count: number) => {
+        setSearchResults(results);
+        setOffset(results.length);
+        setHasMore(false);
+        setStatus(`Căutare după ID-uri: ${count} rezultate găsite.`);
+        setActeJuridice([]); // Clear AI-generated legal acts
+    }, []);
+
     return (
         <div className="flex flex-col min-h-screen bg-brand-light">
             <Header
@@ -349,6 +357,8 @@ const SearchPage: React.FC = () => {
                     isProKeywordEnabled={isProKeywordEnabled}
                     onToggleProKeyword={setIsProKeywordEnabled}
                     acteJuridice={acteJuridice}
+                    onSearchByIds={handleSearchByIds}
+                    onMinimizeSidebar={() => setIsMobileMenuOpen(false)}
                 />
             </div>
 
