@@ -54,9 +54,19 @@ class DataFetcher:
 
             # Determine the SQL expression for the column
             if clean_col == 'denumire':
-                expression = f"COALESCE(obj->>'denumire', 'Caz #' || id::text)"
+                # Logic mirrored from frontend ResultItem.tsx: titlu || text_denumire_articol || denumire || Caz #ID
+                # Also include 'obiect' as a fallback if everything else is missing, as it often contains the case name type
+                expression = """
+                    COALESCE(
+                        NULLIF(obj->>'titlu', ''),
+                        NULLIF(obj->>'text_denumire_articol', ''),
+                        NULLIF(obj->>'denumire', ''),
+                        'Caz #' || id::text
+                    )
+                """
             elif clean_col == 'solutia':
-                expression = f"COALESCE(obj->>'solutia', '')"
+                # Fallback chain for solution
+                expression = "COALESCE(obj->>'solutia', obj->>'solutie', obj->>'minuta', obj->>'decizia', '')"
             elif clean_col == 'text_situatia_de_fapt':
                 # Fallback chain for situation text
                 expression = "COALESCE(obj->>'text_situatia_de_fapt', obj->>'situatia_de_fapt', obj->>'situatie', '')"
