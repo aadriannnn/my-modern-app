@@ -740,9 +740,11 @@ def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
 def get_case_by_id(session: Session, case_id: int) -> Dict[str, Any] | None:
     """
     Retrieves a single case by its ID from the database.
+    The ID is stored in the JSON obj field as obj->>'id'.
     """
     logger.info(f"Fetching case with ID: {case_id}")
-    query = text("SELECT id, obj FROM blocuri WHERE id = :case_id")
+    # Query using the JSON field obj->>'id' for PostgreSQL
+    query = text("SELECT id, obj FROM blocuri WHERE (obj->>'id')::int = :case_id")
     result = session.execute(query, {"case_id": case_id}).mappings().first()
 
     if not result:
