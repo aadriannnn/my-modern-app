@@ -51,11 +51,35 @@ class DataFetcher:
         select_parts = ["id"]
         for col in columns:
             clean_col = col.replace("'", "")
-            # Truncate potentially long text fields to avoid LLM context overflow (Echo Error)
-            if clean_col in ['considerente_speta', 'text_situatia_de_fapt', 'solutia', 'text_individualizare', 'argumente_instanta', 'text_doctrina', 'text_ce_invatam']:
-                select_parts.append(f"substring(obj->>'{clean_col}' from 1 for 4000) as \"{clean_col}\"")
+
+            # Determine the SQL expression for the column
+            if clean_col == 'denumire':
+                # Logic mirrored from frontend ResultItem.tsx: titlu || text_denumire_articol || denumire || Caz #ID
+                # Also include 'obiect' as a fallback if everything else is missing, as it often contains the case name type
+                expression = """
+                    COALESCE(
+                        NULLIF(obj->>'titlu', ''),
+                        NULLIF(obj->>'text_denumire_articol', ''),
+                        NULLIF(obj->>'denumire', ''),
+                        'Caz #' || id::text
+                    )
+                """
+            elif clean_col == 'solutia':
+                # Deprecated: User request to stop using this field as it is empty.
+                # Returning empty string to be safe.
+                expression = "''"
+            elif clean_col == 'text_situatia_de_fapt':
+                # Fallback chain for situation text
+                expression = "COALESCE(obj->>'text_situatia_de_fapt', obj->>'situatia_de_fapt', obj->>'situatie', '')"
             else:
-                select_parts.append(f"obj->>'{clean_col}' as \"{clean_col}\"")
+                expression = f"obj->>'{clean_col}'"
+
+            # Apply truncation for long text fields to avoid LLM context overflow
+            # Added 'tip_solutie' as it contains the actual solution text now
+            if clean_col in ['considerente_speta', 'text_situatia_de_fapt', 'tip_solutie', 'text_individualizare', 'argumente_instanta', 'text_doctrina', 'text_ce_invatam']:
+                select_parts.append(f"substring({expression} from 1 for 4000) as \"{clean_col}\"")
+            else:
+                select_parts.append(f"{expression} as \"{clean_col}\"")
 
         select_clause = ", ".join(select_parts)
         ids_str = ",".join(map(str, ids))
