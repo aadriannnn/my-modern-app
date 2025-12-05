@@ -1,16 +1,22 @@
 import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
-import { FileText, TrendingUp, Activity, Info } from 'lucide-react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  LineChart, Line, PieChart, Pie, Cell
+} from 'recharts';
+import { FileText, TrendingUp, Activity, Info, Table as TableIcon } from 'lucide-react';
 import BibliographySection from './BibliographySection';
 
 interface AnalysisResultsProps {
     data: any;
 }
 
+const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658', '#8dd1e1'];
+
 const AnalysisResults: React.FC<AnalysisResultsProps> = ({ data }) => {
     const results = data.results || {};
     const cases_analyzed = data.cases_analyzed || results.total_cases_analyzed || 0;
     const charts = data.charts || [];
+    const tables = data.tables || [];
 
     // Construct interpretation text if not directly provided
     let interpretationContent = data.interpretation;
@@ -64,31 +70,93 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ data }) => {
             value: chartData.data.values[i] || 0
         }));
 
+        const isPie = chartData.type === 'pie_chart';
+
         return (
-            <div key={index} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
+            <div key={`chart-${index}`} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6">
                 <h4 className="text-lg font-bold text-gray-800 mb-4 text-center">{chartData.title}</h4>
-                <div className="h-64 w-full">
+                <div className="h-72 w-full min-h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
                         {chartData.type === 'line_chart' ? (
                             <LineChart data={formattedData}>
                                 <CartesianGrid strokeDasharray="3 3" />
-                                <XAxis dataKey="name" />
+                                <XAxis dataKey="name" padding={{ left: 10, right: 10 }} />
                                 <YAxis />
-                                <Tooltip />
+                                <Tooltip formatter={(value: any) => [value, chartData.title]} />
                                 <Legend />
-                                <Line type="monotone" dataKey="value" stroke="#8884d8" activeDot={{ r: 8 }} />
+                                <Line type="monotone" dataKey="value" stroke="#8884d8" strokeWidth={2} activeDot={{ r: 8 }} />
                             </LineChart>
+                        ) : isPie ? (
+                            <PieChart>
+                                <Pie
+                                    data={formattedData}
+                                    cx="50%"
+                                    cy="50%"
+                                    labelLine={false}
+                                    label={({ name, percent }: any) => `${name} ${(percent ? percent * 100 : 0).toFixed(0)}%`}
+                                    outerRadius={100}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                >
+                                    {formattedData.map((_entry: any, index: number) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Pie>
+                                <Tooltip formatter={(value: any, name: any) => [value, name]} />
+                                <Legend layout="horizontal" verticalAlign="bottom" align="center" />
+                            </PieChart>
                         ) : (
                             <BarChart data={formattedData}>
                                 <CartesianGrid strokeDasharray="3 3" />
                                 <XAxis dataKey="name" />
                                 <YAxis />
-                                <Tooltip />
+                                <Tooltip cursor={{fill: 'transparent'}} />
                                 <Legend />
-                                <Bar dataKey="value" fill="#82ca9d" />
+                                <Bar dataKey="value" fill="#82ca9d">
+                                     {formattedData.map((_entry: any, index: number) => (
+                                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                    ))}
+                                </Bar>
                             </BarChart>
                         )}
                     </ResponsiveContainer>
+                </div>
+            </div>
+        );
+    };
+
+    const renderTable = (tableData: any, index: number) => {
+        if (!tableData || !tableData.columns || !tableData.rows) return null;
+
+        return (
+            <div key={`table-${index}`} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
+                <div className="flex items-center gap-2 mb-4">
+                     <TableIcon className="text-brand-accent" size={20} />
+                     <h4 className="text-lg font-bold text-gray-800">{tableData.title}</h4>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                {tableData.columns.map((col: string, i: number) => (
+                                    <th key={i} className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                        {col}
+                                    </th>
+                                ))}
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {tableData.rows.map((row: any[], i: number) => (
+                                <tr key={i} className="hover:bg-gray-50">
+                                    {row.map((cell: any, j: number) => (
+                                        <td key={j} className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {cell}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         );
@@ -159,10 +227,17 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ data }) => {
                 </div>
             )}
 
-            {/* Charts */}
+            {/* Charts Section */}
             {charts && charts.length > 0 && (
-                <div className="grid grid-cols-1 gap-6">
-                    {charts.map((chart: any, idx: number) => renderChart(chart, idx))}
+                <div className="grid grid-cols-1 gap-8">
+                     {charts.map((chart: any, idx: number) => renderChart(chart, idx))}
+                </div>
+            )}
+
+            {/* Tables Section */}
+            {tables && tables.length > 0 && (
+                <div className="grid grid-cols-1 gap-8">
+                    {tables.map((table: any, idx: number) => renderTable(table, idx))}
                 </div>
             )}
 

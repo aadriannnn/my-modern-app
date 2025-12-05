@@ -64,17 +64,19 @@ class LLMClient:
         cleaned = re.sub(r'^🔬 PHASE \d+:.*$', '', cleaned, flags=re.MULTILINE)
         cleaned = cleaned.strip()
 
+        data = None
         try:
-            return json.loads(cleaned)
+            data = json.loads(cleaned)
         except json.JSONDecodeError:
             start = cleaned.find("{")
             end = cleaned.rfind("}")
             if start != -1 and end != -1:
                 try:
-                    return json.loads(cleaned[start:end+1])
+                    data = json.loads(cleaned[start:end+1])
                 except json.JSONDecodeError:
                     pass
 
+        if data is None:
             logger.warning(f"Failed to parse JSON response: {content[:100]}...")
             # Return a structure that indicates failure but preserves content
             return {
@@ -83,6 +85,91 @@ class LLMClient:
                 "charts": [],
                 "parsing_error": True
             }
+
+        # --- Validation Logic for Charts & Tables ---
+
+        # Validate Charts
+        if "charts" in data and isinstance(data["charts"], list):
+            valid_charts = []
+            for chart in data["charts"]:
+                if not isinstance(chart, dict):
+                    continue
+
+                # Check required fields
+                if not all(k in chart for k in ["type", "title", "data"]):
+                    logger.warning(f"Skipping chart missing required fields: {chart.get('title', 'Unknown')}")
+                    continue
+
+                chart_data = chart["data"]
+                if not isinstance(chart_data, dict):
+                    logger.warning(f"Skipping chart with invalid data object: {chart.get('title')}")
+                    continue
+
+                if "labels" not in chart_data or "values" not in chart_data:
+                    logger.warning(f"Skipping chart missing labels/values: {chart.get('title')}")
+                    continue
+
+                labels = chart_data["labels"]
+                values = chart_data["values"]
+
+                if not isinstance(labels, list) or not isinstance(values, list):
+                     logger.warning(f"Skipping chart with non-list labels/values: {chart.get('title')}")
+                     continue
+
+                if len(labels) != len(values):
+                    logger.warning(f"Skipping chart with mismatched labels/values length: {chart.get('title')}")
+                    continue
+
+                # Ensure values are numeric
+                try:
+                    numeric_values = []
+                    for v in values:
+                        if isinstance(v, (int, float)):
+                            numeric_values.append(v)
+                        elif isinstance(v, str) and v.replace('.','',1).isdigit():
+                             numeric_values.append(float(v))
+                        else:
+                             numeric_values.append(0) # Fallback
+
+                    chart["data"]["values"] = numeric_values
+                    valid_charts.append(chart)
+
+                except Exception as e:
+                    logger.warning(f"Error processing chart values: {e}")
+
+            data["charts"] = valid_charts
+
+        # Validate Tables
+        if "tables" in data and isinstance(data["tables"], list):
+            valid_tables = []
+            for table in data["tables"]:
+                if not isinstance(table, dict):
+                    continue
+
+                if not all(k in table for k in ["title", "columns", "rows"]):
+                    logger.warning(f"Skipping table missing required fields: {table.get('title', 'Unknown')}")
+                    continue
+
+                columns = table["columns"]
+                rows = table["rows"]
+
+                if not isinstance(columns, list) or not isinstance(rows, list):
+                    continue
+
+                col_count = len(columns)
+                valid_rows = []
+                for row in rows:
+                    if isinstance(row, list) and len(row) == col_count:
+                        valid_rows.append(row)
+                    else:
+                         logger.warning(f"Skipping malformed row in table: {table.get('title')}")
+
+                table["rows"] = valid_rows
+                valid_tables.append(table)
+
+            data["tables"] = valid_tables
+
+        return data
 
     @staticmethod
     def delete_response(path: str):
