@@ -192,27 +192,27 @@ async def search(
 @router.get("/by-ids")
 async def search_by_ids(
     ids: str,
+    page: int = 1,
+    page_size: int = 20,
     session: Session = Depends(get_session)
 ):
     """
-    Search for legal cases by comma-separated IDs.
-    Example: /search/by-ids?ids=122,1566,234
+    Search for legal cases by comma-separated IDs with pagination.
+    Example: /search/by-ids?ids=122,1566,234&page=1&page_size=20
 
     Returns cases in the same format as the standard search endpoint.
     """
     from ..logic.search_logic import get_case_by_id
 
-    logger.info(f"Received search by IDs request: {ids}")
+    logger.info(f"Received search by IDs request: {ids} (Page {page}, Size {page_size})")
 
     try:
         # Parse comma-separated IDs
         id_list = [id_str.strip() for id_str in ids.split(',') if id_str.strip()]
 
         if not id_list:
-            raise HTTPException(
-                status_code=400,
-                detail="Vă rugăm să furnizați cel puțin un ID valid."
-            )
+            # Return empty list if no IDs provided (allows easy frontend handling)
+            return []
 
         # Convert to integers and validate
         try:
@@ -223,21 +223,26 @@ async def search_by_ids(
                 detail="ID-urile trebuie să fie numere întregi valide."
             )
 
+        # Apply pagination
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        paginated_ids = id_integers[start_idx:end_idx]
+
         # Fetch cases
         results = []
         not_found_ids = []
 
-        for case_id in id_integers:
+        for case_id in paginated_ids:
             case_data = get_case_by_id(session, case_id)
             if case_data:
                 results.append(case_data)
             else:
                 not_found_ids.append(case_id)
 
-        logger.info(f"Search by IDs completed. Found {len(results)} cases, {len(not_found_ids)} not found.")
+        logger.info(f"Search by IDs completed. Found {len(results)} cases on page {page}.")
 
         if not_found_ids:
-            logger.warning(f"IDs not found: {not_found_ids}")
+            logger.warning(f"IDs not found on this page: {not_found_ids}")
 
         return results
 
