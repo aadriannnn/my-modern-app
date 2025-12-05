@@ -184,6 +184,9 @@ class ThreeStageAnalyzer:
                 'case_ids': sorted(list(unique_ids))
             }
 
+            # Inject top-level stats for frontend display
+            result['cases_analyzed'] = plan.get('total_cases', 0)
+
             result['process_metadata'] = {
                 'plan_id': plan_id, 'total_cases': plan['total_cases'],
                 'chunks_processed': len(aggregated)
