@@ -1,6 +1,7 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import { FileText, TrendingUp, Activity, Info } from 'lucide-react';
+import BibliographySection from './BibliographySection';
 
 interface AnalysisResultsProps {
     data: any;
@@ -199,7 +200,7 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ data }) => {
                 <h4 className="text-sm font-bold text-gray-500 uppercase mb-3">Detalii Statistice</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {Object.entries(results).map(([key, value]) => {
-                        if (['mean_sentence_years', 'trend_by_year', 'statistical_significance', 'total_cases_analyzed', 'analiza_limitata', 'individual_penalties_found'].includes(key)) return null;
+                        if (['mean_sentence_years', 'trend_by_year', 'statistical_significance', 'total_cases_analyzed', 'analiza_limitata', 'individual_penalties_found', 'bibliography'].includes(key)) return null;
                         if (typeof value === 'object') return null;
                         return (
                             <div key={key} className="bg-white p-3 rounded-lg border border-gray-100">
@@ -210,6 +211,14 @@ const AnalysisResults: React.FC<AnalysisResultsProps> = ({ data }) => {
                     })}
                 </div>
             </div>
+
+            {/* Bibliography Section */}
+            {(data.bibliography?.case_ids || results.bibliography?.case_ids) && (
+                <BibliographySection
+                    caseIds={data.bibliography?.case_ids || results.bibliography?.case_ids || []}
+                    totalCases={data.bibliography?.total_cases || results.bibliography?.total_cases || 0}
+                />
+            )}
         </div>
     );
 };

@@ -157,6 +157,22 @@ class ThreeStageAnalyzer:
             result = LLMClient.parse_json_response(content)
             LLMClient.delete_response(path)
 
+            # Programmatically aggregate bibliography from chunks
+            unique_ids = set()
+            for chunk_res in aggregated:
+                if 'referenced_case_ids' in chunk_res and isinstance(chunk_res['referenced_case_ids'], list):
+                    for cid in chunk_res['referenced_case_ids']:
+                        try:
+                            unique_ids.add(int(cid))
+                        except (ValueError, TypeError):
+                            continue
+
+            # Ensure bibliography is present in result, preferring programmatic aggregation
+            result['bibliography'] = {
+                'total_cases': len(unique_ids),
+                'case_ids': sorted(list(unique_ids))
+            }
+
             result['process_metadata'] = {
                 'plan_id': plan_id, 'total_cases': plan['total_cases'],
                 'chunks_processed': len(aggregated)
