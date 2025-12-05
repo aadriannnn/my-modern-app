@@ -1,7 +1,5 @@
-import React from 'react';
 import AnalysisResults from '../components/AnalysisResults';
 
-// Mock data to test charts and tables
 const mockData = {
     results: {
         total_cases_analyzed: 100,
@@ -38,7 +36,7 @@ const mockData = {
     ]
 };
 
-export default function TestPage() {
+export default function TestAnalysisPage() {
     return (
         <div className="p-8 bg-gray-100 min-h-screen">
             <h1 className="text-2xl font-bold mb-4">Analysis Results Test - Fixed</h1>

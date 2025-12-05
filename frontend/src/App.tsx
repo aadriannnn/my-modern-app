@@ -8,8 +8,7 @@ import LandingPage from './pages/LandingPage';
 import { DosarProvider } from './context/DosarContext';
 import DosarDrawer from './components/DosarDrawer';
 import DosarToast from './components/DosarToast';
-
-const TestAnalysisPage = React.lazy(() => import('./pages/TestAnalysisPage'));
+import TestAnalysisPage from './pages/TestAnalysisPage';
 
 const App: React.FC = () => {
   return (
@@ -22,7 +21,7 @@ const App: React.FC = () => {
         <Route path="/setari" element={<SettingsPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-        <Route path="/test-analysis" element={<React.Suspense fallback={<div>Loading...</div>}><TestAnalysisPage /></React.Suspense>} />
+        <Route path="/test-analysis" element={<TestAnalysisPage />} />
       </Routes>
 
     </DosarProvider>
