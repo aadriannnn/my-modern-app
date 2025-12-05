@@ -75,6 +75,26 @@ export const search = async (payload: SearchParams) => {
   return response.json();
 };
 
+export const searchByIds = async (ids: string) => {
+  const response = await fetch(`${API_URL}/search/by-ids?ids=${encodeURIComponent(ids)}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    let detail = `Request failed with status ${response.status}`;
+    try {
+      const errorData = await response.json();
+      detail = errorData.detail || detail;
+    } catch (e) {
+      // The response body was not JSON. The default detail is fine.
+    }
+    throw new ApiError(detail, response.status);
+  }
+
+  return response.json();
+};
+
 export const refreshFilters = async () => {
   const response = await fetch(`${API_URL}/filters/refresh`, {
     method: 'POST',
@@ -359,4 +379,15 @@ export const getAdvancedAnalysisStatus = async (jobId: string) => {
   }
 
   return response.json();
+};
+const response = await fetch(`${API_URL}/contribuie/`, {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(data),
+});
+if (!response.ok) {
+  const errorData = await response.json();
+  throw new Error(errorData.detail || 'Contribuie failed');
+}
+return response.json();
 };
