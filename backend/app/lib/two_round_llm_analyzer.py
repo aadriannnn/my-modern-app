@@ -304,7 +304,20 @@ class ThreeStageAnalyzer:
 
                 conditions = []
                 if term:
-                    conditions.append(term)
+                    # If term is not a SQL operation (e.g. contains = or LIKE), assume it's a keyword
+                    if not any(op in term.upper() for op in ["=", "LIKE", "ILKE", "~", ">", "<", "IS NULL", "IS NOT NULL"]):
+                        logger.info(f"Treating bare term '{term}' as keyword search.")
+                        # Construct a generic search condition for the term
+                        term_safe = term.replace("'", "''")
+                        term_condition = (
+                            f"(obj->>'obiect' ILIKE '%{term_safe}%' OR "
+                            f"obj->>'keywords' ILIKE '%{term_safe}%' OR "
+                            f"obj->>'text_situatia_de_fapt' ILIKE '%{term_safe}%')"
+                        )
+                        conditions.append(term_condition)
+                    else:
+                        conditions.append(term)
+
                 if sql_filters:
                     conditions.append(sql_filters)
 
