@@ -380,14 +380,3 @@ export const getAdvancedAnalysisStatus = async (jobId: string) => {
 
   return response.json();
 };
-const response = await fetch(`${API_URL}/contribuie/`, {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(data),
-});
-if (!response.ok) {
-  const errorData = await response.json();
-  throw new Error(errorData.detail || 'Contribuie failed');
-}
-return response.json();
-};
