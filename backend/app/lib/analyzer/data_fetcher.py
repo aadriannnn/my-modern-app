@@ -65,8 +65,9 @@ class DataFetcher:
                     )
                 """
             elif clean_col == 'solutia':
-                # Fallback chain for solution
-                expression = "COALESCE(obj->>'solutia', obj->>'solutie', obj->>'minuta', obj->>'decizia', '')"
+                # Deprecated: User request to stop using this field as it is empty.
+                # Returning empty string to be safe.
+                expression = "''"
             elif clean_col == 'text_situatia_de_fapt':
                 # Fallback chain for situation text
                 expression = "COALESCE(obj->>'text_situatia_de_fapt', obj->>'situatia_de_fapt', obj->>'situatie', '')"
@@ -74,7 +75,8 @@ class DataFetcher:
                 expression = f"obj->>'{clean_col}'"
 
             # Apply truncation for long text fields to avoid LLM context overflow
-            if clean_col in ['considerente_speta', 'text_situatia_de_fapt', 'solutia', 'text_individualizare', 'argumente_instanta', 'text_doctrina', 'text_ce_invatam']:
+            # Added 'tip_solutie' as it contains the actual solution text now
+            if clean_col in ['considerente_speta', 'text_situatia_de_fapt', 'tip_solutie', 'text_individualizare', 'argumente_instanta', 'text_doctrina', 'text_ce_invatam']:
                 select_parts.append(f"substring({expression} from 1 for 4000) as \"{clean_col}\"")
             else:
                 select_parts.append(f"{expression} as \"{clean_col}\"")
