@@ -8,6 +8,7 @@ import LandingPage from './pages/LandingPage';
 import { DosarProvider } from './context/DosarContext';
 import DosarDrawer from './components/DosarDrawer';
 import DosarToast from './components/DosarToast';
+import TestAnalysisPage from './pages/TestAnalysisPage';
 
 const App: React.FC = () => {
   return (
@@ -20,6 +21,7 @@ const App: React.FC = () => {
         <Route path="/setari" element={<SettingsPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+        <Route path="/test-analysis" element={<TestAnalysisPage />} />
       </Routes>
 
     </DosarProvider>
