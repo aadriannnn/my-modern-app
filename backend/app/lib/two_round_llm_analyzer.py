@@ -296,6 +296,24 @@ class ThreeStageAnalyzer:
                     strategy['id_list_query'] = combined_id_list
                 else:
                     strategy.update(vector_queries)
+            elif primary_type == "sql_standard" or not primary_type:
+                # Handle case where LLM uses 'sql_standard' as primary inside combined, or just filters
+                # This essentially treats it as a standard SQL search where primary 'term' (if any)
+                # is combined with 'sql_filters'
+                term = primary_strategy.get("term", "")
+
+                conditions = []
+                if term:
+                    conditions.append(term)
+                if sql_filters:
+                    conditions.append(sql_filters)
+
+                if conditions:
+                    combined_where = " AND ".join([f"({c})" for c in conditions])
+                    strategy['count_query'] = f"SELECT COUNT(*) FROM blocuri WHERE {combined_where}"
+                    strategy['id_list_query'] = f"SELECT id FROM blocuri WHERE {combined_where} LIMIT 100"
+                else:
+                    logger.warning("Combined strategy with no valid filters or term.")
             else:
                  # Fallback if unknown primary
                  logger.warning(f"Unknown primary strategy in combined: {primary_type}")
