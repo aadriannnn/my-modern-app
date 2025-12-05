@@ -54,13 +54,24 @@ class ThreeStageAnalyzer:
                 total_cases, all_ids = self.data_fetcher.execute_discovery_queries(strategy)
 
             # 3. Auto-Expansion Check
-            if MultiStrategyConfig.AUTO_EXPAND_ENABLED and 0 < total_cases < MultiStrategyConfig.MIN_RESULTS_THRESHOLD:
+            # If we have 0 cases OR fewer than threshold, try to expand
+            if MultiStrategyConfig.AUTO_EXPAND_ENABLED and total_cases < MultiStrategyConfig.MIN_RESULTS_THRESHOLD:
+                logger.info(f"Results below threshold ({total_cases}). Triggering Auto-Expansion.")
                 strategy = await self._handle_auto_expansion(user_query, strategy, all_ids)
-                total_cases = strategy["precomputed_count"]
-                all_ids = strategy["precomputed_ids"]
+                total_cases = strategy.get("precomputed_count", 0)
+                all_ids = strategy.get("precomputed_ids", [])
 
             if total_cases == 0:
-                return {'success': False, 'error': 'Nu s-au găsit date relevante.'}
+                # One last attempt: If even auto-expansion failed (or was disabled), try fallback SQL
+                logger.warning("Still 0 results after expansion. Attempting final fallback strategy.")
+                fallback_strategy = self._generate_fallback_strategy(user_query)
+                total_cases, all_ids = self.data_fetcher.execute_discovery_queries(fallback_strategy)
+
+                if total_cases > 0:
+                    strategy = fallback_strategy
+                    strategy['rationale'] = "Fallback strategy used because primary strategy yielded 0 results."
+                else:
+                    return {'success': False, 'error': 'Nu s-au găsit date relevante nici după extinderea căutării.'}
 
             # 4. Create Plan
             plan = self.plan_manager.create_plan_object(user_query, strategy, total_cases, all_ids)
@@ -156,6 +167,22 @@ class ThreeStageAnalyzer:
 
             result = LLMClient.parse_json_response(content)
             LLMClient.delete_response(path)
+
+            # Programmatically aggregate bibliography from chunks
+            unique_ids = set()
+            for chunk_res in aggregated:
+                if 'referenced_case_ids' in chunk_res and isinstance(chunk_res['referenced_case_ids'], list):
+                    for cid in chunk_res['referenced_case_ids']:
+                        try:
+                            unique_ids.add(int(cid))
+                        except (ValueError, TypeError):
+                            continue
+
+            # Ensure bibliography is present in result, preferring programmatic aggregation
+            result['bibliography'] = {
+                'total_cases': len(unique_ids),
+                'case_ids': sorted(list(unique_ids))
+            }
 
             result['process_metadata'] = {
                 'plan_id': plan_id, 'total_cases': plan['total_cases'],

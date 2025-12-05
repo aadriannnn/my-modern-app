@@ -75,6 +75,36 @@ export const search = async (payload: SearchParams) => {
   return response.json();
 };
 
+export const searchByIdsPaginated = async (
+  ids: (number | string)[],
+  page: number = 1,
+  pageSize: number = 20
+) => {
+  if (!ids || ids.length === 0) return [];
+
+  const idString = ids.join(',');
+  const response = await fetch(
+      `${API_URL}/search/by-ids?ids=${encodeURIComponent(idString)}&page=${page}&page_size=${pageSize}`,
+      {
+          method: 'GET',
+          credentials: 'include'
+      }
+  );
+
+  if (!response.ok) {
+      let detail = `Request failed with status ${response.status}`;
+      try {
+          const errorData = await response.json();
+          detail = errorData.detail || detail;
+      } catch (e) {
+          // The response body was not JSON
+      }
+      throw new ApiError(detail, response.status);
+  }
+
+  return response.json();
+};
+
 export const searchByIds = async (ids: string) => {
   const response = await fetch(`${API_URL}/search/by-ids?ids=${encodeURIComponent(ids)}`, {
     method: 'GET',
