@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BookOpen, ChevronDown, ChevronUp, ExternalLink, Loader2 } from 'lucide-react';
+import { BookOpen, ChevronDown, ExternalLink, Loader2 } from 'lucide-react';
 import { searchByIdsPaginated } from '../lib/api';
 import CaseDetailModal from './CaseDetailModal';
 
@@ -109,7 +109,7 @@ const BibliographySection: React.FC<BibliographySectionProps> = ({ caseIds, tota
                 <h3 className="text-xl font-bold text-gray-900">
                     Bibliografie
                     <span className="ml-2 text-sm font-normal text-gray-500">
-                        ({caseIds.length} spețe analizate)
+                        ({totalCases > 0 ? totalCases : caseIds.length} spețe analizate)
                     </span>
                 </h3>
             </div>
