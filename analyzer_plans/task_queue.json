@@ -1,0 +1,16 @@
+{
+  "version": "1.0",
+  "tasks": [
+    {
+      "id": "e79c410e-44e7-41ed-b522-8e9fa496b82e",
+      "query": "test query",
+      "user_metadata": {},
+      "state": "pending",
+      "created_at": 1765031540.772045,
+      "updated_at": 1765031540.7720454,
+      "plan": null,
+      "result": null,
+      "error": null
+    }
+  ]
+}
