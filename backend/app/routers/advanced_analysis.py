@@ -152,12 +152,21 @@ async def generate_plans_batch(request: GeneratePlansRequest, background_tasks: 
 
 @router.post("/queue/execute-all")
 async def execute_queue(request: ExecuteQueueRequest, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
-    """Starts sequential execution of approved tasks."""
+    """Starts sequential execution of approved tasks. Auto-approves planned tasks."""
     # Terms check only if notification is requested
     if request.notification_email and not request.terms_accepted:
          raise HTTPException(status_code=400, detail="Terms not accepted")
 
     from ..logic.queue_manager import QueueManager
+    from ..lib.analyzer.task_queue_manager import TaskQueueManager
+
+    # Auto-approve all planned tasks before execution
+    manager = TaskQueueManager()
+    queue = manager.get_queue()
+    for task in queue['tasks']:
+        if task['state'] == 'planned':
+            manager.update_task_state(task['id'], 'approved', {})
+
     qm = QueueManager()
 
     job_id = qm.add_job(
