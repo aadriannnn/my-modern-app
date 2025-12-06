@@ -109,6 +109,13 @@ async def get_queue():
     manager = TaskQueueManager()
     return manager.get_queue()
 
+@router.delete("/queue/completed")
+async def clear_completed_queue_tasks():
+    """Removes all completed or failed tasks from the queue."""
+    manager = TaskQueueManager()
+    success = manager.clear_completed_tasks()
+    return {"success": success}
+
 @router.delete("/queue/{task_id}")
 async def remove_task_from_queue(task_id: str):
     """Removes a task from the queue."""
@@ -192,13 +199,6 @@ async def get_queue_results():
              pending_count += 1
 
     return {"results": results, "pending_count": pending_count}
-
-@router.delete("/queue/completed")
-async def clear_completed_queue_tasks():
-    """Removes all completed or failed tasks from the queue."""
-    manager = TaskQueueManager()
-    success = manager.clear_completed_tasks()
-    return {"success": success}
 
 @router.delete("/session/{job_id}")
 async def clear_analysis_session(job_id: str):
