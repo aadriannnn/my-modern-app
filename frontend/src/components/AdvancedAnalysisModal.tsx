@@ -23,7 +23,7 @@ interface AdvancedAnalysisModalProps {
     onClose: () => void;
 }
 
-type WorkflowStep = 'input' | 'queue_management' | 'creating_plan' | 'preview' | 'preview_batch' | 'executing' | 'executing_queue';
+type WorkflowStep = 'input' | 'queue_management' | 'creating_plan' | 'preview' | 'preview_batch' | 'executing' | 'executing_queue' | 'queue_results';
 
 interface PlanData {
     plan_id: string;
@@ -53,6 +53,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
     const [queueTasks, setQueueTasks] = useState<QueueTask[]>([]);
     const [isQueueMode, setIsQueueMode] = useState(false);
     const [pollingInterval, setPollingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
     // Email notification state
     const [notificationEmail, setNotificationEmail] = useState('');
@@ -184,8 +185,12 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                         setCurrentStep('executing');
                     } else if (step === 'executing_queue') {
                         // Queue execution finished
-                        refreshQueue();
-                        setCurrentStep('executing_queue');
+                        refreshQueue().then(() => {
+                            // Check if we should move to results immediately if job is done
+                            // Actually, let the user click "View Results" or auto-transition if needed
+                            // For now stay on executing_queue so they see the "Complete" message
+                             setCurrentStep('executing_queue');
+                        });
                     }
                 }
                 setJobId(null);
@@ -691,18 +696,103 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                          <p className="text-green-800 text-sm mb-4">
                              Toate sarcinile au fost procesate.
                          </p>
-                         {/* Here we could show a button to view aggregated results or download report */}
                          <button
-                             onClick={() => setCurrentStep('input')}
-                             className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                             onClick={() => {
+                                 // Select the first completed task by default
+                                 const firstCompleted = queueTasks.find(t => t.state === 'completed');
+                                 if (firstCompleted) setSelectedTaskId(firstCompleted.id);
+                                 setCurrentStep('queue_results');
+                             }}
+                             className="px-6 py-2.5 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700 shadow-md flex items-center gap-2 mx-auto"
                          >
-                             Finalizează
+                             <ListPlus className="w-5 h-5" />
+                             Vezi Rezultatele
                          </button>
                      </div>
                  )}
             </div>
         </div>
     );
+
+    const renderQueueResultsStep = () => {
+        const completedTasks = queueTasks.filter(t => t.state === 'completed' || t.state === 'failed');
+        const activeTask = queueTasks.find(t => t.id === selectedTaskId) || completedTasks[0];
+
+        return (
+            <div className="flex-1 flex min-h-0 bg-gray-50/50">
+                {/* Sidebar List */}
+                <div className="w-1/3 border-r border-gray-200 overflow-y-auto bg-white">
+                    <div className="p-4 border-b border-gray-100">
+                        <h4 className="font-bold text-gray-700">Sarcini Analizate</h4>
+                        <p className="text-xs text-gray-500">Selectați pentru detalii</p>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                        {completedTasks.map((task, idx) => (
+                            <button
+                                key={task.id}
+                                onClick={() => setSelectedTaskId(task.id)}
+                                className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${selectedTaskId === task.id ? 'bg-blue-50 border-l-4 border-brand-accent' : 'border-l-4 border-transparent'}`}
+                            >
+                                <div className="flex items-start justify-between mb-1">
+                                    <span className="text-xs font-mono text-gray-400">#{idx + 1}</span>
+                                    {task.state === 'failed' ? (
+                                        <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] rounded-full uppercase font-bold">Eșuat</span>
+                                    ) : (
+                                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] rounded-full uppercase font-bold">Complet</span>
+                                    )}
+                                </div>
+                                <p className={`text-sm font-medium line-clamp-2 ${selectedTaskId === task.id ? 'text-blue-900' : 'text-gray-700'}`}>
+                                    {task.query}
+                                </p>
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Main Content Area */}
+                <div className="flex-1 overflow-y-auto p-6">
+                    {activeTask ? (
+                        <>
+                            {activeTask.state === 'failed' ? (
+                                <div className="flex flex-col items-center justify-center h-full text-center p-8">
+                                    <div className="p-4 bg-red-100 rounded-full mb-4">
+                                        <AlertCircle className="w-8 h-8 text-red-600" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">Analiză Eșuată</h3>
+                                    <p className="text-gray-600 max-w-md mb-4">{activeTask.query}</p>
+                                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 max-w-lg w-full">
+                                        <p className="font-mono text-sm text-red-800 break-words">{activeTask.error || "Eroare necunoscută"}</p>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div>
+                                    <div className="mb-6 pb-4 border-b border-gray-200">
+                                        <h2 className="text-xl font-bold text-gray-900 mb-2">{activeTask.query}</h2>
+                                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                                            <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> Finalizat la {new Date(activeTask.updated_at * 1000).toLocaleString()}</span>
+                                            {activeTask.plan && <span>• {activeTask.plan.total_cases} cazuri</span>}
+                                        </div>
+                                    </div>
+                                    {activeTask.result ? (
+                                        <AnalysisResults data={activeTask.result} />
+                                    ) : (
+                                        <div className="text-center py-12 text-gray-400">
+                                            <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2" />
+                                            <p>Se încarcă rezultatele...</p>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </>
+                    ) : (
+                         <div className="flex items-center justify-center h-full text-gray-400">
+                             Selectați o sarcină din listă.
+                         </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
 
     const renderPreviewStep = () => {
          if (!planData) return null;
@@ -828,7 +918,8 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                                 {currentStep === 'creating_plan' && 'Generare Plan...'}
                                 {currentStep === 'preview' && 'Pas 2: Revizuiți planul'}
                                 {currentStep === 'preview_batch' && 'Previzualizare Planuri Multiple'}
-                                {(currentStep === 'executing' || currentStep === 'executing_queue') && 'Pas 3: Execuție și rezultate'}
+                                {(currentStep === 'executing' || currentStep === 'executing_queue') && 'Pas 3: Execuție'}
+                                {currentStep === 'queue_results' && 'Pas 4: Rezultate Finale'}
                             </p>
                         </div>
                     </div>
@@ -848,6 +939,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                 {currentStep === 'preview_batch' && renderBatchPreviewStep()}
                 {currentStep === 'executing' && renderExecutingStep()}
                 {currentStep === 'executing_queue' && renderExecutingQueueStep()}
+                {currentStep === 'queue_results' && renderQueueResultsStep()}
 
             </div>
         </div>
