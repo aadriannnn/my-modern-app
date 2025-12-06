@@ -460,7 +460,7 @@ export const executeQueue = async (notificationEmail?: string, termsAccepted?: b
 };
 
 export const clearCompletedQueue = async () => {
-    const response = await fetch(`${API_BASE_URL}/advanced-analysis/queue/completed`, {
+    const response = await fetch(`${API_URL}/advanced-analysis/queue/completed`, {
         method: 'DELETE',
     });
     if (!response.ok) throw new Error('Failed to clear completed tasks');
@@ -468,7 +468,7 @@ export const clearCompletedQueue = async () => {
 };
 
 export const clearAnalysisSession = async (jobId: string) => {
-    const response = await fetch(`${API_BASE_URL}/advanced-analysis/session/${jobId}`, {
+    const response = await fetch(`${API_URL}/advanced-analysis/session/${jobId}`, {
         method: 'DELETE',
     });
     // Don't throw if 404, just ignore

@@ -7,7 +7,7 @@ import os
 import logging
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import asyncio
 from datetime import datetime
 
