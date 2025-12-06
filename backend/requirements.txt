@@ -50,7 +50,8 @@ openpyxl==3.1.2
 # ============================================
 # Email (Required for notifications)
 # ============================================
-sib-api-v3-sdk==7.6.0
+# Using latest version that fixes Python 3.12 / urllib3 compatibility
+sib-api-v3-sdk>=7.6.0
 
 # ============================================
 # Utilities
