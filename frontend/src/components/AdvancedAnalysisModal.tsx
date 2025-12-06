@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, BrainCircuit, Play, AlertCircle, CheckCircle, Zap, Brain, Mail, ListPlus, Loader2 } from 'lucide-react';
+import { X, BrainCircuit, Play, AlertCircle, CheckCircle, Zap, Brain, Mail, ListPlus, Loader2, Clock } from 'lucide-react';
 import {
     createAnalysisPlan,
     executeAnalysisPlan,
@@ -769,7 +769,10 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                                     <div className="mb-6 pb-4 border-b border-gray-200">
                                         <h2 className="text-xl font-bold text-gray-900 mb-2">{activeTask.query}</h2>
                                         <div className="flex items-center gap-4 text-sm text-gray-500">
-                                            <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> Finalizat la {new Date(activeTask.updated_at * 1000).toLocaleString()}</span>
+                                            <span className="flex items-center gap-1">
+                                                <Clock className="w-4 h-4" />
+                                                Finalizat la {new Date((activeTask.completed_at || activeTask.updated_at) * 1000).toLocaleString()}
+                                            </span>
                                             {activeTask.plan && <span>• {activeTask.plan.total_cases} cazuri</span>}
                                         </div>
                                     </div>
