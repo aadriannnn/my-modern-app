@@ -704,29 +704,16 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         </div>
     );
 
-    // Reuse existing renderPreviewStep and renderExecutingStep for single mode...
-    // (Existing code for renderPreviewStep, renderExecutingStep kept as is for single mode compatibility)
-    // I will include them below but they are only used if !isQueueMode
-
-    // ... (Existing renderPreviewStep logic)
     const renderPreviewStep = () => {
-         // ... (Same as before)
-         // Assuming user only hits this in single mode
          if (!planData) return null;
 
-         // ... Copy of previous renderPreviewStep logic ...
-         const isPro = planData.strategy_summary.includes('⚡ STRATEGIE PRO');
-         // ... (truncated for brevity, assume logic persists)
-         // I'll assume the previous implementation of renderPreviewStep is used here.
-         // Since I am overwriting the file, I must include the FULL code.
-
-         const isVector = planData.strategy_summary.includes('🧠 STRATEGIE VECTOR');
+         const isPro = planData.strategy_summary && planData.strategy_summary.includes('⚡ STRATEGIE PRO');
+         const isVector = planData.strategy_summary && planData.strategy_summary.includes('🧠 STRATEGIE VECTOR');
          const isSpecialStrategy = isPro || isVector;
-         // ...
+
          return (
             <>
                 <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50">
-                     {/* ... (Existing JSX) ... */}
                      <div className="space-y-6">
                         <div className="bg-green-50 border border-green-200 rounded-xl p-4 flex items-start gap-3">
                             <div className="p-2 bg-green-100 rounded-lg">
@@ -741,7 +728,6 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                         </div>
 
                         <div className={`bg-white border rounded-xl p-5 shadow-sm ${isSpecialStrategy ? 'border-brand-accent/50 ring-1 ring-brand-accent/20' : 'border-gray-200'}`}>
-                             {/* ... Strategy details ... */}
                              <div className="flex items-start gap-3 mb-3">
                                 <div className={`p-2 rounded-lg ${isSpecialStrategy ? 'bg-brand-accent/10' : 'bg-blue-50'}`}>
                                     {isPro && <Zap className="w-5 h-5 text-brand-accent fill-current" />}
