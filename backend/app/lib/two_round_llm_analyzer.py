@@ -151,7 +151,7 @@ class ThreeStageAnalyzer:
             }
         }
 
-    async def execute_plan(self, plan_id: str, progress_callback: Optional[Callable] = None, notification_email: Optional[str] = None) -> Dict[str, Any]:
+    async def execute_plan(self, plan_id: str, progress_callback: Optional[Callable] = None, notification_email: Optional[str] = None, suppress_email: bool = False) -> Dict[str, Any]:
         """PHASE 2 & 3: Execution & Synthesis"""
         import time
         start_time = time.time()
@@ -180,8 +180,8 @@ class ThreeStageAnalyzer:
             if progress_callback: await progress_callback({"stage": "synthesis"})
             result = await self.synthesize_results(plan_id)
 
-            # Send success email if notification is enabled
-            if notification_email and result.get('success'):
+            # Send success email if notification is enabled and NOT suppressed
+            if notification_email and result.get('success') and not suppress_email:
                 execution_time = time.time() - start_time
                 await self._send_completion_email(
                     notification_email,

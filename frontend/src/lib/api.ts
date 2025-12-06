@@ -459,6 +459,22 @@ export const executeQueue = async (notificationEmail?: string, termsAccepted?: b
   return response.json();
 };
 
+export const clearCompletedQueue = async () => {
+    const response = await fetch(`${API_BASE_URL}/advanced-analysis/queue/completed`, {
+        method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to clear completed tasks');
+    return response.json();
+};
+
+export const clearAnalysisSession = async (jobId: string) => {
+    const response = await fetch(`${API_BASE_URL}/advanced-analysis/session/${jobId}`, {
+        method: 'DELETE',
+    });
+    // Don't throw if 404, just ignore
+    return response.json().catch(() => ({}));
+};
+
 export const getQueueResults = async () => {
   const response = await fetch(`${API_URL}/advanced-analysis/queue/results`, {
     credentials: 'include'

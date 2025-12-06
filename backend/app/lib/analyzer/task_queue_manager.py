@@ -110,6 +110,18 @@ class TaskQueueManager:
             "completed_at": time.time()
         })
 
+    def clear_completed_tasks(self):
+        """Removes all completed or failed tasks from the queue."""
+        queue_data = self.load_queue()
+        original_count = len(queue_data["tasks"])
+        queue_data["tasks"] = [t for t in queue_data["tasks"] if t["state"] not in ["completed", "failed"]]
+
+        if len(queue_data["tasks"]) < original_count:
+            self._save_queue_data(queue_data)
+            logger.info("Cleared completed/failed tasks from queue.")
+            return True
+        return False
+
     def load_queue(self) -> Dict[str, Any]:
         """Loads the queue from disk with error handling."""
         try:
