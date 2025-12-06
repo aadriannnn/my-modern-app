@@ -64,3 +64,28 @@ export interface SearchResult {
   score?: number;
   data?: any;
 }
+
+// Queue System Types
+
+export interface QueueTask {
+  id: string;
+  query: string;
+  state: 'pending' | 'planning' | 'planned' | 'approved' | 'executing' | 'completed' | 'failed';
+  plan?: any;
+  result?: any;
+  error?: string;
+  created_at: number;
+  updated_at: number;
+  user_metadata?: any;
+}
+
+export interface QueueSummary {
+  total: number;
+  succeeded: number;
+  failed: number;
+}
+
+export interface QueueState {
+  version: string;
+  tasks: QueueTask[];
+}

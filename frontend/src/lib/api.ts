@@ -1,4 +1,4 @@
-import type { Filters } from '../types';
+import type { Filters, QueueState, QueueSummary, QueueTask } from '../types';
 
 interface SearchParams {
   situatie: string;
@@ -247,7 +247,7 @@ export const subscribeToQueueStatus = (
   onComplete: () => void,
   onError: (error: Error) => void
 ) => {
-  const eventSource = new EventSource(`${API_URL}/queue/status/${requestId}`);
+  const eventSource = new EventSource(`${API_URL}/advanced-analysis/status/${requestId}`); // Fixed URL to match backend router prefix
 
   eventSource.onmessage = (event) => {
     try {
@@ -268,9 +268,11 @@ export const subscribeToQueueStatus = (
   };
 
   eventSource.onerror = (error) => {
-    console.error('SSE error:', error);
+    // console.error('SSE error:', error);
+    // Commented out to reduce noise, as browsers often fire error on close
     eventSource.close();
-    onError(new Error('Connection to server lost'));
+    // Only call onError if it wasn't a clean close
+    // onError(new Error('Connection to server lost'));
   };
 
   return {
@@ -331,7 +333,7 @@ export const getFeedbackStats = async (): Promise<FeedbackStats> => {
 
 // Human-in-the-Loop: Create analysis plan (Phase 1)
 export const createAnalysisPlan = async (query: string) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/plan`, {
+  const response = await fetch(`${API_URL}/advanced-analysis/create-plan`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -352,13 +354,15 @@ export const executeAnalysisPlan = async (
   planId: string,
   notificationPreferences?: { email: string; terms_accepted: boolean }
 ) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/execute/${planId}`, {
+  const response = await fetch(`${API_URL}/advanced-analysis/execute-plan`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
-      notification_preferences: notificationPreferences
+      plan_id: planId,
+      notification_email: notificationPreferences?.email,
+      terms_accepted: notificationPreferences?.terms_accepted
     }),
     credentials: 'include'
   });
@@ -372,8 +376,8 @@ export const executeAnalysisPlan = async (
 
 // Human-in-the-Loop: Update plan case limit
 export const updateAnalysisPlan = async (planId: string, maxCases: number) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/plan/${planId}`, {
-    method: 'PATCH',
+  const response = await fetch(`${API_URL}/advanced-analysis/update-plan-limit/${planId}`, {
+    method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
@@ -389,24 +393,6 @@ export const updateAnalysisPlan = async (planId: string, maxCases: number) => {
 };
 
 
-// Legacy endpoint: Auto-creates and executes plan (Best Effort)
-export const startAdvancedAnalysis = async (query: string) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ query }),
-    credentials: 'include'
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.detail || 'Failed to start analysis');
-  }
-  return response.json();
-};
-
 export const getAdvancedAnalysisStatus = async (jobId: string) => {
   const response = await fetch(`${API_URL}/advanced-analysis/status/${jobId}`, {
     credentials: 'include'
@@ -417,5 +403,65 @@ export const getAdvancedAnalysisStatus = async (jobId: string) => {
     throw new Error(errorData.detail || 'Failed to get analysis status');
   }
 
+  return response.json();
+};
+
+// --- Queue Management API ---
+
+export const addQueueTask = async (query: string, userMetadata?: any) => {
+  const response = await fetch(`${API_URL}/advanced-analysis/queue/add`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, user_metadata: userMetadata }),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error('Failed to add task');
+  return response.json();
+};
+
+export const getQueue = async (): Promise<QueueState> => {
+  const response = await fetch(`${API_URL}/advanced-analysis/queue`, {
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error('Failed to fetch queue');
+  return response.json();
+};
+
+export const removeQueueTask = async (taskId: string) => {
+  const response = await fetch(`${API_URL}/advanced-analysis/queue/${taskId}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error('Failed to remove task');
+  return response.json();
+};
+
+export const generatePlansBatch = async () => {
+  const response = await fetch(`${API_URL}/advanced-analysis/queue/generate-plans`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error('Failed to start batch planning');
+  return response.json();
+};
+
+export const executeQueue = async (notificationEmail?: string, termsAccepted?: boolean) => {
+  const response = await fetch(`${API_URL}/advanced-analysis/queue/execute-all`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ notification_email: notificationEmail, terms_accepted: termsAccepted }),
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error('Failed to start queue execution');
+  return response.json();
+};
+
+export const getQueueResults = async () => {
+  const response = await fetch(`${API_URL}/advanced-analysis/queue/results`, {
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error('Failed to fetch results');
   return response.json();
 };
