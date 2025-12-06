@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, BrainCircuit, Play, AlertCircle, CheckCircle, Clock, Database, ArrowLeft, SlidersHorizontal, Zap, Brain, Mail, ListPlus, PlayCircle, Loader2 } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { X, BrainCircuit, Play, AlertCircle, CheckCircle, Zap, Brain, Mail, ListPlus, Loader2 } from 'lucide-react';
 import {
     createAnalysisPlan,
     executeAnalysisPlan,
-    updateAnalysisPlan,
     subscribeToQueueStatus,
     getAdvancedAnalysisStatus,
     // Queue API
@@ -11,8 +10,7 @@ import {
     getQueue,
     removeQueueTask,
     generatePlansBatch,
-    executeQueue,
-    getQueueResults
+    executeQueue
 } from '../lib/api';
 import QueueStatus from './QueueStatus';
 import AnalysisResults from './AnalysisResults';
@@ -50,9 +48,6 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<any | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [adjustedCases, setAdjustedCases] = useState<number | null>(null);
-    const [isUpdatingPlan, setIsUpdatingPlan] = useState(false);
-    const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Queue Mode State
     const [queueTasks, setQueueTasks] = useState<QueueTask[]>([]);
@@ -309,7 +304,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                  setJobId(null);
                  setIsLoading(false);
             },
-            (err) => console.error(err)
+            () => {} // onError is not needed for now
         );
     };
 
@@ -687,7 +682,6 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                  <h3 className="text-lg font-bold text-gray-900 mb-6">Execuție în curs...</h3>
                  <QueueExecutionProgress
                     tasks={queueTasks}
-                    currentTaskIndex={queueTasks.findIndex(t => t.state === 'executing')}
                  />
 
                  {queueTasks.every(t => t.state === 'completed' || t.state === 'failed') && (

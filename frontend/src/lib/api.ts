@@ -1,4 +1,4 @@
-import type { Filters, QueueState, QueueSummary, QueueTask } from '../types';
+import type { Filters, QueueState } from '../types';
 
 interface SearchParams {
   situatie: string;
@@ -267,12 +267,13 @@ export const subscribeToQueueStatus = (
     }
   };
 
-  eventSource.onerror = (error) => {
+  eventSource.onerror = () => {
     // console.error('SSE error:', error);
     // Commented out to reduce noise, as browsers often fire error on close
     eventSource.close();
     // Only call onError if it wasn't a clean close
     // onError(new Error('Connection to server lost'));
+    onError(new Error('Connection lost'));
   };
 
   return {

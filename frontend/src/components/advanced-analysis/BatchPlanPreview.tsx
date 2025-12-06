@@ -1,6 +1,6 @@
 import React from 'react';
 import type { QueueTask } from '../../types';
-import { AlertCircle, CheckCircle, Clock, FileText, BarChart2, ChevronUp } from 'lucide-react';
+import { AlertCircle, Clock, FileText, BarChart2, ChevronUp } from 'lucide-react';
 import { Disclosure } from '@headlessui/react';
 
 interface BatchPlanPreviewProps {
