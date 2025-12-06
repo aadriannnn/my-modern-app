@@ -1,14 +1,16 @@
 import React from 'react';
 import { X, BrainCircuit } from 'lucide-react';
 import { useAdvancedAnalysis } from './advanced-analysis/useAdvancedAnalysis';
-import { InputStep } from './advanced-analysis/steps/InputStep';
-import { QueueManagementStep } from './advanced-analysis/steps/QueueManagementStep';
-import { CreatingPlanStep } from './advanced-analysis/steps/CreatingPlanStep';
-import { PlanPreviewStep } from './advanced-analysis/steps/PlanPreviewStep';
-import { BatchPreviewStep } from './advanced-analysis/steps/BatchPreviewStep';
-import { ExecutingStep } from './advanced-analysis/steps/ExecutingStep';
-import { QueueExecutionStep } from './advanced-analysis/steps/QueueExecutionStep';
-import { QueueResultsStep } from './advanced-analysis/steps/QueueResultsStep';
+import {
+    InputStep,
+    QueueManagementStep,
+    CreatingPlanStep,
+    PlanPreviewStep,
+    BatchPreviewStep,
+    ExecutingStep,
+    QueueExecutionStep,
+    QueueResultsStep
+} from './advanced-analysis/steps';
 
 interface AdvancedAnalysisModalProps {
     isOpen: boolean;
@@ -26,7 +28,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         result,
         error,
         queueTasks,
-        isQueueMode,
+        isQueueMode, setIsQueueMode, // Added setIsQueueMode
         selectedTaskId, setSelectedTaskId,
         notificationEmail, setNotificationEmail,
         termsAccepted, setTermsAccepted,
@@ -88,7 +90,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                         queueTasks={queueTasks}
                         onAddToQueue={handleAddToQueue}
                         onCreatePlan={handleCreatePlan}
-                        onViewQueue={() => { setCurrentStep('queue_management'); refreshQueue(); }}
+                        onViewQueue={() => { setIsQueueMode(true); setCurrentStep('queue_management'); refreshQueue(); }}
                         onClose={onClose}
                         isLoading={isLoading}
                         error={error}
