@@ -4,12 +4,11 @@ import { CheckCircle, XCircle, Clock, Loader2, PlayCircle } from 'lucide-react';
 
 interface QueueExecutionProgressProps {
   tasks: QueueTask[];
-  currentTaskIndex: number;
+  // currentTaskIndex removed as unused
 }
 
 export const QueueExecutionProgress: React.FC<QueueExecutionProgressProps> = ({
   tasks,
-  currentTaskIndex
 }) => {
   const totalTasks = tasks.length;
   // Calculate completed based on state, not just index, to handle resumption
