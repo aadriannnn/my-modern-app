@@ -1,5 +1,5 @@
 import React from 'react';
-import { QueueTask } from '../../types';
+import type { QueueTask } from '../../types';
 import { CheckCircle, XCircle, Clock, Loader2, PlayCircle } from 'lucide-react';
 
 interface QueueExecutionProgressProps {

@@ -18,7 +18,7 @@ import QueueStatus from './QueueStatus';
 import AnalysisResults from './AnalysisResults';
 import { BatchPlanPreview } from './advanced-analysis/BatchPlanPreview';
 import { QueueExecutionProgress } from './advanced-analysis/QueueExecutionProgress';
-import { QueueTask } from '../types';
+import type { QueueTask } from '../types';
 
 interface AdvancedAnalysisModalProps {
     isOpen: boolean;
