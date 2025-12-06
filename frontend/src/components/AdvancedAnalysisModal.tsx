@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, BrainCircuit, Play, AlertCircle, CheckCircle, Zap, Brain, Mail, ListPlus, Loader2, Clock } from 'lucide-react';
+import { X, BrainCircuit, Play, AlertCircle, CheckCircle, Zap, Brain, Mail, ListPlus, Loader2, Clock, ChevronDown } from 'lucide-react';
 import {
     createAnalysisPlan,
     executeAnalysisPlan,
@@ -60,6 +60,9 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
     // Email notification state
     const [notificationEmail, setNotificationEmail] = useState('');
     const [termsAccepted, setTermsAccepted] = useState(false);
+
+    // Execution Mode
+    const [executionMode, setExecutionMode] = useState<'review' | 'direct'>('review');
 
     // Queue status state
     const [queueStatus, setQueueStatus] = useState<{
@@ -351,6 +354,47 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
 
     // --- Standard Single Task Handlers ---
 
+    const executePlanById = async (id: string) => {
+        setIsLoading(true);
+        setError(null);
+        setCurrentStep('executing');
+
+        try {
+            let notificationPreferences = undefined;
+            if (notificationEmail && termsAccepted) {
+                notificationPreferences = {
+                    email: notificationEmail,
+                    terms_accepted: termsAccepted
+                };
+            }
+
+            const response = await executeAnalysisPlan(id, notificationPreferences);
+
+            if (response.success && response.job_id) {
+                setJobId(response.job_id);
+                startPolling(
+                    response.job_id,
+                    (res) => {
+                        setResult(res);
+                    },
+                    (err) => {
+                        setError(err);
+                        // If direct mode fails, we fall back to preview so user can retry or see error
+                        setCurrentStep('preview');
+                    }
+                );
+            } else {
+                setError(response.message || 'Nu s-a putut executa planul.');
+                setCurrentStep('preview');
+                setIsLoading(false);
+            }
+        } catch (err: any) {
+            setError(err.message || 'Eroare de conexiune.');
+            setCurrentStep('preview');
+            setIsLoading(false);
+        }
+    };
+
     const handleCreatePlan = async () => {
         if (!query.trim()) return;
 
@@ -368,7 +412,11 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                     response.job_id,
                     (plan) => {
                         setPlanData(plan);
-                        setCurrentStep('preview');
+                        if (executionMode === 'direct') {
+                            executePlanById(plan.plan_id);
+                        } else {
+                            setCurrentStep('preview');
+                        }
                     },
                     (err) => {
                         setError(err);
@@ -387,43 +435,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
 
     const handleExecutePlan = async () => {
         if (!planData) return;
-        setIsLoading(true);
-        setError(null);
-        setCurrentStep('executing');
-
-        try {
-            let notificationPreferences = undefined;
-            if (notificationEmail && termsAccepted) {
-                notificationPreferences = {
-                    email: notificationEmail,
-                    terms_accepted: termsAccepted
-                };
-            }
-
-            const response = await executeAnalysisPlan(planData.plan_id, notificationPreferences);
-
-            if (response.success && response.job_id) {
-                setJobId(response.job_id);
-                startPolling(
-                    response.job_id,
-                    (res) => {
-                        setResult(res);
-                    },
-                    (err) => {
-                        setError(err);
-                        setCurrentStep('preview');
-                    }
-                );
-            } else {
-                setError(response.message || 'Nu s-a putut executa planul.');
-                setCurrentStep('preview');
-                setIsLoading(false);
-            }
-        } catch (err: any) {
-            setError(err.message || 'Eroare de conexiune.');
-            setCurrentStep('preview');
-            setIsLoading(false);
-        }
+        await executePlanById(planData.plan_id);
     };
 
     // Shared Polling Logic
@@ -566,33 +578,51 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                 </div>
             </div>
 
-            <div className="p-6 border-t border-gray-100 bg-white rounded-b-2xl flex justify-end gap-3">
-                <button
-                    onClick={onClose}
-                    className="px-5 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors"
-                >
-                    Anulează
-                </button>
-                <button
-                    onClick={handleAddToQueue}
-                    disabled={!query.trim() || isLoading}
-                    className="flex items-center gap-2 px-5 py-2.5 border border-brand-accent text-brand-accent font-bold rounded-lg hover:bg-brand-accent/5 transition-all"
-                >
-                    <ListPlus className="w-4 h-4" />
-                    Adaugă la Coadă
-                </button>
-                <button
-                    onClick={handleCreatePlan}
-                    disabled={!query.trim() || isLoading}
-                    className={`flex items-center gap-2 px-6 py-2.5 bg-brand-accent text-white font-bold rounded-lg hover:bg-brand-accent-dark transition-all shadow-md ${(!query.trim() || isLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                    {isLoading ? 'Se procesează...' : (
-                        <>
-                            <Play className="w-4 h-4 fill-current" />
-                            Analizează Acum
-                        </>
-                    )}
-                </button>
+            <div className="p-6 border-t border-gray-100 bg-white rounded-b-2xl flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="w-full md:w-auto">
+                    <div className="relative inline-block w-full md:w-64">
+                        <select
+                            value={executionMode}
+                            onChange={(e) => setExecutionMode(e.target.value as 'review' | 'direct')}
+                            className="w-full appearance-none bg-gray-50 border border-gray-300 text-gray-700 py-2.5 pl-4 pr-10 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-brand-accent font-medium text-sm cursor-pointer hover:bg-gray-100 transition-colors"
+                        >
+                            <option value="review">Revizuire – Plan cu aprobare</option>
+                            <option value="direct">Pornire directă – Fără revizuire</option>
+                        </select>
+                        <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-500">
+                            <ChevronDown className="w-4 h-4" />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex gap-3 w-full md:w-auto justify-end">
+                    <button
+                        onClick={onClose}
+                        className="px-5 py-2.5 text-gray-600 font-medium hover:bg-gray-100 rounded-lg transition-colors"
+                    >
+                        Anulează
+                    </button>
+                    <button
+                        onClick={handleAddToQueue}
+                        disabled={!query.trim() || isLoading}
+                        className="flex items-center gap-2 px-5 py-2.5 border border-brand-accent text-brand-accent font-bold rounded-lg hover:bg-brand-accent/5 transition-all"
+                    >
+                        <ListPlus className="w-4 h-4" />
+                        Adaugă la Coadă
+                    </button>
+                    <button
+                        onClick={handleCreatePlan}
+                        disabled={!query.trim() || isLoading}
+                        className={`flex items-center gap-2 px-6 py-2.5 bg-brand-accent text-white font-bold rounded-lg hover:bg-brand-accent-dark transition-all shadow-md ${(!query.trim() || isLoading) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    >
+                        {isLoading ? 'Se procesează...' : (
+                            <>
+                                <Play className="w-4 h-4 fill-current" />
+                                Analizează Acum
+                            </>
+                        )}
+                    </button>
+                </div>
             </div>
         </>
     );
