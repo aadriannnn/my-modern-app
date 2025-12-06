@@ -303,6 +303,13 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         if (pollingInterval) clearInterval(pollingInterval);
         if (eventSourceRef.current) eventSourceRef.current.close();
 
+        // Start fallback polling interval to ensure UI updates even if SSE is quiet
+        // This is crucial for long-running execution tasks where the backend might not send SSE updates for each sub-task
+        const intervalId = setInterval(() => {
+            refreshQueue();
+        }, 2000);
+        setPollingInterval(intervalId);
+
         // We use SSE for the job status
         eventSourceRef.current = subscribeToQueueStatus(
             id,
@@ -313,10 +320,13 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                     status: statusUpdate.status as any
                 });
 
-                // Periodically refresh queue state to show progress
+                // Also refresh on event
                 refreshQueue();
 
                 if (statusUpdate.status === 'completed' || statusUpdate.status === 'error' || (statusUpdate as any).result) {
+                    clearInterval(intervalId);
+                    setPollingInterval(null);
+
                     if (onComplete) onComplete();
                     setJobId(null);
                     setIsLoading(false);
@@ -325,6 +335,9 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
             },
             () => {
                  // SSE closed
+                 clearInterval(intervalId);
+                 setPollingInterval(null);
+
                  if (onComplete) onComplete();
                  setJobId(null);
                  setIsLoading(false);
