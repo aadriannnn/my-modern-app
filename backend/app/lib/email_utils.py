@@ -11,6 +11,15 @@ from typing import Optional, Dict, Any
 import asyncio
 from datetime import datetime
 
+# Monkey patch for urllib3 < 2.0 compatibility required by sib-api-v3-sdk
+import urllib3
+from urllib3.response import HTTPResponse
+
+if not hasattr(HTTPResponse, 'getheaders'):
+    def getheaders(self):
+        return self.headers
+    HTTPResponse.getheaders = getheaders
+
 logger = logging.getLogger(__name__)
 
 # Configuration from environment variables
@@ -25,6 +34,10 @@ brevo_config = None
 transactional_emails_api = None
 
 if BREVO_API_KEY:
+    # Log masked API key for debugging
+    masked_key = f"{BREVO_API_KEY[:4]}...{BREVO_API_KEY[-4:]}" if len(BREVO_API_KEY) > 8 else "***"
+    logger.info(f"Initializing Brevo API client with key: {masked_key}")
+
     brevo_config = sib_api_v3_sdk.Configuration()
     brevo_config.api_key['api-key'] = BREVO_API_KEY
     try:
@@ -82,11 +95,17 @@ def send_email(
 
     try:
         logger.info(f"Attempting to send email to: {recipient_email} with subject: '{subject}'")
+        logger.debug(f"Sender: {effective_sender_email} ({effective_sender_name})")
+
+        # Log before actual API call to confirm we are reaching this point
+        logger.info("Calling transactional_emails_api.send_transac_email...")
         api_response = transactional_emails_api.send_transac_email(send_smtp_email)
+
         logger.info(f"Email sent successfully to {recipient_email}. Message ID: {api_response.message_id if hasattr(api_response, 'message_id') else api_response}")
+        logger.debug(f"Full API Response: {api_response}")
         return True
     except ApiException as e:
-        logger.error(f"Brevo API error: {e.status} {e.reason} - {e.body}", exc_info=False)
+        logger.error(f"Brevo API error: {e.status} {e.reason} - {e.body}", exc_info=True)
         return False
     except Exception as e:
         logger.error(f"General error sending email to {recipient_email}: {e}", exc_info=True)
