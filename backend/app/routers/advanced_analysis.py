@@ -165,7 +165,7 @@ async def execute_queue(request: ExecuteQueueRequest, background_tasks: Backgrou
     queue = manager.get_queue()
     for task in queue['tasks']:
         if task['state'] == 'planned':
-            manager.update_task_state(task['id'], 'approved')
+            manager.update_task_state(task['id'], 'approved', {})
 
     qm = QueueManager()
 
