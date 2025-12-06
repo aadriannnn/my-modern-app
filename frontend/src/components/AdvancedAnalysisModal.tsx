@@ -54,7 +54,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
     // Queue Mode State
     const [queueTasks, setQueueTasks] = useState<QueueTask[]>([]);
     const [isQueueMode, setIsQueueMode] = useState(false);
-    const [pollingInterval, setPollingInterval] = useState<ReturnType<typeof setInterval> | null>(null);
+    const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
 
     // Email notification state
@@ -77,9 +77,9 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                 eventSourceRef.current.close();
                 eventSourceRef.current = null;
             }
-            if (pollingInterval) {
-                clearInterval(pollingInterval);
-                setPollingInterval(null);
+            if (pollingIntervalRef.current) {
+                clearInterval(pollingIntervalRef.current);
+                pollingIntervalRef.current = null;
             }
         }
     }, [isOpen]);
@@ -300,15 +300,14 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
     // Polling specifically for queue operations where we also want to refresh the task list periodically
     const startQueuePolling = (id: string, onComplete?: () => void) => {
         // Clear existing
-        if (pollingInterval) clearInterval(pollingInterval);
+        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
         if (eventSourceRef.current) eventSourceRef.current.close();
 
         // Start fallback polling interval to ensure UI updates even if SSE is quiet
         // This is crucial for long-running execution tasks where the backend might not send SSE updates for each sub-task
-        const intervalId = setInterval(() => {
+        pollingIntervalRef.current = setInterval(() => {
             refreshQueue();
         }, 2000);
-        setPollingInterval(intervalId);
 
         // We use SSE for the job status
         eventSourceRef.current = subscribeToQueueStatus(
@@ -324,8 +323,10 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                 refreshQueue();
 
                 if (statusUpdate.status === 'completed' || statusUpdate.status === 'error' || (statusUpdate as any).result) {
-                    clearInterval(intervalId);
-                    setPollingInterval(null);
+                    if (pollingIntervalRef.current) {
+                        clearInterval(pollingIntervalRef.current);
+                        pollingIntervalRef.current = null;
+                    }
 
                     if (onComplete) onComplete();
                     setJobId(null);
@@ -335,8 +336,10 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
             },
             () => {
                  // SSE closed
-                 clearInterval(intervalId);
-                 setPollingInterval(null);
+                 if (pollingIntervalRef.current) {
+                     clearInterval(pollingIntervalRef.current);
+                     pollingIntervalRef.current = null;
+                 }
 
                  if (onComplete) onComplete();
                  setJobId(null);
