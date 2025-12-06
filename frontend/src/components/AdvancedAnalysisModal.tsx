@@ -89,7 +89,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
 
     // Save state to localStorage whenever critical data changes
     useEffect(() => {
-        if (query || jobId || planData || result || (queueTasks && queueTasks.length > 0)) {
+        if (query || jobId || planData || result || (queueTasks && queueTasks.length > 0) || notificationEmail) {
             const stateToSave = {
                 version: '2.0',
                 query,
@@ -98,11 +98,13 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                 jobId,
                 result,
                 isQueueMode,
+                notificationEmail,
+                termsAccepted,
                 timestamp: Date.now()
             };
             localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
         }
-    }, [query, currentStep, planData, jobId, result, queueTasks, isQueueMode]);
+    }, [query, currentStep, planData, jobId, result, queueTasks, isQueueMode, notificationEmail, termsAccepted]);
 
     // Auto-transition to results
     useEffect(() => {
@@ -143,6 +145,8 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                     if (parsed.planData) setPlanData(parsed.planData);
                     if (parsed.result) setResult(parsed.result);
                     if (parsed.isQueueMode) setIsQueueMode(parsed.isQueueMode);
+                    if (parsed.notificationEmail) setNotificationEmail(parsed.notificationEmail);
+                    if (parsed.termsAccepted) setTermsAccepted(parsed.termsAccepted);
 
                     // Restore Queue
                     refreshQueue();
@@ -558,6 +562,38 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                         />
                     </div>
 
+                    {/* Email Notification Section - Moved from Step 2 */}
+                    <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Mail className="w-5 h-5 text-gray-500" />
+                            <h4 className="font-bold text-gray-700 text-sm">Notificare Email (Opțional)</h4>
+                        </div>
+                        <div className="space-y-3">
+                            <input
+                                type="email"
+                                value={notificationEmail}
+                                onChange={(e) => setNotificationEmail(e.target.value)}
+                                placeholder="exemplu@email.com"
+                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-accent focus:border-transparent text-sm"
+                            />
+
+                            {notificationEmail && (
+                                <div className="flex items-start gap-3">
+                                    <input
+                                        type="checkbox"
+                                        id="terms-check"
+                                        checked={termsAccepted}
+                                        onChange={(e) => setTermsAccepted(e.target.checked)}
+                                        className="mt-1 rounded text-brand-accent focus:ring-brand-accent"
+                                    />
+                                    <label htmlFor="terms-check" className="text-sm text-gray-600 cursor-pointer select-none">
+                                        Accept <span className="underline">Termenii și Condițiile</span>
+                                    </label>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {queueTasks.length > 0 && (
                         <div className="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
                             <span className="font-medium text-gray-700">{queueTasks.length} sarcini în coadă</span>
@@ -961,30 +997,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                              </div>
                         </div>
 
-                        {/* Email */}
-                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5 shadow-sm">
-                            <h4 className="font-bold text-gray-900 mb-1">Notificare Email (Opțional)</h4>
-                            <div className="mt-4 space-y-4">
-                                <input
-                                    type="email"
-                                    value={notificationEmail}
-                                    onChange={(e) => setNotificationEmail(e.target.value)}
-                                    placeholder="exemplu@email.com"
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg"
-                                />
-                                {notificationEmail && (
-                                    <div className="flex items-start gap-3">
-                                        <input
-                                            type="checkbox"
-                                            checked={termsAccepted}
-                                            onChange={(e) => setTermsAccepted(e.target.checked)}
-                                            className="mt-1"
-                                        />
-                                        <span className="text-sm text-gray-700">Accept termenii și condițiile</span>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                        {/* Email section removed from here */}
                      </div>
                 </div>
 
