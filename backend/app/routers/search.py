@@ -5,6 +5,7 @@ from ..schemas import SearchRequest
 from ..logic.search_logic import search_cases
 from ..logic.queue_manager import queue_manager
 import logging
+import uuid
 
 router = APIRouter(prefix="/search", tags=["search"])
 logger = logging.getLogger(__name__)
@@ -40,13 +41,23 @@ async def search(
             'search_request': request.dict()
         }
 
+        # Generate request_id
+        request_id = str(uuid.uuid4())
+
         # Add to queue and wait for result
-        request_id, future = await queue_manager.add_to_queue(payload, process_search)
+        # Pass all 4 required arguments: request_id, job_type, payload, processor
+        await queue_manager.add_to_queue(request_id, "search", payload, process_search)
 
         logger.info(f"Search request queued with ID: {request_id}")
 
         # Wait for queue to process and return result
-        result = await future
+        # We need to wait for the future that was created inside add_to_queue
+        # queue_manager.items[request_id] holds the item with the future
+        item = queue_manager.items.get(request_id)
+        if not item:
+             raise RuntimeError("Failed to retrieve queue item immediately after adding.")
+
+        result = await item.future
 
         # Save result IDs for LLM export
         try:
