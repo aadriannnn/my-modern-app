@@ -1,8 +1,7 @@
 import React from 'react';
 import { QueueTask } from '../../types';
-import { AlertCircle, CheckCircle, Clock, FileText, BarChart2 } from 'lucide-react';
+import { AlertCircle, CheckCircle, Clock, FileText, BarChart2, ChevronUp } from 'lucide-react';
 import { Disclosure } from '@headlessui/react';
-import { ChevronUpIcon } from '@heroicons/react/20/solid';
 
 interface BatchPlanPreviewProps {
   tasks: QueueTask[];
@@ -106,7 +105,7 @@ export const BatchPlanPreview: React.FC<BatchPlanPreviewProps> = ({
                     ) : (
                       <span className="text-green-600 text-xs font-bold">PREGĂTIT</span>
                     )}
-                    <ChevronUpIcon
+                    <ChevronUp
                       className={`${open ? 'transform rotate-180' : ''} w-5 h-5 text-gray-500`}
                     />
                   </div>
