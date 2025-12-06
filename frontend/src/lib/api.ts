@@ -247,7 +247,7 @@ export const subscribeToQueueStatus = (
   onComplete: () => void,
   onError: (error: Error) => void
 ) => {
-  const eventSource = new EventSource(`${API_URL}/advanced-analysis/status/${requestId}`); // Fixed URL to match backend router prefix
+  const eventSource = new EventSource(`${API_URL}/queue/status/${requestId}`); // Fixed: Correct SSE endpoint
 
   eventSource.onmessage = (event) => {
     try {
