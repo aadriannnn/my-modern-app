@@ -361,6 +361,34 @@ class QueueManager:
         """Helper to get status directly."""
         return self.get_job_status(job_id)
 
+    def get_queue_position(self, request_id: str) -> Optional[int]:
+        """
+        Gets the current position in queue for a request.
+
+        Args:
+            request_id: The request ID to check
+
+        Returns:
+            Position (1-based) if in queue, None if processing/completed/not found
+        """
+        if request_id in self.items:
+            item = self.items[request_id]
+            if not item.future.done() and item.position > 0:
+                return item.position
+        return None
+
+    def get_queue_stats(self) -> Dict[str, Any]:
+        """
+        Gets current queue statistics.
+
+        Returns:
+            Dictionary with queue size and other stats
+        """
+        return {
+            'queue_size': self.queue.qsize(),
+            'total_processed': len([i for i in self.items.values() if i.future.done()])
+        }
+
     def get_job_status(self, request_id: str) -> Dict[str, Any]:
         """
         Gets the detailed status and result of a job.
