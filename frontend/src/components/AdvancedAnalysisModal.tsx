@@ -99,6 +99,24 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         }
     }, [query, currentStep, planData, jobId, result, queueTasks, isQueueMode]);
 
+    // Auto-transition to results
+    useEffect(() => {
+        if (currentStep === 'executing_queue') {
+            const allFinished = queueTasks.length > 0 && queueTasks.every(t => t.state === 'completed' || t.state === 'failed');
+            if (allFinished) {
+                 const timer = setTimeout(() => {
+                     // Auto-select the first completed task
+                     if (!selectedTaskId) {
+                         const first = queueTasks.find(t => t.state === 'completed');
+                         if (first) setSelectedTaskId(first.id);
+                     }
+                     setCurrentStep('queue_results');
+                 }, 1500);
+                 return () => clearTimeout(timer);
+            }
+        }
+    }, [queueTasks, currentStep, selectedTaskId]);
+
     // Restore state on mount
     useEffect(() => {
         if (isOpen) {

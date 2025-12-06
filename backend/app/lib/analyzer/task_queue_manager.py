@@ -105,7 +105,10 @@ class TaskQueueManager:
 
     def save_task_result(self, task_id: str, result: Dict[str, Any]):
         """Helper to save a task result and mark it as completed."""
-        self.update_task_state(task_id, "completed", {"result": result})
+        self.update_task_state(task_id, "completed", {
+            "result": result,
+            "completed_at": time.time()
+        })
 
     def load_queue(self) -> Dict[str, Any]:
         """Loads the queue from disk with error handling."""
