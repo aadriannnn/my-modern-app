@@ -18,6 +18,12 @@ from typing import Dict, Any, Optional, Callable, Awaitable
 from datetime import datetime
 from dataclasses import dataclass, field
 
+# Import TaskQueueManager and TaskExecutor to integrate
+from ..lib.analyzer.task_queue_manager import TaskQueueManager
+from ..lib.analyzer.task_executor import TaskExecutor
+from ..lib.two_round_llm_analyzer import ThreeStageAnalyzer
+from ..db import get_session
+
 logger = logging.getLogger(__name__)
 
 
@@ -27,6 +33,7 @@ class QueueItem:
     request_id: str
     payload: Dict[str, Any]
     future: asyncio.Future
+    type: str # 'advanced_analysis' or 'batch_plan_generation' or 'execute_queue'
     added_at: datetime = field(default_factory=datetime.now)
     position: int = 0
 
@@ -54,57 +61,133 @@ class QueueManager:
             self.processing: bool = False
             self.worker_task: Optional[asyncio.Task] = None
             self.max_queue_size: int = 50
-            # Increase timeout to 1 hour for long analysis
-            self.queue_timeout: int = 3600
+            # Increase timeout to 24 hours for long analysis
+            self.queue_timeout: int = 86400
             self.update_callbacks: Dict[str, list] = {}
             self.initialized = True
             logger.info("QueueManager initialized")
 
+    def add_job(self, job_type: str, payload: Dict[str, Any]) -> str:
+        """Helper to add job to queue via synchronous call."""
+        request_id = str(uuid.uuid4())
+
+        async def _add():
+            processor = self._get_processor_for_type(job_type)
+            await self.add_to_queue(request_id, job_type, payload, processor)
+
+        # If loop is running, schedule it
+        try:
+            loop = asyncio.get_running_loop()
+            loop.create_task(_add())
+        except RuntimeError:
+            pass
+
+        return request_id
+
+    def _get_processor_for_type(self, job_type: str):
+        """Returns the processor function based on job type."""
+        if job_type == "advanced_analysis":
+            return self._process_advanced_analysis
+        elif job_type == "batch_plan_generation":
+            return self._process_batch_plan_generation
+        elif job_type == "execute_queue":
+            return self._process_execute_queue
+        elif job_type == "create_plan":
+            return self._process_create_plan
+        else:
+            raise ValueError(f"Unknown job type: {job_type}")
+
+    async def _process_create_plan(self, payload: Dict[str, Any]):
+        """Processor for single plan generation (Phase 1)."""
+        query = payload.get("query")
+        session_gen = get_session()
+        session = next(session_gen)
+        try:
+            analyzer = ThreeStageAnalyzer(session)
+            return await analyzer.create_plan(query)
+        finally:
+            session.close()
+
+    async def _process_advanced_analysis(self, payload: Dict[str, Any]):
+        """Processor for single plan execution."""
+        plan_id = payload.get("plan_id")
+        notification_email = payload.get("notification_email")
+
+        session_gen = get_session()
+        session = next(session_gen)
+        try:
+            analyzer = ThreeStageAnalyzer(session)
+            return await analyzer.execute_plan(plan_id, notification_email=notification_email)
+        finally:
+            session.close()
+
+    async def _process_batch_plan_generation(self, payload: Dict[str, Any]):
+        """Processor for batch plan generation."""
+        task_ids = payload.get("task_ids", [])
+
+        session_gen = get_session()
+        session = next(session_gen)
+        try:
+            analyzer = ThreeStageAnalyzer(session)
+            manager = TaskQueueManager()
+
+            # Fetch tasks to get queries
+            tasks = []
+            for tid in task_ids:
+                t = manager.get_task(tid)
+                if t:
+                    tasks.append(t)
+
+            return await analyzer.create_plans_batch(tasks)
+
+        finally:
+            session.close()
+
+    async def _process_execute_queue(self, payload: Dict[str, Any]):
+        """Processor for sequential queue execution."""
+        notification_email = payload.get("notification_email")
+
+        session_gen = get_session()
+        session = next(session_gen)
+        try:
+            analyzer = ThreeStageAnalyzer(session)
+            manager = TaskQueueManager()
+            executor = TaskExecutor(manager, analyzer)
+
+            return await executor.execute_queue(notification_email=notification_email)
+
+        finally:
+            session.close()
+
     async def add_to_queue(
         self,
+        request_id: str,
+        job_type: str,
         payload: Dict[str, Any],
         processor: Callable[[Dict[str, Any]], Awaitable[Any]]
-    ) -> tuple[str, asyncio.Future]:
+    ):
         """
         Adds a request to the queue.
-
-        Args:
-            payload: The request data to process
-            processor: Async function to call when processing this request
-
-        Returns:
-            Tuple of (request_id, future) where future will contain the result
-
-        Raises:
-            RuntimeError: If queue is full
         """
-        # Check queue size
         if self.queue.qsize() >= self.max_queue_size:
             raise RuntimeError(f"Queue is full (max size: {self.max_queue_size})")
 
-        # Create queue item
-        request_id = str(uuid.uuid4())
         future = asyncio.Future()
 
         item = QueueItem(
             request_id=request_id,
+            type=job_type,
             payload=payload,
             future=future
         )
 
-        # Store processor function in payload for later execution
         item.payload['_processor'] = processor
 
-        # Add to queue and tracking dict
         await self.queue.put(item)
         self.items[request_id] = item
-
-        # Update positions for all items
         await self._update_positions()
 
-        logger.info(f"Added request {request_id} to queue. Queue size: {self.queue.qsize()}")
-
-        return request_id, future
+        logger.info(f"Added request {request_id} (type: {job_type}) to queue.")
 
     async def _update_positions(self):
         """Updates position for all items in queue and broadcasts updates."""
@@ -147,11 +230,8 @@ class QueueManager:
     async def _broadcast_result(self, item: QueueItem):
         """Broadcasts the final result or error."""
         status_data = self.get_job_status(item.request_id)
-        if status_data['status'] in ['completed', 'failed']:
-            if status_data['status'] == 'failed':
-                status_data['status'] = 'error'
-
-            await self._broadcast_event(item.request_id, status_data)
+        if status_data['status'] in ['completed', 'failed', 'error']:
+             await self._broadcast_event(item.request_id, status_data)
 
     def subscribe_updates(self, request_id: str, callback: Callable):
         """
@@ -192,7 +272,7 @@ class QueueManager:
                 except asyncio.TimeoutError:
                     continue
 
-                logger.info(f"Processing request {item.request_id}")
+                logger.info(f"Processing request {item.request_id} (type: {item.type})")
 
                 # Mark item as processing (position 0)
                 item.position = 0
@@ -232,23 +312,18 @@ class QueueManager:
                         del self.update_callbacks[item.request_id]
 
                     # Schedule delayed cleanup for completed/failed jobs (keep results for 24 hours)
-                    # This allows users to come back next day and see results if server hasn't restarted
                     if item.future.done():
                         logger.info(f"Scheduling delayed cleanup for job {item.request_id} in 24 hours")
 
                         async def delayed_cleanup():
                             # 24 hours = 86400 seconds
                             await asyncio.sleep(86400)
-                            logger.info(f"Delayed cleanup 24h wait finished, now deleting job {item.request_id}")
                             if item.request_id in self.items:
                                 del self.items[item.request_id]
                                 logger.info(f"Cleaned up completed job {item.request_id}")
-                            else:
-                                logger.warning(f"Job {item.request_id} already deleted from items")
 
                         asyncio.create_task(delayed_cleanup())
                     else:
-                        logger.warning(f"Job {item.request_id} future not done in finally block - deleting immediately")
                         if item.request_id in self.items:
                             del self.items[item.request_id]
 
@@ -275,33 +350,16 @@ class QueueManager:
             await self.worker_task
             logger.info("Queue worker stopped")
 
-    def get_queue_position(self, request_id: str) -> Optional[int]:
-        """
-        Gets the current queue position for a request.
-
-        Args:
-            request_id: The request ID to check
-
-        Returns:
-            Current position in queue, or None if not found
-        """
-        if request_id in self.items:
-            return self.items[request_id].position
+    def get_result(self, job_id: str):
+        """Helper to get result directly."""
+        status = self.get_job_status(job_id)
+        if status['status'] == 'completed':
+            return status['result']
         return None
 
-    def get_queue_stats(self) -> Dict[str, Any]:
-        """
-        Gets current queue statistics.
-
-        Returns:
-            Dictionary with queue stats (size, processing count, etc.)
-        """
-        return {
-            'queue_size': self.queue.qsize(),
-            'items_tracked': len(self.items),
-            'max_size': self.max_queue_size,
-            'processing': self.processing
-        }
+    def get_status(self, job_id: str):
+        """Helper to get status directly."""
+        return self.get_job_status(job_id)
 
     def get_job_status(self, request_id: str) -> Dict[str, Any]:
         """
@@ -318,23 +376,20 @@ class QueueManager:
 
         item = self.items[request_id]
 
-        # Include type in status if available
-        job_type = item.payload.get('type')
-
         if item.future.done():
             try:
                 result = item.future.result()
                 return {
                     'status': 'completed',
                     'job_id': request_id,
-                    'type': job_type,
+                    'type': item.type,
                     'result': result
                 }
             except Exception as e:
                 return {
                     'status': 'failed',
                     'job_id': request_id,
-                    'type': job_type,
+                    'type': item.type,
                     'error': str(e)
                 }
 
@@ -343,14 +398,14 @@ class QueueManager:
             return {
                 'status': 'queued',
                 'job_id': request_id,
-                'type': job_type,
+                'type': item.type,
                 'position': item.position
             }
         else:
             return {
                 'status': 'processing',
                 'job_id': request_id,
-                'type': job_type
+                'type': item.type
             }
 
 

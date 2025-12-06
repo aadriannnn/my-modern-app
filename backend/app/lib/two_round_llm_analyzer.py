@@ -5,7 +5,7 @@ Refactored to use modular components.
 import logging
 import asyncio
 from sqlmodel import Session
-from typing import Dict, Any, Optional, Callable, Awaitable
+from typing import Dict, Any, Optional, Callable, Awaitable, List
 
 from ..lib.prompt_logger import PromptLogger
 from ..logic.search_logic import build_pro_search_query_sql, build_vector_search_query_sql
@@ -101,6 +101,55 @@ class ThreeStageAnalyzer:
         except Exception as e:
             logger.error(f"[PHASE 1] Error: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
+
+    async def create_plans_batch(self, tasks: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Generate plans for multiple tasks sequentially.
+
+        Args:
+            tasks: List of {id, query} dicts
+
+        Returns:
+            Summary of plan generation results.
+        """
+        results = {}
+        succeeded_count = 0
+        failed_count = 0
+        total_time_seconds = 0
+        total_cases = 0
+
+        for task in tasks:
+            task_id = task['id']
+            query = task['query']
+
+            try:
+                # Create plan for single task
+                plan_result = await self.create_plan(query)
+
+                if plan_result.get('success'):
+                    succeeded_count += 1
+                    total_time_seconds += plan_result.get('estimated_time_seconds', 0)
+                    total_cases += plan_result.get('total_cases', 0)
+                    results[task_id] = plan_result
+                else:
+                    failed_count += 1
+                    results[task_id] = {'success': False, 'error': plan_result.get('error', 'Unknown error')}
+
+            except Exception as e:
+                failed_count += 1
+                results[task_id] = {'success': False, 'error': str(e)}
+
+        return {
+            'success': True,
+            'results': results,
+            'summary': {
+                'total': len(tasks),
+                'succeeded': succeeded_count,
+                'failed': failed_count,
+                'total_cases': total_cases,
+                'total_time_seconds': total_time_seconds
+            }
+        }
 
     async def execute_plan(self, plan_id: str, progress_callback: Optional[Callable] = None, notification_email: Optional[str] = None) -> Dict[str, Any]:
         """PHASE 2 & 3: Execution & Synthesis"""

@@ -1,247 +1,185 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Dict, Any, List
 from sqlmodel import Session
 from ..db import get_session
 from ..lib.two_round_llm_analyzer import ThreeStageAnalyzer
-from ..logic.queue_manager import queue_manager
+from ..lib.analyzer.task_queue_manager import TaskQueueManager
+from ..lib.analyzer.task_executor import TaskExecutor
 import logging
-import os
-import glob
-import json
 
 router = APIRouter(
     prefix="/advanced-analysis",
-    tags=["advanced-analysis"],
-    responses={404: {"description": "Not found"}},
+    tags=["advanced-analysis"]
 )
 
 logger = logging.getLogger(__name__)
 
-class AdvancedAnalysisRequest(BaseModel):
+class PlanRequest(BaseModel):
     query: str
 
-class ExecutePlanRequest(BaseModel):
+class ExecuteRequest(BaseModel):
     plan_id: str
+    notification_email: Optional[str] = None
+    terms_accepted: bool = False
 
-class UpdatePlanRequest(BaseModel):
+class UpdateLimitRequest(BaseModel):
     max_cases: int
 
-class NotificationPreferences(BaseModel):
-    email: str
-    terms_accepted: bool
+# --- Queue Request Models ---
+class AddQueueTaskRequest(BaseModel):
+    query: str
+    user_metadata: Optional[Dict[str, Any]] = None
 
-class ExecutePlanWithNotificationRequest(BaseModel):
-    notification_preferences: Optional[NotificationPreferences] = None
+class GeneratePlansRequest(BaseModel):
+    pass
 
-@router.post("/plan")
-async def create_analysis_plan(
-    request: AdvancedAnalysisRequest,
-    session: Session = Depends(get_session)
-):
-    """
-    PHASE 1: Create an analysis plan (Smart Projection).
-    Returns a job_id. Client must poll /status/{job_id} to get the plan.
-    """
-    try:
-        logger.info(f"[API] Received request to CREATE PLAN for query: {request.query}")
+class ExecuteQueueRequest(BaseModel):
+    notification_email: Optional[str] = None
+    terms_accepted: bool = False
 
-        async def process_create_plan(payload: dict):
-            # Create new session for worker
-            from ..db import engine
-            from sqlmodel import Session
-            with Session(engine) as worker_session:
-                analyzer = ThreeStageAnalyzer(worker_session)
-                result = await analyzer.create_plan(payload['query'])
-                return result
+# --- Standard Analysis Endpoints ---
 
-        payload = {'query': request.query, 'type': 'create_plan'}
-        job_id, _ = await queue_manager.add_to_queue(payload, process_create_plan)
+@router.post("/create-plan")
+async def create_plan(request: PlanRequest, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+    """PHASE 1: Generates a research plan via queue."""
+    from ..logic.queue_manager import QueueManager
+    queue_manager = QueueManager()
 
-        logger.info(f"[API] Plan creation queued. Job ID: {job_id}")
-        return {
-            'success': True,
-            'job_id': job_id,
-            'message': 'Plan creation started. Check status for result.'
-        }
-    except Exception as e:
-        logger.error(f"Error queuing plan creation: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    # Offload plan generation to background queue to prevent timeout
+    job_id = queue_manager.add_job(
+        "create_plan",
+        {"query": request.query}
+    )
 
-@router.patch("/plan/{plan_id}")
-async def update_analysis_plan(
-    plan_id: str,
-    request: UpdatePlanRequest,
-    session: Session = Depends(get_session)
-):
-    """
-    Update an existing plan to limit the number of cases.
-    This is used before execution to reduce scope.
-    """
-    try:
-        logger.info(f"[API] Received request to UPDATE PLAN: {plan_id} with max_cases: {request.max_cases}")
+    return {"success": True, "job_id": job_id, "status": "queued"}
 
-        analyzer = ThreeStageAnalyzer(session)
-        result = analyzer.update_plan_case_limit(plan_id, request.max_cases)
+@router.post("/update-plan-limit/{plan_id}")
+async def update_plan_limit(plan_id: str, request: UpdateLimitRequest, session: Session = Depends(get_session)):
+    """Update max cases for a plan."""
+    analyzer = ThreeStageAnalyzer(session)
+    result = analyzer.update_plan_case_limit(plan_id, request.max_cases)
+    if not result['success']:
+        raise HTTPException(status_code=400, detail=result.get('error', 'Unknown error'))
+    return result
 
-        if not result.get('success'):
-            raise HTTPException(status_code=400, detail=result.get('error', 'Update failed'))
+@router.post("/execute-plan")
+async def execute_plan(request: ExecuteRequest, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+    """PHASE 2 & 3: Executes the plan in background."""
+    if not request.terms_accepted and request.notification_email:
+        # Terms are only required if email is provided
+        raise HTTPException(status_code=400, detail="Trebuie să acceptați termenii.")
 
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error updating plan: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    from ..logic.queue_manager import QueueManager
+    queue_manager = QueueManager()
 
-@router.post("/execute/{plan_id}")
-async def execute_analysis_plan(
-    plan_id: str,
-    request: ExecutePlanWithNotificationRequest = None,
-    session: Session = Depends(get_session)
-):
-    """
-    PHASE 2 & 3: Execute the plan (Batch Processing + Synthesis).
-    Returns a job_id for tracking.
-    Optionally accepts notification_preferences to send email when analysis completes.
-    """
-    try:
-        logger.info(f"[API] Received request to EXECUTE PLAN: {plan_id}")
+    # We use queue manager for async execution tracking of single plans
+    job_id = queue_manager.add_job(
+        "advanced_analysis",
+        {"plan_id": request.plan_id, "notification_email": request.notification_email}
+    )
 
-        # Validate notification preferences if provided
-        notification_email = None
-        if request and request.notification_preferences:
-            prefs = request.notification_preferences
-
-            # Validate email format
-            import re
-            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
-            if not re.match(email_pattern, prefs.email):
-                raise HTTPException(status_code=400, detail="Invalid email format")
-
-            # Validate terms acceptance
-            if not prefs.terms_accepted:
-                raise HTTPException(status_code=400, detail="Terms and conditions must be accepted to receive email notifications")
-
-            notification_email = prefs.email
-            logger.info(f"[API] Email notification enabled for {plan_id}: {notification_email}")
-
-        async def process_three_stage_execution(payload: dict):
-            # Create new session for worker
-            from ..db import engine
-            from sqlmodel import Session
-            with Session(engine) as worker_session:
-                analyzer = ThreeStageAnalyzer(worker_session)
-                result = await analyzer.execute_plan(
-                    payload['plan_id'],
-                    notification_email=payload.get('notification_email')
-                )
-                return result
-
-        payload = {
-            'plan_id': plan_id,
-            'type': 'execute_plan',
-            'notification_email': notification_email
-        }
-        job_id, _ = await queue_manager.add_to_queue(payload, process_three_stage_execution)
-
-        return {
-            'success': True,
-            'job_id': job_id,
-            'message': 'Plan execution started. Check status for progress.',
-            'email_notification_enabled': notification_email is not None
-        }
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error starting execution: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    return {"job_id": job_id, "status": "queued", "success": True}
 
 @router.get("/status/{job_id}")
-async def get_advanced_analysis_status(job_id: str):
-    """
-    Check the status of an analysis job.
-    Includes progress tracking for running jobs.
-    """
-    try:
-        status = queue_manager.get_job_status(job_id)
+async def get_status(job_id: str):
+    from ..logic.queue_manager import QueueManager
+    queue_manager = QueueManager()
+    return queue_manager.get_status(job_id)
 
-        # Augment with progress if processing
-        if status.get('status') in ['processing', 'queued']:
-            # Try to find plan_id from queue items
-            item = queue_manager.items.get(job_id)
+@router.get("/result/{job_id}")
+async def get_result(job_id: str):
+    from ..logic.queue_manager import QueueManager
+    queue_manager = QueueManager()
+    return queue_manager.get_result(job_id)
 
-            # Only calculate progress for execution jobs that have a plan_id
-            if item and 'plan_id' in item.payload:
-                plan_id = item.payload['plan_id']
+# --- Queue Management Endpoints ---
 
-                # Check chunks progress
-                plans_dir = "analyzer_plans" # Should match analyzer's dir
-                if os.path.exists(plans_dir):
-                    # Count chunk files: plan_id_chunk_*.json
-                    chunk_files = glob.glob(os.path.join(plans_dir, f"{plan_id}_chunk_*.json"))
-                    processed_chunks = len(chunk_files)
+@router.post("/queue/add")
+async def add_task_to_queue(request: AddQueueTaskRequest):
+    """Adds a task to the analysis queue."""
+    manager = TaskQueueManager()
+    task_id = manager.add_task(request.query, request.user_metadata)
+    queue = manager.get_queue()
+    return {"success": True, "task_id": task_id, "queue_position": len(queue['tasks'])}
 
-                    # We need total chunks. Read plan file.
-                    plan_file = os.path.join(plans_dir, f"{plan_id}.json")
-                    total_chunks = 0
-                    if os.path.exists(plan_file):
-                        try:
-                            with open(plan_file, 'r') as f:
-                                plan = json.load(f)
-                                total_chunks = plan.get('total_chunks', 0)
-                        except:
-                            pass
+@router.get("/queue")
+async def get_queue():
+    """Returns the current state of the queue."""
+    manager = TaskQueueManager()
+    return manager.get_queue()
 
-                    status['progress'] = {
-                        'current': processed_chunks,
-                        'total': total_chunks,
-                        'percent': int((processed_chunks / total_chunks * 100)) if total_chunks > 0 else 0
-                    }
+@router.delete("/queue/{task_id}")
+async def remove_task_from_queue(task_id: str):
+    """Removes a task from the queue."""
+    manager = TaskQueueManager()
+    # Prevent removing executing tasks? For now, allow it but it might cause issues if actually running.
+    # The logic handles removal but execution loop is in memory.
+    success = manager.remove_task(task_id)
+    if not success:
+         raise HTTPException(status_code=404, detail="Task not found")
+    return {"success": True}
 
-            # For 'create_plan' jobs, we don't have detailed progress, just 'processing'
-            elif item and item.payload.get('type') == 'create_plan':
-                 status['message'] = "Generating strategy and verifying data..."
+@router.post("/queue/generate-plans")
+async def generate_plans_batch(request: GeneratePlansRequest, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+    """Starts batch plan generation for pending tasks."""
+    manager = TaskQueueManager()
+    queue = manager.get_queue()
 
-        return status
-    except Exception as e:
-        logger.error(f"Error getting status: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Eroare la verificarea statusului: {str(e)}")
+    pending_tasks = [t for t in queue['tasks'] if t['state'] == 'pending']
 
-@router.post("/")
-async def advanced_statistical_analysis(
-    request: AdvancedAnalysisRequest,
-    session: Session = Depends(get_session)
-):
-    """
-    Legacy endpoint: Auto-creates and executes plan (Best Effort).
-    """
-    try:
-        # Create plan
-        analyzer = ThreeStageAnalyzer(session)
-        plan_res = await analyzer.create_plan(request.query)
-        if not plan_res['success']:
-             return plan_res
+    if not pending_tasks:
+        return {"success": False, "message": "No pending tasks to plan."}
 
-        plan_id = plan_res['plan_id']
+    from ..logic.queue_manager import QueueManager
+    qm = QueueManager()
 
-        # Execute immediately via queue
-        async def process_legacy(payload: dict):
-            from ..db import engine
-            from sqlmodel import Session
-            with Session(engine) as worker_session:
-                analyzer = ThreeStageAnalyzer(worker_session)
-                result = await analyzer.execute_plan(payload['plan_id'])
-                return result
+    # We reuse the existing QueueManager infrastructure to run this long process
+    # But we need a worker that knows how to handle "batch_plan_generation"
+    # Or we can just use BackgroundTasks if we don't need persistent job tracking via QueueManager for this step
+    # However, user wants polling. So let's use QueueManager with a special job type.
 
-        payload = {'plan_id': plan_id}
-        job_id, _ = await queue_manager.add_to_queue(payload, process_legacy)
+    job_id = qm.add_job(
+        "batch_plan_generation",
+        {"task_ids": [t['id'] for t in pending_tasks]}
+    )
 
-        return {
-            'success': True,
-            'job_id': job_id,
-            'message': 'Analysis started (Legacy Mode).'
-        }
-    except Exception as e:
-        logger.error(f"Legacy endpoint error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    # Mark tasks as planning
+    for t in pending_tasks:
+        manager.update_task_state(t['id'], "planning")
+
+    return {"success": True, "job_id": job_id}
+
+@router.post("/queue/execute-all")
+async def execute_queue(request: ExecuteQueueRequest, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+    """Starts sequential execution of approved tasks."""
+    # Terms check only if notification is requested
+    if request.notification_email and not request.terms_accepted:
+         raise HTTPException(status_code=400, detail="Terms not accepted")
+
+    from ..logic.queue_manager import QueueManager
+    qm = QueueManager()
+
+    job_id = qm.add_job(
+        "execute_queue",
+        {"notification_email": request.notification_email}
+    )
+
+    return {"success": True, "job_id": job_id}
+
+@router.get("/queue/results")
+async def get_queue_results():
+    """Returns results for completed tasks."""
+    manager = TaskQueueManager()
+    queue = manager.get_queue()
+
+    results = {}
+    pending_count = 0
+
+    for task in queue['tasks']:
+        if task['state'] == 'completed':
+            results[task['id']] = task.get('result')
+        elif task['state'] != 'failed':
+             pending_count += 1
+
+    return {"results": results, "pending_count": pending_count}
