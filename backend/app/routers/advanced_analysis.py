@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+from typing import Optional
 from sqlmodel import Session
 from ..db import get_session
 from ..lib.two_round_llm_analyzer import ThreeStageAnalyzer
@@ -25,6 +26,13 @@ class ExecutePlanRequest(BaseModel):
 
 class UpdatePlanRequest(BaseModel):
     max_cases: int
+
+class NotificationPreferences(BaseModel):
+    email: str
+    terms_accepted: bool
+
+class ExecutePlanWithNotificationRequest(BaseModel):
+    notification_preferences: Optional[NotificationPreferences] = None
 
 @router.post("/plan")
 async def create_analysis_plan(
@@ -89,31 +97,62 @@ async def update_analysis_plan(
 @router.post("/execute/{plan_id}")
 async def execute_analysis_plan(
     plan_id: str,
+    request: ExecutePlanWithNotificationRequest = None,
     session: Session = Depends(get_session)
 ):
     """
     PHASE 2 & 3: Execute the plan (Batch Processing + Synthesis).
     Returns a job_id for tracking.
+    Optionally accepts notification_preferences to send email when analysis completes.
     """
     try:
         logger.info(f"[API] Received request to EXECUTE PLAN: {plan_id}")
+
+        # Validate notification preferences if provided
+        notification_email = None
+        if request and request.notification_preferences:
+            prefs = request.notification_preferences
+
+            # Validate email format
+            import re
+            email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+            if not re.match(email_pattern, prefs.email):
+                raise HTTPException(status_code=400, detail="Invalid email format")
+
+            # Validate terms acceptance
+            if not prefs.terms_accepted:
+                raise HTTPException(status_code=400, detail="Terms and conditions must be accepted to receive email notifications")
+
+            notification_email = prefs.email
+            logger.info(f"[API] Email notification enabled for {plan_id}: {notification_email}")
+
         async def process_three_stage_execution(payload: dict):
             # Create new session for worker
             from ..db import engine
             from sqlmodel import Session
             with Session(engine) as worker_session:
                 analyzer = ThreeStageAnalyzer(worker_session)
-                result = await analyzer.execute_plan(payload['plan_id'])
+                result = await analyzer.execute_plan(
+                    payload['plan_id'],
+                    notification_email=payload.get('notification_email')
+                )
                 return result
 
-        payload = {'plan_id': plan_id, 'type': 'execute_plan'}
+        payload = {
+            'plan_id': plan_id,
+            'type': 'execute_plan',
+            'notification_email': notification_email
+        }
         job_id, _ = await queue_manager.add_to_queue(payload, process_three_stage_execution)
 
         return {
             'success': True,
             'job_id': job_id,
-            'message': 'Plan execution started. Check status for progress.'
+            'message': 'Plan execution started. Check status for progress.',
+            'email_notification_enabled': notification_email is not None
         }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error starting execution: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

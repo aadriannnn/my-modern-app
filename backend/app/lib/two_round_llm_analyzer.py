@@ -102,10 +102,20 @@ class ThreeStageAnalyzer:
             logger.error(f"[PHASE 1] Error: {e}", exc_info=True)
             return {'success': False, 'error': str(e)}
 
-    async def execute_plan(self, plan_id: str, progress_callback: Optional[Callable] = None) -> Dict[str, Any]:
+    async def execute_plan(self, plan_id: str, progress_callback: Optional[Callable] = None, notification_email: Optional[str] = None) -> Dict[str, Any]:
         """PHASE 2 & 3: Execution & Synthesis"""
+        import time
+        start_time = time.time()
+
         try:
             plan = self.plan_manager.load_plan(plan_id)
+
+            # Store notification email in plan if provided
+            if notification_email:
+                plan['notification_email'] = notification_email
+                self.plan_manager.save_plan(plan)
+                logger.info(f"Email notification enabled for plan {plan_id}: {notification_email}")
+
             total_chunks = plan['total_chunks']
 
             # Phase 2: Chunks
@@ -119,11 +129,41 @@ class ThreeStageAnalyzer:
 
             # Phase 3: Synthesis
             if progress_callback: await progress_callback({"stage": "synthesis"})
-            return await self.synthesize_results(plan_id)
+            result = await self.synthesize_results(plan_id)
+
+            # Send success email if notification is enabled
+            if notification_email and result.get('success'):
+                execution_time = time.time() - start_time
+                await self._send_completion_email(
+                    notification_email,
+                    plan.get('user_query', ''),
+                    result,
+                    execution_time,
+                    plan_id
+                )
+
+            return result
 
         except Exception as e:
             logger.error(f"[EXECUTION] Error: {e}", exc_info=True)
-            return {'success': False, 'error': str(e)}
+            error_result = {'success': False, 'error': str(e)}
+
+            # Send error email if notification is enabled
+            try:
+                plan = self.plan_manager.load_plan(plan_id)
+                notification_email = plan.get('notification_email')
+                if notification_email:
+                    await self._send_error_email(
+                        notification_email,
+                        plan.get('user_query', ''),
+                        str(e),
+                        plan_id
+                    )
+            except Exception as email_error:
+                logger.error(f"Failed to send error notification email: {email_error}")
+
+            return error_result
+
 
     async def execute_chunk(self, plan: Dict[str, Any], chunk_index: int) -> Dict[str, Any]:
         try:
@@ -347,6 +387,58 @@ class ThreeStageAnalyzer:
     async def _verify_strategy(self, user_query: str, strategy: Dict[str, Any], preview_data: list):
         prompt = self.prompt_manager.build_verification_prompt(user_query, strategy, preview_data)
         await LLMClient.call_llm(prompt, timeout=300, label="Verification")
+
+    async def _send_completion_email(
+        self,
+        recipient_email: str,
+        user_query: str,
+        result: Dict[str, Any],
+        execution_time: float,
+        plan_id: str
+    ):
+        """Send email notification when analysis completes successfully"""
+        try:
+            from .email_utils import send_analysis_completion_email
+
+            # Prepare analysis summary
+            analysis_summary = {
+                'total_cases_analyzed': result.get('cases_analyzed', 0),
+                'interpretation': result.get('interpretation', '')
+            }
+
+            await send_analysis_completion_email(
+                recipient_email,
+                user_query,
+                analysis_summary,
+                execution_time,
+                plan_id
+            )
+            logger.info(f"Sent completion email to {recipient_email} for plan {plan_id}")
+        except Exception as e:
+            # Don't fail the analysis if email fails
+            logger.error(f"Failed to send completion email: {e}", exc_info=True)
+
+    async def _send_error_email(
+        self,
+        recipient_email: str,
+        user_query: str,
+        error_message: str,
+        plan_id: str
+    ):
+        """Send email notification when analysis fails"""
+        try:
+            from .email_utils import send_analysis_error_email
+
+            await send_analysis_error_email(
+                recipient_email,
+                user_query,
+                error_message,
+                plan_id
+            )
+            logger.info(f"Sent error email to {recipient_email} for plan {plan_id}")
+        except Exception as e:
+            # Don't fail further if error email fails
+            logger.error(f"Failed to send error email: {e}", exc_info=True)
 
     def update_plan_case_limit(self, plan_id: str, max_cases: int) -> Dict[str, Any]:
         return self.plan_manager.update_plan_case_limit(plan_id, max_cases)

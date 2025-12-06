@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, BrainCircuit, Play, AlertCircle, CheckCircle, Clock, Database, ArrowLeft, SlidersHorizontal, Zap, Brain } from 'lucide-react';
+import { X, BrainCircuit, Play, AlertCircle, CheckCircle, Clock, Database, ArrowLeft, SlidersHorizontal, Zap, Brain, Mail } from 'lucide-react';
 import { createAnalysisPlan, executeAnalysisPlan, updateAnalysisPlan, subscribeToQueueStatus, getAdvancedAnalysisStatus } from '../lib/api';
 import QueueStatus from './QueueStatus';
 import AnalysisResults from './AnalysisResults';
@@ -37,6 +37,10 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
     const [adjustedCases, setAdjustedCases] = useState<number | null>(null);
     const [isUpdatingPlan, setIsUpdatingPlan] = useState(false);
     const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    // Email notification state
+    const [notificationEmail, setNotificationEmail] = useState('');
+    const [termsAccepted, setTermsAccepted] = useState(false);
 
     // Queue status state
     const [queueStatus, setQueueStatus] = useState<{
@@ -119,20 +123,20 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
             console.log('[Frontend] Checked restored job status:', status);
 
             if (status.status === 'completed' && status.result) {
-                 if (status.result.success === false) {
-                     setError(status.result.error || 'Job failed.');
-                     setCurrentStep('input');
-                 } else {
-                     // Job finished while we were away
-                     if (step === 'creating_plan') {
-                         setPlanData(status.result);
-                         setCurrentStep('preview');
-                     } else if (step === 'executing') {
-                         setResult(status.result);
-                         setCurrentStep('executing');
-                     }
-                 }
-                 setJobId(null); // Clear job ID as it's done
+                if (status.result.success === false) {
+                    setError(status.result.error || 'Job failed.');
+                    setCurrentStep('input');
+                } else {
+                    // Job finished while we were away
+                    if (step === 'creating_plan') {
+                        setPlanData(status.result);
+                        setCurrentStep('preview');
+                    } else if (step === 'executing') {
+                        setResult(status.result);
+                        setCurrentStep('executing');
+                    }
+                }
+                setJobId(null); // Clear job ID as it's done
             } else if (status.status === 'failed' || status.error) {
                 setError(status.error || 'Job failed.');
                 setCurrentStep('input');
@@ -168,7 +172,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         } catch (e) {
             console.error('Error checking restored job:', e);
             // If check fails (e.g. 404), maybe clear state
-             setError("Nu s-a putut restaura sesiunea anterioară.");
+            setError("Nu s-a putut restaura sesiunea anterioară.");
         }
     };
 
@@ -218,7 +222,16 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         setCurrentStep('executing');
 
         try {
-            const response = await executeAnalysisPlan(planData.plan_id);
+            // Prepare notification preferences if email is provided
+            let notificationPreferences = undefined;
+            if (notificationEmail && termsAccepted) {
+                notificationPreferences = {
+                    email: notificationEmail,
+                    terms_accepted: termsAccepted
+                };
+            }
+
+            const response = await executeAnalysisPlan(planData.plan_id, notificationPreferences);
 
             if (response.success && response.job_id) {
                 console.log('[Frontend] Execution started. Job ID:', response.job_id);
@@ -708,6 +721,71 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                                 </div>
                             </div>
                         )}
+
+                        {/* Email Notification Section (Optional) */}
+                        <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5 shadow-sm">
+                            <div className="flex items-start gap-3 mb-4">
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                    <Mail className="w-5 h-5 text-blue-600" />
+                                </div>
+                                <div className="flex-1">
+                                    <h4 className="font-bold text-gray-900 mb-1">Notificare Email (Opțional)</h4>
+                                    <p className="text-sm text-gray-600">
+                                        Analiza poate dura {formatTime(planData.estimated_time_seconds)}.
+                                        Introduceți email-ul pentru a primi rezultatele când analiza se finalizează.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                {/* Email Input */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Adresa de Email
+                                    </label>
+                                    <input
+                                        type="email"
+                                        value={notificationEmail}
+                                        onChange={(e) => setNotificationEmail(e.target.value)}
+                                        placeholder="exemplu@email.com"
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    />
+                                </div>
+
+                                {/* Terms Checkbox */}
+                                {notificationEmail && (
+                                    <div className="flex items-start gap-3 p-3 bg-white/50 rounded-lg border border-blue-200">
+                                        <input
+                                            type="checkbox"
+                                            id="terms-checkbox"
+                                            checked={termsAccepted}
+                                            onChange={(e) => setTermsAccepted(e.target.checked)}
+                                            className="mt-1 w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                        />
+                                        <label htmlFor="terms-checkbox" className="text-sm text-gray-700 cursor-pointer">
+                                            Sunt de acord să primesc notificări email și accept{' '}
+                                            <a
+                                                href="/terms"
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-600 hover:underline font-medium"
+                                                onClick={(e) => e.stopPropagation()}
+                                            >
+                                                termenii și condițiile
+                                            </a>
+                                        </label>
+                                    </div>
+                                )}
+
+                                {/* Info Message */}
+                                {notificationEmail && termsAccepted && (
+                                    <div className="flex items-center gap-2 text-green-700 text-sm">
+                                        <CheckCircle className="w-4 h-4" />
+                                        <span>Veți primi un email la {notificationEmail} când analiza se finalizează.</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
 
                         {error && (
                             <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 text-sm">

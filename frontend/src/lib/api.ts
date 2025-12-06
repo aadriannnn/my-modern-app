@@ -84,22 +84,22 @@ export const searchByIdsPaginated = async (
 
   const idString = ids.join(',');
   const response = await fetch(
-      `${API_URL}/search/by-ids?ids=${encodeURIComponent(idString)}&page=${page}&page_size=${pageSize}`,
-      {
-          method: 'GET',
-          credentials: 'include'
-      }
+    `${API_URL}/search/by-ids?ids=${encodeURIComponent(idString)}&page=${page}&page_size=${pageSize}`,
+    {
+      method: 'GET',
+      credentials: 'include'
+    }
   );
 
   if (!response.ok) {
-      let detail = `Request failed with status ${response.status}`;
-      try {
-          const errorData = await response.json();
-          detail = errorData.detail || detail;
-      } catch (e) {
-          // The response body was not JSON
-      }
-      throw new ApiError(detail, response.status);
+    let detail = `Request failed with status ${response.status}`;
+    try {
+      const errorData = await response.json();
+      detail = errorData.detail || detail;
+    } catch (e) {
+      // The response body was not JSON
+    }
+    throw new ApiError(detail, response.status);
   }
 
   return response.json();
@@ -348,9 +348,18 @@ export const createAnalysisPlan = async (query: string) => {
 };
 
 // Human-in-the-Loop: Execute analysis plan (Phase 2 & 3)
-export const executeAnalysisPlan = async (planId: string) => {
+export const executeAnalysisPlan = async (
+  planId: string,
+  notificationPreferences?: { email: string; terms_accepted: boolean }
+) => {
   const response = await fetch(`${API_URL}/advanced-analysis/execute/${planId}`, {
     method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      notification_preferences: notificationPreferences
+    }),
     credentials: 'include'
   });
 
