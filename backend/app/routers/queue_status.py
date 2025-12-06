@@ -59,10 +59,12 @@ async def event_stream(request_id: str):
                 # Send keepalive ping
                 yield ": keepalive\n\n"
 
-                # Check if request is still in queue
-                if queue_manager.get_queue_position(request_id) is None:
-                    # Request completed or removed
-                    yield 'data: {"status": "completed"}\n\n'
+                # Check if request is still active
+                status = queue_manager.get_job_status(request_id)
+                if status['status'] not in ['queued', 'processing']:
+                    # Request completed, removed, or failed
+                    import json
+                    yield f"data: {json.dumps(status)}\n\n"
                     break
 
     except asyncio.CancelledError:
