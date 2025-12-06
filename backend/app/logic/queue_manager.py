@@ -138,7 +138,17 @@ class QueueManager:
                 if t:
                     tasks.append(t)
 
-            return await analyzer.create_plans_batch(tasks)
+            result = await analyzer.create_plans_batch(tasks)
+
+            # Update task states based on results
+            if result.get("success") and "results" in result:
+                for task_id, task_res in result["results"].items():
+                    if task_res.get("success"):
+                        manager.update_task_state(task_id, "planned", {"plan": task_res})
+                    else:
+                        manager.update_task_state(task_id, "failed", {"error": task_res.get("error")})
+
+            return result
 
         finally:
             session.close()
