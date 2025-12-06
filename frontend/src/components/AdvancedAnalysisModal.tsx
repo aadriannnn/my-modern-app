@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, BrainCircuit, Play, AlertCircle, CheckCircle, Zap, Brain, Mail, ListPlus, Loader2 } from 'lucide-react';
+import { X, BrainCircuit, Play, AlertCircle, CheckCircle, Zap, Brain, Mail, ListPlus, Loader2, Clock } from 'lucide-react';
 import {
     createAnalysisPlan,
     executeAnalysisPlan,
@@ -98,6 +98,24 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
             localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
         }
     }, [query, currentStep, planData, jobId, result, queueTasks, isQueueMode]);
+
+    // Auto-transition to results
+    useEffect(() => {
+        if (currentStep === 'executing_queue') {
+            const allFinished = queueTasks.length > 0 && queueTasks.every(t => t.state === 'completed' || t.state === 'failed');
+            if (allFinished) {
+                 const timer = setTimeout(() => {
+                     // Auto-select the first completed task
+                     if (!selectedTaskId) {
+                         const first = queueTasks.find(t => t.state === 'completed');
+                         if (first) setSelectedTaskId(first.id);
+                     }
+                     setCurrentStep('queue_results');
+                 }, 1500);
+                 return () => clearTimeout(timer);
+            }
+        }
+    }, [queueTasks, currentStep, selectedTaskId]);
 
     // Restore state on mount
     useEffect(() => {
@@ -769,7 +787,10 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                                     <div className="mb-6 pb-4 border-b border-gray-200">
                                         <h2 className="text-xl font-bold text-gray-900 mb-2">{activeTask.query}</h2>
                                         <div className="flex items-center gap-4 text-sm text-gray-500">
-                                            <span className="flex items-center gap-1"><Clock className="w-4 h-4" /> Finalizat la {new Date(activeTask.updated_at * 1000).toLocaleString()}</span>
+                                            <span className="flex items-center gap-1">
+                                                <Clock className="w-4 h-4" />
+                                                Finalizat la {new Date((activeTask.completed_at || activeTask.updated_at) * 1000).toLocaleString()}
+                                            </span>
                                             {activeTask.plan && <span>• {activeTask.plan.total_cases} cazuri</span>}
                                         </div>
                                     </div>

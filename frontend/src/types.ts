@@ -76,6 +76,7 @@ export interface QueueTask {
   error?: string;
   created_at: number;
   updated_at: number;
+  completed_at?: number;
   user_metadata?: any;
 }
 
