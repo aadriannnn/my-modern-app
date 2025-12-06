@@ -1,5 +1,5 @@
 import React from 'react';
-import { QueueTask } from '../../types';
+import type { QueueTask } from '../../types';
 import { AlertCircle, CheckCircle, Clock, FileText, BarChart2, ChevronUp } from 'lucide-react';
 import { Disclosure } from '@headlessui/react';
 
