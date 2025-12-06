@@ -192,3 +192,29 @@ async def get_queue_results():
              pending_count += 1
 
     return {"results": results, "pending_count": pending_count}
+
+@router.delete("/queue/completed")
+async def clear_completed_queue_tasks():
+    """Removes all completed or failed tasks from the queue."""
+    manager = TaskQueueManager()
+    success = manager.clear_completed_tasks()
+    return {"success": success}
+
+@router.delete("/session/{job_id}")
+async def clear_analysis_session(job_id: str):
+    """
+    Clears an analysis session from memory.
+    Useful for single-plan analysis cleanup.
+    """
+    from ..logic.queue_manager import QueueManager
+    qm = QueueManager()
+
+    # Remove from memory if exists
+    if job_id in qm.items:
+        del qm.items[job_id]
+
+    # Also attempt to remove callbacks
+    if job_id in qm.update_callbacks:
+        del qm.update_callbacks[job_id]
+
+    return {"success": True}

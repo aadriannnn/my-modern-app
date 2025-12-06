@@ -7,7 +7,7 @@ import os
 import logging
 import sib_api_v3_sdk
 from sib_api_v3_sdk.rest import ApiException
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import asyncio
 from datetime import datetime
 
@@ -350,4 +350,128 @@ async def send_analysis_error_email(
 
     except Exception as e:
         logger.exception(f"Error in send_analysis_error_email: {e}")
+        return False
+
+async def send_batch_completion_email(
+    recipient_email: str,
+    tasks_summary: List[Dict[str, Any]],
+    execution_time_seconds: float
+) -> bool:
+    """
+    Send an email notification when a batch of analyses completes.
+
+    Args:
+        recipient_email: User's email address
+        tasks_summary: List of dicts containing task details (query, status, result/error)
+        execution_time_seconds: Total time taken to complete the batch
+
+    Returns:
+        bool: True if email was sent successfully, False otherwise
+    """
+    try:
+        # Format execution time
+        if execution_time_seconds < 60:
+            execution_time_str = f"{int(execution_time_seconds)} secunde"
+        else:
+            minutes = int(execution_time_seconds / 60)
+            execution_time_str = f"{minutes} minute" if minutes == 1 else f"{minutes} minute"
+
+        total_tasks = len(tasks_summary)
+        succeeded = len([t for t in tasks_summary if t.get('success')])
+        failed = total_tasks - succeeded
+
+        subject = f"Raport Analiză Multiplă - {succeeded}/{total_tasks} Completate"
+
+        # Build task list HTML
+        tasks_html = ""
+        for i, task in enumerate(tasks_summary):
+            status_color = "#28a745" if task.get('success') else "#dc3545"
+            status_text = "SUCCES" if task.get('success') else "EȘUAT"
+            query = task.get('query', 'N/A')
+            query_short = query[:100] + "..." if len(query) > 100 else query
+
+            tasks_html += f"""
+            <div style="padding: 10px; border-bottom: 1px solid #eee; display: flex; align-items: flex-start;">
+                <span style="font-weight: bold; color: #999; margin-right: 10px; min-width: 20px;">#{i+1}</span>
+                <div style="flex-grow: 1;">
+                    <div style="font-size: 14px; color: #333; margin-bottom: 4px;">{query_short}</div>
+                    <span style="font-size: 11px; font-weight: bold; color: {status_color}; background: {status_color}15; padding: 2px 6px; border-radius: 4px;">{status_text}</span>
+                </div>
+            </div>
+            """
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .header h1 {{ margin: 0; font-size: 24px; }}
+                .content {{ background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; }}
+                .metric {{ background: #f8f9fa; padding: 15px; margin: 10px 0; border-left: 4px solid #667eea; border-radius: 4px; display: inline-block; width: 45%; margin-right: 2%; box-sizing: border-box; }}
+                .metric-label {{ font-weight: bold; color: #555; font-size: 11px; text-transform: uppercase; }}
+                .metric-value {{ font-size: 20px; color: #333; margin-top: 5px; }}
+                .tasks-list {{ margin-top: 25px; border: 1px solid #eee; border-radius: 8px; overflow: hidden; }}
+                .footer {{ background: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 12px; border-radius: 0 0 8px 8px; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>📊 Raport Analiză Multiplă</h1>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">LegeaApp - Execuție Coadă</p>
+                </div>
+                <div class="content">
+                    <p>Procesarea cozii de sarcini s-a încheiat.</p>
+
+                    <div style="margin: 20px 0;">
+                        <div class="metric">
+                            <div class="metric-label">Total Sarcini</div>
+                            <div class="metric-value">{total_tasks}</div>
+                        </div>
+                        <div class="metric">
+                            <div class="metric-label">Timp Execuție</div>
+                            <div class="metric-value">{execution_time_str}</div>
+                        </div>
+                    </div>
+
+                    <h3 style="color: #667eea; margin-top: 30px; margin-bottom: 10px;">Rezumat Sarcini:</h3>
+                    <div class="tasks-list">
+                        {tasks_html}
+                    </div>
+
+                    <p style="text-align: center; margin-top: 30px;">
+                        <strong>Puteți vizualiza rezultatele detaliate în aplicație.</strong>
+                    </p>
+                </div>
+                <div class="footer">
+                    <p style="margin: 0;">© 2025 LegeaApp - Platforma de Jurisprudență</p>
+                    <p style="margin: 5px 0 0 0;">Acest email a fost trimis automat.</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        # Send email asynchronously
+        loop = asyncio.get_event_loop()
+        success = await loop.run_in_executor(
+            None,
+            send_email,
+            recipient_email,
+            subject,
+            html_content,
+        )
+
+        if success:
+            logger.info(f"Batch completion email sent successfully to {recipient_email}")
+        else:
+            logger.error(f"Failed to send batch completion email to {recipient_email}")
+
+        return success
+
+    except Exception as e:
+        logger.exception(f"Error in send_batch_completion_email: {e}")
         return False
