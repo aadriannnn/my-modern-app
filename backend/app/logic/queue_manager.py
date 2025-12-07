@@ -94,6 +94,8 @@ class QueueManager:
             return self._process_execute_queue
         elif job_type == "create_plan":
             return self._process_create_plan
+        elif job_type == "generate_final_report":
+            return self._process_generate_final_report
         else:
             raise ValueError(f"Unknown job type: {job_type}")
 
@@ -168,6 +170,44 @@ class QueueManager:
 
         finally:
             session.close()
+
+    async def _process_generate_final_report(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Processor for final report generation (Phase 4).
+
+        Calls ThreeStageAnalyzer.synthesize_final_report() to generate a
+        professional legal dissertation from all completed queue tasks.
+        """
+        try:
+            original_query = payload.get("original_query")
+            task_results = payload.get("task_results", [])
+
+            logger.info(f"Starting final report synthesis for: '{original_query[:50]}...'")
+            logger.info(f"Synthesizing {len(task_results)} task results")
+
+            # Get analyzer instance
+            session = next(get_session())
+            try:
+                analyzer = ThreeStageAnalyzer(session)
+
+                # Call synthesis method (async)
+                result = await analyzer.synthesize_final_report(
+                    original_query=original_query,
+                    task_results=task_results
+                )
+
+                return result
+
+            finally:
+                session.close()
+
+        except Exception as e:
+            logger.error(f"Error in final report generation: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': str(e),
+                'recoverable': True
+            }
 
     async def add_to_queue(
         self,

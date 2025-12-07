@@ -37,11 +37,25 @@ export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
             const response = await generateFinalReport();
             const jobId = response.job_id;
 
+            let attempts = 0;
+            const maxAttempts = 200; // 200 * 3s = 10 minutes max
+
             // Poll for completion
             const pollInterval = setInterval(async () => {
                 try {
+                    attempts++;
+
+                    // Check max attempts (timeout)
+                    if (attempts >= maxAttempts) {
+                        clearInterval(pollInterval);
+                        setIsGeneratingReport(false);
+                        setReportError('Timeout: Generarea raportului a durat prea mult (>10 minute). Verificați backend logs.');
+                        return;
+                    }
+
                     const status = await getAdvancedAnalysisStatus(jobId);
 
+                    // Success case
                     if (status.status === 'completed') {
                         clearInterval(pollInterval);
                         setIsGeneratingReport(false);
@@ -52,10 +66,27 @@ export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
                         } else {
                             setReportError(status.result?.error || 'Eroare la generarea raportului');
                         }
-                    } else if (status.status === 'error' || status.result?.success === false) {
+                    }
+                    // Error cases
+                    else if (status.status === 'failed' || status.status === 'error' || status.status === 'not_found') {
+                        clearInterval(pollInterval);
+                        setIsGeneratingReport(false);
+
+                        const errorMsg = status.status === 'not_found'
+                            ? 'Job-ul nu a fost găsit. Backend-ul ar putea să nu fi fost restarttat după actualizări.'
+                            : status.error || status.result?.error || 'Eroare la generarea raportului';
+
+                        setReportError(errorMsg);
+                    }
+                    // Check if result indicates failure even if status is "completed"
+                    else if (status.result?.success === false) {
                         clearInterval(pollInterval);
                         setIsGeneratingReport(false);
                         setReportError(status.result?.error || 'Eroare la generarea raportului');
+                    }
+                    // Still processing - continue polling
+                    else {
+                        console.log(`Polling attempt ${attempts}/${maxAttempts}, status: ${status.status}`);
                     }
                 } catch (err: any) {
                     clearInterval(pollInterval);
