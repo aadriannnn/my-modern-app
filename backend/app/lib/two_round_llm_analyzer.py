@@ -602,5 +602,190 @@ class ThreeStageAnalyzer:
                 'error': f'Eroare neașteptată la descompunerea taskului: {str(e)}'
             }
 
+    async def synthesize_final_report(
+        self,
+        original_query: str,
+        task_results: List[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """
+        PHASE 4: Final Report Synthesis
+
+        Aggregates all task results and generates a professional legal dissertation
+        through LLM.
+
+        Args:
+            original_query: The original user question
+            task_results: List of completed task results
+                         Format: [{
+                             'task_id': str,
+                             'query': str,
+                             'user_metadata': dict,
+                             'result': dict (from PHASE 3)
+                         }]
+
+        Returns:
+            {
+                'success': bool,
+                'report': dict,
+                'report_id': str,
+                'total_cases_cited': int,
+                'word_count': int,
+                'generation_time': float
+            }
+        """
+        import time
+        import uuid
+        import json
+        start_time = time.time()
+
+        logger.info("=" * 80)
+        logger.info("📋 PHASE 4: Final Report Synthesis Started")
+        logger.info(f"Original Query: {original_query}")
+        logger.info(f"Processing {len(task_results)} task results")
+        logger.info(f"⏰ Start Time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info("=" * 80)
+
+        try:
+            # 1. Aggregate all case IDs from all tasks
+            logger.info("Step 1/6: Aggregating case IDs from all task results...")
+            all_case_ids = set()
+            task_case_counts = []
+
+            for idx, task_result in enumerate(task_results, 1):
+                # Extract case IDs from result (Phase 3 stores them in bibliography_ids)
+                case_ids = task_result.get('result', {}).get('bibliography_ids', [])
+                all_case_ids.update(case_ids)
+                task_case_counts.append({
+                    'task': task_result.get('query', f'Task {idx}')[:50],
+                    'case_count': len(case_ids)
+                })
+                logger.debug(f"  Task {idx}/{len(task_results)}: {len(case_ids)} case IDs")
+
+            logger.info(f"✓ Total unique case IDs referenced: {len(all_case_ids)}")
+            for tc in task_case_counts[:5]:
+                logger.info(f"  - {tc['task']}: {tc['case_count']} cases")
+            if len(task_case_counts) > 5:
+                logger.info(f"  ... and {len(task_case_counts) - 5} more tasks")
+
+            # 2. Format task results for LLM
+            logger.info("Step 2/6: Formatting task results for LLM prompt...")
+            aggregated_data = []
+            for task in task_results:
+                aggregated_data.append({
+                    'task_title': task.get('query', 'Untitled Task'),
+                    'task_category': task.get('user_metadata', {}).get('category', 'general'),
+                    'task_result': task.get('result', {}),
+                    'referenced_case_ids': task.get('result', {}).get('bibliography_ids', [])
+                })
+
+            # 3. Build prompt
+            logger.info("Step 3/6: Building LLM prompt...")
+            prompt = self.prompt_manager.prompts['prompturi_three_stage']['final_report_synthesis_prompt']
+            prompt = prompt.replace('{original_user_query}', original_query)
+            prompt = prompt.replace('{aggregated_task_results}', json.dumps(aggregated_data, ensure_ascii=False, indent=2))
+
+            logger.info(f"Prompt length: ~{len(prompt)} characters")
+
+            # 4. Call LLM with extended timeout
+            logger.info("Step 4/6: Calling LLM for final report synthesis...")
+            logger.info("⏰ Expected duration: 5-10 minutes")
+
+            success, content, path = await LLMClient.call_llm(
+                prompt,
+                timeout=600,  # 10 minutes
+                label="Final Report Synthesis"
+            )
+
+            if not success:
+                logger.error(f"LLM call failed: {content}")
+                return {
+                    'success': False,
+                    'error': f"LLM synthesis failed: {content}",
+                    'recoverable': True
+                }
+
+            # 5. Parse JSON response
+            logger.info("Step 5/6: Parsing and validating LLM response...")
+            try:
+                report = LLMClient.parse_json_response(content)
+            except Exception as e:
+                logger.error(f"Failed to parse LLM response as JSON: {e}")
+                return {
+                    'success': False,
+                    'error': f"Invalid JSON from LLM: {str(e)}",
+                    'recoverable': True
+                }
+
+            # Validate required fields
+            required_fields = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
+            missing_fields = [f for f in required_fields if f not in report]
+            if missing_fields:
+                logger.error(f"Report missing required fields: {missing_fields}")
+                return {
+                    'success': False,
+                    'error': f"Incomplete report structure. Missing: {', '.join(missing_fields)}"
+                }
+
+            # Validate bibliography - CRITICAL: Only cited case IDs
+            cited_ids = set()
+            for item in report.get('bibliography', {}).get('jurisprudence', []):
+                cited_ids.add(item.get('case_id'))
+
+            # Check for hallucinated IDs
+            unknown_ids = cited_ids - all_case_ids
+            if unknown_ids:
+                logger.warning(f"⚠️  LLM cited unknown case IDs (hallucinations): {unknown_ids}")
+                # Filter out hallucinated references
+                report['bibliography']['jurisprudence'] = [
+                    item for item in report['bibliography']['jurisprudence']
+                    if item.get('case_id') in all_case_ids
+                ]
+                logger.info(f"✓ Filtered bibliography to only include verified case IDs")
+
+            valid_cited_ids = cited_ids & all_case_ids
+            report['bibliography']['total_cases_cited'] = len(valid_cited_ids)
+
+            # 6. Generate report ID and save immediately to disk
+            logger.info("Step 6/6: Persisting final report to disk...")
+            report_id = f"report_{uuid.uuid4().hex[:8]}"
+
+            # CRITICAL: Save immediately - this is our checkpoint
+            # If system crashes after this, report is recoverable
+            self.plan_manager.save_final_report(report_id, report)
+
+            generation_time = time.time() - start_time
+            logger.info("=" * 80)
+            logger.info("✅ PHASE 4: Final Report Synthesis COMPLETED")
+            logger.info(f"Report ID: {report_id}")
+            logger.info(f"Valid citations: {len(valid_cited_ids)}")
+            logger.info(f"Word count: ~{report.get('metadata', {}).get('word_count_estimate', 0)}")
+            logger.info(f"Generation time: {generation_time:.2f}s")
+            logger.info(f"Report persisted: analyzer_plans/final_report_{report_id}.json")
+            logger.info("=" * 80)
+
+            return {
+                'success': True,
+                'report': report,
+                'report_id': report_id,
+                'total_cases_cited': len(valid_cited_ids),
+                'word_count': report.get('metadata', {}).get('word_count_estimate', 0),
+                'generation_time': generation_time,
+                'file_path': f"analyzer_plans/final_report_{report_id}.json"
+            }
+
+        except Exception as e:
+            logger.error("=" * 80)
+            logger.error("❌ PHASE 4: Final Report Synthesis FAILED")
+            logger.error(f"Error: {e}", exc_info=True)
+            logger.error("All task results are still persisted - report generation can be retried")
+            logger.error("=" * 80)
+            return {
+                'success': False,
+                'error': str(e),
+                'recoverable': True
+            }
+
+
+
 # Alias
 TwoRoundLLMAnalyzer = ThreeStageAnalyzer
