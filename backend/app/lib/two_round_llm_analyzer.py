@@ -680,9 +680,7 @@ class ThreeStageAnalyzer:
 
             # 3. Build prompt
             logger.info("Step 3/6: Building LLM prompt...")
-            prompt = self.prompt_manager.prompts['prompturi_three_stage']['final_report_synthesis_prompt']
-            prompt = prompt.replace('{original_user_query}', original_query)
-            prompt = prompt.replace('{aggregated_task_results}', json.dumps(aggregated_data, ensure_ascii=False, indent=2))
+            prompt = self.prompt_manager.build_final_report_synthesis_prompt(original_query, aggregated_data)
 
             logger.info(f"Prompt length: ~{len(prompt)} characters")
 

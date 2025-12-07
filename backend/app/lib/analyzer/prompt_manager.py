@@ -124,3 +124,26 @@ Te rog să iei în considerare serios utilizarea strategiei VECTOR SEARCH (Varia
             strategy_json=strategy_json,
             data_json=data_json
         )
+
+    def build_final_report_synthesis_prompt(self, original_query: str, aggregated_task_results: List[Dict[str, Any]]) -> str:
+        """
+        Builds the prompt for final report synthesis (Phase 4).
+        Aggregates all task results into a professional legal dissertation.
+
+        Args:
+            original_query: The original user question
+            aggregated_task_results: List of completed task results
+
+        Returns:
+            Formatted prompt string
+        """
+        data_json = json.dumps(aggregated_task_results, indent=2, ensure_ascii=False)
+        template = self.prompts.get("final_report_synthesis_prompt", "")
+
+        if not template:
+            return "EROARE: Prompt final_report_synthesis_prompt lipsă."
+
+        return template.format(
+            original_user_query=original_query,
+            aggregated_task_results=data_json
+        )
