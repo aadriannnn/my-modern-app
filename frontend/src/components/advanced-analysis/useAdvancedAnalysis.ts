@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
     createAnalysisPlan,
+    decomposeTask,
     executeAnalysisPlan,
     subscribeToQueueStatus,
     getAdvancedAnalysisStatus,
@@ -153,17 +154,17 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
                 }
             },
             () => {
-                 // SSE closed
-                 if (pollingIntervalRef.current) {
-                     clearInterval(pollingIntervalRef.current);
-                     pollingIntervalRef.current = null;
-                 }
+                // SSE closed
+                if (pollingIntervalRef.current) {
+                    clearInterval(pollingIntervalRef.current);
+                    pollingIntervalRef.current = null;
+                }
 
-                 if (onComplete) onComplete();
-                 setJobId(null);
-                 setIsLoading(false);
+                if (onComplete) onComplete();
+                setJobId(null);
+                setIsLoading(false);
             },
-            () => {}
+            () => { }
         );
     }, [refreshQueue]);
 
@@ -176,8 +177,8 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
                 if (status.result.success === false) {
                     setError(status.result.error || 'Job failed.');
                     if (step === 'executing_queue') {
-                         setCurrentStep('executing_queue');
-                         refreshQueue();
+                        setCurrentStep('executing_queue');
+                        refreshQueue();
                     } else {
                         setCurrentStep('input');
                     }
@@ -190,7 +191,7 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
                         setCurrentStep('executing');
                     } else if (step === 'executing_queue') {
                         refreshQueue().then(() => {
-                             setCurrentStep('executing_queue');
+                            setCurrentStep('executing_queue');
                         });
                     }
                 }
@@ -201,7 +202,7 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
                 setJobId(null);
             } else {
                 // Resume polling
-                 if (step === 'creating_plan') {
+                if (step === 'creating_plan') {
                     startPolling(id, (plan) => { setPlanData(plan); setCurrentStep('preview'); }, setError);
                 } else if (step === 'executing') {
                     startPolling(id, (res) => { setResult(res); }, setError);
@@ -255,14 +256,14 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
         if (currentStep === 'executing_queue') {
             const allFinished = queueTasks.length > 0 && queueTasks.every(t => t.state === 'completed' || t.state === 'failed');
             if (allFinished) {
-                 const timer = setTimeout(() => {
-                     if (!selectedTaskId) {
-                         const first = queueTasks.find(t => t.state === 'completed');
-                         if (first) setSelectedTaskId(first.id);
-                     }
-                     setCurrentStep('queue_results');
-                 }, 1500);
-                 return () => clearTimeout(timer);
+                const timer = setTimeout(() => {
+                    if (!selectedTaskId) {
+                        const first = queueTasks.find(t => t.state === 'completed');
+                        if (first) setSelectedTaskId(first.id);
+                    }
+                    setCurrentStep('queue_results');
+                }, 1500);
+                return () => clearTimeout(timer);
             }
         }
     }, [queueTasks, currentStep, selectedTaskId]);
@@ -347,7 +348,7 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
                 setJobId(res.job_id);
                 setCurrentStep('creating_plan');
                 startQueuePolling(res.job_id, () => {
-                     refreshQueue().then(() => setCurrentStep('preview_batch'));
+                    refreshQueue().then(() => setCurrentStep('preview_batch'));
                 });
             }
         } catch (e: any) {
@@ -456,6 +457,41 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
         await executePlanById(planData.plan_id);
     };
 
+    const handleDecomposeTask = async () => {
+        if (!query.trim()) return;
+
+        setIsLoading(true);
+        setError(null);
+
+        try {
+            const response = await decomposeTask(query);
+
+            if (response.success && response.tasks && response.tasks.length > 0) {
+                // Auto-populate queue with generated tasks
+                for (const task of response.tasks) {
+                    await addQueueTask(task.query, {
+                        title: task.title,
+                        category: task.category,
+                        priority: task.priority,
+                        rationale: task.rationale
+                    });
+                }
+
+                // Refresh queue and navigate
+                await refreshQueue();
+                setIsQueueMode(true);
+                setCurrentStep('queue_management');
+                setQuery('');  // Clear original query
+            } else {
+                setError(response.error || 'Nu s-au putut genera taskuri.');
+            }
+        } catch (e: any) {
+            setError(e.message || 'Eroare la descompunerea taskului.');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
     const handleCloseSession = async () => {
         if (jobId) {
             await clearAnalysisSession(jobId);
@@ -507,6 +543,7 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
         handleExecuteQueue,
         handleCreatePlan,
         handleExecutePlan,
+        handleDecomposeTask,
         handleCloseSession,
         handleClearAndCloseQueue,
         refreshQueue

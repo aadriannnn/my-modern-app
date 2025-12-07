@@ -54,6 +54,26 @@ async def create_plan(request: PlanRequest, background_tasks: BackgroundTasks, s
 
     return {"success": True, "job_id": job_id, "status": "queued"}
 
+@router.post("/decompose-task")
+async def decompose_task(request: PlanRequest, session: Session = Depends(get_session)):
+    """
+    PHASE 0: Decomposes a complex user query into multiple sub-tasks using LLM.
+    Returns a list of tasks that can be added to the queue.
+    """
+    try:
+        analyzer = ThreeStageAnalyzer(session)
+        result = await analyzer.decompose_into_tasks(request.query)
+
+        if not result.get('success'):
+            raise HTTPException(status_code=400, detail=result.get('error', 'Task decomposition failed'))
+
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in decompose_task endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/update-plan-limit/{plan_id}")
 async def update_plan_limit(plan_id: str, request: UpdateLimitRequest, session: Session = Depends(get_session)):
     """Update max cases for a plan."""

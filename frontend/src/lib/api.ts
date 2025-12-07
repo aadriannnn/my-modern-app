@@ -350,6 +350,24 @@ export const createAnalysisPlan = async (query: string) => {
   return response.json();
 };
 
+// Task Breakdown: Decompose a complex query into multiple sub-tasks (Phase 0)
+export const decomposeTask = async (query: string) => {
+  const response = await fetch(`${API_URL}/advanced-analysis/decompose-task`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ query }),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to decompose task');
+  }
+  return response.json();
+};
+
 // Human-in-the-Loop: Execute analysis plan (Phase 2 & 3)
 export const executeAnalysisPlan = async (
   planId: string,
@@ -460,19 +478,19 @@ export const executeQueue = async (notificationEmail?: string, termsAccepted?: b
 };
 
 export const clearCompletedQueue = async () => {
-    const response = await fetch(`${API_URL}/advanced-analysis/queue/completed`, {
-        method: 'DELETE',
-    });
-    if (!response.ok) throw new Error('Failed to clear completed tasks');
-    return response.json();
+  const response = await fetch(`${API_URL}/advanced-analysis/queue/completed`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error('Failed to clear completed tasks');
+  return response.json();
 };
 
 export const clearAnalysisSession = async (jobId: string) => {
-    const response = await fetch(`${API_URL}/advanced-analysis/session/${jobId}`, {
-        method: 'DELETE',
-    });
-    // Don't throw if 404, just ignore
-    return response.json().catch(() => ({}));
+  const response = await fetch(`${API_URL}/advanced-analysis/session/${jobId}`, {
+    method: 'DELETE',
+  });
+  // Don't throw if 404, just ignore
+  return response.json().catch(() => ({}));
 };
 
 export const getQueueResults = async () => {

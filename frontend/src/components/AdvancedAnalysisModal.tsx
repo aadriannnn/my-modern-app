@@ -42,6 +42,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         handleExecuteQueue,
         handleCreatePlan,
         handleExecutePlan,
+        handleDecomposeTask,
         handleCloseSession,
         handleClearAndCloseQueue,
         refreshQueue
@@ -89,6 +90,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                         setTermsAccepted={setTermsAccepted}
                         queueTasks={queueTasks}
                         onAddToQueue={handleAddToQueue}
+                        onDecomposeTask={handleDecomposeTask}
                         onCreatePlan={handleCreatePlan}
                         onViewQueue={() => { setIsQueueMode(true); setCurrentStep('queue_management'); refreshQueue(); }}
                         onClose={onClose}

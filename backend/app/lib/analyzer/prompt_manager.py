@@ -99,6 +99,18 @@ Te rog să iei în considerare serios utilizarea strategiei VECTOR SEARCH (Varia
             data_json=data_json
         )
 
+    def build_task_breakdown_prompt(self, user_query: str) -> str:
+        """
+        Builds the prompt for automatic task decomposition.
+        The LLM will analyze the user's query and break it down into
+        multiple legal research tasks.
+        """
+        template = self.prompts.get("task_breakdown_prompt", "")
+        if not template:
+            return "EROARE: Prompt task_breakdown_prompt lipsă."
+
+        return template.format(user_query=user_query)
+
     def build_verification_prompt(self, user_query: str, strategy: Dict[str, Any], preview_data: List[Dict]) -> str:
         data_json = json.dumps(preview_data, indent=2, ensure_ascii=False)
         strategy_json = json.dumps(strategy, indent=2, ensure_ascii=False)

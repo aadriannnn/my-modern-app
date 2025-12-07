@@ -492,5 +492,115 @@ class ThreeStageAnalyzer:
     def update_plan_case_limit(self, plan_id: str, max_cases: int) -> Dict[str, Any]:
         return self.plan_manager.update_plan_case_limit(plan_id, max_cases)
 
+    async def decompose_into_tasks(self, user_query: str) -> Dict[str, Any]:
+        """
+        PHASE 0: Task Decomposition
+
+        Uses LLM to intelligently break down a complex legal query into
+        multiple distinct sub-tasks.
+
+        Args:
+            user_query: The original user question
+
+        Returns:
+            {
+                'success': bool,
+                'tasks': List[Dict],  # Each task: {id, title, query, category, priority, rationale}
+                'rationale': str,
+                'total_tasks': int,
+                'estimated_complexity': str
+            }
+        """
+        try:
+            logger.info(f"--- START TASK DECOMPOSITION for: {user_query[:50]}... ---")
+
+            # 1. Build task breakdown prompt
+            prompt = self.prompt_manager.build_task_breakdown_prompt(user_query)
+
+            # 2. Call LLM
+            success, content, path = await LLMClient.call_llm(prompt, timeout=300, label="Task Breakdown")
+
+            if not success:
+                logger.error(f"[Task Breakdown] LLM call failed: {content}")
+                return {
+                    'success': False,
+                    'error': f'Nu s-a putut obține răspuns de la LLM: {content}'
+                }
+
+            # 3. Parse JSON response
+            try:
+                result = LLMClient.parse_json_response(content)
+                LLMClient.delete_response(path)
+            except Exception as parse_error:
+                logger.error(f"[Task Breakdown] JSON parsing failed: {parse_error}")
+                LLMClient.delete_response(path)
+                return {
+                    'success': False,
+                    'error': f'Răspunsul LLM nu este în format JSON valid: {str(parse_error)}'
+                }
+
+            # 4. Validate response structure
+            if not isinstance(result, dict):
+                return {'success': False, 'error': 'Răspunsul LLM nu este un obiect JSON.'}
+
+            if 'tasks' not in result or not isinstance(result['tasks'], list):
+                return {'success': False, 'error': 'Răspunsul LLM nu conține un array "tasks" valid.'}
+
+            if len(result['tasks']) == 0:
+                return {'success': False, 'error': 'LLM-ul nu a generat niciun task.'}
+
+            # 5. Validate each task has required fields
+            required_fields = ['id', 'title', 'query', 'category', 'priority', 'rationale']
+            valid_tasks = []
+
+            for task in result['tasks']:
+                if not isinstance(task, dict):
+                    continue
+
+                # Check all required fields are present
+                if all(field in task for field in required_fields):
+                    # Validate category
+                    valid_categories = [
+                        'definitional', 'legislative', 'case_law', 'statistical',
+                        'doctrinal', 'comparative', 'case_study', 'structural', 'synthesis'
+                    ]
+                    if task['category'] not in valid_categories:
+                        logger.warning(f"Invalid category '{task['category']}' for task {task['id']}, defaulting to 'definitional'")
+                        task['category'] = 'definitional'
+
+                    # Validate priority
+                    valid_priorities = ['high', 'medium', 'low']
+                    if task['priority'] not in valid_priorities:
+                        logger.warning(f"Invalid priority '{task['priority']}' for task {task['id']}, defaulting to 'medium'")
+                        task['priority'] = 'medium'
+
+                    valid_tasks.append(task)
+                else:
+                    missing = [f for f in required_fields if f not in task]
+                    logger.warning(f"Task {task.get('id', 'unknown')} missing required fields: {missing}")
+
+            if len(valid_tasks) == 0:
+                return {
+                    'success': False,
+                    'error': 'Niciunul dintre taskurile generate nu are toate câmpurile obligatorii.'
+                }
+
+            logger.info(f"[Task Breakdown] Successfully generated {len(valid_tasks)} tasks")
+
+            return {
+                'success': True,
+                'tasks': valid_tasks,
+                'decomposition_rationale': result.get('decomposition_rationale', 'N/A'),
+                'total_tasks': len(valid_tasks),
+                'estimated_complexity': result.get('estimated_complexity', 'medium')
+            }
+
+        except Exception as e:
+            logger.error(f"[Task Breakdown] Unexpected error: {e}", exc_info=True)
+            return {
+                'success': False,
+                'error': f'Eroare neașteptată la descompunerea taskului: {str(e)}'
+            }
+
 # Alias
 TwoRoundLLMAnalyzer = ThreeStageAnalyzer

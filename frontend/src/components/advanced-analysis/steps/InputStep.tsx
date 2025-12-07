@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, Mail, ListPlus, Play, ChevronDown } from 'lucide-react';
+import { AlertCircle, Mail, ListPlus, Play, ChevronDown, Brain } from 'lucide-react';
 import type { QueueTask } from '../../../types';
 
 interface InputStepProps {
@@ -11,6 +11,7 @@ interface InputStepProps {
     setTermsAccepted: (val: boolean) => void;
     queueTasks: QueueTask[];
     onAddToQueue: () => void;
+    onDecomposeTask: () => void;
     onCreatePlan: () => void;
     onViewQueue: () => void;
     onClose: () => void;
@@ -26,6 +27,7 @@ export const InputStep: React.FC<InputStepProps> = ({
     termsAccepted, setTermsAccepted,
     queueTasks,
     onAddToQueue,
+    onDecomposeTask,
     onCreatePlan,
     onViewQueue,
     onClose,
@@ -144,6 +146,15 @@ export const InputStep: React.FC<InputStepProps> = ({
                     >
                         <ListPlus className="w-4 h-4" />
                         Adaugă la Coadă
+                    </button>
+                    <button
+                        onClick={onDecomposeTask}
+                        disabled={!query.trim() || isLoading}
+                        className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-bold rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                        title="Descompune automat întrebarea în sarcini multiple pentru cercetare avansată"
+                    >
+                        <Brain className="w-4 h-4" />
+                        Descompune Automat
                     </button>
                     <button
                         onClick={onCreatePlan}
