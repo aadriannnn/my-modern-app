@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getFinalReport } from '../lib/api';
-import { ArrowLeft, Download, FileText, BookOpen, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, FileText, BookOpen, CheckCircle2 } from 'lucide-react';
 
 interface Chapter {
     chapter_number: string;
