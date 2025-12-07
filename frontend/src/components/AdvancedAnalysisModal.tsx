@@ -34,6 +34,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         termsAccepted, setTermsAccepted,
         executionMode, setExecutionMode,
         queueStatus,
+        finalReportId,
 
         // Handlers
         handleAddToQueue,
@@ -45,6 +46,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         handleDecomposeTask,
         handleCloseSession,
         handleClearAndCloseQueue,
+        handleShowFinalReport,
         refreshQueue
     } = useAdvancedAnalysis(isOpen, onClose);
 
@@ -162,6 +164,8 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                         selectedTaskId={selectedTaskId}
                         setSelectedTaskId={setSelectedTaskId}
                         onCloseAndClear={handleClearAndCloseQueue}
+                        onShowFinalReport={handleShowFinalReport}
+                        finalReportId={finalReportId}
                     />
                 )}
 

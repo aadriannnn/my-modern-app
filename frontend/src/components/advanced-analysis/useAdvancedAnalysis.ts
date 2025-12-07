@@ -43,6 +43,9 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
     // Queue status state
     const [queueStatus, setQueueStatus] = useState<QueueStatusData>({ position: 0, total: 0, status: 'queued' });
 
+    // Final Report state
+    const [finalReportId, setFinalReportId] = useState<string | null>(null);
+
     // Refs
     const pollingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const eventSourceRef = useRef<{ close: () => void } | null>(null);
@@ -511,12 +514,19 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
             setQueueTasks([]);
             setIsQueueMode(false);
             setJobId(null);
+            setFinalReportId(null);
             localStorage.removeItem(STORAGE_KEY);
             onClose();
             setCurrentStep('input');
         } catch (e) {
             console.error("Failed to clear queue", e);
         }
+    };
+
+    const handleShowFinalReport = (reportId: string) => {
+        console.log('[Frontend] Showing final report:', reportId);
+        setFinalReportId(reportId);
+        // UI will automatically switch to showing the report
     };
 
     return {
@@ -535,6 +545,7 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
         termsAccepted, setTermsAccepted,
         executionMode, setExecutionMode,
         queueStatus,
+        finalReportId, setFinalReportId,
 
         // Handlers
         handleAddToQueue,
@@ -546,6 +557,7 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
         handleDecomposeTask,
         handleCloseSession,
         handleClearAndCloseQueue,
+        handleShowFinalReport,
         refreshQueue
     };
 };

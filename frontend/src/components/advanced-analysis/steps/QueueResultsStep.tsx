@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, AlertCircle, Clock, Loader2, FileText } from 'lucide-react';
 import AnalysisResults from '../../AnalysisResults';
 import type { QueueTask } from '../../../types';
-import { generateFinalReport, getAdvancedAnalysisStatus } from '../../../lib/api';
+import { generateFinalReport, getAdvancedAnalysisStatus, getFinalReport } from '../../../lib/api';
 
 interface QueueResultsStepProps {
     queueTasks: QueueTask[];
@@ -10,6 +10,7 @@ interface QueueResultsStepProps {
     setSelectedTaskId: (id: string | null) => void;
     onCloseAndClear: () => void;
     onShowFinalReport?: (reportId: string) => void;
+    finalReportId?: string | null;
 }
 
 export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
@@ -17,7 +18,8 @@ export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
     selectedTaskId,
     setSelectedTaskId,
     onCloseAndClear,
-    onShowFinalReport
+    onShowFinalReport,
+    finalReportId
 }) => {
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const [reportError, setReportError] = useState<string | null>(null);
@@ -100,6 +102,24 @@ export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
             setReportError(err.message || 'Eroare la inițierea generării raportului');
         }
     };
+
+    // Load final report when finalReportId changes
+    useEffect(() => {
+        if (finalReportId) {
+            const loadReport = async () => {
+                try {
+                    const reportData = await getFinalReport(finalReportId);
+                    console.log('[Frontend] Final report loaded:', reportData);
+                    alert(`Raport final generat cu succes!\n\nTitlu: ${reportData.title}\n\nCheck console for full report data.`);
+                    // TODO: Display report in proper UI
+                } catch (err: any) {
+                    console.error('Failed to load final report:', err);
+                    setReportError(err.message || 'Nu s-a putut încărca raportul final');
+                }
+            };
+            loadReport();
+        }
+    }, [finalReportId]);
 
     return (
         <div className="flex-1 flex flex-col min-h-0">
