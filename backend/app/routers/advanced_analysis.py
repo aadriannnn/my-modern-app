@@ -59,6 +59,8 @@ async def decompose_task(request: PlanRequest, session: Session = Depends(get_se
     """
     PHASE 0: Decomposes a complex user query into multiple sub-tasks using LLM.
     Returns a list of tasks that can be added to the queue.
+
+    NEW: Also persists the original query to queue metadata for final report generation.
     """
     try:
         analyzer = ThreeStageAnalyzer(session)
@@ -66,6 +68,19 @@ async def decompose_task(request: PlanRequest, session: Session = Depends(get_se
 
         if not result.get('success'):
             raise HTTPException(status_code=400, detail=result.get('error', 'Task decomposition failed'))
+
+        # NEW: Save original query to queue metadata
+        # This persists the user's initial request for Phase 4 final report synthesis
+        queue_manager = TaskQueueManager()
+        queue_manager.set_queue_metadata(
+            original_query=request.query,
+            metadata={
+                'decomposition_rationale': result.get('decomposition_rationale', ''),
+                'estimated_complexity': result.get('estimated_complexity', 'medium'),
+                'total_tasks': result.get('total_tasks', 0)
+            }
+        )
+        logger.info(f"Original query persisted for final report generation: '{request.query[:50]}...'")
 
         return result
     except HTTPException:
@@ -219,6 +234,107 @@ async def get_queue_results():
              pending_count += 1
 
     return {"results": results, "pending_count": pending_count}
+
+
+@router.post("/queue/generate-final-report")
+async def generate_final_report(
+    background_tasks: BackgroundTasks,
+    session: Session = Depends(get_session)
+):
+    """
+    PHASE 4: Generates a final synthesized report from all completed queue tasks.
+
+    Prerequisites:
+    - All tasks in queue must be 'completed' or 'failed'
+    - Queue metadata must contain 'original_query'
+
+    Returns:
+        {
+            'success': bool,
+            'job_id': str,  # For polling
+            'status': 'queued'
+        }
+    """
+    import uuid
+    from ..logic.queue_manager import QueueManager
+
+    try:
+        queue_manager = TaskQueueManager()
+
+        # Use validation helper
+        validation = queue_manager.validate_queue_for_report_generation()
+
+        if not validation['valid']:
+            logger.warning(f"Final report generation validation failed: {validation['errors']}")
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    'message': 'Cannot generate final report',
+                    'errors': validation['errors'],
+                    'stats': {
+                        'completed': validation['completed_tasks'],
+                        'failed': validation['failed_tasks'],
+                        'pending': validation['pending_tasks']
+                    }
+                }
+            )
+
+        # Load queue data
+        queue_data = queue_manager.get_queue()
+        queue_metadata = queue_manager.get_queue_metadata()
+        original_query = queue_metadata['original_query']
+
+        # Prepare task results (only successfully completed tasks)
+        tasks = queue_data.get('tasks', [])
+        completed_tasks = [t for t in tasks if t['state'] == 'completed' and t.get('result')]
+
+        logger.info(f"Preparing to generate final report for: '{original_query[:50]}...'")
+        logger.info(f"Synthesizing {len(completed_tasks)} completed tasks")
+
+        task_results = []
+        for task in completed_tasks:
+            task_results.append({
+                'task_id': task['id'],
+                'query': task['query'],
+                'user_metadata': task.get('user_metadata', {}),
+                'result': task['result']
+            })
+
+        # Use QueueManager for async job tracking
+        qm = QueueManager()
+        job_id = qm.add_job(
+            "generate_final_report",
+            {
+                "original_query": original_query,
+                "task_results": task_results
+            }
+        )
+
+        return {
+            'success': True,
+            'job_id': job_id,
+            'status': 'queued'
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error initiating final report generation: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/queue/final-report/{report_id}")
+async def get_final_report(report_id: str, session: Session = Depends(get_session)):
+    """Retrieves a generated final report by ID."""
+    try:
+        analyzer = ThreeStageAnalyzer(session)
+        report = analyzer.plan_manager.load_final_report(report_id)
+        return report
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Report {report_id} not found")
+    except Exception as e:
+        logger.error(f"Error retrieving report: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.delete("/session/{job_id}")
 async def clear_analysis_session(job_id: str):

@@ -100,3 +100,57 @@ class PlanManager:
         except Exception as e:
             logger.error(f"Error updating plan limit: {e}")
             return {'success': False, 'error': str(e)}
+
+    def save_final_report(self, report_id: str, report: Dict[str, Any]):
+        """
+        Saves a final synthesized report to disk.
+
+        CRITICAL: This method persists the complete final report after Phase 4 synthesis.
+        Reports are saved with atomic writes to ensure data consistency.
+
+        Args:
+            report_id: Unique identifier for the report
+            report: Complete report dictionary from synthesize_final_report()
+        """
+        import time
+
+        report_with_meta = {
+            **report,
+            'report_id': report_id,
+            'generated_at': time.time()
+        }
+
+        file_path = os.path.join(self.plans_dir, f"final_report_{report_id}.json")
+
+        # Atomic write pattern (same as queue manager)
+        tmp_file = file_path + ".tmp"
+        try:
+            with open(tmp_file, 'w', encoding='utf-8') as f:
+                json.dump(report_with_meta, f, indent=2, ensure_ascii=False)
+            os.replace(tmp_file, file_path)
+            logger.info(f"✓ Final report saved: {report_id}")
+        except Exception as e:
+            logger.error(f"Error saving final report: {e}")
+            if os.path.exists(tmp_file):
+                os.remove(tmp_file)
+            raise
+
+    def load_final_report(self, report_id: str) -> Dict[str, Any]:
+        """
+        Loads a final report from disk.
+
+        Args:
+            report_id: Unique identifier for the report
+
+        Returns:
+            Complete report dictionary
+
+        Raises:
+            FileNotFoundError: If report doesn't exist
+        """
+        report_path = os.path.join(self.plans_dir, f"final_report_{report_id}.json")
+        if not os.path.exists(report_path):
+            raise FileNotFoundError(f"Report {report_id} not found.")
+
+        with open(report_path, 'r', encoding='utf-8') as f:
+            return json.load(f)

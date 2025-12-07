@@ -1,23 +1,74 @@
-import React from 'react';
-import { X, AlertCircle, Clock, Loader2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, AlertCircle, Clock, Loader2, FileText } from 'lucide-react';
 import AnalysisResults from '../../AnalysisResults';
 import type { QueueTask } from '../../../types';
+import { generateFinalReport, getAdvancedAnalysisStatus } from '../../../lib/api';
 
 interface QueueResultsStepProps {
     queueTasks: QueueTask[];
     selectedTaskId: string | null;
     setSelectedTaskId: (id: string | null) => void;
     onCloseAndClear: () => void;
+    onShowFinalReport?: (reportId: string) => void;
 }
 
 export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
     queueTasks,
     selectedTaskId,
     setSelectedTaskId,
-    onCloseAndClear
+    onCloseAndClear,
+    onShowFinalReport
 }) => {
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+    const [reportError, setReportError] = useState<string | null>(null);
+
     const completedTasks = queueTasks.filter(t => t.state === 'completed' || t.state === 'failed');
     const activeTask = queueTasks.find(t => t.id === selectedTaskId) || completedTasks[0];
+
+    const hasCompletedTasks = queueTasks.some(t => t.state === 'completed');
+    const hasPendingTasks = queueTasks.some(t => t.state !== 'completed' && t.state !== 'failed');
+
+    const handleGenerateFinalReport = async () => {
+        try {
+            setIsGeneratingReport(true);
+            setReportError(null);
+
+            // Call API to generate report
+            const response = await generateFinalReport();
+            const jobId = response.job_id;
+
+            // Poll for completion
+            const pollInterval = setInterval(async () => {
+                try {
+                    const status = await getAdvancedAnalysisStatus(jobId);
+
+                    if (status.status === 'completed') {
+                        clearInterval(pollInterval);
+                        setIsGeneratingReport(false);
+
+                        if (status.result?.success && status.result?.report_id) {
+                            // Show final report
+                            onShowFinalReport?.(status.result.report_id);
+                        } else {
+                            setReportError(status.result?.error || 'Eroare la generarea raportului');
+                        }
+                    } else if (status.status === 'error' || status.result?.success === false) {
+                        clearInterval(pollInterval);
+                        setIsGeneratingReport(false);
+                        setReportError(status.result?.error || 'Eroare la generarea raportului');
+                    }
+                } catch (err: any) {
+                    clearInterval(pollInterval);
+                    setIsGeneratingReport(false);
+                    setReportError(err.message || 'Eroare la verificarea stării');
+                }
+            }, 3000); // Poll every 3 seconds
+
+        } catch (err: any) {
+            setIsGeneratingReport(false);
+            setReportError(err.message || 'Eroare la inițierea generării raportului');
+        }
+    };
 
     return (
         <div className="flex-1 flex flex-col min-h-0">
@@ -90,21 +141,59 @@ export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
                             )}
                         </>
                     ) : (
-                         <div className="flex items-center justify-center h-full text-gray-400">
-                             Selectați o sarcină din listă.
-                         </div>
+                        <div className="flex items-center justify-center h-full text-gray-400">
+                            Selectați o sarcină din listă.
+                        </div>
                     )}
                 </div>
             </div>
+
             {/* Footer for Queue Results */}
-            <div className="p-4 border-t border-gray-200 bg-white rounded-b-2xl flex justify-end">
-                <button
-                    onClick={onCloseAndClear}
-                    className="px-5 py-2.5 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 shadow-md flex items-center gap-2"
-                >
-                    <X className="w-4 h-4" />
-                    Închide & Ștergere Istoric
-                </button>
+            <div className="p-4 border-t border-gray-200 bg-white rounded-b-2xl">
+                {reportError && (
+                    <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                        <p className="text-sm text-red-800">{reportError}</p>
+                    </div>
+                )}
+
+                <div className="flex items-center justify-between">
+                    <div>
+                        {hasCompletedTasks && !hasPendingTasks && (
+                            <button
+                                onClick={handleGenerateFinalReport}
+                                disabled={isGeneratingReport}
+                                className="px-5 py-2.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 shadow-md flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                                {isGeneratingReport ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        Se Generează Raportul...
+                                    </>
+                                ) : (
+                                    <>
+                                        <FileText className="w-4 h-4" />
+                                        Generează Referat Final
+                                    </>
+                                )}
+                            </button>
+                        )}
+
+                        {hasPendingTasks && (
+                            <div className="flex items-center gap-2 text-sm text-gray-500">
+                                <Clock className="w-4 h-4" />
+                                <span>Completați toate task-urile pentru a genera raportul final</span>
+                            </div>
+                        )}
+                    </div>
+
+                    <button
+                        onClick={onCloseAndClear}
+                        className="px-5 py-2.5 bg-gray-900 text-white font-bold rounded-lg hover:bg-gray-800 shadow-md flex items-center gap-2"
+                    >
+                        <X className="w-4 h-4" />
+                        Închide & Ștergere Istoric
+                    </button>
+                </div>
             </div>
         </div>
     );

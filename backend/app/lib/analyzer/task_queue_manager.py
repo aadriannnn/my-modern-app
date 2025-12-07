@@ -30,9 +30,17 @@ class TaskQueueManager:
         self.queue_file = os.path.join(storage_dir, "task_queue.json")
         os.makedirs(storage_dir, exist_ok=True)
 
-        # Ensure queue file exists
+        # Ensure queue file exists with metadata structure
         if not os.path.exists(self.queue_file):
-            self._save_queue_data({"version": "1.0", "tasks": []})
+            self._save_queue_data({
+                "version": "1.0",
+                "queue_metadata": {
+                    "original_query": None,
+                    "decomposition_timestamp": None,
+                    "decomposition_rationale": None
+                },
+                "tasks": []
+            })
 
     def add_task(self, query: str, user_metadata: Dict[str, Any] = None) -> str:
         """Adds a new task to the queue and returns its ID."""
@@ -122,6 +130,93 @@ class TaskQueueManager:
             return True
         return False
 
+    def set_queue_metadata(self, original_query: str, metadata: Dict[str, Any] = None):
+        """
+        Sets queue-level metadata for final report generation.
+
+        CRITICAL: This data persists across system restarts and is essential for
+        generating final reports even weeks after task decomposition.
+
+        Args:
+            original_query: The original user request that initiated task decomposition
+            metadata: Additional metadata (decomposition_rationale, etc.)
+        """
+        queue_data = self.load_queue()
+        if "queue_metadata" not in queue_data:
+            queue_data["queue_metadata"] = {}
+
+        queue_data["queue_metadata"]["original_query"] = original_query
+        queue_data["queue_metadata"]["decomposition_timestamp"] = time.time()
+
+        if metadata:
+            queue_data["queue_metadata"].update(metadata)
+
+        # Atomic write - ensures data survives crashes
+        self._save_queue_data(queue_data)
+
+        # Create backup immediately (this is critical metadata)
+        self._create_backup()
+
+        logger.info(f"✓ Queue metadata persisted: '{original_query[:50]}...'")
+        logger.info(f"✓ Backup created for queue state")
+
+    def get_queue_metadata(self) -> Dict[str, Any]:
+        """
+        Returns queue-level metadata.
+
+        Returns empty dict if no metadata found (for backward compatibility).
+        """
+        queue_data = self.load_queue()
+        return queue_data.get("queue_metadata", {})
+
+    def validate_queue_for_report_generation(self) -> Dict[str, Any]:
+        """
+        Validates that queue is ready for final report generation.
+
+        Returns:
+            {
+                'valid': bool,
+                'errors': List[str],
+                'completed_tasks': int,
+                'failed_tasks': int,
+                'pending_tasks': int
+            }
+        """
+        queue_data = self.load_queue()
+        metadata = queue_data.get("queue_metadata", {})
+        tasks = queue_data.get("tasks", [])
+
+        errors = []
+
+        # Check 1: Original query exists
+        if not metadata.get("original_query"):
+            errors.append("No original query found in queue metadata")
+
+        # Check 2: Tasks exist
+        if not tasks:
+            errors.append("Queue is empty - no tasks to synthesize")
+
+        # Check 3: Count task states
+        completed = len([t for t in tasks if t['state'] == 'completed'])
+        failed = len([t for t in tasks if t['state'] == 'failed'])
+        pending = len([t for t in tasks if t['state'] not in ['completed', 'failed']])
+
+        # Check 4: At least some completed tasks
+        if completed == 0:
+            errors.append("No successfully completed tasks to synthesize")
+
+        # Check 5: No pending tasks
+        if pending > 0:
+            errors.append(f"{pending} tasks still pending/executing - complete all tasks first")
+
+        return {
+            'valid': len(errors) == 0,
+            'errors': errors,
+            'completed_tasks': completed,
+            'failed_tasks': failed,
+            'pending_tasks': pending
+        }
+
     def load_queue(self) -> Dict[str, Any]:
         """Loads the queue from disk with error handling."""
         try:
@@ -129,7 +224,11 @@ class TaskQueueManager:
                 return json.load(f)
         except (json.JSONDecodeError, FileNotFoundError) as e:
             logger.error(f"Error loading queue: {e}. Returning empty queue.")
-            return {"version": "1.0", "tasks": []}
+            return {
+                "version": "1.0",
+                "queue_metadata": {},
+                "tasks": []
+            }
 
     def _save_queue_data(self, data: Dict[str, Any]):
         """Atomic write to disk."""

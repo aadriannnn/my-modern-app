@@ -500,3 +500,53 @@ export const getQueueResults = async () => {
   if (!response.ok) throw new Error('Failed to fetch results');
   return response.json();
 };
+
+// --- Final Report API (Phase 4) ---
+
+export const generateFinalReport = async () => {
+  const response = await fetch(`${API_URL}/advanced-analysis/queue/generate-final-report`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail?.message || errorData.detail || 'Failed to generate final report');
+  }
+
+  return response.json();
+};
+
+export const getFinalReport = async (reportId: string) => {
+  const response = await fetch(`${API_URL}/advanced-analysis/queue/final-report/${reportId}`, {
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to fetch final report');
+  }
+
+  return response.json();
+};
+
+export const downloadFinalReportDocx = async (reportId: string) => {
+  const response = await fetch(`${API_URL}/advanced-analysis/queue/final-report/${reportId}/export`, {
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to download report');
+  }
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `referat_final_${reportId}.docx`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  window.URL.revokeObjectURL(url);
+};
