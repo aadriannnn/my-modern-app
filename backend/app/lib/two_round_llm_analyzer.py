@@ -225,7 +225,7 @@ class ThreeStageAnalyzer:
             )
 
             # Check LLM mode setting
-            from ...settings_manager import settings_manager
+            from ..settings_manager import settings_manager
             llm_mode = settings_manager.get_value('setari_llm', 'advanced_llm_mode', 'network')
 
             if llm_mode == 'local':
@@ -259,7 +259,7 @@ class ThreeStageAnalyzer:
 
             prompt = self.prompt_manager.build_synthesis_prompt(plan['user_query'], aggregated, missing)
             # Check LLM mode setting
-            from ...settings_manager import settings_manager
+            from ..settings_manager import settings_manager
             llm_mode = settings_manager.get_value('setari_llm', 'advanced_llm_mode', 'network')
 
             if llm_mode == 'local':
@@ -308,7 +308,7 @@ class ThreeStageAnalyzer:
             prompt = self.prompt_manager.build_discovery_prompt(user_query, feedback)
 
             # Check LLM mode setting
-            from ...settings_manager import settings_manager
+            from ..settings_manager import settings_manager
             llm_mode = settings_manager.get_value('setari_llm', 'advanced_llm_mode', 'network')
 
             if llm_mode == 'local':
@@ -541,7 +541,7 @@ class ThreeStageAnalyzer:
 
             # 2. Call LLM
             # Check LLM mode setting
-            from ...settings_manager import settings_manager
+            from ..settings_manager import settings_manager
             llm_mode = settings_manager.get_value('setari_llm', 'advanced_llm_mode', 'network')
 
             if llm_mode == 'local':
@@ -718,7 +718,7 @@ class ThreeStageAnalyzer:
             logger.info("⏰ Expected duration: 5-10 minutes")
 
             # Check LLM mode setting
-            from ...settings_manager import settings_manager
+            from ..settings_manager import settings_manager
             llm_mode = settings_manager.get_value('setari_llm', 'advanced_llm_mode', 'network')
 
             if llm_mode == 'local':
