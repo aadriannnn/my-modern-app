@@ -634,205 +634,291 @@ class ThreeStageAnalyzer:
     async def synthesize_final_report(
         self,
         original_query: str,
-        task_results: List[Dict[str, Any]]
+        task_results: List[Dict[str, Any]],
+        max_retries: int = 2
     ) -> Dict[str, Any]:
         """
-        PHASE 4: Final Report Synthesis
+        PHASE 4: Final Report Synthesis with automatic retry on JSON parsing failure
 
-        Aggregates all task results and generates a professional legal dissertation
-        through LLM.
-
-        Args:
-            original_query: The original user question
-            task_results: List of completed task results
-                         Format: [{
-                             'task_id': str,
-                             'query': str,
-                             'user_metadata': dict,
-                             'result': dict (from PHASE 3)
-                         }]
-
-        Returns:
-            {
-                'success': bool,
-                'report': dict,
-                'report_id': str,
-                'total_cases_cited': int,
-                'word_count': int,
-                'generation_time': float
-            }
+        Aggregates all task results and generates a professional legal dissertation.
+        Includes retry logic and fallback to raw text if JSON parsing fails.
         """
         import time
         import uuid
-        import json
         start_time = time.time()
 
         logger.info("=" * 80)
         logger.info("📋 PHASE 4: Final Report Synthesis Started")
         logger.info(f"Original Query: {original_query}")
         logger.info(f"Processing {len(task_results)} task results")
-        logger.info(f"⏰ Start Time: {time.strftime('%Y-%m-%d %H:%M:%S')}")
         logger.info("=" * 80)
 
         try:
             # 1. Aggregate all case IDs from all tasks
-            logger.info("Step 1/6: Aggregating case IDs from all task results...")
+            logger.info("Step 1/6: Aggregating case IDs...")
             all_case_ids = set()
-            task_case_counts = []
-
-            for idx, task_result in enumerate(task_results, 1):
-                # Extract case IDs from result (Phase 3 stores them in bibliography_ids)
+            for task_result in task_results:
                 case_ids = task_result.get('result', {}).get('bibliography_ids', [])
                 all_case_ids.update(case_ids)
-                task_case_counts.append({
-                    'task': task_result.get('query', f'Task {idx}')[:50],
-                    'case_count': len(case_ids)
-                })
-                logger.debug(f"  Task {idx}/{len(task_results)}: {len(case_ids)} case IDs")
 
-            logger.info(f"✓ Total unique case IDs referenced: {len(all_case_ids)}")
-            for tc in task_case_counts[:5]:
-                logger.info(f"  - {tc['task']}: {tc['case_count']} cases")
-            if len(task_case_counts) > 5:
-                logger.info(f"  ... and {len(task_case_counts) - 5} more tasks")
+            logger.info(f"✓ Total unique case IDs: {len(all_case_ids)}")
 
-            # 2. Format task results for LLM
-            logger.info("Step 2/6: Formatting task results for LLM prompt...")
-            aggregated_data = []
-            for task in task_results:
-                aggregated_data.append({
-                    'task_title': task.get('query', 'Untitled Task'),
-                    'task_category': task.get('user_metadata', {}).get('category', 'general'),
-                    'task_result': task.get('result', {}),
-                    'referenced_case_ids': task.get('result', {}).get('bibliography_ids', [])
-                })
+            # RETRY LOOP
+            for attempt in range(1, max_retries + 1):
+                logger.info(f"\n{'='*80}")
+                logger.info(f"📋 Attempt {attempt}/{max_retries}")
+                logger.info(f"{'='*80}")
 
-            # 3. Build prompt
-            logger.info("Step 3/6: Building LLM prompt...")
-            prompt = self.prompt_manager.build_final_report_synthesis_prompt(original_query, aggregated_data)
+                # 2. Format task results (only on first attempt)
+                if attempt == 1:
+                    aggregated_data = []
+                    for task in task_results:
+                        aggregated_data.append({
+                            'task_title': task.get('query', 'Untitled Task'),
+                            'task_category': task.get('user_metadata', {}).get('category', 'general'),
+                            'task_result': task.get('result', {}),
+                            'referenced_case_ids': task.get('result', {}).get('bibliography_ids', [])
+                        })
 
-            logger.info(f"Prompt length: ~{len(prompt)} characters")
+                # 3. Build prompt
+                logger.info("Step 3/6: Building LLM prompt...")
+                if attempt == 1:
+                    prompt = self.prompt_manager.build_final_report_synthesis_prompt(
+                        original_query, aggregated_data
+                    )
+                else:
+                    prompt = self.prompt_manager.build_final_report_synthesis_prompt(
+                        original_query, aggregated_data,
+                        retry_mode=True,
+                        previous_error="Încercarea anterioară a returnat text narativ. GENEREAZĂ JSON VALID!"
+                    )
 
-            # 4. Call LLM with extended timeout
-            logger.info("Step 4/6: Calling LLM for final report synthesis...")
-            logger.info("⏰ Expected duration: 5-10 minutes")
+                # 4. Call LLM
+                logger.info("Step 4/6: Calling LLM...")
+                if attempt > 1:
+                    logger.warning(f"⚠️ Retry attempt {attempt}/{max_retries}")
 
-            # Check LLM mode setting
-            from ..settings_manager import settings_manager
-            llm_mode = settings_manager.get_value('setari_llm', 'advanced_llm_mode', 'network')
+                from ..settings_manager import settings_manager
+                llm_mode = settings_manager.get_value('setari_llm', 'advanced_llm_mode', 'network')
 
-            if llm_mode == 'local':
-                success, content, path = await LLMClient.call_llm_local(
-                    prompt,
-                    timeout=600,  # 10 minutes
-                    label="Final Report Synthesis"
-                )
-            else:
-                success, content, path = await LLMClient.call_llm(
-                    prompt,
-                    timeout=600,  # 10 minutes
-                    label="Final Report Synthesis"
-                )
+                if llm_mode == 'local':
+                    success, content, path = await LLMClient.call_llm_local(
+                        prompt, timeout=600, label=f"Final Report (Attempt {attempt})"
+                    )
+                else:
+                    success, content, path = await LLMClient.call_llm(
+                        prompt, timeout=600, label=f"Final Report (Attempt {attempt})"
+                    )
 
-            if not success:
-                logger.error(f"LLM call failed: {content}")
-                return {
-                    'success': False,
-                    'error': f"LLM synthesis failed: {content}",
-                    'recoverable': True
-                }
+                if not success:
+                    logger.error(f"LLM call failed on attempt {attempt}")
+                    if attempt < max_retries:
+                        continue
+                    return {'success': False, 'error': f"LLM failed after {max_retries} attempts", 'recoverable': False}
 
-            # 5. Parse JSON response
-            logger.info("Step 5/6: Parsing and validating LLM response...")
-            try:
-                report = LLMClient.parse_json_response(content)
-            except Exception as e:
-                logger.error(f"Failed to parse LLM response as JSON: {e}")
-                return {
-                    'success': False,
-                    'error': f"Invalid JSON from LLM: {str(e)}",
-                    'recoverable': True
-                }
+                # 5. Parse JSON
+                logger.info("Step 5/6: Parsing JSON...")
+                try:
+                    report = LLMClient.parse_json_response(content)
+                    LLMClient.delete_response(path)
+                except Exception as e:
+                    logger.error(f"Parse error on attempt {attempt}: {e}")
+                    LLMClient.delete_response(path)
+                    if attempt < max_retries:
+                        continue
+                    # Last attempt - create fallback
+                    report = self._create_fallback_report(content, all_case_ids, original_query, len(task_results))
+                    break
 
-            # Check if parsing failed (parser returns dict with parsing_error key)
-            if report.get('parsing_error'):
-                logger.error(f"Parser could not extract valid JSON. Raw content preview: {content[:200]}...")
-                return {
-                    'success': False,
-                    'error': "LLM returned non-JSON response or malformed JSON",
-                    'raw_response': content[:500],
-                    'recoverable': True
-                }
+                # Check parsing_error flag
+                if report.get('parsing_error'):
+                    logger.error(f"Parser detected non-JSON on attempt {attempt}")
+                    if attempt < max_retries:
+                        continue
+                    report = self._create_fallback_report(content, all_case_ids, original_query, len(task_results))
+                    break
 
-            # Validate required fields
-            required_fields = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
-            missing_fields = [f for f in required_fields if f not in report]
-            if missing_fields:
-                logger.error(f"Report missing required fields: {missing_fields}")
-                logger.debug(f"Parsed report keys: {list(report.keys())}")
-                return {
-                    'success': False,
-                    'error': f"Incomplete report structure. Missing: {', '.join(missing_fields)}"
-                }
+                # Validate structure
+                required_fields = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
+                missing = [f for f in required_fields if f not in report]
+                if missing and not report.get('metadata', {}).get('import_mode'):
+                    logger.error(f"Missing fields on attempt {attempt}: {missing}")
+                    if attempt < max_retries:
+                        continue
+                    report = self._create_fallback_report(content, all_case_ids, original_query, len(task_results))
+                    break
 
-            # Validate bibliography - CRITICAL: Only cited case IDs
-            cited_ids = set()
-            for item in report.get('bibliography', {}).get('jurisprudence', []):
-                cited_ids.add(item.get('case_id'))
+                # Filter bibliography
+                cited_ids = set()
+                for item in report.get('bibliography', {}).get('jurisprudence', []):
+                    cited_ids.add(item.get('case_id'))
 
-            # Check for hallucinated IDs
-            unknown_ids = cited_ids - all_case_ids
-            if unknown_ids:
-                logger.warning(f"⚠️  LLM cited unknown case IDs (hallucinations): {unknown_ids}")
-                # Filter out hallucinated references
-                report['bibliography']['jurisprudence'] = [
-                    item for item in report['bibliography']['jurisprudence']
-                    if item.get('case_id') in all_case_ids
-                ]
-                logger.info(f"✓ Filtered bibliography to only include verified case IDs")
+                unknown_ids = cited_ids - all_case_ids
+                if unknown_ids:
+                    logger.warning(f"⚠️ Filtering {len(unknown_ids)} hallucinated IDs")
+                    report['bibliography']['jurisprudence'] = [
+                        item for item in report['bibliography']['jurisprudence']
+                        if item.get('case_id') in all_case_ids
+                    ]
 
-            valid_cited_ids = cited_ids & all_case_ids
-            report['bibliography']['total_cases_cited'] = len(valid_cited_ids)
+                valid_cited_ids = cited_ids & all_case_ids
+                report['bibliography']['total_cases_cited'] = len(valid_cited_ids)
 
-            # 6. Generate report ID and save immediately to disk
-            logger.info("Step 6/6: Persisting final report to disk...")
+                logger.info(f"✅ Success on attempt {attempt}")
+                break
+
+            # END RETRY LOOP
+
+            # 6. Save report
+            logger.info("Step 6/6: Saving report...")
             report_id = f"report_{uuid.uuid4().hex[:8]}"
-
-            # CRITICAL: Save immediately - this is our checkpoint
-            # If system crashes after this, report is recoverable
             self.plan_manager.save_final_report(report_id, report)
 
             generation_time = time.time() - start_time
             logger.info("=" * 80)
-            logger.info("✅ PHASE 4: Final Report Synthesis COMPLETED")
+            logger.info("✅ PHASE 4 COMPLETED")
             logger.info(f"Report ID: {report_id}")
-            logger.info(f"Valid citations: {len(valid_cited_ids)}")
-            logger.info(f"Word count: ~{report.get('metadata', {}).get('word_count_estimate', 0)}")
             logger.info(f"Generation time: {generation_time:.2f}s")
-            logger.info(f"Report persisted: analyzer_plans/final_report_{report_id}.json")
+            if report.get('metadata', {}).get('import_mode'):
+                logger.warning("⚠️ Fallback mode used")
             logger.info("=" * 80)
 
             return {
                 'success': True,
                 'report': report,
                 'report_id': report_id,
-                'total_cases_cited': len(valid_cited_ids),
+                'total_cases_cited': len(valid_cited_ids if 'valid_cited_ids' in locals() else all_case_ids),
                 'word_count': report.get('metadata', {}).get('word_count_estimate', 0),
                 'generation_time': generation_time,
-                'file_path': f"analyzer_plans/final_report_{report_id}.json"
+                'file_path': f"analyzer_plans/final_report_{report_id}.json",
+                'fallback_mode': report.get('metadata', {}).get('import_mode') == 'raw_text_fallback'
             }
 
         except Exception as e:
-            logger.error("=" * 80)
-            logger.error("❌ PHASE 4: Final Report Synthesis FAILED")
-            logger.error(f"Error: {e}", exc_info=True)
-            logger.error("All task results are still persisted - report generation can be retried")
-            logger.error("=" * 80)
-            return {
-                'success': False,
-                'error': str(e),
-                'recoverable': True
+            logger.error(f"❌ PHASE 4 FAILED: {e}", exc_info=True)
+            return {'success': False, 'error': str(e), 'recoverable': True}
+
+    def _create_fallback_report(self, raw_content: str, case_ids: set, query: str, num_tasks: int) -> Dict[str, Any]:
+        """Create fallback report from raw LLM text when JSON parsing fails"""
+        import time
+        logger.info("📦 Creating fallback report from raw text...")
+
+        return {
+            'title': f"Analiză Juridică: {query[:80]}",
+            'table_of_contents': [{'chapter_number': '1', 'chapter_title': 'Raport Complet', 'subsections': []}],
+            'introduction': {
+                'context': 'Raport generat din răspuns text LLM (mod fallback)',
+                'scope': query,
+                'methodology': f'Analiză pe {len(case_ids)} cazuri'
+            },
+            'chapters': [{
+                'chapter_number': '1',
+                'chapter_title': 'Sinteză Completă',
+                'content': raw_content.strip(),
+                'subsections': [],
+                'key_cases': sorted(list(case_ids)),
+                'key_points': [f'Raport conține {len(case_ids)} spețe']
+            }],
+            'conclusions': {
+                'summary': 'Vezi conținutul în Capitolul 1',
+                'findings': [f'Analiză pe {len(case_ids)} spețe'],
+                'implications': 'Vezi analiza detaliată',
+                'future_research': ''
+            },
+            'bibliography': {
+                'jurisprudence': [
+                    {'case_id': cid, 'citation': f'Jurisprudența anonimizată (#{cid})', 'relevance': 'Caz analizat'}
+                    for cid in sorted(list(case_ids))
+                ],
+                'total_cases_cited': len(case_ids),
+                'total_cases_analyzed': len(case_ids)
+            },
+            'metadata': {
+                'word_count_estimate': len(raw_content.split()),
+                'generation_timestamp': time.strftime('%Y-%m-%d'),
+                'tasks_synthesized': num_tasks,
+                'academic_level': 'automated',
+                'import_mode': 'raw_text_fallback',
+                'warning': 'Raport generat în mod fallback - LLM a returnat text în loc de JSON'
             }
+        }
+    def _create_fallback_report(
+        self,
+        raw_content: str,
+        case_ids: set,
+        query: str,
+        num_tasks: int
+    ) -> Dict[str, Any]:
+        """
+        Create a fallback report structure from raw LLM text when JSON parsing fails.
+        This ensures users always get a usable report, even if LLM returns markdown.
+
+        Args:
+            raw_content: Raw text response from LLM
+            case_ids: Set of all case IDs from task results
+            query: Original user query
+            num_tasks: Number of tasks synthesized
+
+        Returns:
+            Dictionary with report structure containing raw text
+        """
+        logger.info("📦 Creating fallback report from raw LLM response...")
+
+        # Clean up the raw content (remove excessive markdown if present)
+        cleaned_content = raw_content.strip()
+
+        return {
+            'title': f"Analiză Juridică: {query[:80]}",
+            'table_of_contents': [
+                {
+                    'chapter_number': '1',
+                    'chapter_title': 'Raport Complet',
+                    'subsections': []
+                }
+            ],
+            'introduction': {
+                'context': 'Raport generat din răspuns text LLM (mod fallback)',
+                'scope': query,
+                'methodology': f'Analiză jurisprudențială pe {len(case_ids)} cazuri relevante'
+            },
+            'chapters': [{
+                'chapter_number': '1',
+                'chapter_title': 'Sinteză Completă',
+                'content': cleaned_content,  # Import full LLM response
+                'subsections': [],
+                'key_cases': sorted(list(case_ids)),
+                'key_points': [f'Acest raport conține analiza completă a {len(case_ids)} spețe']
+            }],
+            'conclusions': {
+                'summary': 'Vezi conținutul complet în Capitolul 1',
+                'findings': [
+                    f'Raportul analizează {len(case_ids)} spețe juridice relevante',
+                    'Conținutul detaliat este disponibil în capitol'
+                ],
+                'implications': 'Vezi analiza detaliată în conținutul principal',
+                'future_research': ''
+            },
+            'bibliography': {
+                'jurisprudence': [
+                    {
+                        'case_id': cid,
+                        'citation': f'Jurisprudența anonimizată (#{cid})',
+                        'relevance': 'Caz analizat în raport'
+                    }
+                    for cid in sorted(list(case_ids))
+                ],
+                'total_cases_cited': len(case_ids),
+                'total_cases_analyzed': len(case_ids)
+            },
+            'metadata': {
+                'word_count_estimate': len(cleaned_content.split()),
+                'generation_timestamp': time.strftime('%Y-%m-%d'),
+                'tasks_synthesized': num_tasks,
+                'academic_level': 'automated',
+                'import_mode': 'raw_text_fallback',
+                'warning': 'Raport generat în mod fallback - LLM a returnat text în loc de JSON'
+            }
+        }
 
 
 

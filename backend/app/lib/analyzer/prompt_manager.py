@@ -125,7 +125,13 @@ Te rog să iei în considerare serios utilizarea strategiei VECTOR SEARCH (Varia
             data_json=data_json
         )
 
-    def build_final_report_synthesis_prompt(self, original_query: str, aggregated_task_results: List[Dict[str, Any]]) -> str:
+    def build_final_report_synthesis_prompt(
+        self,
+        original_query: str,
+        aggregated_task_results: List[Dict[str, Any]],
+        retry_mode: bool = False,
+        previous_error: str = None
+    ) -> str:
         """
         Builds the prompt for final report synthesis (Phase 4).
         Aggregates all task results into a professional legal dissertation.
@@ -133,17 +139,51 @@ Te rog să iei în considerare serios utilizarea strategiei VECTOR SEARCH (Varia
         Args:
             original_query: The original user question
             aggregated_task_results: List of completed task results
+            retry_mode: If True, adds enhanced JSON enforcement warnings
+            previous_error: Error message from previous attempt
 
         Returns:
             Formatted prompt string
         """
+        # Calculate total unique case IDs from all tasks
+        unique_case_ids = set()
+        for task in aggregated_task_results:
+            case_ids = task.get('referenced_case_ids', [])
+            unique_case_ids.update(case_ids)
+
+        total_cases = len(unique_case_ids)
+        min_word_count = max(total_cases * 150, 2000)  # Minimum 150 words per case, at least 2000 words
+
         data_json = json.dumps(aggregated_task_results, indent=2, ensure_ascii=False)
         template = self.prompts.get("final_report_synthesis_prompt", "")
 
         if not template:
             return "EROARE: Prompt final_report_synthesis_prompt lipsă."
 
-        return template.format(
+        # Add retry warning if in retry mode
+        retry_warning = ""
+        if retry_mode and previous_error:
+            retry_warning = f"""
+🚨🚨🚨 RETRY MODE - EROARE CRITICĂ ÎN ÎNCERCAREA ANTERIOARĂ 🚨🚨🚨
+{previous_error}
+
+TREBUIE SĂ GENEREZI JSON PUR. FĂRĂ MARKDOWN. FĂRĂ TEXT NARATIV.
+ÎNCEPE RĂSPUNSUL CU {{ ȘI TERMINĂ CU }}
+NU FOLOSI markdown code fences precum ```json
+==================================================================================
+
+"""
+
+        # Format the prompt with dynamic values
+        formatted_prompt = template.format(
             original_user_query=original_query,
-            aggregated_task_results=data_json
+            aggregated_task_results=data_json,
+            total_cases=total_cases,
+            min_word_count=min_word_count
         )
+
+        # Prepend retry warning if needed
+        if retry_warning:
+            formatted_prompt = retry_warning + formatted_prompt
+
+        return formatted_prompt
