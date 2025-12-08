@@ -54,6 +54,60 @@ class LLMClient:
         return True, poll_content, response_path
 
     @staticmethod
+    async def call_llm_local(prompt: str, timeout: int = 180, label: str = "LLM Call") -> Tuple[bool, str, str]:
+        """
+        Sends prompt to local GPU-accelerated LLM (verdict-ro:latest).
+        Alternative to network file sharing for faster responses.
+
+        Returns: (success, content, empty_path)
+        """
+        import httpx
+
+        logger.info(f"[{label}] Using LOCAL GPU LLM (verdict-ro:latest)")
+
+        try:
+            # Get LLM URL from config
+            llm_url = settings_manager.get_value('setari_llm', 'llm_url', 'http://192.168.1.30:11434/api/generate')
+
+            # Prepare payload with optimized GPU parameters
+            payload = {
+                "model": "verdict-ro:latest",
+                "prompt": prompt,
+               "stream": False,
+                "options": {
+                    "num_ctx": 4096,         # Context window for Qwen
+                    "temperature": 0.1,      # Low temperature for precision
+                    "top_p": 0.9,           # Nucleus sampling
+                    "top_k": 40,            # Top-k sampling
+                    "repeat_penalty": 1.1   # Avoid repetition
+                }
+            }
+
+            logger.info(f"[{label}] Sending request to {llm_url}...")
+
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                response = await client.post(llm_url, json=payload)
+                response.raise_for_status()
+                result = response.json()
+
+                content = result.get("response", "")
+
+                if not content:
+                    logger.error(f"[{label}] Empty response from local LLM")
+                    return False, "Empty response from local LLM", ""
+
+                logger.info(f"[{label}] ✓ Local LLM response received ({len(content)} chars)")
+                return True, content, ""  # No file path for local LLM
+
+        except httpx.HTTPError as e:
+            logger.error(f"[{label}] HTTP error calling local LLM: {e}")
+            return False, f"HTTP error: {str(e)}", ""
+        except Exception as e:
+            logger.error(f"[{label}] Error calling local LLM: {e}", exc_info=True)
+            return False, f"Error: {str(e)}", ""
+
+
+    @staticmethod
     def parse_json_response(content: str) -> Dict[str, Any]:
         """Parses JSON response from LLM, cleaning markdown fences and headers."""
         cleaned = content.strip()

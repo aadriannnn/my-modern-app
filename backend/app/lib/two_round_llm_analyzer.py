@@ -224,7 +224,14 @@ class ThreeStageAnalyzer:
                 plan['user_query'], truncated_data, chunk_index, plan['total_chunks']
             )
 
-            success, content, path = await LLMClient.call_llm(prompt, label=f"Chunk {chunk_index}")
+            # Check LLM mode setting
+            from ...settings_manager import settings_manager
+            llm_mode = settings_manager.get_value('setari_llm', 'advanced_llm_mode', 'network')
+
+            if llm_mode == 'local':
+                success, content, path = await LLMClient.call_llm_local(prompt, label=f"Chunk {chunk_index}")
+            else:
+                success, content, path = await LLMClient.call_llm(prompt, label=f"Chunk {chunk_index}")
             if not success: raise RuntimeError(content)
 
             result = LLMClient.parse_json_response(content)
@@ -251,7 +258,14 @@ class ThreeStageAnalyzer:
             if not aggregated: return {'success': False, 'error': 'No chunk results available.'}
 
             prompt = self.prompt_manager.build_synthesis_prompt(plan['user_query'], aggregated, missing)
-            success, content, path = await LLMClient.call_llm(prompt, label="Synthesis")
+            # Check LLM mode setting
+            from ...settings_manager import settings_manager
+            llm_mode = settings_manager.get_value('setari_llm', 'advanced_llm_mode', 'network')
+
+            if llm_mode == 'local':
+                success, content, path = await LLMClient.call_llm_local(prompt, label="Synthesis")
+            else:
+                success, content, path = await LLMClient.call_llm(prompt, label="Synthesis")
             if not success: raise RuntimeError(content)
 
             result = LLMClient.parse_json_response(content)
@@ -292,7 +306,15 @@ class ThreeStageAnalyzer:
         for attempt in range(1, 4):
             feedback = "" # Could implement feedback loop logic here if needed
             prompt = self.prompt_manager.build_discovery_prompt(user_query, feedback)
-            success, content, path = await LLMClient.call_llm(prompt, label=f"Discovery {attempt}")
+
+            # Check LLM mode setting
+            from ...settings_manager import settings_manager
+            llm_mode = settings_manager.get_value('setari_llm', 'advanced_llm_mode', 'network')
+
+            if llm_mode == 'local':
+                success, content, path = await LLMClient.call_llm_local(prompt, label=f"Discovery {attempt}")
+            else:
+                success, content, path = await LLMClient.call_llm(prompt, label=f"Discovery {attempt}")
 
             if not success: continue # Retry loop handled by return check
 
@@ -518,7 +540,14 @@ class ThreeStageAnalyzer:
             prompt = self.prompt_manager.build_task_breakdown_prompt(user_query)
 
             # 2. Call LLM
-            success, content, path = await LLMClient.call_llm(prompt, timeout=300, label="Task Breakdown")
+            # Check LLM mode setting
+            from ...settings_manager import settings_manager
+            llm_mode = settings_manager.get_value('setari_llm', 'advanced_llm_mode', 'network')
+
+            if llm_mode == 'local':
+                success, content, path = await LLMClient.call_llm_local(prompt, timeout=300, label="Task Breakdown")
+            else:
+                success, content, path = await LLMClient.call_llm(prompt, timeout=300, label="Task Breakdown")
 
             if not success:
                 logger.error(f"[Task Breakdown] LLM call failed: {content}")
@@ -688,11 +717,22 @@ class ThreeStageAnalyzer:
             logger.info("Step 4/6: Calling LLM for final report synthesis...")
             logger.info("⏰ Expected duration: 5-10 minutes")
 
-            success, content, path = await LLMClient.call_llm(
-                prompt,
-                timeout=600,  # 10 minutes
-                label="Final Report Synthesis"
-            )
+            # Check LLM mode setting
+            from ...settings_manager import settings_manager
+            llm_mode = settings_manager.get_value('setari_llm', 'advanced_llm_mode', 'network')
+
+            if llm_mode == 'local':
+                success, content, path = await LLMClient.call_llm_local(
+                    prompt,
+                    timeout=600,  # 10 minutes
+                    label="Final Report Synthesis"
+                )
+            else:
+                success, content, path = await LLMClient.call_llm(
+                    prompt,
+                    timeout=600,  # 10 minutes
+                    label="Final Report Synthesis"
+                )
 
             if not success:
                 logger.error(f"LLM call failed: {content}")

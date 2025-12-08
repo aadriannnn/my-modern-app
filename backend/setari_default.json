@@ -414,6 +414,22 @@
             "min": 1,
             "max": 10,
             "step": 1
+        },
+        "advanced_llm_mode": {
+            "value": "network",
+            "label": "Mod LLM pentru Advanced Analysis",
+            "tooltip": "Selectează tipul de LLM pentru analiză avansată: 'local' (verdict-ro pe GPU - rapid, 3-5s) sau 'network' (LLM extern prin file sharing - calitate superioară, 55s+)",
+            "type": "select",
+            "options": [
+                {
+                    "value": "local",
+                    "label": "Local GPU (verdict-ro:latest) - Rapid"
+                },
+                {
+                    "value": "network",
+                    "label": "Network File Sharing (LLM Extern) - Calitate Superioară"
+                }
+            ]
         }
     },
     "setari_retea": {
