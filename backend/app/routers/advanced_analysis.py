@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional, Dict, Any, List
-from sqlmodel import Session
+from sqlmodel import Session, select
 from ..db import get_session
 from ..lib.two_round_llm_analyzer import ThreeStageAnalyzer
 from ..lib.analyzer.task_queue_manager import TaskQueueManager
@@ -343,16 +343,43 @@ async def export_final_report_docx(report_id: str, session: Session = Depends(ge
     Exports a final report as an academic .docx document.
 
     Returns a downloadable Word document with:
-    - Professional academic formatting (Times New Roman, 1.5 spacing, 2.5cm margins)
-    - Table of Contents with page numbers
+    - Professional academic formatting (Times New Roman, 1.5 spacing, 3.0/2.5cm margins)
+    - Table of Contents
     - Properly numbered chapters and subsections
-    - Bibliography section
+    - Bibliography section with real case titles from database
     - Page numbering
     """
     try:
         # Load report data
         analyzer = ThreeStageAnalyzer(session)
         report = analyzer.plan_manager.load_final_report(report_id)
+
+        # CRITICAL: Enrich bibliography with real case titles from database
+        logger.info(f"Enriching bibliography for report {report_id}...")
+        jurisprudence = report.get('bibliography', {}).get('jurisprudence', [])
+
+        if jurisprudence:
+            # Extract all case IDs
+            case_ids = [item.get('case_id') for item in jurisprudence if item.get('case_id')]
+
+            if case_ids:
+                # Fetch titles from database in batch
+                from ..models import Case
+                cases = session.exec(
+                    select(Case).where(Case.id.in_(case_ids))
+                ).all()
+
+                # Create lookup dictionary
+                case_titles = {case.id: case.title for case in cases}
+                logger.info(f"Fetched {len(case_titles)} case titles from database")
+
+                # Update bibliography with real titles
+                for item in jurisprudence:
+                    case_id = item.get('case_id')
+                    if case_id and case_id in case_titles:
+                        # Replace citation with real title from DB
+                        item['citation'] = case_titles[case_id]
+                        logger.debug(f"  Case #{case_id}: {case_titles[case_id][:50]}...")
 
         # Generate .docx in temporary location
         from ..lib.docx_generator import generate_academic_docx
@@ -364,7 +391,7 @@ async def export_final_report_docx(report_id: str, session: Session = Depends(ge
         with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp_file:
             temp_path = tmp_file.name
 
-        # Generate document
+        # Generate document with enriched data
         generate_academic_docx(report, temp_path)
 
         # Return as file download

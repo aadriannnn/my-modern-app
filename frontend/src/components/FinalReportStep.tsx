@@ -289,17 +289,21 @@ export const FinalReportStep: React.FC<FinalReportStepProps> = ({ reportId, isOp
                                         <p className="text-gray-600 italic">Nu există cazuri citate.</p>
                                     ) : (
                                         <ul className="space-y-3">
-                                            {report.bibliography.jurisprudence.map((item, idx) => (
-                                                <li key={idx} className="border-l-2 border-blue-500 pl-4">
-                                                    <div className="flex items-start gap-2">
-                                                        <span className="text-gray-600 font-mono text-sm">#{item.case_id}</span>
-                                                        <div>
-                                                            <p className="font-medium text-gray-900">{item.citation}</p>
-                                                            <p className="text-sm text-gray-600 mt-1">{item.relevance}</p>
+                                            {report.bibliography.jurisprudence
+                                                .sort((a, b) => (a.citation || '').localeCompare(b.citation || ''))
+                                                .map((item, idx) => (
+                                                    <li key={idx} className="border-l-2 border-blue-500 pl-4">
+                                                        <div className="flex items-start gap-2">
+                                                            <span className="text-gray-600 font-mono text-sm">{idx + 1}.</span>
+                                                            <div>
+                                                                <p className="font-medium text-gray-900">{item.citation}</p>
+                                                                {item.relevance && (
+                                                                    <p className="text-sm text-gray-600 italic mt-1">{item.relevance}</p>
+                                                                )}
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </li>
-                                            ))}
+                                                    </li>
+                                                ))}
                                         </ul>
                                     )}
                                 </div>

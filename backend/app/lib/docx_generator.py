@@ -382,30 +382,32 @@ def _add_bibliography(doc: Document, bibliography: Dict[str, Any]) -> None:
         doc.add_paragraph("Nu există cazuri citate.").italic = True
         return
 
-    # Sort by case_id
-    sorted_cases = sorted(jurisprudence, key=lambda x: x.get('case_id', 0))
+    # Sort by citation (alphabetically by title)
+    sorted_cases = sorted(jurisprudence, key=lambda x: x.get('citation', ''))
 
-    # Add each case
-    for case in sorted_cases:
-        case_id = case.get('case_id', 'N/A')
+    # Add each case - using TITLE (citation) not ID
+    for idx, case in enumerate(sorted_cases, 1):
         citation = case.get('citation', 'N/A')
         relevance = case.get('relevance', '')
 
-        # Case entry
+        # Case entry with hanging indent (academic style)
         bib_para = doc.add_paragraph()
-        bib_para.paragraph_format.left_indent = Inches(0.5)
-        bib_para.paragraph_format.first_line_indent = Inches(-0.5)  # Hanging indent
+        bib_para.paragraph_format.left_indent = Cm(1.27)  # 1.27cm left
+        bib_para.paragraph_format.first_line_indent = Cm(-1.27)  # Hanging indent
         bib_para.paragraph_format.space_after = Pt(6)
+        bib_para.paragraph_format.line_spacing = 1.0  # single spacing in bibliography
 
-        # Case ID (bold)
-        id_run = bib_para.add_run(f"[{case_id}] ")
-        id_run.font.bold = True
-        id_run.font.size = Pt(11)
+        # Number (as superscript for footnote references)
+        num_run = bib_para.add_run(f"{idx}. ")
+        num_run.font.size = Pt(10)
 
-        # Citation
+        # Citation title (bold)
         citation_run = bib_para.add_run(citation)
+        citation_run.font.bold = False  # Not bold per academic standards
         citation_run.font.size = Pt(11)
 
-        # Relevance (if provided)
+        # Relevance or context (italic, smaller)
         if relevance:
-            bib_para.add_run(f" – {relevance}").font.size = Pt(10)
+            rel_run = bib_para.add_run(f". {relevance}")
+            rel_run.font.italic = True
+            rel_run.font.size = Pt(10)
