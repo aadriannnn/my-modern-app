@@ -713,6 +713,11 @@ class ThreeStageAnalyzer:
                 if not success:
                     logger.error(f"LLM call failed on attempt {attempt}")
                     if attempt < max_retries:
+                        # CRITICAL: Wait 2 minutes before retry to allow external LLM to reset
+                        # Without this delay, external LLM returns cached ECHO on retry
+                        import asyncio
+                        logger.warning(f"⏰ Waiting 120 seconds before retry to allow LLM reset...")
+                        await asyncio.sleep(120)
                         continue
                     return {'success': False, 'error': f"LLM failed after {max_retries} attempts", 'recoverable': False}
 
