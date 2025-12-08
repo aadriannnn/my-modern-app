@@ -111,8 +111,16 @@ class LLMClient:
     def parse_json_response(content: str) -> Dict[str, Any]:
         """Parses JSON response from LLM, cleaning markdown fences and headers."""
         cleaned = content.strip()
-        cleaned = re.sub(r'^```(?:json)?\s*', '', cleaned)
-        cleaned = re.sub(r'\s*```\s*$', '', cleaned)
+
+        # Remove markdown code fences - more robust patterns
+        # Handle cases like: ```json\n{...}\n``` or ```\n{...}\n```
+        cleaned = re.sub(r'^```(?:json)?\s*\n?', '', cleaned, flags=re.MULTILINE)
+        cleaned = re.sub(r'\n?```\s*$', '', cleaned, flags=re.MULTILINE)
+
+        # Remove any remaining backticks at start/end
+        cleaned = cleaned.strip('`').strip()
+
+        # Remove separator lines
         cleaned = re.sub(r'^={10,}.*$', '', cleaned, flags=re.MULTILINE)
         cleaned = re.sub(r'^-{10,}.*$', '', cleaned, flags=re.MULTILINE)
         cleaned = re.sub(r'^🔬 PHASE \d+:.*$', '', cleaned, flags=re.MULTILINE)

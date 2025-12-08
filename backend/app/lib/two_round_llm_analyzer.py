@@ -754,11 +754,22 @@ class ThreeStageAnalyzer:
                     'recoverable': True
                 }
 
+            # Check if parsing failed (parser returns dict with parsing_error key)
+            if report.get('parsing_error'):
+                logger.error(f"Parser could not extract valid JSON. Raw content preview: {content[:200]}...")
+                return {
+                    'success': False,
+                    'error': "LLM returned non-JSON response or malformed JSON",
+                    'raw_response': content[:500],
+                    'recoverable': True
+                }
+
             # Validate required fields
             required_fields = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
             missing_fields = [f for f in required_fields if f not in report]
             if missing_fields:
                 logger.error(f"Report missing required fields: {missing_fields}")
+                logger.debug(f"Parsed report keys: {list(report.keys())}")
                 return {
                     'success': False,
                     'error': f"Incomplete report structure. Missing: {', '.join(missing_fields)}"
