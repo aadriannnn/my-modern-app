@@ -336,6 +336,52 @@ async def get_final_report(report_id: str, session: Session = Depends(get_sessio
         logger.error(f"Error retrieving report: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@router.get("/queue/final-report/{report_id}/export")
+async def export_final_report_docx(report_id: str, session: Session = Depends(get_session)):
+    """
+    Exports a final report as an academic .docx document.
+
+    Returns a downloadable Word document with:
+    - Professional academic formatting (Times New Roman, 1.5 spacing, 2.5cm margins)
+    - Table of Contents with page numbers
+    - Properly numbered chapters and subsections
+    - Bibliography section
+    - Page numbering
+    """
+    try:
+        # Load report data
+        analyzer = ThreeStageAnalyzer(session)
+        report = analyzer.plan_manager.load_final_report(report_id)
+
+        # Generate .docx in temporary location
+        from ..lib.docx_generator import generate_academic_docx
+        import tempfile
+        import os
+        from fastapi.responses import FileResponse
+
+        # Create temp file
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp_file:
+            temp_path = tmp_file.name
+
+        # Generate document
+        generate_academic_docx(report, temp_path)
+
+        # Return as file download
+        return FileResponse(
+            temp_path,
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            filename=f"referat_final_{report_id}.docx",
+            background=None  # Don't delete temp file until response is sent
+        )
+
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Report {report_id} not found")
+    except Exception as e:
+        logger.error(f"Error exporting report to .docx: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to generate .docx: {str(e)}")
+
+
 @router.delete("/session/{job_id}")
 async def clear_analysis_session(job_id: str):
     """

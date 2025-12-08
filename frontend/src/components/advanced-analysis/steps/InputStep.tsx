@@ -154,7 +154,7 @@ export const InputStep: React.FC<InputStepProps> = ({
                         title="Descompune automat întrebarea în sarcini multiple pentru cercetare avansată"
                     >
                         <Brain className="w-4 h-4" />
-                        Descompune Automat
+                        Analizează Academică 
                     </button>
                     <button
                         onClick={onCreatePlan}

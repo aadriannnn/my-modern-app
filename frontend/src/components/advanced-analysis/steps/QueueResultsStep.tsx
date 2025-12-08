@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, AlertCircle, Clock, Loader2, FileText } from 'lucide-react';
 import AnalysisResults from '../../AnalysisResults';
 import type { QueueTask } from '../../../types';
-import { generateFinalReport, getAdvancedAnalysisStatus, getFinalReport } from '../../../lib/api';
+import { generateFinalReport, getAdvancedAnalysisStatus } from '../../../lib/api';
 
 interface QueueResultsStepProps {
     queueTasks: QueueTask[];
@@ -63,7 +63,7 @@ export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
                         setIsGeneratingReport(false);
 
                         if (status.result?.success && status.result?.report_id) {
-                            // Show final report
+                            // Show final report in modal
                             onShowFinalReport?.(status.result.report_id);
                         } else {
                             setReportError(status.result?.error || 'Eroare la generarea raportului');
@@ -75,7 +75,7 @@ export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
                         setIsGeneratingReport(false);
 
                         const errorMsg = status.status === 'not_found'
-                            ? 'Job-ul nu a fost găsit. Backend-ul ar putea să nu fi fost restarttat după actualizări.'
+                            ? 'Job-ul nu a fost găsit. Backend-ul ar putea să nu fi fost restartat după actualizări.'
                             : status.error || status.result?.error || 'Eroare la generarea raportului';
 
                         setReportError(errorMsg);
@@ -103,24 +103,6 @@ export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
         }
     };
 
-    // Load final report when finalReportId changes
-    useEffect(() => {
-        if (finalReportId) {
-            const loadReport = async () => {
-                try {
-                    const reportData = await getFinalReport(finalReportId);
-                    console.log('[Frontend] Final report loaded:', reportData);
-                    alert(`Raport final generat cu succes!\n\nTitlu: ${reportData.title}\n\nCheck console for full report data.`);
-                    // TODO: Display report in proper UI
-                } catch (err: any) {
-                    console.error('Failed to load final report:', err);
-                    setReportError(err.message || 'Nu s-a putut încărca raportul final');
-                }
-            };
-            loadReport();
-        }
-    }, [finalReportId]);
-
     return (
         <div className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 flex min-h-0 bg-gray-50/50">
@@ -142,7 +124,7 @@ export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
                                     {task.state === 'failed' ? (
                                         <span className="px-2 py-0.5 bg-red-100 text-red-700 text-[10px] rounded-full uppercase font-bold">Eșuat</span>
                                     ) : (
-                                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] rounded-full uppercase font-bold">Complet</span>
+                                        <span className="px-2 py-0.5 bg-green-100 text-green-700 text-[10px] rounded-full uppercase font-bold">Complet</ span>
                                     )}
                                 </div>
                                 <p className={`text-sm font-medium line-clamp-2 ${selectedTaskId === task.id ? 'text-blue-900' : 'text-gray-700'}`}>
@@ -232,7 +214,7 @@ export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
                         {hasPendingTasks && (
                             <div className="flex items-center gap-2 text-sm text-gray-500">
                                 <Clock className="w-4 h-4" />
-                                <span>Completați toate task-urile pentru a genera raportul final</span>
+                                <span>Completați toate task-urile pentru a genera raportul final</ span>
                             </div>
                         )}
                     </div>
