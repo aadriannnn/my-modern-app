@@ -10,7 +10,6 @@ interface QueueResultsStepProps {
     setSelectedTaskId: (id: string | null) => void;
     onCloseAndClear: () => void;
     onShowFinalReport?: (reportId: string) => void;
-    finalReportId?: string | null;
 }
 
 export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
@@ -18,8 +17,7 @@ export const QueueResultsStep: React.FC<QueueResultsStepProps> = ({
     selectedTaskId,
     setSelectedTaskId,
     onCloseAndClear,
-    onShowFinalReport,
-    finalReportId
+    onShowFinalReport
 }) => {
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const [reportError, setReportError] = useState<string | null>(null);

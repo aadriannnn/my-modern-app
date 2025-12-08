@@ -167,7 +167,6 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                             setSelectedTaskId={setSelectedTaskId}
                             onCloseAndClear={handleClearAndCloseQueue}
                             onShowFinalReport={handleShowFinalReport}
-                            finalReportId={finalReportId}
                         />
                     )}
 
