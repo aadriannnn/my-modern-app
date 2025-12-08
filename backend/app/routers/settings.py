@@ -508,11 +508,14 @@ async def analyze_llm_data(
             }
 
         # Add to queue and get job_id immediately
+        import uuid
+        job_id = str(uuid.uuid4())
+
         payload = {
             'prompt': optimized_prompt,
             'all_candidates': all_candidates  # Include all candidates for response
         }
-        job_id, _ = await queue_manager.add_to_queue(payload, process_llm_analysis)
+        await queue_manager.add_to_queue(job_id, 'llm_analysis', payload, process_llm_analysis)
 
         logger.info(f"LLM analysis queued with job_id: {job_id}")
 
@@ -990,13 +993,16 @@ INCEPE ACUM CU {{ (prima litera din raspuns trebuie sa fie acolada):
             }
 
         # Add to queue and get job_id immediately
+        import uuid
+        job_id = str(uuid.uuid4())
+
         payload = {
             'prompt': prompt_content,
             'retea_folder': retea_folder,
             'retea_host': retea_host,
             'tip_act': request.tip_act
         }
-        job_id, _ = await queue_manager.add_to_queue(payload, process_document_generation)
+        await queue_manager.add_to_queue(job_id, 'document_generation', payload, process_document_generation)
 
         logger.info(f"Document generation queued with job_id: {job_id}")
 
