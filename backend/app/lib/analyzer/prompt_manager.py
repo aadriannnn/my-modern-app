@@ -152,7 +152,20 @@ Te rog să iei în considerare serios utilizarea strategiei VECTOR SEARCH (Varia
             unique_case_ids.update(case_ids)
 
         total_cases = len(unique_case_ids)
-        min_word_count = max(total_cases * 150, 2000)  # Minimum 150 words per case, at least 2000 words
+
+        # CRITICAL: Make requirements realistic based on actual case count
+        # - With 1-2 cases: Allow shorter reports (300-600 words)
+        # - With 3-10 cases: Scale proportionally (450-1500 words)
+        # - With 10+ cases: Enforce full dissertation (2000+ words)
+        if total_cases <= 2:
+            min_word_count = total_cases * 300  # 300 words per case minimum
+            content_ratio = "60% spețe, 40% text"  # More flexible for few cases
+        elif total_cases <= 10:
+            min_word_count = total_cases * 150  # 150 words per case
+            content_ratio = "70% spețe, 30% text"
+        else:
+            min_word_count = max(total_cases * 150, 2000)  # Full dissertation
+            content_ratio = "80% spețe, 20% text"
 
         data_json = json.dumps(aggregated_task_results, indent=2, ensure_ascii=False)
         template = self.prompts.get("final_report_synthesis_prompt", "")
@@ -179,7 +192,8 @@ NU FOLOSI markdown code fences precum ```json
             original_user_query=original_query,
             aggregated_task_results=data_json,
             total_cases=total_cases,
-            min_word_count=min_word_count
+            min_word_count=min_word_count,
+            content_ratio=content_ratio  # Dynamic ratio based on case count
         )
 
         # Prepend retry warning if needed
