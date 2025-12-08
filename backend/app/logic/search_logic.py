@@ -27,7 +27,7 @@ def embed_text(text_to_embed: str) -> List[float]:
         r = requests.post(
             f"{settings.OLLAMA_URL}/api/embed",
             json={"model": settings.MODEL_NAME, "input": text_to_embed},
-            timeout=60  # seconds
+            timeout=30  # Reduced - model is pre-loaded in VRAM
         )
         r.raise_for_status()
 

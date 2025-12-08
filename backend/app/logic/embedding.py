@@ -12,7 +12,7 @@ async def embed_text(text: str) -> list[float]:
         r = await client.post(
             f"{OLLAMA_URL}/api/embed",
             json={"model": MODEL_NAME, "input": text},
-            timeout=60,
+            timeout=30,  # Reduced - model is pre-loaded in VRAM
         )
         r.raise_for_status()
 

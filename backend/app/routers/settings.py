@@ -473,15 +473,20 @@ async def analyze_llm_data(
 
             # --- CONFIGURARE MODEL QWEN ---
             llm_payload = {
-                "model": "verdict-ro",  # Folosim modelul Qwen instalat
+                "model": "verdict-ro:latest",  # Model corect cu tag :latest
                 "prompt": payload['prompt'],
-                "stream": False,                 # False pentru raspuns complet
-                "max_tokens": 2048,              # Limita marita pentru raspunsuri complexe
-                "temperature": 0.1               # Temperatura mica pentru precizie
+                "stream": False,
+                "options": {
+                    "num_ctx": 4096,         # Context window pentru Qwen
+                    "temperature": 0.1,      # Precizie maximă
+                    "top_p": 0.9,           # Nucleus sampling
+                    "top_k": 40,            # Top-k sampling
+                    "repeat_penalty": 1.1   # Evită repetări
+                }
             }
             # ------------------------------
 
-            async with httpx.AsyncClient(timeout=1200.0) as client:
+            async with httpx.AsyncClient(timeout=180.0) as client:  # Reduced from 1200s - model is pre-loaded
                 response = await client.post(llm_url, json=llm_payload)
                 response.raise_for_status()
                 result = response.json()

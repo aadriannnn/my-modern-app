@@ -71,7 +71,7 @@ class Settings(BaseSettings):
 
         return values
 
-    MODEL_NAME: str = "rjmalagon/gte-qwen2-1.5b-instruct-embed-f16"
+    MODEL_NAME: str = "rjmalagon/gte-qwen2-1.5b-instruct-embed-f16:latest"
     VECTOR_DIM: int = 1536
     ALPHA_SCORE: float = 0.8
     TOP_K: int = 100
