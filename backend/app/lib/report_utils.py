@@ -114,7 +114,7 @@ def fetch_case_titles(session: Session, case_ids: Set[int]) -> Dict[int, str]:
     return id_to_title
 
 
-def replace_case_ids_in_text(text: str, id_to_title: Dict[int, str]) -> str:
+def replace_case_ids_in_text(text: str, id_to_title: Dict[int, str], for_docx: bool = False) -> str:
     """
     Aggressively replace case ID references with actual titles.
 
@@ -123,9 +123,19 @@ def replace_case_ids_in_text(text: str, id_to_title: Dict[int, str]) -> str:
     2. Expand lists of IDs `(#1, #2)` -> `(Title 1, Title 2)`.
     3. Handling bracket format `[ID]` -> `Title`.
     4. Replace generic `#ID` -> `Title`.
+
+    Args:
+        for_docx: If True, formats replacement as `[[CITATION:ID:Title]]` for post-processing.
     """
     if not text or not id_to_title:
         return text
+
+    def format_replacement(case_id: int, title: str) -> str:
+        if for_docx:
+            # Return special marker for DOCX generator to turn into footnotes
+            # Only use the title part, keep ID for reference
+            return f"[[CITATION:{case_id}:{title}]]"
+        return title
 
     # --- Step 1: Remove Prefixes ---
     # Removes "Jurisprudența anonimizată", "Decizia", "Cazul", "ID-urile"
@@ -170,7 +180,7 @@ def replace_case_ids_in_text(text: str, id_to_title: Dict[int, str]) -> str:
                 case_id = int(id_match.group(1))
                 title = id_to_title.get(case_id)
                 if title:
-                    new_parts.append(title)
+                    new_parts.append(format_replacement(case_id, title))
                     modified = True
                 else:
                     new_parts.append(part) # Keep original if not found
@@ -179,6 +189,8 @@ def replace_case_ids_in_text(text: str, id_to_title: Dict[int, str]) -> str:
 
         if modified:
             # Reconstruct with commas
+            # For DOCX, we simply list them. The footnote logic will handle them individually if found in text,
+            # but here they are grouped.
             return f"({', '.join(new_parts)})"
         return match.group(0)
 
@@ -191,7 +203,7 @@ def replace_case_ids_in_text(text: str, id_to_title: Dict[int, str]) -> str:
         case_id = int(match.group(1))
         title = id_to_title.get(case_id)
         if title:
-             return title # Remove brackets, just put title
+             return format_replacement(case_id, title) # Remove brackets, just put title/marker
         return match.group(0)
 
     text = re.sub(r'\[#?(\d+)\]', replace_bracket_match, text)
@@ -202,7 +214,7 @@ def replace_case_ids_in_text(text: str, id_to_title: Dict[int, str]) -> str:
         case_id = int(match.group(1))
         title = id_to_title.get(case_id)
         if title:
-            return title
+            return format_replacement(case_id, title)
         return match.group(0)
 
     text = re.sub(r'#(\d+)', replace_standalone, text)
@@ -216,7 +228,7 @@ def replace_case_ids_in_text(text: str, id_to_title: Dict[int, str]) -> str:
     return text.strip()
 
 
-def enrich_report_with_titles(report: Dict[str, Any], session: Session) -> Dict[str, Any]:
+def enrich_report_with_titles(report: Dict[str, Any], session: Session, for_docx: bool = False) -> Dict[str, Any]:
     """
     Replace all case ID references with actual titles throughout the report.
 
@@ -224,6 +236,9 @@ def enrich_report_with_titles(report: Dict[str, Any], session: Session) -> Dict[
     1. Extracting all case IDs from report
     2. Fetching titles from database (preferring 'titlu' over 'denumire')
     3. Replacing IDs with titles in all text fields using aggressive regex strategies
+
+    Args:
+        for_docx: If True, uses a special `[[CITATION:ID:Title]]` format for DOCX processing.
     """
     logger.info("Starting report enrichment with case titles...")
 
@@ -242,13 +257,13 @@ def enrich_report_with_titles(report: Dict[str, Any], session: Session) -> Dict[
         return report
 
     # Step 3: Replace IDs in all text fields
-    _replace_ids_in_dict(report, id_to_title)
+    _replace_ids_in_dict(report, id_to_title, for_docx)
 
     logger.info("Report enrichment completed")
     return report
 
 
-def _replace_ids_in_dict(obj: Any, id_to_title: Dict[int, str]) -> None:
+def _replace_ids_in_dict(obj: Any, id_to_title: Dict[int, str], for_docx: bool = False) -> None:
     """
     Recursively replace case IDs in all string values within a dictionary/list structure.
     Modifies the object in-place.
@@ -256,12 +271,12 @@ def _replace_ids_in_dict(obj: Any, id_to_title: Dict[int, str]) -> None:
     if isinstance(obj, dict):
         for key, value in obj.items():
             if isinstance(value, str):
-                obj[key] = replace_case_ids_in_text(value, id_to_title)
+                obj[key] = replace_case_ids_in_text(value, id_to_title, for_docx)
             else:
-                _replace_ids_in_dict(value, id_to_title)
+                _replace_ids_in_dict(value, id_to_title, for_docx)
     elif isinstance(obj, list):
         for i, item in enumerate(obj):
             if isinstance(item, str):
-                obj[i] = replace_case_ids_in_text(item, id_to_title)
+                obj[i] = replace_case_ids_in_text(item, id_to_title, for_docx)
             else:
-                _replace_ids_in_dict(item, id_to_title)
+                _replace_ids_in_dict(item, id_to_title, for_docx)

@@ -371,7 +371,7 @@ async def export_final_report_docx(report_id: str, session: Session = Depends(ge
         # NEW: Use centralized enrichment function
         # Replaces ALL case ID references with actual titles throughout the report
         logger.info(f"Enriching report {report_id} for .docx export...")
-        report = enrich_report_with_titles(report, session)
+        report = enrich_report_with_titles(report, session, for_docx=True)
 
         # Generate .docx in temporary location
         with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp_file:
