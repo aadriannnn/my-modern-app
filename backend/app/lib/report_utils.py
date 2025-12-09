@@ -75,23 +75,26 @@ def fetch_case_titles(session: Session, case_ids: Set[int]) -> Dict[int, str]:
     """
     Fetch case titles from database for given IDs.
 
-    Args:
-        session: SQLModel database session
-        case_ids: Set of case IDs to fetch
-
-    Returns:
-        Dictionary mapping case_id -> title (denumire)
+    Priority:
+    1. obj->>'titlu' (often contains the full citation)
+    2. obj->>'denumire' (legacy title field)
+    3. Fallback: "Decizia nr. {id}"
     """
     if not case_ids:
         return {}
 
-    from ..models import Blocuri
     from sqlalchemy import text
 
-    # Use raw SQL to extract 'denumire' from JSONB obj field
-    # This handles the Blocuri table structure where data is in obj JSONB column
+    # Use raw SQL to extract 'titlu' then 'denumire' from JSONB obj field
+    # COALESCE returns the first non-null, non-empty value
     query = text("""
-        SELECT id, obj->>'denumire' as title
+        SELECT
+            id,
+            COALESCE(
+                NULLIF(obj->>'titlu', ''),
+                NULLIF(obj->>'denumire', ''),
+                'Decizia nr. ' || id
+            ) as title
         FROM blocuri
         WHERE id = ANY(:ids)
     """)
@@ -103,109 +106,124 @@ def fetch_case_titles(session: Session, case_ids: Set[int]) -> Dict[int, str]:
     for row in rows:
         case_id = row[0]
         title = row[1]
-        if title:  # Only add if title is not null/empty
+        if title:
+            # Clean up title if needed (e.g., remove excess whitespace)
             id_to_title[case_id] = title.strip()
 
     logger.info(f"Fetched {len(id_to_title)} case titles from database")
-
-    # Log missing IDs
-    missing_ids = case_ids - set(id_to_title.keys())
-    if missing_ids:
-        logger.warning(f"Case IDs not found in database or missing denumire: {missing_ids}")
-
     return id_to_title
 
 
 def replace_case_ids_in_text(text: str, id_to_title: Dict[int, str]) -> str:
     """
-    Replace case ID references with actual titles in text.
+    Aggressively replace case ID references with actual titles.
 
-    Replaces patterns like:
-    - "Jurisprudența anonimizată (#72)" -> "Decizia ÎCCJ nr. 1234/2023"
-    - "(#179, #99, #170)" -> "(Decizia ..., Decizia ..., Decizia ...)"
-    - "#294" -> "Decizia ..."
-
-    Args:
-        text: Text containing case ID references
-        id_to_title: Dictionary mapping case_id -> title
-
-    Returns:
-        Text with IDs replaced by titles
+    Strategy:
+    1. Remove prefixes like "Jurisprudența anonimizată" or "Decizia" if followed by an ID.
+    2. Expand lists of IDs `(#1, #2)` -> `(Title 1, Title 2)`.
+    3. Handling bracket format `[ID]` -> `Title`.
+    4. Replace generic `#ID` -> `Title`.
     """
     if not text or not id_to_title:
         return text
 
-    # Pattern: "Jurisprudența anonimizată (#ID)" -> full title
-    def replace_full_pattern(match):
+    # --- Step 1: Remove Prefixes ---
+    # Removes "Jurisprudența anonimizată", "Decizia", "Cazul", "ID-urile"
+    # if they are immediately followed by an ID pattern (with optional parens/brackets).
+    # We replace the prefix with empty string, effectively leaving just the ID part for subsequent steps.
+    # Group 1: The prefix to remove
+    # Handles:
+    # - "Jurisprudența anonimizată" / "Jurisprudenței anonimizate"
+    # - "Decizia" / "Deciziei"
+    # - "Hotărârea" / "Hotărârii"
+    # - "Speța" / "Speței"
+    # - "Cazul" / "Cazului"
+    # - "ID-urile" / "ID-ul"
+
+    prefix_pattern = r'(?:Jurispruden[tț][aăei]{1,2}\s+anonimizat[aăei]{1,2}|Decizi[aie]{1,2}|H[oa]t[aă]r[âa]re[ai]{0,2}|Spe[tț][aăei]{1,2}|Cazul(?:ui)?|ID(?:-ul|-urile)?)(?:\s+cu)?'
+
+    # We replace the prefix with nothing, but we need to be careful not to merge words incorrectly.
+    # actually, if we just remove the prefix, the next steps will find #ID and replace it.
+
+    # This regex looks for Prefix + (OPTIONAL SPACE) + (# or [ or ( )
+    text = re.sub(
+        f'{prefix_pattern}\\s*(?=[#\\[(])',
+        '',
+        text,
+        flags=re.IGNORECASE
+    )
+
+    # --- Step 2: Handle Lists of IDs ---
+    # Matches patterns like `(#123, #456)` or `[#123; #456]`
+    def replace_list_match(match):
+        content = match.group(1) # The content inside parens
+        # Split by comma or semicolon
+        parts = re.split(r'[,;]\s*', content)
+        new_parts = []
+        modified = False
+
+        for part in parts:
+            part = part.strip()
+            # Extract ID from "#123" or "123"
+            id_match = re.search(r'#?(\d+)', part)
+            if id_match:
+                case_id = int(id_match.group(1))
+                title = id_to_title.get(case_id)
+                if title:
+                    new_parts.append(title)
+                    modified = True
+                else:
+                    new_parts.append(part) # Keep original if not found
+            else:
+                new_parts.append(part)
+
+        if modified:
+            # Reconstruct with commas
+            return f"({', '.join(new_parts)})"
+        return match.group(0)
+
+    # Apply to parens (...)
+    text = re.sub(r'\((#\d+(?:,\s*#\d+)*)\)', replace_list_match, text)
+
+    # --- Step 3: Handle Bracket Format [123] or [#123] ---
+    # Common in generic LLM citations
+    def replace_bracket_match(match):
         case_id = int(match.group(1))
         title = id_to_title.get(case_id)
         if title:
-            return title
-        return match.group(0)  # Keep original if no title found
+             return title # Remove brackets, just put title
+        return match.group(0)
 
-    text = re.sub(
-        r'Jurisprudența anonimizată \(#(\d+)\)',
-        replace_full_pattern,
-        text
-    )
+    text = re.sub(r'\[#?(\d+)\]', replace_bracket_match, text)
 
-    # Pattern: "(#ID1, #ID2, #ID3)" -> "(Title1, Title2, Title3)"
-    def replace_list_pattern(match):
-        full_match = match.group(0)
-        id_strs = re.findall(r'\d+', full_match)
-        titles = []
-        for id_str in id_strs:
-            case_id = int(id_str)
-            title = id_to_title.get(case_id)
-            if title:
-                titles.append(title)
-            else:
-                titles.append(f"#{id_str}")  # Keep ID if no title
-
-        if titles:
-            return f"({', '.join(titles)})"
-        return full_match
-
-    text = re.sub(
-        r'\(#\d+(?:,\s*#\d+)*\)',
-        replace_list_pattern,
-        text
-    )
-
-    # Pattern: standalone "#ID" -> title
-    def replace_standalone_id(match):
+    # --- Step 4: Generic Standalone Replacement ---
+    # Matches #123 anywhere else
+    def replace_standalone(match):
         case_id = int(match.group(1))
         title = id_to_title.get(case_id)
         if title:
             return title
         return match.group(0)
 
-    # Only replace if not already replaced (avoid double replacement)
-    # Use negative lookbehind to avoid replacing IDs in URLs or already processed text
-    text = re.sub(
-        r'(?<![a-zA-Z])#(\d+)(?![a-zA-Z0-9])',
-        replace_standalone_id,
-        text
-    )
+    text = re.sub(r'#(\d+)', replace_standalone, text)
 
-    return text
+    # --- Step 5: Final Cleanup ---
+    # Fix double spaces created by prefix removal
+    text = re.sub(r'\s{2,}', ' ', text)
+    # Fix empty parens () if they occur (unlikely but possible)
+    text = text.replace('()', '')
+
+    return text.strip()
 
 
 def enrich_report_with_titles(report: Dict[str, Any], session: Session) -> Dict[str, Any]:
     """
     Replace all case ID references with actual titles throughout the report.
 
-    This is the main function that orchestrates:
+    This function orchestrates:
     1. Extracting all case IDs from report
-    2. Fetching titles from database
-    3. Replacing IDs with titles in all text fields
-
-    Args:
-        report: Final report dictionary
-        session: SQLModel database session
-
-    Returns:
-        Enriched report with titles replacing IDs
+    2. Fetching titles from database (preferring 'titlu' over 'denumire')
+    3. Replacing IDs with titles in all text fields using aggressive regex strategies
     """
     logger.info("Starting report enrichment with case titles...")
 

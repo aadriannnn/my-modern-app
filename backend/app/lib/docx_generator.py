@@ -304,26 +304,12 @@ def _add_chapters(doc: Document, chapters: List[Dict[str, Any]]) -> None:
         doc.add_paragraph()
 
 
+
 def _add_case_footnotes(paragraph, text: str) -> None:
     """
-    Detect case references in text and add footnotes.
-    Looks for patterns like: "Decizia nr. 123/2020" or "sentința 456/2019"
+    Deprecated: Footnote injection is now handled during text enrichment.
     """
-    # Simple regex for common Romanian case patterns
-    # This is a placeholder - actual implementation should be more sophisticated
-    pattern = r'(Decizia|Sentința|Hotărârea)\s+nr\.?\s*(\d+/\d{4})'
-    matches = re.finditer(pattern, text, re.IGNORECASE)
-
-    for match in matches:
-        case_ref = match.group(0)
-        # Add footnote (simplified - real implementation would fetch actual case details)
-        try:
-            # Note: python-docx footnote support requires additional setup
-            # For now, we'll just mark citations in text
-            # Full footnote implementation would require docx.oxml manipulation
-            pass
-        except:
-            pass
+    pass
 
 
 def _add_conclusions(doc: Document, conclusions: Dict[str, Any]) -> None:
