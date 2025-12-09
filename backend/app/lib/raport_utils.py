@@ -5,8 +5,7 @@ Handles case ID to title replacement throughout report content.
 import re
 import logging
 from typing import Dict, Any, Set
-from sqlmodel import Session, select
-from ..models import Case
+from sqlmodel import Session
 
 logger = logging.getLogger(__name__)
 
@@ -81,23 +80,38 @@ def fetch_case_titles(session: Session, case_ids: Set[int]) -> Dict[int, str]:
         case_ids: Set of case IDs to fetch
 
     Returns:
-        Dictionary mapping case_id -> title
+        Dictionary mapping case_id -> title (denumire)
     """
     if not case_ids:
         return {}
 
-    cases = session.exec(
-        select(Case).where(Case.id.in_(case_ids))
-    ).all()
+    from ..models import Blocuri
+    from sqlalchemy import text
 
-    id_to_title = {case.id: case.title for case in cases}
+    # Use raw SQL to extract 'denumire' from JSONB obj field
+    # This handles the Blocuri table structure where data is in obj JSONB column
+    query = text("""
+        SELECT id, obj->>'denumire' as title
+        FROM blocuri
+        WHERE id = ANY(:ids)
+    """)
+
+    result = session.execute(query, {"ids": list(case_ids)})
+    rows = result.fetchall()
+
+    id_to_title = {}
+    for row in rows:
+        case_id = row[0]
+        title = row[1]
+        if title:  # Only add if title is not null/empty
+            id_to_title[case_id] = title.strip()
 
     logger.info(f"Fetched {len(id_to_title)} case titles from database")
 
     # Log missing IDs
     missing_ids = case_ids - set(id_to_title.keys())
     if missing_ids:
-        logger.warning(f"Case IDs not found in database: {missing_ids}")
+        logger.warning(f"Case IDs not found in database or missing denumire: {missing_ids}")
 
     return id_to_title
 
