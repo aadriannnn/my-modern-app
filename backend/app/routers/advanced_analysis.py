@@ -325,86 +325,17 @@ async def generate_final_report(
 
 @router.get("/queue/final-report/{report_id}")
 async def get_final_report(report_id: str, session: Session = Depends(get_session)):
-    """Retrieves a generated final report by ID with enriched bibliography."""
+    """Retrieves a generated final report by ID with enriched case titles throughout."""
     try:
+        from ..lib.report_utils import enrich_report_with_titles
+
         analyzer = ThreeStageAnalyzer(session)
         report = analyzer.plan_manager.load_final_report(report_id)
 
-        # CRITICAL: Enrich bibliography with real case titles from database
-        # This ensures UI displays actual case titles, not placeholder IDs
-        logger.info(f"Enriching bibliography for report {report_id} (UI display)...")
-        jurisprudence = report.get('bibliography', {}).get('jurisprudence', [])
-
-        logger.info(f"Bibliography has {len(jurisprudence)} entries")
-
-        if jurisprudence:
-            import re
-
-            # Debug: Log first entry to see structure
-            if len(jurisprudence) > 0:
-                logger.info(f"Sample bibliography entry: {jurisprudence[0]}")
-
-            # Extract case IDs - look for both 'case_id' field and pattern (#ID) in citation
-            case_ids = []
-            id_mapping = {}  # Maps extracted ID to original item index
-
-            for idx, item in enumerate(jurisprudence):
-                case_id = item.get('case_id')
-
-                # If no case_id field, try to extract from citation pattern (#294)
-                if not case_id and item.get('citation'):
-                    citation = item.get('citation', '')
-                    match = re.search(r'\(#(\d+)\)', citation)
-                    if match:
-                        case_id = int(match.group(1))
-                        logger.debug(f"Extracted ID {case_id} from citation: {citation[:50]}...")
-
-                if case_id:
-                    # Convert to int if string
-                    if isinstance(case_id, str):
-                        try:
-                            case_id = int(case_id)
-                        except ValueError:
-                            logger.warning(f"Could not convert case_id '{case_id}' to int")
-                            continue
-
-                    case_ids.append(case_id)
-                    id_mapping[case_id] = idx
-
-            logger.info(f"Extracted {len(case_ids)} case IDs: {case_ids}")
-
-            if case_ids:
-                from ..models import Case
-
-                logger.info(f"Querying database for {len(case_ids)} case IDs...")
-
-                cases = session.exec(
-                    select(Case).where(Case.id.in_(case_ids))
-                ).all()
-
-                logger.info(f"Database returned {len(cases)} cases")
-
-                if len(cases) == 0 and len(case_ids) > 0:
-                    logger.warning("No cases found! Checking database...")
-                    sample_cases = session.exec(select(Case).limit(5)).all()
-                    if sample_cases:
-                        sample_ids = [c.id for c in sample_cases]
-                        logger.info(f"Sample case IDs from database: {sample_ids}")
-                    else:
-                        logger.error("Database appears to be empty!")
-
-                # Update citations with real titles
-                for case in cases:
-                    idx = id_mapping.get(case.id)
-                    if idx is not None:
-                        jurisprudence[idx]['citation'] = case.title
-                        logger.info(f"  Case #{case.id}: {case.title[:60]}...")
-
-                # Log any IDs that weren't found
-                found_ids = {case.id for case in cases}
-                missing_ids = set(case_ids) - found_ids
-                if missing_ids:
-                    logger.warning(f"  Missing case IDs (not in database): {missing_ids}")
+        # NEW: Use centralized enrichment function
+        # Replaces ALL case ID references with actual titles from database
+        logger.info(f"Enriching report {report_id} with case titles...")
+        report = enrich_report_with_titles(report, session)
 
         return report
     except FileNotFoundError:
@@ -424,67 +355,25 @@ async def export_final_report_docx(report_id: str, session: Session = Depends(ge
     - Table of Contents
     - Properly numbered chapters and subsections
     - Bibliography section with real case titles from database
+    - All case ID references replaced with actual titles
     - Page numbering
     """
     try:
+        from ..lib.report_utils import enrich_report_with_titles
+        from ..lib.docx_generator import generate_academic_docx
+        import tempfile
+        from fastapi.responses import FileResponse
+
         # Load report data
         analyzer = ThreeStageAnalyzer(session)
         report = analyzer.plan_manager.load_final_report(report_id)
 
-        # CRITICAL: Enrich bibliography with real case titles from database
-        logger.info(f"Enriching bibliography for report {report_id}...")
-        jurisprudence = report.get('bibliography', {}).get('jurisprudence', [])
-
-        if jurisprudence:
-            import re
-
-            # Extract case IDs from both 'case_id' field and pattern (#ID) in citation
-            case_ids = []
-            id_mapping = {}
-
-            for idx, item in enumerate(jurisprudence):
-                case_id = item.get('case_id')
-
-                # If no case_id field, extract from citation pattern (#294)
-                if not case_id and item.get('citation'):
-                    citation = item.get('citation', '')
-                    match = re.search(r'\(#(\d+)\)', citation)
-                    if match:
-                        case_id = int(match.group(1))
-
-                if case_id:
-                    if isinstance(case_id, str):
-                        try:
-                            case_id = int(case_id)
-                        except ValueError:
-                            continue
-
-                    case_ids.append(case_id)
-                    id_mapping[case_id] = idx
-
-            if case_ids:
-                # Fetch titles from database in batch
-                from ..models import Case
-                cases = session.exec(
-                    select(Case).where(Case.id.in_(case_ids))
-                ).all()
-
-                logger.info(f"Fetched {len(cases)} case titles from database")
-
-                # Update citations with real titles
-                for case in cases:
-                    idx = id_mapping.get(case.id)
-                    if idx is not None:
-                        jurisprudence[idx]['citation'] = case.title
-                        logger.debug(f"  Case #{case.id}: {case.title[:50]}...")
+        # NEW: Use centralized enrichment function
+        # Replaces ALL case ID references with actual titles throughout the report
+        logger.info(f"Enriching report {report_id} for .docx export...")
+        report = enrich_report_with_titles(report, session)
 
         # Generate .docx in temporary location
-        from ..lib.docx_generator import generate_academic_docx
-        import tempfile
-        import os
-        from fastapi.responses import FileResponse
-
-        # Create temp file
         with tempfile.NamedTemporaryFile(delete=False, suffix='.docx') as tmp_file:
             temp_path = tmp_file.name
 
