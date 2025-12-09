@@ -26,6 +26,8 @@ interface FinalReport {
         context: string;
         scope: string;
         methodology: string;
+        motivation?: string;
+        summary?: string;
     };
     chapters: Chapter[];
     conclusions: {
@@ -33,6 +35,8 @@ interface FinalReport {
         findings: string[];
         implications: string;
         future_research?: string;
+        summary_findings?: string;
+        final_perspective?: string;
     };
     bibliography: {
         jurisprudence: Array<{
