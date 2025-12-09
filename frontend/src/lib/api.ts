@@ -11,9 +11,45 @@ interface SearchParams {
 
 const API_URL = '/api';
 
+// Timeout configuration: 3 minutes (180 seconds) for slow LLM responses
+const API_TIMEOUT_MS = 180000; // 3 minutes
+
+/**
+ * Fetch with timeout support.
+ * Wraps the standard fetch API with an AbortController to enforce a timeout.
+ *
+ * @param url - The URL to fetch
+ * @param options - Fetch options (headers, method, body, etc.)
+ * @param timeout - Timeout in milliseconds (default: 3 minutes)
+ * @returns Promise that resolves to the Response
+ */
+const fetchWithTimeout = async (
+  url: string,
+  options: RequestInit = {},
+  timeout: number = API_TIMEOUT_MS
+): Promise<Response> => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error: any) {
+    clearTimeout(id);
+    if (error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeout / 1000} seconds`);
+    }
+    throw error;
+  }
+};
+
 export const getFilters = async (): Promise<Filters> => {
   try {
-    const response = await fetch(`${API_URL}/filters/menu`, {
+    const response = await fetchWithTimeout(`${API_URL}/filters/menu`, {
       credentials: 'include'
     });
     if (!response.ok) {
@@ -54,7 +90,7 @@ export class ApiError extends Error {
 }
 
 export const search = async (payload: SearchParams) => {
-  const response = await fetch(`${API_URL}/search/`, {
+  const response = await fetchWithTimeout(`${API_URL}/search/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -83,7 +119,7 @@ export const searchByIdsPaginated = async (
   if (!ids || ids.length === 0) return [];
 
   const idString = ids.join(',');
-  const response = await fetch(
+  const response = await fetchWithTimeout(
     `${API_URL}/search/by-ids?ids=${encodeURIComponent(idString)}&page=${page}&page_size=${pageSize}`,
     {
       method: 'GET',
@@ -106,7 +142,7 @@ export const searchByIdsPaginated = async (
 };
 
 export const searchByIds = async (ids: string) => {
-  const response = await fetch(`${API_URL}/search/by-ids?ids=${encodeURIComponent(ids)}`, {
+  const response = await fetchWithTimeout(`${API_URL}/search/by-ids?ids=${encodeURIComponent(ids)}`, {
     method: 'GET',
     credentials: 'include'
   });
@@ -126,7 +162,7 @@ export const searchByIds = async (ids: string) => {
 };
 
 export const refreshFilters = async () => {
-  const response = await fetch(`${API_URL}/filters/refresh`, {
+  const response = await fetchWithTimeout(`${API_URL}/filters/refresh`, {
     method: 'POST',
     credentials: 'include'
   });
@@ -137,7 +173,7 @@ export const refreshFilters = async () => {
 };
 
 export const contribute = async (data: { denumire: string; sursa: string }) => {
-  const response = await fetch(`${API_URL}/contribuie/`, {
+  const response = await fetchWithTimeout(`${API_URL}/contribuie/`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
@@ -153,7 +189,7 @@ export const contribute = async (data: { denumire: string; sursa: string }) => {
 
 
 export const getSettings = async () => {
-  const response = await fetch(`${API_URL}/settings/`, {
+  const response = await fetchWithTimeout(`${API_URL}/settings/`, {
     credentials: 'include'
   });
 
@@ -164,7 +200,7 @@ export const getSettings = async () => {
 };
 
 export const updateSettings = async (settings: any) => {
-  const response = await fetch(`${API_URL}/settings/`, {
+  const response = await fetchWithTimeout(`${API_URL}/settings/`, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json'
@@ -179,7 +215,7 @@ export const updateSettings = async (settings: any) => {
 };
 
 export const resetSettings = async () => {
-  const response = await fetch(`${API_URL}/settings/reset`, {
+  const response = await fetchWithTimeout(`${API_URL}/settings/reset`, {
     method: 'POST',
     credentials: 'include'
   });
@@ -190,7 +226,7 @@ export const resetSettings = async () => {
 };
 
 export const loginSettings = async (username: string, pass: string) => {
-  const response = await fetch(`${API_URL}/settings/login`, {
+  const response = await fetchWithTimeout(`${API_URL}/settings/login`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -206,7 +242,7 @@ export const loginSettings = async (username: string, pass: string) => {
 };
 
 export const precalculateModelsCodes = async (restart: boolean = false) => {
-  const response = await fetch(`${API_URL}/settings/precalculate-models-codes?restart=${restart}`, {
+  const response = await fetchWithTimeout(`${API_URL}/settings/precalculate-models-codes?restart=${restart}`, {
     method: 'POST',
     credentials: 'include'
   });
@@ -218,7 +254,7 @@ export const precalculateModelsCodes = async (restart: boolean = false) => {
 };
 
 export const getPrecalculateStatus = async () => {
-  const response = await fetch(`${API_URL}/settings/precalculate-status`, {
+  const response = await fetchWithTimeout(`${API_URL}/settings/precalculate-status`, {
     credentials: 'include'
   });
   if (!response.ok) {
@@ -229,7 +265,7 @@ export const getPrecalculateStatus = async () => {
 };
 
 export const stopPrecalculate = async () => {
-  const response = await fetch(`${API_URL}/settings/precalculate-stop`, {
+  const response = await fetchWithTimeout(`${API_URL}/settings/precalculate-stop`, {
     method: 'POST',
     credentials: 'include'
   });
@@ -297,7 +333,7 @@ export const submitFeedback = async (
   feedbackType: 'good' | 'bad',
   spetaId?: number
 ): Promise<{ success: boolean; message: string }> => {
-  const response = await fetch(`${API_URL}/feedback`, {
+  const response = await fetchWithTimeout(`${API_URL}/feedback`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -321,7 +357,7 @@ export const submitFeedback = async (
  * Get feedback statistics
  */
 export const getFeedbackStats = async (): Promise<FeedbackStats> => {
-  const response = await fetch(`${API_URL}/feedback/stats`, {
+  const response = await fetchWithTimeout(`${API_URL}/feedback/stats`, {
     credentials: 'include'
   });
 
@@ -334,7 +370,7 @@ export const getFeedbackStats = async (): Promise<FeedbackStats> => {
 
 // Human-in-the-Loop: Create analysis plan (Phase 1)
 export const createAnalysisPlan = async (query: string) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/create-plan`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/create-plan`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -352,7 +388,7 @@ export const createAnalysisPlan = async (query: string) => {
 
 // Task Breakdown: Decompose a complex query into multiple sub-tasks (Phase 0)
 export const decomposeTask = async (query: string) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/decompose-task`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/decompose-task`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -373,7 +409,7 @@ export const executeAnalysisPlan = async (
   planId: string,
   notificationPreferences?: { email: string; terms_accepted: boolean }
 ) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/execute-plan`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/execute-plan`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -395,7 +431,7 @@ export const executeAnalysisPlan = async (
 
 // Human-in-the-Loop: Update plan case limit
 export const updateAnalysisPlan = async (planId: string, maxCases: number) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/update-plan-limit/${planId}`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/update-plan-limit/${planId}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
@@ -413,7 +449,7 @@ export const updateAnalysisPlan = async (planId: string, maxCases: number) => {
 
 
 export const getAdvancedAnalysisStatus = async (jobId: string) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/status/${jobId}`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/status/${jobId}`, {
     credentials: 'include'
   });
 
@@ -428,7 +464,7 @@ export const getAdvancedAnalysisStatus = async (jobId: string) => {
 // --- Queue Management API ---
 
 export const addQueueTask = async (query: string, userMetadata?: any) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/queue/add`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/queue/add`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ query, user_metadata: userMetadata }),
@@ -439,7 +475,7 @@ export const addQueueTask = async (query: string, userMetadata?: any) => {
 };
 
 export const getQueue = async (): Promise<QueueState> => {
-  const response = await fetch(`${API_URL}/advanced-analysis/queue`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/queue`, {
     credentials: 'include'
   });
   if (!response.ok) throw new Error('Failed to fetch queue');
@@ -447,7 +483,7 @@ export const getQueue = async (): Promise<QueueState> => {
 };
 
 export const removeQueueTask = async (taskId: string) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/queue/${taskId}`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/queue/${taskId}`, {
     method: 'DELETE',
     credentials: 'include'
   });
@@ -456,7 +492,7 @@ export const removeQueueTask = async (taskId: string) => {
 };
 
 export const generatePlansBatch = async () => {
-  const response = await fetch(`${API_URL}/advanced-analysis/queue/generate-plans`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/queue/generate-plans`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({}),
@@ -467,7 +503,7 @@ export const generatePlansBatch = async () => {
 };
 
 export const executeQueue = async (notificationEmail?: string, termsAccepted?: boolean) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/queue/execute-all`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/queue/execute-all`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ notification_email: notificationEmail, terms_accepted: termsAccepted }),
@@ -478,7 +514,7 @@ export const executeQueue = async (notificationEmail?: string, termsAccepted?: b
 };
 
 export const clearCompletedQueue = async () => {
-  const response = await fetch(`${API_URL}/advanced-analysis/queue/completed`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/queue/completed`, {
     method: 'DELETE',
   });
   if (!response.ok) throw new Error('Failed to clear completed tasks');
@@ -486,7 +522,7 @@ export const clearCompletedQueue = async () => {
 };
 
 export const clearAnalysisSession = async (jobId: string) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/session/${jobId}`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/session/${jobId}`, {
     method: 'DELETE',
   });
   // Don't throw if 404, just ignore
@@ -494,7 +530,7 @@ export const clearAnalysisSession = async (jobId: string) => {
 };
 
 export const getQueueResults = async () => {
-  const response = await fetch(`${API_URL}/advanced-analysis/queue/results`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/queue/results`, {
     credentials: 'include'
   });
   if (!response.ok) throw new Error('Failed to fetch results');
@@ -504,7 +540,7 @@ export const getQueueResults = async () => {
 // --- Final Report API (Phase 4) ---
 
 export const generateFinalReport = async () => {
-  const response = await fetch(`${API_URL}/advanced-analysis/queue/generate-final-report`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/queue/generate-final-report`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include'
@@ -519,7 +555,7 @@ export const generateFinalReport = async () => {
 };
 
 export const getFinalReport = async (reportId: string) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/queue/final-report/${reportId}`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/queue/final-report/${reportId}`, {
     credentials: 'include'
   });
 
@@ -532,7 +568,7 @@ export const getFinalReport = async (reportId: string) => {
 };
 
 export const downloadFinalReportDocx = async (reportId: string) => {
-  const response = await fetch(`${API_URL}/advanced-analysis/queue/final-report/${reportId}/export`, {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/queue/final-report/${reportId}/export`, {
     credentials: 'include'
   });
 
