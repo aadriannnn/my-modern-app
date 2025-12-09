@@ -173,7 +173,7 @@ export const FinalReportStep: React.FC<FinalReportStepProps> = ({ reportId, isOp
                                     Cuprins
                                 </h2>
                                 <ul className="space-y-2">
-                                    {report.table_of_contents.map((item, idx) => (
+                                    {(report.table_of_contents || []).map((item, idx) => (
                                         <li key={idx}>
                                             <div className="flex gap-2">
                                                 <span className="font-medium text-gray-700">{item.chapter_number}.</span>
@@ -181,7 +181,7 @@ export const FinalReportStep: React.FC<FinalReportStepProps> = ({ reportId, isOp
                                             </div>
                                             {item.subsections && item.subsections.length > 0 && (
                                                 <ul className="ml-6 mt-1 space-y-1">
-                                                    {item.subsections.map((sub, subIdx) => (
+                                                    {(item.subsections || []).map((sub, subIdx) => (
                                                         <li key={subIdx} className="flex gap-2 text-sm">
                                                             <span className="text-gray-600">{sub.number}</span>
                                                             <span className="text-gray-700">{sub.title}</span>
@@ -195,17 +195,20 @@ export const FinalReportStep: React.FC<FinalReportStepProps> = ({ reportId, isOp
                             </div>
 
                             {/* Introduction */}
-                            <section className="mb-12">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-4">Introducere</h2>
-                                <div className="space-y-4 text-gray-700 leading-relaxed">
-                                    <p>{report.introduction.context}</p>
-                                    <p>{report.introduction.scope}</p>
-                                    <p>{report.introduction.methodology}</p>
-                                </div>
-                            </section>
+                            {report.introduction && (
+                                <section className="mb-12">
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Introducere</h2>
+                                    <div className="space-y-4 text-gray-700 leading-relaxed">
+                                        <p>{report.introduction.context || report.introduction.motivation || ""}</p>
+                                        <p>{report.introduction.scope || ""}</p>
+                                        <p>{report.introduction.methodology || ""}</p>
+                                        <p>{report.introduction.summary || ""}</p>
+                                    </div>
+                                </section>
+                            )}
 
                             {/* Chapters */}
-                            {report.chapters.map((chapter, idx) => (
+                            {(report.chapters || []).map((chapter, idx) => (
                                 <section key={idx} className="mb-12">
                                     <h2 className="text-2xl font-bold text-gray-900 mb-4">
                                         {chapter.chapter_number}. {chapter.chapter_title}
@@ -216,7 +219,7 @@ export const FinalReportStep: React.FC<FinalReportStepProps> = ({ reportId, isOp
                                             {chapter.content}
                                         </div>
 
-                                        {chapter.subsections && chapter.subsections.map((subsection, subIdx) => (
+                                        {(chapter.subsections || []).map((subsection, subIdx) => (
                                             <div key={subIdx} className="mt-6">
                                                 <h3 className="text-xl font-semibold text-gray-900 mb-3">
                                                     {subsection.number} {subsection.title}
@@ -231,7 +234,7 @@ export const FinalReportStep: React.FC<FinalReportStepProps> = ({ reportId, isOp
                                             <div className="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4">
                                                 <h4 className="font-semibold text-gray-900 mb-2">Puncte cheie:</h4>
                                                 <ul className="list-disc list-inside space-y-1">
-                                                    {chapter.key_points.map((point, pointIdx) => (
+                                                    {(chapter.key_points || []).map((point, pointIdx) => (
                                                         <li key={pointIdx} className="text-gray-700">{point}</li>
                                                     ))}
                                                 </ul>
@@ -242,73 +245,97 @@ export const FinalReportStep: React.FC<FinalReportStepProps> = ({ reportId, isOp
                             ))}
 
                             {/* Conclusions */}
-                            <section className="mb-12">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-4">Concluzii</h2>
+                            {report.conclusions && (
+                                <section className="mb-12">
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Concluzii</h2>
 
-                                <div className="space-y-6">
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Rezumat</h3>
-                                        <p className="text-gray-700 leading-relaxed">{report.conclusions.summary}</p>
+                                    <div className="space-y-6">
+                                        {report.conclusions.summary && (
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Rezumat</h3>
+                                                <p className="text-gray-700 leading-relaxed">{report.conclusions.summary}</p>
+                                            </div>
+                                        )}
+                                        {report.conclusions.summary_findings && (
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Rezumat Constatări</h3>
+                                                <p className="text-gray-700 leading-relaxed">{report.conclusions.summary_findings}</p>
+                                            </div>
+                                        )}
+
+                                        {report.conclusions.findings && (
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Constatări</h3>
+                                                <ul className="space-y-2">
+                                                    {(report.conclusions.findings || []).map((finding, idx) => (
+                                                        <li key={idx} className="flex gap-2">
+                                                            <span className="text-blue-600 font-bold">{idx + 1}.</span>
+                                                            <span className="text-gray-700">{finding}</span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                        {report.conclusions.implications && (
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Implicații Practice</h3>
+                                                <p className="text-gray-700 leading-relaxed">{report.conclusions.implications}</p>
+                                            </div>
+                                        )}
+
+                                        {report.conclusions.final_perspective && (
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Perspectivă Finală</h3>
+                                                <p className="text-gray-700 leading-relaxed">{report.conclusions.final_perspective}</p>
+                                            </div>
+                                        )}
+
+                                        {report.conclusions.future_research && (
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-gray-900 mb-2">Cercetare Viitoare</h3>
+                                                <p className="text-gray-700 leading-relaxed">{report.conclusions.future_research}</p>
+                                            </div>
+                                        )}
                                     </div>
-
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Constatări</h3>
-                                        <ul className="space-y-2">
-                                            {report.conclusions.findings.map((finding, idx) => (
-                                                <li key={idx} className="flex gap-2">
-                                                    <span className="text-blue-600 font-bold">{idx + 1}.</span>
-                                                    <span className="text-gray-700">{finding}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    </div>
-
-                                    <div>
-                                        <h3 className="text-lg font-semibold text-gray-900 mb-2">Implicații Practice</h3>
-                                        <p className="text-gray-700 leading-relaxed">{report.conclusions.implications}</p>
-                                    </div>
-
-                                    {report.conclusions.future_research && (
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Cercetare Viitoare</h3>
-                                            <p className="text-gray-700 leading-relaxed">{report.conclusions.future_research}</p>
-                                        </div>
-                                    )}
-                                </div>
-                            </section>
+                                </section>
+                            )}
 
                             {/* Bibliography */}
-                            <section className="mb-8">
-                                <h2 className="text-2xl font-bold text-gray-900 mb-4">Bibliografie</h2>
+                            {report.bibliography && (
+                                <section className="mb-8">
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-4">Bibliografie</h2>
 
-                                <div className="bg-gray-50 rounded-lg p-6">
-                                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                                        Jurisprudență ({report.bibliography.total_cases_cited} cazuri)
-                                    </h3>
+                                    <div className="bg-gray-50 rounded-lg p-6">
+                                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                            Jurisprudență ({report.bibliography.total_cases_cited || (report.bibliography.jurisprudence?.length) || 0} cazuri)
+                                        </h3>
 
-                                    {report.bibliography.jurisprudence.length === 0 ? (
-                                        <p className="text-gray-600 italic">Nu există cazuri citate.</p>
-                                    ) : (
-                                        <ul className="space-y-3">
-                                            {report.bibliography.jurisprudence
-                                                .sort((a, b) => (a.citation || '').localeCompare(b.citation || ''))
-                                                .map((item, idx) => (
-                                                    <li key={idx} className="border-l-2 border-blue-500 pl-4">
-                                                        <div className="flex items-start gap-2">
-                                                            <span className="text-gray-600 font-mono text-sm">{idx + 1}.</span>
-                                                            <div>
-                                                                <p className="font-medium text-gray-900">{item.citation}</p>
-                                                                {item.relevance && (
-                                                                    <p className="text-sm text-gray-600 italic mt-1">{item.relevance}</p>
-                                                                )}
+                                        {(!report.bibliography.jurisprudence || report.bibliography.jurisprudence.length === 0) ? (
+                                            <p className="text-gray-600 italic">Nu există cazuri citate.</p>
+                                        ) : (
+                                            <ul className="space-y-3">
+                                                {(report.bibliography.jurisprudence || [])
+                                                    .sort((a, b) => (a.citation || '').localeCompare(b.citation || ''))
+                                                    .map((item, idx) => (
+                                                        <li key={idx} className="border-l-2 border-blue-500 pl-4">
+                                                            <div className="flex items-start gap-2">
+                                                                <span className="text-gray-600 font-mono text-sm">{idx + 1}.</span>
+                                                                <div>
+                                                                    <p className="font-medium text-gray-900">{item.citation}</p>
+                                                                    {item.relevance && (
+                                                                        <p className="text-sm text-gray-600 italic mt-1">{item.relevance}</p>
+                                                                    )}
+                                                                </div>
                                                             </div>
-                                                        </div>
-                                                    </li>
-                                                ))}
-                                        </ul>
-                                    )}
-                                </div>
-                            </section>
+                                                        </li>
+                                                    ))}
+
+                                            </ul>
+                                        )}
+                                    </div>
+                                </section>
+                            )}
                         </div>
 
                         {/* Footer Actions */}
