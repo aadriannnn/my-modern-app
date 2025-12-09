@@ -43,9 +43,10 @@ interface FinalReport {
         total_cases_cited: number;
     };
     metadata: {
-        word_count_estimate: number;
-        generation_timestamp: string;
-        tasks_synthesized: number;
+        word_count_estimate?: number;
+        generation_timestamp?: string;
+        generation_date?: string;
+        tasks_synthesized?: number;
     };
 }
 
@@ -140,11 +141,11 @@ export const FinalReportStep: React.FC<FinalReportStepProps> = ({ reportId, isOp
                             <div className="flex items-center justify-between mb-4">
                                 <div className="flex items-center gap-3">
                                     <span className="text-sm text-gray-500">
-                                        {report.metadata.word_count_estimate.toLocaleString()} cuvinte
+                                        {(report.metadata?.word_count_estimate || 0).toLocaleString()} cuvinte
                                     </span>
                                     <span className="text-sm text-gray-500">•</span>
                                     <span className="text-sm text-gray-500">
-                                        {report.bibliography.total_cases_cited} cazuri citate
+                                        {report.bibliography?.total_cases_cited || 0} cazuri citate
                                     </span>
                                 </div>
                             </div>
@@ -154,11 +155,11 @@ export const FinalReportStep: React.FC<FinalReportStepProps> = ({ reportId, isOp
                             <div className="flex items-center gap-4 text-sm text-gray-600">
                                 <div className="flex items-center gap-2">
                                     <FileText className="w-4 h-4" />
-                                    <span>{report.metadata.tasks_synthesized} task-uri sintetizate</span>
+                                    <span>{report.metadata?.tasks_synthesized || 0} task-uri sintetizate</span>
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <CheckCircle2 className="w-4 h-4 text-green-600" />
-                                    <span>Generat {new Date(report.metadata.generation_timestamp).toLocaleDateString('ro-RO')}</span>
+                                    <span>Generat {new Date(report.metadata?.generation_timestamp || report.metadata?.generation_date || new Date().toISOString()).toLocaleDateString('ro-RO')}</span>
                                 </div>
                             </div>
                         </div>

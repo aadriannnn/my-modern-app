@@ -774,6 +774,41 @@ class ThreeStageAnalyzer:
 
             # END RETRY LOOP
 
+            # 5a. Metadata Injection (Robustness Fix)
+            # Calculate word count programmatically
+            word_count = 0
+            try:
+                # Count introduction
+                if 'introduction' in report:
+                    for key in ['context', 'scope', 'methodology']:
+                        word_count += len(str(report['introduction'].get(key, '')).split())
+
+                # Count chapters
+                if 'chapters' in report:
+                    for chap in report['chapters']:
+                         word_count += len(str(chap.get('content', '')).split())
+                         for sub in chap.get('subsections', []):
+                             word_count += len(str(sub.get('content', '')).split())
+
+                # Count conclusions
+                if 'conclusions' in report:
+                     word_count += len(str(report['conclusions'].get('summary', '')).split())
+                     word_count += len(str(report['conclusions'].get('implications', '')).split())
+
+            except Exception as wc_err:
+                logger.warning(f"Error calculating word count: {wc_err}")
+
+            # Ensure metadata exists and is populated
+            if 'metadata' not in report:
+                report['metadata'] = {}
+
+            import datetime
+            report['metadata']['word_count_estimate'] = word_count
+            report['metadata']['tasks_synthesized'] = len(task_results)
+            report['metadata']['generation_timestamp'] = datetime.datetime.now().isoformat()
+            # Also keep 'generation_date' for backwards compatibility if needed
+            report['metadata']['generation_date'] = datetime.datetime.now().strftime('%Y-%m-%d')
+
             # 6. Save report
             logger.info("Step 6/6: Saving report...")
             report_id = f"report_{uuid.uuid4().hex[:8]}"
