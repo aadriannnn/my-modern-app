@@ -235,10 +235,11 @@ def enrich_report_with_titles(report: Dict[str, Any], session: Session, for_docx
     This function orchestrates:
     1. Extracting all case IDs from report
     2. Fetching titles from database (preferring 'titlu' over 'denumire')
-    3. Replacing IDs with titles in all text fields using aggressive regex strategies
+    3. Replacing IDs with titles in text fields.
 
     Args:
-        for_docx: If True, uses a special `[[CITATION:ID:Title]]` format for DOCX processing.
+        for_docx: If True, uses a special `[[CITATION:ID:Title]]` format for DOCX processing (footnotes).
+                  EXCEPTION: Bibliography section always gets plain text replacement.
     """
     logger.info("Starting report enrichment with case titles...")
 
@@ -256,8 +257,19 @@ def enrich_report_with_titles(report: Dict[str, Any], session: Session, for_docx
         logger.warning("No titles fetched from database")
         return report
 
-    # Step 3: Replace IDs in all text fields
+    # Step 3: Replace IDs in report (excluding bibliography first to avoid recursion mixup if we modify in place)
+    # Actually, easier to let recursive replace happen, but we want different behavior for bibliography.
+    # So we separate them.
+
+    biblio = report.pop('bibliography', None)
+
+    # Replace in main body (chapters, intro, etc) with requested format (e.g. footnotes for DOCX)
     _replace_ids_in_dict(report, id_to_title, for_docx)
+
+    # Replace in bibliography with PLAIN text always (we don't want footnotes in the bibliography list)
+    if biblio:
+        _replace_ids_in_dict(biblio, id_to_title, for_docx=False)
+        report['bibliography'] = biblio
 
     logger.info("Report enrichment completed")
     return report

@@ -1,55 +1,64 @@
 """
-Academic .docx Document Generator for Legal Dissertations
+Academic .docx Document Generator for Legal Dissertations (Licență)
 
-This module generates professionally formatted Word documents from final report JSON data,
-following Romanian academic legal dissertation standards:
-- Times New Roman 12pt body
-- 2.54cm (1 inch) margins
-- Double line spacing for body text
-- Single spacing for block quotes and bibliography
-- Real footnotes for citations
-- Page numbers in footer
+This module generates professionally formatted Word documents adhering to strict Romanian academic standards:
+- Margins: 2.54 cm (1 inch) all around.
+- Font: Times New Roman, 12pt.
+- Spacing: 1.5 lines.
+- Structure: Cover Page, Title Page, TOC, Introduction, Chapters, Conclusions, Bibliography.
 """
 
 from docx import Document
-from docx.shared import Pt, Inches, Cm, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING
+from docx.shared import Pt, Cm, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING, WD_TAB_LEADER
 from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
 from typing import Dict, Any, List
 import logging
 import re
+import datetime
 
 logger = logging.getLogger(__name__)
 
+# Constants for placeholder values
+DEFAULT_INSTITUTION = "UNIVERSITATEA [NUME INSTITUȚIE]\nFACULTATEA DE DREPT"
+DEFAULT_SUPERVISOR = "Coordonator Științific:\nProf. Univ. Dr. [NUME PROFESOR]"
+DEFAULT_AUTHOR = "Absolvent:\n[NUME STUDENT]"
+DEFAULT_CITY_YEAR = f"București\n{datetime.datetime.now().year}"
 
 def generate_academic_docx(report: Dict[str, Any], output_path: str) -> None:
     """
     Generate an academic .docx document from a final report structure.
-
-    Args:
-        report: Final report dictionary with title, chapters, bibliography, etc.
-        output_path: Absolute path where the .docx file should be saved
     """
     try:
         logger.info(f"Starting .docx generation for report: {report.get('title', 'Untitled')[:50]}...")
 
-        # Create document
         doc = Document()
-
-        # Apply academic styles and formatting
         _apply_academic_styles(doc)
 
-        # Build document sections
-        _add_cover_page(doc, report.get('title', 'Raport Final'), report.get('metadata', {}))
-        _add_table_of_contents(doc, report.get('table_of_contents', []))
+        # 1. Pagina de Gardă (Cover Page)
+        _add_cover_page(doc, "LUCRARE DE LICENȚĂ", is_cover=True)
+
+        # 2. Prima Pagină (Title Page) - Same layout but with actual Title
+        real_title = report.get('title', 'TITLUL LUCRĂRII').upper()
+        _add_cover_page(doc, real_title, is_cover=False)
+
+        # 3. Cuprins (Table of Contents)
+        _add_table_of_contents(doc, report)
+
+        # 4. Introducere (Not numbered)
         _add_introduction(doc, report.get('introduction', {}))
+
+        # 5. Conținut (Chapters)
         _add_chapters(doc, report.get('chapters', []))
+
+        # 6. Concluzii (Not numbered usually, or numbered distinctly)
         _add_conclusions(doc, report.get('conclusions', {}))
+
+        # 7. Bibliografie
         _add_bibliography(doc, report.get('bibliography', {}))
 
-        # Save document
         doc.save(output_path)
         logger.info(f"Successfully generated .docx document at: {output_path}")
 
@@ -60,388 +69,337 @@ def generate_academic_docx(report: Dict[str, Any], output_path: str) -> None:
 
 def _apply_academic_styles(doc: Document) -> None:
     """
-    Configure document-wide academic styles per Romanian university standards:
-    - Page margins: 2.54cm (1 inch) all sides
-    - Default font: Times New Roman 12pt
-    - Line spacing: Double (2.0)
-    - Block quotes: Indent 1.27cm, Single spacing, Empty line before/after
+    Configure document-wide academic styles.
     """
-    # Configure margins (1 inch = 2.54 cm)
+    # Margins 2.54 cm
     sections = doc.sections
     for section in sections:
         section.left_margin = Cm(2.54)
         section.right_margin = Cm(2.54)
         section.top_margin = Cm(2.54)
         section.bottom_margin = Cm(2.54)
-        section.page_height = Cm(29.7)  # A4
-        section.page_width = Cm(21.0)   # A4
+        section.page_height = Cm(29.7) # A4
+        section.page_width = Cm(21.0)
 
-        # Add page numbers in footer
+        # Page numbers in footer (Bottom Center)
         footer = section.footer
-        footer_para = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
-        footer_para.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        p = footer.paragraphs[0] if footer.paragraphs else footer.add_paragraph()
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        _add_page_number_field(p)
 
-        # Add page number field
-        run = footer_para.add_run()
-        fldChar1 = OxmlElement('w:fldChar')
-        fldChar1.set(qn('w:fldCharType'), 'begin')
-        instrText = OxmlElement('w:instrText')
-        instrText.set(qn('xml:space'), 'preserve')
-        instrText.text = 'PAGE'
-        fldChar2 = OxmlElement('w:fldChar')
-        fldChar2.set(qn('w:fldCharType'), 'end')
-
-        run._r.append(fldChar1)
-        run._r.append(instrText)
-        run._r.append(fldChar2)
-        run.font.size = Pt(11)
-        run.font.name = 'Times New Roman'
-
-    # Configure Normal style (Double Spaced)
+    # Normal Style: Times New Roman 12, Justified, 1.5 line spacing
     style = doc.styles['Normal']
     font = style.font
     font.name = 'Times New Roman'
     font.size = Pt(12)
+    pf = style.paragraph_format
+    pf.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+    pf.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
+    pf.first_line_indent = Cm(1.27)
 
-    paragraph_format = style.paragraph_format
-    paragraph_format.line_spacing_rule = WD_LINE_SPACING.DOUBLE
-    paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    paragraph_format.first_line_indent = Cm(1.27) # Indent first line of normal paragraphs
-
-    # Configure Heading styles
+    # Headings
     for i in range(1, 4):
-        heading_style = doc.styles[f'Heading {i}']
-        heading_font = heading_style.font
-        heading_font.name = 'Times New Roman'
-        heading_font.bold = True
-        heading_font.color.rgb = RGBColor(0, 0, 0)
+        h_style = doc.styles[f'Heading {i}']
+        h_font = h_style.font
+        h_font.name = 'Times New Roman'
+        h_font.color.rgb = RGBColor(0, 0, 0)
+        h_font.bold = True
+        pf = h_style.paragraph_format
+        pf.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
+        pf.first_line_indent = Pt(0)
+        pf.space_before = Pt(12)
+        pf.space_after = Pt(12)
 
         if i == 1:
-            heading_font.size = Pt(16)
-        elif i == 2:
-            heading_font.size = Pt(14)
+            h_font.size = Pt(14)
+            h_font.all_caps = True
+            pf.alignment = WD_ALIGN_PARAGRAPH.CENTER
         else:
-            heading_font.size = Pt(12)
+            h_font.size = Pt(12)
+            h_font.all_caps = False
+            pf.alignment = WD_ALIGN_PARAGRAPH.LEFT
 
-        heading_format = heading_style.paragraph_format
-        heading_format.space_before = Pt(12)
-        heading_format.space_after = Pt(6)
-        heading_format.keep_with_next = True
-        heading_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE # Headings usually 1.5
-        heading_format.first_line_indent = Pt(0)
+    # Block Text for quotes
+    if 'Block Text' not in doc.styles:
+        bt_style = doc.styles.add_style('Block Text', WD_STYLE_TYPE.PARAGRAPH)
+    else:
+        bt_style = doc.styles['Block Text']
 
-    # Create BLOCK TEXT style for quotes
-    # Indent 0.5" (1.27cm), Single Spacing
-    try:
-        block_style = doc.styles.add_style('Block Text', WD_STYLE_TYPE.PARAGRAPH)
-        block_font = block_style.font
-        block_font.name = 'Times New Roman'
-        block_font.size = Pt(12)
-
-        block_format = block_style.paragraph_format
-        block_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
-        block_format.left_indent = Cm(1.27) # Indent whole block
-        block_format.first_line_indent = Pt(0) # No extra first line indent
-        block_format.space_before = Pt(12) # Empty line before
-        block_format.space_after = Pt(12)  # Empty line after
-        block_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    except:
-        pass # Style might already exist
+    bt_font = bt_style.font
+    bt_font.name = 'Times New Roman'
+    bt_font.size = Pt(11)
+    bt_pf = bt_style.paragraph_format
+    bt_pf.left_indent = Cm(1.27)
+    bt_pf.right_indent = Cm(1.27)
+    bt_pf.line_spacing_rule = WD_LINE_SPACING.SINGLE
+    bt_pf.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
 
-def _add_cover_page(doc: Document, title: str, metadata: Dict[str, Any]) -> None:
-    """Add title page."""
+def _add_page_number_field(paragraph):
+    run = paragraph.add_run()
+    fldChar1 = OxmlElement('w:fldChar')
+    fldChar1.set(qn('w:fldCharType'), 'begin')
+    instrText = OxmlElement('w:instrText')
+    instrText.set(qn('xml:space'), 'preserve')
+    instrText.text = 'PAGE'
+    fldChar2 = OxmlElement('w:fldChar')
+    fldChar2.set(qn('w:fldCharType'), 'end')
+    run._r.append(fldChar1)
+    run._r.append(instrText)
+    run._r.append(fldChar2)
+    run.font.name = 'Times New Roman'
+    run.font.size = Pt(11)
+
+
+def _add_cover_page(doc: Document, center_text: str, is_cover: bool = True) -> None:
+    """
+    Creates the strict layout:
+    - Uppercase Institution (Centered, 12)
+    - [Space]
+    - CENTER TITLE (16, Caps, Bold) -> 'Lucrare de Licenta' or Actual Title
+    - [Space]
+    - Supervisor (Left, 12)
+    - Student (Right, 12)
+    - [Bottom]
+    - City/Year (Centered, 12)
+    """
+    # Header: Institution
+    p = doc.add_paragraph(DEFAULT_INSTITUTION)
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.first_line_indent = Pt(0)
+    p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+    for run in p.runs:
+        run.font.bold = True
+        run.font.size = Pt(12)
+
+    # Spacing (adjust visually based on A4)
     for _ in range(8):
         doc.add_paragraph()
 
-    title_para = doc.add_paragraph()
-    title_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    title_run = title_para.add_run(title)
-    title_run.font.size = Pt(18)
-    title_run.font.bold = True
-    title_run.font.name = 'Times New Roman'
+    # Center Text (Type or Title)
+    p = doc.add_paragraph(center_text)
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.first_line_indent = Pt(0)
+    for run in p.runs:
+        run.font.bold = True
+        run.font.size = Pt(16)
+        run.font.all_caps = True
 
-    doc.add_paragraph()
-    subtitle_para = doc.add_paragraph()
-    subtitle_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    subtitle_run = subtitle_para.add_run("Raport de Cercetare Juridică")
-    subtitle_run.font.size = Pt(14)
-    subtitle_run.font.name = 'Times New Roman'
+    # Spacing
+    for _ in range(6):
+        doc.add_paragraph()
 
-    # Metadata
-    doc.add_paragraph()
-    doc.add_paragraph()
-    if metadata:
-        meta_para = doc.add_paragraph()
-        meta_para.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        gen_time = metadata.get('generation_timestamp', '')
-        if gen_time:
-            from datetime import datetime
-            try:
-                dt = datetime.fromisoformat(gen_time.replace('Z', '+00:00'))
-                formatted_date = dt.strftime('%d.%m.%Y')
-                meta_para.add_run(f"\nGenerat: {formatted_date}\n").font.size = Pt(11)
-            except:
-                pass
+    # Names Table (Supervisor Left, Student Right)
+    table = doc.add_table(rows=1, cols=2)
+    table.autofit = True
 
-    doc.add_page_break()
-
-
-def _add_table_of_contents(doc: Document, toc_items: List[Dict[str, Any]]) -> None:
-    """Add TOC."""
-    doc.add_heading('Cuprins', level=1)
-    doc.add_paragraph()
-
-    for item in toc_items:
-        chapter_num = item.get('chapter_number', '')
-        chapter_title = item.get('chapter_title', '')
-
-        toc_para = doc.add_paragraph()
-        toc_para.paragraph_format.left_indent = Inches(0)
-        toc_para.paragraph_format.first_line_indent = Inches(0)
-        toc_para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
-
-        run = toc_para.add_run(f"{chapter_num}. {chapter_title}")
+    # Left Cell: Supervisor
+    cell_left = table.cell(0, 0)
+    p_left = cell_left.paragraphs[0]
+    p_left.text = DEFAULT_SUPERVISOR
+    p_left.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    for run in p_left.runs:
+        run.font.size = Pt(12)
         run.font.bold = True
 
-        subsections = item.get('subsections', [])
-        for subsec in subsections:
-            sub_num = subsec.get('number', '')
-            sub_title = subsec.get('title', '')
+    # Right Cell: Student
+    cell_right = table.cell(0, 1)
+    p_right = cell_right.paragraphs[0]
+    p_right.text = DEFAULT_AUTHOR
+    p_right.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    for run in p_right.runs:
+        run.font.size = Pt(12)
+        run.font.bold = True
 
-            sub_para = doc.add_paragraph()
-            sub_para.paragraph_format.left_indent = Inches(0.5)
-            sub_para.paragraph_format.first_line_indent = Inches(0)
-            sub_para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+    # Push to bottom
+    for _ in range(8):
+        doc.add_paragraph()
 
-            sub_para.add_run(f"{sub_num} {sub_title}").font.size = Pt(11)
+    # City/Year
+    p = doc.add_paragraph(DEFAULT_CITY_YEAR)
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.first_line_indent = Pt(0)
+    for run in p.runs:
+        run.font.size = Pt(12)
+        run.font.bold = False
 
     doc.add_page_break()
 
 
-def _add_introduction(doc: Document, introduction: Dict[str, Any]) -> None:
-    doc.add_heading('Introducere', level=1)
+def _add_table_of_contents(doc: Document, report: Dict[str, Any]) -> None:
+    doc.add_heading('CUPRINS', level=1)
 
-    parts = [introduction.get('context'), introduction.get('scope'), introduction.get('methodology')]
-    for part in parts:
-        if part:
-            _process_text_with_footnotes(doc, part)
+    # Simple static generation
+    _add_toc_entry(doc, "Introducere")
+
+    chapters = report.get('chapters', [])
+    for ch in chapters:
+        num = ch.get('chapter_number', '')
+        title = ch.get('chapter_title', '')
+        _add_toc_entry(doc, f"{num}. {title}", level=0)
+
+        for sub in ch.get('subsections', []):
+            s_num = sub.get('number', '')
+            s_title = sub.get('title', '')
+            _add_toc_entry(doc, f"{s_num} {s_title}", level=1)
+
+    _add_toc_entry(doc, "Concluzii")
+    _add_toc_entry(doc, "Bibliografie")
+
+    doc.add_page_break()
+
+
+def _add_toc_entry(doc: Document, text: str, level: int = 0):
+    p = doc.add_paragraph()
+    p.paragraph_format.tab_stops.add_tab_stop(Cm(16), alignment=WD_ALIGN_PARAGRAPH.RIGHT, leader=WD_TAB_LEADER.DOTS)
+    p.paragraph_format.first_line_indent = Pt(0)
+    p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+
+    if level == 0:
+        run = p.add_run(text)
+        run.font.bold = True
+    else:
+        p.paragraph_format.left_indent = Cm(1.0)
+        run = p.add_run(text)
+
+
+def _add_introduction(doc: Document, intro: Dict[str, Any]) -> None:
+    doc.add_heading('INTRODUCERE', level=1)
+    if not intro: return
+
+    content_parts = []
+    if intro.get('motivation'): content_parts.append(intro['motivation'])
+    if intro.get('context'): content_parts.append(intro['context'])
+    if intro.get('scope'): content_parts.append(intro['scope'])
+    if intro.get('methodology'): content_parts.append(intro['methodology'])
+
+    full_text = "\n\n".join(content_parts)
+    if not full_text and intro.get('summary'):
+        full_text = intro['summary']
+
+    _process_text(doc, full_text)
 
 
 def _add_chapters(doc: Document, chapters: List[Dict[str, Any]]) -> None:
-    for chapter in chapters:
-        doc.add_heading(f"{chapter.get('chapter_number', '')}. {chapter.get('chapter_title', '')}", level=1)
+    for ch in chapters:
+        num = ch.get('chapter_number', '')
+        title = ch.get('chapter_title', '')
+        doc.add_heading(f"CAPITOLUL {num}. {title.upper()}", level=1)
 
-        content = chapter.get('content', '')
-        if content:
-            _process_text_with_footnotes(doc, content)
+        if ch.get('content'):
+            _process_text(doc, ch['content'])
 
-        for subsec in chapter.get('subsections', []):
-            doc.add_heading(f"{subsec.get('number', '')} {subsec.get('title', '')}", level=2)
-            sub_content = subsec.get('content', '')
-            if sub_content:
-                _process_text_with_footnotes(doc, sub_content)
-
-        key_points = chapter.get('key_points', [])
-        if key_points:
-            doc.add_paragraph().add_run("Puncte cheie:").font.bold = True
-            for point in key_points:
-                # Use bullet style but process text for footnotes too
-                p = doc.add_paragraph(style='List Bullet')
-                _process_paragraph_text(p, point)
+        for sub in ch.get('subsections', []):
+            s_num = sub.get('number', '')
+            s_title = sub.get('title', '')
+            doc.add_heading(f"{s_num} {s_title}", level=2)
+            if sub.get('content'):
+                _process_text(doc, sub['content'])
 
 
-def _add_conclusions(doc: Document, conclusions: Dict[str, Any]) -> None:
-    doc.add_heading('Concluzii', level=1)
-
-    if conclusions.get('summary'):
-        doc.add_heading('Rezumat', level=2)
-        _process_text_with_footnotes(doc, conclusions['summary'])
-
-    if conclusions.get('findings'):
-        doc.add_heading('Constatări', level=2)
-        for idx, finding in enumerate(conclusions['findings'], 1):
-            p = doc.add_paragraph()
-            p.add_run(f"{idx}. ").font.bold = True
-            _process_paragraph_text(p, finding)
+def _add_conclusions(doc: Document, concl: Dict[str, Any]) -> None:
+    doc.add_heading('CONCLUZII', level=1)
+    text = ""
+    if concl.get('summary_findings'): text += concl['summary_findings'] + "\n\n"
+    if concl.get('final_perspective'): text += concl['final_perspective']
+    if not text and concl.get('summary'): text = concl['summary']
+    _process_text(doc, text)
 
 
-def _add_bibliography(doc: Document, bibliography: Dict[str, Any]) -> None:
+def _add_bibliography(doc: Document, biblio: Dict[str, Any]) -> None:
     doc.add_page_break()
-    doc.add_heading('Bibliografie', level=1)
-    doc.add_heading('Jurisprudență', level=2)
+    doc.add_heading('BIBLIOGRAFIE', level=1)
 
-    jurisprudence = bibliography.get('jurisprudence', [])
+    jurisprudence = biblio.get('jurisprudence', [])
     if not jurisprudence:
-        doc.add_paragraph("Nu există cazuri citate.").italic = True
+        p = doc.add_paragraph("Nu există surse citate.")
         return
 
-    sorted_cases = sorted(jurisprudence, key=lambda x: x.get('citation', ''))
+    doc.add_heading('I. Jurisprudență', level=2)
+    jurisprudence.sort(key=lambda x: x.get('citation', ''))
 
-    for idx, case in enumerate(sorted_cases, 1):
-        citation = case.get('citation', 'N/A')
-
-        # Bibliography Style: Single Spacing, Hanging Indent
-        bib_para = doc.add_paragraph()
-        bib_para.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
-        bib_para.paragraph_format.left_indent = Cm(1.27)
-        bib_para.paragraph_format.first_line_indent = Cm(-1.27)
-        bib_para.paragraph_format.space_after = Pt(6)
-
-        bib_para.add_run(f"{idx}. ").font.size = Pt(10)
-        bib_para.add_run(citation).font.size = Pt(11)
+    for idx, item in enumerate(jurisprudence, 1):
+        citation = item.get('citation', '')
+        if citation:
+            p = doc.add_paragraph(f"{idx}. {citation}")
+            p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+            p.paragraph_format.first_line_indent = Pt(0)
+            p.paragraph_format.left_indent = Cm(1.0)
+            p.paragraph_format.first_line_indent = Cm(-1.0)
 
 
-# --- Core Footnote & Text Processing Logic ---
-
-def _process_text_with_footnotes(doc: Document, text: str) -> None:
-    """
-    Process raw text, detecting paragraphs, block quotes, and citations.
-    Adds paragraphs to the document with appropriate styling and footnotes.
-    """
-    if not text:
-        return
-
+def _process_text(doc: Document, text: str) -> None:
+    if not text: return
     paragraphs = text.split('\n\n')
+    for p_text in paragraphs:
+        p_text = p_text.strip()
+        if not p_text: continue
 
-    for para_text in paragraphs:
-        para_text = para_text.strip()
-        if not para_text:
-            continue
-
-        # Detect Block Quote
-        # Criteria: Starts with ">" OR length > 300 chars (approx 3 lines)
-        is_block_quote = para_text.startswith('>') or len(para_text) > 300
-
-        if is_block_quote:
-            # Clean leading '>' if present
-            clean_text = para_text.lstrip('> ').strip()
-
-            # User Rule: Block quotes must be in quotes "..."
-            if not clean_text.startswith('"') and not clean_text.startswith('„'):
-                clean_text = f'„{clean_text}”'
-
-            p = doc.add_paragraph(style='Block Text')
-            _process_paragraph_text(p, clean_text)
+        if p_text.startswith('>') or (len(p_text) > 300 and ('"' in p_text or '„' in p_text)):
+            style = 'Block Text'
+            p_text = p_text.replace('>', '').strip()
         else:
-            # Normal paragraph
-            p = doc.add_paragraph(style='Normal')
-            _process_paragraph_text(p, para_text)
+            style = 'Normal'
+
+        p = doc.add_paragraph(style=style)
+        _process_inline_citations(p, p_text)
 
 
-def _process_paragraph_text(paragraph, text: str) -> None:
-    """
-    Parses text for `[[CITATION:ID:Title]]` markers and adds runs/footnotes.
-    """
-    # Regex to find citations
+def _process_inline_citations(paragraph, text: str) -> None:
     pattern = r'\[\[CITATION:(\d+):(.*?)(?:\]\])'
-
     last_idx = 0
     for match in re.finditer(pattern, text):
-        # Add text before citation
         pre_text = text[last_idx:match.start()]
-        if pre_text:
-            paragraph.add_run(pre_text)
+        if pre_text: paragraph.add_run(pre_text)
 
-        # Process Citation
-        case_id = match.group(1)
         title = match.group(2)
-
-        # Add Footnote Reference
-        # We need to access the document part to add the footnote relationship
-        _add_footnote_xml(paragraph, title)
-
+        _inject_footnote(paragraph, title)
         last_idx = match.end()
 
-    # Add remaining text
     if last_idx < len(text):
         paragraph.add_run(text[last_idx:])
 
 
-def _add_footnote_xml(paragraph, footnote_text: str):
-    """
-    Injects a real Word footnote using low-level XML manipulation.
-    This works by:
-    1. Finding the footnotes part of the document
-    2. Adding a new footnote definition
-    3. Adding a reference to that footnote in value text
-    """
-    part = paragraph.part
-
-    # Ensure footnotes part exists
-    if not hasattr(part, 'footnotes_part'):
-        # This is strictly hard to do without accessing the package directly if not already init
-        # But usually python-docx creates it if we access it?
-        # Actually python-docx doesn't explicitly expose 'footnotes_part' easily on '_Document'
-        # We must assume the document handles it or use the relationships.
-        pass
-
-    # Hacky but standard way to add footnotes in python-docx:
-    # We need to get the footnotes part from the package
+def _inject_footnote(paragraph, text):
     try:
-        doc_part = part.package.main_document_part
-        footnotes_part = doc_part.footnotes_part
-    except:
-        # If footnotes part doesn't exist, we fallback to inline text.
-        run = paragraph.add_run(f" [Nota: {footnote_text}]")
-        run.font.superscript = True
-        return
+        part = paragraph.part
+        if not hasattr(part, 'package'): return
+        main_part = part.package.main_document_part
+        footnotes_part = main_part.footnotes_part
 
-    # Add footnote to the part
-    footnote_id = _get_next_footnote_id(footnotes_part)
+        ids = [int(f.get(qn('w:id'))) for f in footnotes_part.element.findall(qn('w:footnote'))]
+        next_id = (max(ids) if ids else 0) + 1
 
-    namespace = footnotes_part.element.nsmap
-    w = namespace['w'] if 'w' in namespace else 'http://schemas.openxmlformats.org/wordprocessingml/2006/main'
+        footnote = OxmlElement('w:footnote')
+        footnote.set(qn('w:id'), str(next_id))
 
-    footnote = OxmlElement('w:footnote')
-    footnote.set(qn('w:id'), str(footnote_id))
+        fp = OxmlElement('w:p')
+        fpr = OxmlElement('w:pPr')
+        fpstyle = OxmlElement('w:pStyle')
+        fpstyle.set(qn('w:val'), 'FootnoteText')
+        fpr.append(fpstyle)
+        fp.append(fpr)
 
-    p = OxmlElement('w:p')
-    pPr = OxmlElement('w:pPr')
-    pStyle = OxmlElement('w:pStyle')
-    pStyle.set(qn('w:val'), 'FootnoteText')
-    pPr.append(pStyle)
-    p.append(pPr)
+        frun = OxmlElement('w:r')
+        frun.append(OxmlElement('w:footnoteRef'))
+        fp.append(frun)
 
-    # Footnote Reference Marker in the footnote text itself
-    r_ref = OxmlElement('w:r')
-    rPr_ref = OxmlElement('w:rPr')
-    rStyle_ref = OxmlElement('w:rStyle')
-    rStyle_ref.set(qn('w:val'), 'FootnoteReference')
-    rPr_ref.append(rStyle_ref)
-    r_ref.append(rPr_ref)
-    r_ref.append(OxmlElement('w:footnoteRef'))
-    p.append(r_ref)
+        ftrun = OxmlElement('w:r')
+        fttext = OxmlElement('w:t')
+        fttext.text = f" {text}"
+        ftrun.append(fttext)
+        fp.append(ftrun)
 
-    # Space
-    r_space = OxmlElement('w:r')
-    t_space = OxmlElement('w:t')
-    t_space.set(qn('xml:space'), 'preserve')
-    t_space.text = ' '
-    r_space.append(t_space)
-    p.append(r_space)
+        footnote.append(fp)
+        footnotes_part.element.append(footnote)
 
-    # Text
-    r_text = OxmlElement('w:r')
-    t_text = OxmlElement('w:t')
-    t_text.text = footnote_text
-    r_text.append(t_text)
-    p.append(r_text)
+        run = paragraph.add_run()
+        r = run._r
+        fref = OxmlElement('w:footnoteReference')
+        fref.set(qn('w:id'), str(next_id))
+        r.append(fref)
 
-    footnote.append(p)
-    footnotes_part.element.append(footnote)
-
-    # Now add the reference in the main paragraph
-    run = paragraph.add_run()
-    r = run._r
-
-    footnote_ref = OxmlElement('w:footnoteReference')
-    footnote_ref.set(qn('w:id'), str(footnote_id))
-    r.append(footnote_ref)
-
-
-def _get_next_footnote_id(footnotes_part):
-    # Determine the next available ID
-    ids = [int(f.get(qn('w:id'))) for f in footnotes_part.element.findall(qn('w:footnote'))]
-    ids = [i for i in ids if i > 0]
-    return max(ids) + 1 if ids else 1
+    except Exception as e:
+        logger.warning(f"Footnote injection failed: {e}")
+        r = paragraph.add_run(f"[{text}]")
+        r.font.superscript = True
