@@ -20,6 +20,7 @@ import re
 import datetime
 import io
 import base64
+logger = logging.getLogger(__name__)
 try:
     import matplotlib.pyplot as plt
     MATPLOTLIB_AVAILABLE = True
@@ -27,7 +28,6 @@ except ImportError:
     MATPLOTLIB_AVAILABLE = False
     logger.warning("Matplotlib not available. Charts will not be generated.")
 
-logger = logging.getLogger(__name__)
 
 # Constants for placeholder values
 DEFAULT_INSTITUTION = "UNIVERSITATEA [NUME INSTITUȚIE]\nFACULTATEA DE DREPT"
