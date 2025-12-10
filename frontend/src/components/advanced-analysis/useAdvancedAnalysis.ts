@@ -11,7 +11,8 @@ import {
     generatePlansBatch,
     executeQueue,
     clearCompletedQueue,
-    clearAnalysisSession
+    clearAnalysisSession,
+    startFullAcademicCycle
 } from '../../lib/api';
 import type { WorkflowStep, PlanData, QueueStatusData } from './types';
 import type { QueueTask } from '../../types';
@@ -467,26 +468,55 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
         setError(null);
 
         try {
-            const response = await decomposeTask(query);
+            if (executionMode === 'direct') {
+                // Direct Start - Full Academic Cycle (Backend Orchestrated)
+                const res = await startFullAcademicCycle(query, notificationEmail, termsAccepted);
 
-            if (response.success && response.tasks && response.tasks.length > 0) {
-                // Auto-populate queue with generated tasks
-                for (const task of response.tasks) {
-                    await addQueueTask(task.query, {
-                        title: task.title,
-                        category: task.category,
-                        priority: task.priority,
-                        rationale: task.rationale
+                if (res.success && res.job_id) {
+                    setJobId(res.job_id);
+                    setIsQueueMode(true);
+                    setQuery(''); // Clear query
+                    setCurrentStep('executing_queue');
+
+                    // Poll master job
+                    startQueuePolling(res.job_id, () => {
+                        // When master job completes
+                        refreshQueue().then(async () => {
+                            // Check if we have a report ID in the result
+                            const status = await getAdvancedAnalysisStatus(res.job_id);
+                            if (status.status === 'completed' && status.result && status.result.report_result?.report_id) {
+                                handleShowFinalReport(status.result.report_result.report_id);
+                            } else {
+                                setCurrentStep('queue_results');
+                            }
+                        });
                     });
+                } else {
+                    setError(res.error || 'Nu s-a putut iniția analiza completă.');
                 }
-
-                // Refresh queue and navigate
-                await refreshQueue();
-                setIsQueueMode(true);
-                setCurrentStep('queue_management');
-                setQuery('');  // Clear original query
             } else {
-                setError(response.error || 'Nu s-au putut genera taskuri.');
+                // Standard Review Flow
+                const response = await decomposeTask(query);
+
+                if (response.success && response.tasks && response.tasks.length > 0) {
+                    // Auto-populate queue with generated tasks
+                    for (const task of response.tasks) {
+                        await addQueueTask(task.query, {
+                            title: task.title,
+                            category: task.category,
+                            priority: task.priority,
+                            rationale: task.rationale
+                        });
+                    }
+
+                    // Refresh queue and navigate
+                    await refreshQueue();
+                    setIsQueueMode(true);
+                    setCurrentStep('queue_management');
+                    setQuery('');  // Clear original query
+                } else {
+                    setError(response.error || 'Nu s-au putut genera taskuri.');
+                }
             }
         } catch (e: any) {
             setError(e.message || 'Eroare la descompunerea taskului.');

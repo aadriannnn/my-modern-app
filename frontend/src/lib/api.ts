@@ -539,6 +539,20 @@ export const getQueueResults = async () => {
 
 // --- Final Report API (Phase 4) ---
 
+export const startFullAcademicCycle = async (query: string, notificationEmail?: string, termsAccepted?: boolean) => {
+  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/full-academic-cycle`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, notification_email: notificationEmail, terms_accepted: termsAccepted }),
+    credentials: 'include'
+  });
+  if (!response.ok) {
+     const errorData = await response.json().catch(() => ({}));
+     throw new Error(errorData.detail || 'Failed to start full academic cycle');
+  }
+  return response.json();
+};
+
 export const generateFinalReport = async () => {
   const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/queue/generate-final-report`, {
     method: 'POST',

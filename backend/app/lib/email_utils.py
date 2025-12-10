@@ -475,3 +475,90 @@ async def send_batch_completion_email(
     except Exception as e:
         logger.exception(f"Error in send_batch_completion_email: {e}")
         return False
+
+async def send_final_report_email(
+    recipient_email: str,
+    user_query: str,
+    report: Dict[str, Any],
+    report_id: str
+) -> bool:
+    """
+    Send an email notification when the Final Report (Phase 4) is ready.
+
+    Args:
+        recipient_email: User's email address
+        user_query: Original user query
+        report: The full final report JSON
+        report_id: ID of the report
+
+    Returns:
+        bool: True if email was sent successfully
+    """
+    try:
+        subject = f"Raport Final Complet - {user_query[:50]}..."
+
+        # Extract summary or introduction
+        intro = report.get('introduction', {}).get('context', 'Raportul final a fost generat.')
+
+        # Build HTML content
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <style>
+                body {{ font-family: Arial, sans-serif; line-height: 1.6; color: #333; }}
+                .container {{ max-width: 600px; margin: 0 auto; padding: 20px; }}
+                .header {{ background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 30px; text-align: center; border-radius: 8px 8px 0 0; }}
+                .header h1 {{ margin: 0; font-size: 24px; }}
+                .content {{ background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; }}
+                .query-box {{ background: #f0f4ff; padding: 15px; border-radius: 8px; margin: 20px 0; border: 1px solid #d0d9ff; }}
+                .footer {{ background: #f8f9fa; padding: 20px; text-align: center; color: #666; font-size: 12px; border-radius: 0 0 8px 8px; }}
+                .button {{ display: inline-block; background: #10b981; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; margin: 20px 0; font-weight: bold; }}
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <div class="header">
+                    <h1>🎓 Raport Academic Finalizat</h1>
+                    <p style="margin: 10px 0 0 0; opacity: 0.9;">LegeaApp - Analiză Avansată</p>
+                </div>
+                <div class="content">
+                    <p>Analiza dvs. academică extinsă a fost finalizată cu succes.</p>
+
+                    <h2 style="color: #059669; margin-top: 20px;">Subiectul Cercetării:</h2>
+                    <div class="query-box">
+                        <p style="margin: 0; font-style: italic;">"{user_query}"</p>
+                    </div>
+
+                    <h3 style="color: #059669;">Sumar Context:</h3>
+                    <p>{intro[:500]}...</p>
+
+                    <div style="text-align: center;">
+                        <p>Raportul complet, incluzând sinteza jurisprudenței și concluziile detaliate, este disponibil în aplicație.</p>
+                        <p><strong>ID Raport:</strong> <code>{report_id}</code></p>
+                    </div>
+
+                    <p style="color: #666; font-size: 13px; margin-top: 30px;">
+                        <em>Puteți exporta acest raport în format .docx direct din aplicație.</em>
+                    </p>
+                </div>
+                <div class="footer">
+                    <p style="margin: 0;">© 2025 LegeaApp - Platforma de Jurisprudență</p>
+                </div>
+            </div>
+        </body>
+        </html>
+        """
+
+        loop = asyncio.get_event_loop()
+        success = await loop.run_in_executor(
+            None,
+            send_email,
+            recipient_email,
+            subject,
+            html_content,
+        )
+        return success
+    except Exception as e:
+        logger.exception(f"Error in send_final_report_email: {e}")
+        return False

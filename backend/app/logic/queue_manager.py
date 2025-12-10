@@ -96,6 +96,8 @@ class QueueManager:
             return self._process_create_plan
         elif job_type == "generate_final_report":
             return self._process_generate_final_report
+        elif job_type == "full_academic_analysis":
+            return self._process_full_academic_analysis
         else:
             raise ValueError(f"Unknown job type: {job_type}")
 
@@ -208,6 +210,166 @@ class QueueManager:
                 'error': str(e),
                 'recoverable': True
             }
+
+    async def _process_full_academic_analysis(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Orchestrates the COMPLETE lifecycle for 'Direct Start':
+        1. Decompose
+        2. Plan (Batch)
+        3. Execute (Batch)
+        4. Synthesize Final Report
+        5. Email
+        """
+        import time
+        from ..lib.email_utils import send_final_report_email
+
+        original_query = payload.get("query")
+        notification_email = payload.get("notification_email")
+
+        logger.info(f"[FullCycle] Starting for: {original_query[:50]}...")
+
+        session_gen = get_session()
+        session = next(session_gen)
+
+        try:
+            # 1. Decompose
+            analyzer = ThreeStageAnalyzer(session)
+            decomp_res = await analyzer.decompose_into_tasks(original_query)
+
+            if not decomp_res.get('success'):
+                return decomp_res
+
+            tasks_data = decomp_res.get('tasks', [])
+            logger.info(f"[FullCycle] Decomposed into {len(tasks_data)} tasks")
+
+            # 2. Add to Queue & Persist Metadata
+            manager = TaskQueueManager()
+            # Clear old tasks? Maybe not, just add new ones.
+            # Ideally we should start clean or tag them. For now, just add.
+
+            manager.set_queue_metadata(
+                original_query=original_query,
+                metadata={
+                    'decomposition_rationale': decomp_res.get('decomposition_rationale', ''),
+                    'mode': 'full_academic_direct'
+                }
+            )
+
+            created_task_ids = []
+            for t in tasks_data:
+                tid = manager.add_task(t['query'], {
+                    'title': t.get('title'),
+                    'category': t.get('category'),
+                    'priority': t.get('priority'),
+                    'rationale': t.get('rationale')
+                })
+                created_task_ids.append(tid)
+
+            # 3. Create Plans (Batch)
+            # Fetch the actual task objects
+            tasks_to_plan = []
+            for tid in created_task_ids:
+                task_obj = manager.get_task(tid)
+                if task_obj: tasks_to_plan.append(task_obj)
+
+            plan_res = await analyzer.create_plans_batch(tasks_to_plan)
+
+            # Update states to PLANNED
+            if plan_res.get("success") and "results" in plan_res:
+                for tid, res in plan_res["results"].items():
+                    if res.get("success"):
+                         manager.update_task_state(tid, "planned", {"plan": res})
+                    else:
+                         manager.update_task_state(tid, "failed", {"error": res.get("error")})
+
+            # 4. Auto-Approve & Execute
+            # Approve all successfully planned tasks
+            queue = manager.get_queue() # Refresh
+            for task in queue['tasks']:
+                if task['id'] in created_task_ids and task['state'] == 'planned':
+                    manager.update_task_state(task['id'], 'approved', {})
+
+            # Execute
+            executor = TaskExecutor(manager, analyzer)
+            exec_res = await executor.execute_queue(notification_email=notification_email)
+
+            if not exec_res.get('success'):
+                logger.error(f"[FullCycle] Execution failed: {exec_res}")
+                # Continue to report even if some failed?
+                # TaskExecutor usually finishes all and returns summary.
+
+            # 5. Synthesize Final Report
+            # Get completed tasks (refresh again)
+            queue = manager.get_queue()
+            completed_tasks = [t for t in queue['tasks'] if t['state'] == 'completed' and t.get('result')]
+
+            # Filter only tasks from THIS run?
+            # Current logic synthesizes ALL completed tasks in queue.
+            # This is standard behavior for the app currently.
+
+            if not completed_tasks:
+                return {'success': False, 'error': 'No completed tasks to synthesize.'}
+
+            task_results_fmt = []
+            for task in completed_tasks:
+                task_results_fmt.append({
+                     'task_id': task['id'],
+                     'query': task['query'],
+                     'user_metadata': task.get('user_metadata', {}),
+                     'result': task['result']
+                })
+
+            report_res = await analyzer.synthesize_final_report(
+                original_query=original_query,
+                task_results=task_results_fmt
+            )
+
+            # 6. Email Report
+            if notification_email and report_res.get('success'):
+                 # Save report first (ThreeStageAnalyzer doesn't save it automatically?
+                 # Wait, synthesize_final_report just returns dict.
+                 # We need to SAVE it to access it later via ID.)
+
+                 # PlanManager saves plans, but Final Report?
+                 # plan_manager.save_final_report(report)
+
+                 # Let's check where save happens.
+                 # It seems synthesize_final_report RETURNS it.
+                 # Codebase convention: PlanManager handles saving.
+
+                 report = report_res # It is the report dict
+
+                 # Save it
+                 import uuid
+                 report_id = str(uuid.uuid4())
+                 report['report_id'] = report_id
+                 report['created_at'] = datetime.now().isoformat()
+                 report['metadata']['original_query'] = original_query
+
+                 analyzer.plan_manager.save_final_report(report)
+
+                 # Now email
+                 await send_final_report_email(
+                     notification_email,
+                     original_query,
+                     report,
+                     report_id
+                 )
+
+                 # Include report_id in result so frontend knows
+                 report_res['report_id'] = report_id
+
+            return {
+                'success': True,
+                'report_result': report_res,
+                'execution_summary': exec_res
+            }
+
+        except Exception as e:
+            logger.error(f"[FullCycle] Error: {e}", exc_info=True)
+            return {'success': False, 'error': str(e)}
+        finally:
+            session.close()
 
     async def add_to_queue(
         self,

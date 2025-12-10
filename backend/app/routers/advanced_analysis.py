@@ -38,6 +38,11 @@ class ExecuteQueueRequest(BaseModel):
     notification_email: Optional[str] = None
     terms_accepted: bool = False
 
+class FullCycleRequest(BaseModel):
+    query: str
+    notification_email: Optional[str] = None
+    terms_accepted: bool = False
+
 # --- Standard Analysis Endpoints ---
 
 @router.post("/create-plan")
@@ -97,6 +102,28 @@ async def update_plan_limit(plan_id: str, request: UpdateLimitRequest, session: 
     if not result['success']:
         raise HTTPException(status_code=400, detail=result.get('error', 'Unknown error'))
     return result
+
+@router.post("/full-academic-cycle")
+async def start_full_academic_cycle(request: FullCycleRequest, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+    """
+    Direct Start - No Review Flow.
+    Orchestrates the entire process: Decompose -> Plan -> Execute -> Synthesize -> Email.
+    """
+    if request.notification_email and not request.terms_accepted:
+        raise HTTPException(status_code=400, detail="Trebuie să acceptați termenii pentru a primi email.")
+
+    from ..logic.queue_manager import QueueManager
+    qm = QueueManager()
+
+    job_id = qm.add_job(
+        "full_academic_analysis",
+        {
+            "query": request.query,
+            "notification_email": request.notification_email
+        }
+    )
+
+    return {"success": True, "job_id": job_id, "status": "processing"}
 
 @router.post("/execute-plan")
 async def execute_plan(request: ExecuteRequest, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
