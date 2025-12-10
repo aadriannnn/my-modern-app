@@ -415,3 +415,192 @@ def _inject_footnote(paragraph, text):
         logger.warning(f"Footnote injection failed: {e}")
         r = paragraph.add_run(f"[{text}]")
         r.font.superscript = True
+
+
+def _generate_chart_comparison_content(doc: Document, report: Dict[str, Any]) -> None:
+    # Title
+    doc.add_heading(report.get('title', 'Comparative Analysis'), level=1)
+
+    # Executive Summary
+    if report.get('executive_summary'):
+        _process_text(doc, report['executive_summary'])
+
+    doc.add_page_break()
+
+    # Iterate tasks
+    for task in report.get('tasks', []):
+        task_type = task.get('type')
+        logger.info(f"Processing task: {task.get('id')} ({task_type})")
+
+        if task_type == 'chart':
+            if MATPLOTLIB_AVAILABLE:
+                _add_chart_task(doc, task)
+            else:
+                doc.add_paragraph("[Chart generation unavailable - Matplotlib missing]")
+
+        elif task_type == 'comparison':
+            _add_comparison_task(doc, task)
+
+        doc.add_paragraph() # Spacing
+
+def _add_chart_task(doc: Document, task: Dict[str, Any]):
+    label = task.get('label', 'Chart Task')
+    doc.add_heading(label, level=2)
+
+    spec = task.get('chart_spec', {})
+
+    # Draw chart
+    try:
+        image_stream = _render_chart_from_spec(spec)
+        if image_stream:
+            doc.add_picture(image_stream, width=Cm(16))
+
+            caption = spec.get('caption', f"Figure: {label}")
+            p = doc.add_paragraph(caption)
+            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            try:
+                p.style = 'Caption'
+            except KeyError:
+                pass # Fallback if style doesn't exist
+
+    except Exception as e:
+        logger.error(f"Failed to render chart: {e}")
+        doc.add_paragraph(f"[Error rendering chart: {e}]")
+
+def _render_chart_from_spec(spec: Dict[str, Any]) -> io.BytesIO:
+    # Use matplotlib
+    data = spec.get('data', {})
+    chart_type = spec.get('chart_type', 'bar')
+    options = spec.get('options', {})
+
+    plt.figure(figsize=(10, 6))
+
+    columns = data.get('columns', [])
+    rows = data.get('rows', [])
+
+    if not columns or not rows:
+        return None
+
+    # Assume first column is X, rest are Y series
+    # rows is list of lists
+    x_values = [str(row[0]) for row in rows]
+
+    # Determine numeric columns keys
+    y_labels = columns[1:]
+
+    # Create numeric data structure
+    # row = ["B1", 0.82, 0.78] -> x="B1", y1=0.82, y2=0.78
+
+    # Basic bar chart logic
+    if chart_type == 'bar':
+        # If multiple series, we need offsets
+        import numpy as np
+        x_pos = np.arange(len(x_values))
+        width = 0.35
+        if len(y_labels) > 1:
+            width = 0.8 / len(y_labels)
+
+        for i, label in enumerate(y_labels):
+            y_values = []
+            for row in rows:
+                try:
+                    val = float(row[i + 1])
+                except (ValueError, IndexError):
+                    val = 0
+                y_values.append(val)
+
+            offset = (i - len(y_labels)/2 + 0.5) * width
+            plt.bar(x_pos + offset, y_values, width, label=label)
+
+        plt.xticks(x_pos, x_values, rotation=45, ha='right')
+
+    elif chart_type == 'pie':
+        # Pie chart usually 1 series. Take the first numeric column.
+        y_values = []
+        for row in rows:
+            try:
+                val = float(row[1])
+            except (ValueError, IndexError):
+                val = 0
+            y_values.append(val)
+
+        plt.pie(y_values, labels=x_values, autopct='%1.1f%%')
+
+    else:
+        # Default Line/Scatter
+        for i, label in enumerate(y_labels):
+            y_values = []
+            for row in rows:
+                try:
+                    val = float(row[i + 1])
+                except (ValueError, IndexError):
+                    val = 0
+                y_values.append(val)
+
+            if chart_type == 'scatter':
+                plt.scatter(x_values, y_values, label=label)
+            else:
+                plt.plot(x_values, y_values, marker='o', label=label)
+
+        plt.xticks(rotation=45, ha='right')
+
+    if options.get('title'):
+        plt.title(options['title'])
+    if options.get('x_label'):
+        plt.xlabel(options['x_label'])
+    if options.get('y_label'):
+        plt.ylabel(options['y_label'])
+    if options.get('legend', True) and chart_type != 'pie':
+        plt.legend()
+
+    plt.tight_layout()
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=300)
+    plt.close()
+    buf.seek(0)
+    return buf
+
+def _add_comparison_task(doc: Document, task: Dict[str, Any]):
+    label = task.get('label', 'Comparison Task')
+    doc.add_heading(label, level=2)
+
+    # Table provided?
+    comp_table = task.get('comparison_table', {})
+    if comp_table:
+        columns = comp_table.get('columns', [])
+        rows = comp_table.get('rows', [])
+
+        table = doc.add_table(rows=1, cols=len(columns))
+        table.style = 'Table Grid'
+
+        # Header
+        hdr_cells = table.rows[0].cells
+        for i, col in enumerate(columns):
+            hdr_cells[i].text = str(col)
+            # Make bold
+            for run in hdr_cells[i].paragraphs[0].runs:
+                run.font.bold = True
+
+        # Rows
+        for row in rows:
+            row_cells = table.add_row().cells
+            for i, val in enumerate(row):
+                if i < len(columns):
+                    row_cells[i].text = str(val)
+
+        p = doc.add_paragraph(f"Table: {label}")
+        p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        try:
+            p.style = 'Caption'
+        except KeyError:
+            pass
+
+    # Narrative
+    if task.get('narrative_summary'):
+        doc.add_heading("Analysis", level=3)
+        _process_text(doc, task['narrative_summary'])
+
+    if task.get('recommendation'):
+        doc.add_heading("Recommendation", level=3)
+        _process_text(doc, task['recommendation'])
