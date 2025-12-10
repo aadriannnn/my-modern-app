@@ -128,12 +128,53 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
         if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
         if (eventSourceRef.current) eventSourceRef.current.close();
 
-        // Start fallback polling interval
-        pollingIntervalRef.current = setInterval(() => {
-            refreshQueue();
-        }, 2000);
+        let attempts = 0;
+        const maxAttempts = 20000; // Very large number for long running jobs
 
-        // SSE
+        // Start fallback polling interval - This is now the PRIMARY reliability mechanism
+        pollingIntervalRef.current = setInterval(async () => {
+             // Basic queue refresh for UI
+            refreshQueue();
+
+            // Robust polling of the MASTER JOB status
+            try {
+                attempts++;
+                const statusData = await getAdvancedAnalysisStatus(id);
+                console.log(`[QueuePolling] Attempt ${attempts}, Status:`, statusData.status);
+
+                if (statusData.status === 'completed') {
+                     // Verify result success
+                    if (statusData.result?.success === false) {
+                         setError(statusData.result.error || 'Job failed.');
+                         setJobId(null);
+                         setIsLoading(false);
+                         if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+                         if (eventSourceRef.current) eventSourceRef.current.close();
+                         return;
+                    }
+
+                    // Success!
+                    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+                     if (eventSourceRef.current) eventSourceRef.current.close();
+                    setJobId(null);
+                    setIsLoading(false);
+                    if (onComplete) onComplete();
+                } else if (statusData.status === 'failed' || statusData.status === 'error') {
+                     // Failure
+                     setError(statusData.error || 'Job failed.');
+                     setJobId(null);
+                     setIsLoading(false);
+                     if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+                     if (eventSourceRef.current) eventSourceRef.current.close();
+                }
+                // If 'processing' or 'queued', continue polling
+            } catch (e) {
+                console.warn("[QueuePolling] Error polling status, retrying...", e);
+                // Do not stop polling on transient network errors
+            }
+        }, 5000); // Check every 5 seconds (relaxed from 2s to reduce load)
+
+        // Keep SSE for real-time updates if available, but don't trust its closure as completion
         eventSourceRef.current = subscribeToQueueStatus(
             id,
             (statusUpdate) => {
@@ -143,32 +184,33 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
                     status: statusUpdate.status as any
                 });
 
-                refreshQueue();
-
-                if (statusUpdate.status === 'completed' || statusUpdate.status === 'error' || (statusUpdate as any).result) {
-                    if (pollingIntervalRef.current) {
-                        clearInterval(pollingIntervalRef.current);
-                        pollingIntervalRef.current = null;
+                // If SSE says done, verify with next poll tick or let polling handle it
+                if (statusUpdate.status === 'completed') {
+                    // We can accept this as valid completion signal to speed things up
+                    // But maybe safer to let the interval confirm?
+                    // Let's trust SSE completion *if* it has a result, otherwise wait for polling
+                    if ((statusUpdate as any).result) {
+                         if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+                         if (onComplete) onComplete();
+                         setJobId(null);
+                         setIsLoading(false);
+                         if (eventSourceRef.current) eventSourceRef.current.close();
                     }
-
-                    if (onComplete) onComplete();
-                    setJobId(null);
-                    setIsLoading(false);
-                    if (eventSourceRef.current) eventSourceRef.current.close();
                 }
             },
             () => {
-                // SSE closed
-                if (pollingIntervalRef.current) {
-                    clearInterval(pollingIntervalRef.current);
-                    pollingIntervalRef.current = null;
+                // SSE closed - DO NOT Stop polling.
+                // The pollingInterval will continue to check truth.
+                console.log("[QueuePolling] SSE connection closed. Switching to exclusive polling.");
+                if (eventSourceRef.current) {
+                    eventSourceRef.current.close();
+                    eventSourceRef.current = null;
                 }
-
-                if (onComplete) onComplete();
-                setJobId(null);
-                setIsLoading(false);
             },
-            () => { }
+            (err) => {
+                console.error("sse error", err);
+                 // Don't stop polling
+            }
         );
     }, [refreshQueue]);
 
