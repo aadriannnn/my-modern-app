@@ -118,6 +118,16 @@ class TaskQueueManager:
             "completed_at": time.time()
         })
 
+    def clear_all_tasks(self):
+        """Removes ALL tasks from the queue (reset)."""
+        self._save_queue_data({
+            "version": "1.0",
+            "queue_metadata": {},
+            "tasks": []
+        })
+        logger.info("Queue completely cleared (reset).")
+        self._create_backup()
+
     def clear_completed_tasks(self):
         """Removes all completed or failed tasks from the queue."""
         queue_data = self.load_queue()

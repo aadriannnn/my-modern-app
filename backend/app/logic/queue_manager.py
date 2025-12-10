@@ -244,8 +244,9 @@ class QueueManager:
 
             # 2. Add to Queue & Persist Metadata
             manager = TaskQueueManager()
-            # Clear old tasks? Maybe not, just add new ones.
-            # Ideally we should start clean or tag them. For now, just add.
+
+            # CLEAR previous queue to ensure UI shows only fresh tasks
+            manager.clear_all_tasks()
 
             manager.set_queue_metadata(
                 original_query=original_query,
