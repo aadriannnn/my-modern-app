@@ -1,4 +1,5 @@
 import json
+import re
 import logging
 from typing import List, Dict, Tuple, Any
 from sqlmodel import Session, text
@@ -74,6 +75,18 @@ class DataFetcher:
                 sanitized = sanitized[:-1].strip()
                 close_parens -= 1
             logger.info(f"Fixed SQL: {sanitized}")
+
+        # Fix common LLM error: confusing json text access (->>) with json object access (->)
+        # when using containment operator (@>)
+        # Example: obj->>'keywords' @> '["foo"]'  ==> obj->'keywords' @> '["foo"]'
+        if "@>" in sanitized and "->>" in sanitized:
+             # Pattern matches: ->> 'key' @> or ->>'key' @>
+             # We want to replace ->> with -> only when @> follows later in the expression context
+             # Simpler: replace all occurences of "->>... @>" structure with "->... @>"
+             # But "->>" and "@>" might be far apart.
+             # Safest heuristic for this specific error: look for ->> immediately followed by key and then @>
+             sanitized = re.sub(r"->>\s*('[^']+')\s*@>", r"->\1 @>", sanitized)
+
 
         return sanitized
 
