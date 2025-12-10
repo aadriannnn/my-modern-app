@@ -21,8 +21,8 @@ class DataFetcher:
         if "count_query" not in strategy or "id_list_query" not in strategy:
             raise ValueError("Strategia nu conține query-urile necesare.")
 
-        count_sql = strategy['count_query']
-        ids_sql = strategy['id_list_query']
+        count_sql = self._sanitize_sql_query(strategy['count_query'])
+        ids_sql = self._sanitize_sql_query(strategy['id_list_query'])
 
         # Execute Count
         try:
@@ -42,6 +42,40 @@ class DataFetcher:
             raise ValueError(f"Query ID_LIST invalid: {e}")
 
         return count_res, ids_list
+
+    def _sanitize_sql_query(self, sql: str) -> str:
+        """Sanitizes SQL query to fix common LLM generation errors."""
+        sanitized = sql.strip()
+
+        # Remove markdown code blocks if present
+        if sanitized.startswith("```sql"):
+            sanitized = sanitized[6:]
+        if sanitized.startswith("```"):
+            sanitized = sanitized[3:]
+        if sanitized.endswith("```"):
+            sanitized = sanitized[:-3]
+
+        sanitized = sanitized.strip()
+
+        # Fix unbalanced parentheses at the end provided they are not inside string literals
+        # This is a basic heuristic: if it ends with ')' and there is an opening count mismatch
+        # Note: This simple count is imperfect if strings contain parens, but covers the common case
+        # where the LLM adds a trailing ) to valid SQL.
+
+        # Check parenthesis balance ignoring simple string literals is safer but complex.
+        # Simple heuristic:
+        open_parens = sanitized.count('(')
+        close_parens = sanitized.count(')')
+
+        if close_parens > open_parens and sanitized.endswith(')'):
+            logger.warning(f"Detected unbalanced closing parenthesis in SQL. Attempting fix: {sanitized}")
+            # Recursively remove trailing closing parenthesis until balanced or not trailing
+            while close_parens > open_parens and sanitized.endswith(')'):
+                sanitized = sanitized[:-1].strip()
+                close_parens -= 1
+            logger.info(f"Fixed SQL: {sanitized}")
+
+        return sanitized
 
     def fetch_chunk_data(self, ids: List[int], columns: List[str]) -> List[Dict]:
         """Smart Fetch: Extracts only specified columns for a list of IDs."""
