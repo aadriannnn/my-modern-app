@@ -129,11 +129,10 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
         if (eventSourceRef.current) eventSourceRef.current.close();
 
         let attempts = 0;
-        const maxAttempts = 20000; // Very large number for long running jobs
 
         // Start fallback polling interval - This is now the PRIMARY reliability mechanism
         pollingIntervalRef.current = setInterval(async () => {
-             // Basic queue refresh for UI
+            // Basic queue refresh for UI
             refreshQueue();
 
             // Robust polling of the MASTER JOB status
@@ -143,29 +142,29 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
                 console.log(`[QueuePolling] Attempt ${attempts}, Status:`, statusData.status);
 
                 if (statusData.status === 'completed') {
-                     // Verify result success
+                    // Verify result success
                     if (statusData.result?.success === false) {
-                         setError(statusData.result.error || 'Job failed.');
-                         setJobId(null);
-                         setIsLoading(false);
-                         if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-                         if (eventSourceRef.current) eventSourceRef.current.close();
-                         return;
+                        setError(statusData.result.error || 'Job failed.');
+                        setJobId(null);
+                        setIsLoading(false);
+                        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+                        if (eventSourceRef.current) eventSourceRef.current.close();
+                        return;
                     }
 
                     // Success!
                     if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-                     if (eventSourceRef.current) eventSourceRef.current.close();
+                    if (eventSourceRef.current) eventSourceRef.current.close();
                     setJobId(null);
                     setIsLoading(false);
                     if (onComplete) onComplete();
                 } else if (statusData.status === 'failed' || statusData.status === 'error') {
-                     // Failure
-                     setError(statusData.error || 'Job failed.');
-                     setJobId(null);
-                     setIsLoading(false);
-                     if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-                     if (eventSourceRef.current) eventSourceRef.current.close();
+                    // Failure
+                    setError(statusData.error || 'Job failed.');
+                    setJobId(null);
+                    setIsLoading(false);
+                    if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+                    if (eventSourceRef.current) eventSourceRef.current.close();
                 }
                 // If 'processing' or 'queued', continue polling
             } catch (e) {
@@ -190,11 +189,11 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
                     // But maybe safer to let the interval confirm?
                     // Let's trust SSE completion *if* it has a result, otherwise wait for polling
                     if ((statusUpdate as any).result) {
-                         if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
-                         if (onComplete) onComplete();
-                         setJobId(null);
-                         setIsLoading(false);
-                         if (eventSourceRef.current) eventSourceRef.current.close();
+                        if (pollingIntervalRef.current) clearInterval(pollingIntervalRef.current);
+                        if (onComplete) onComplete();
+                        setJobId(null);
+                        setIsLoading(false);
+                        if (eventSourceRef.current) eventSourceRef.current.close();
                     }
                 }
             },
@@ -209,7 +208,7 @@ export const useAdvancedAnalysis = (isOpen: boolean, onClose: () => void) => {
             },
             (err) => {
                 console.error("sse error", err);
-                 // Don't stop polling
+                // Don't stop polling
             }
         );
     }, [refreshQueue]);
