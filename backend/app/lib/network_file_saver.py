@@ -15,23 +15,24 @@ class NetworkFileSaver:
     """Utility pentru salvarea fișierelor pe calculatoare din rețea."""
 
     @staticmethod
-    def generate_unique_filename(prefix: str = "prompt", extension: str = ".txt") -> str:
+    def generate_unique_filename(prefix: str = "prompt", extension: str = ".txt", suffix: str = "") -> str:
         """
         Generează un nume de fișier unic bazat pe timestamp.
 
         Args:
             prefix: Prefix pentru nume fișier (default: "prompt")
             extension: Extensia fișierului (default: ".txt")
+            suffix: Suffix opțional de adăugat după timestamp (ex: "_final")
 
         Returns:
-            str: Nume fișier în formatul: prefix_YYYYMMDD_HHMMSS.extension
+            str: Nume fișier în formatul: prefix_YYYYMMDD_HHMMSS{suffix}.extension
 
         Example:
-            >>> NetworkFileSaver.generate_unique_filename()
-            'prompt_20251128_111635.txt'
+            >>> NetworkFileSaver.generate_unique_filename(suffix="_final")
+            'prompt_20251128_111635_final.txt'
         """
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return f"{prefix}_{timestamp}{extension}"
+        return f"{prefix}_{timestamp}{suffix}{extension}"
 
     @staticmethod
     def get_network_path(host: str, shared_folder: str, subfolder: str = "", filename: str = "") -> str:

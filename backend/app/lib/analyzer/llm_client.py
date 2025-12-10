@@ -16,7 +16,7 @@ class LLMClient:
     """Handles interaction with the LLM via NetworkFileSaver."""
 
     @staticmethod
-    async def call_llm(prompt: str, timeout: int = 600, label: str = "LLM Call") -> Tuple[bool, str, str]:
+    async def call_llm(prompt: str, timeout: int = 600, label: str = "LLM Call", filename_suffix: str = "") -> Tuple[bool, str, str]:
         """
         Sends prompt to LLM and waits for response.
         Returns: (success, content, response_path)
@@ -24,11 +24,15 @@ class LLMClient:
         retea_host = settings_manager.get_value('setari_retea', 'retea_host', '')
         retea_folder = settings_manager.get_value('setari_retea', 'retea_folder_partajat', '')
 
+        # Generate unique filename with optional suffix
+        filename = NetworkFileSaver.generate_unique_filename(suffix=filename_suffix)
+
         success, message, saved_path = NetworkFileSaver.save_to_network(
             content=prompt,
             host=retea_host,
             shared_folder=retea_folder,
-            subfolder=''
+            subfolder='',
+            filename=filename
         )
 
         if not success:

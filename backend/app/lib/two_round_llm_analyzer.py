@@ -721,7 +721,7 @@ class ThreeStageAnalyzer:
                     )
                 else:
                     success, content, path = await LLMClient.call_llm(
-                        prompt, timeout=600, label=f"Final Report (Attempt {attempt})"
+                        prompt, timeout=600, label=f"Final Report (Attempt {attempt})", filename_suffix="_final"
                     )
 
                 if not success:
