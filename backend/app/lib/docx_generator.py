@@ -48,28 +48,37 @@ def generate_academic_docx(report: Dict[str, Any], output_path: str) -> None:
         # 1. Pagina de Gardă (Cover Page)
         _add_cover_page(doc, "LUCRARE DE LICENȚĂ", is_cover=True)
 
-        # Check for new Chart/Comparison format
-        if 'tasks' in report and report.get('tasks'):
-            _generate_chart_comparison_content(doc, report)
-        else:
-            # 2. Prima Pagină (Title Page) - Same layout but with actual Title
-            real_title = report.get('title', 'TITLUL LUCRĂRII').upper()
-            _add_cover_page(doc, real_title, is_cover=False)
+        # 2. Prima Pagină (Title Page)
+        real_title = report.get('title', 'TITLUL LUCRĂRII').upper()
+        _add_cover_page(doc, real_title, is_cover=False)
 
-            # 3. Cuprins (Table of Contents)
-            _add_table_of_contents(doc, report)
+        # 3. Cuprins (Table of Contents)
+        _add_table_of_contents(doc, report)
 
-            # 4. Introducere (Not numbered)
-            _add_introduction(doc, report.get('introduction', {}))
+        # 4. Introducere
+        # If 'introduction' dict is present, use it.
+        # If not, but we have 'executive_summary', try to adapt it roughly.
+        if report.get('introduction'):
+            _add_introduction(doc, report['introduction'])
+        elif report.get('executive_summary'):
+            doc.add_heading('INTRODUCERE', level=1)
+            _process_text(doc, report['executive_summary'])
 
-            # 5. Conținut (Chapters)
-            _add_chapters(doc, report.get('chapters', []))
+        # 5. Conținut (Chapters)
+        if report.get('chapters'):
+            _add_chapters(doc, report['chapters'])
 
-            # 6. Concluzii (Not numbered usually, or numbered distinctly)
-            _add_conclusions(doc, report.get('conclusions', {}))
+        # 5.1. Analiză Vizuală și Comparativă (Tasks)
+        # Append tasks as a special section if they exist
+        if report.get('tasks'):
+            _add_tasks_section(doc, report['tasks'])
 
-            # 7. Bibliografie
-            _add_bibliography(doc, report.get('bibliography', {}))
+        # 6. Concluzii
+        if report.get('conclusions'):
+            _add_conclusions(doc, report['conclusions'])
+
+        # 7. Bibliografie
+        _add_bibliography(doc, report.get('bibliography', {}))
 
         doc.save(output_path)
         logger.info(f"Successfully generated .docx document at: {output_path}")
@@ -77,6 +86,34 @@ def generate_academic_docx(report: Dict[str, Any], output_path: str) -> None:
     except Exception as e:
         logger.error(f"Error generating .docx document: {e}", exc_info=True)
         raise
+
+def _add_tasks_section(doc: Document, tasks: List[Dict[str, Any]]) -> None:
+    """
+    Adds a section for Chart and Comparison tasks.
+    """
+    if not tasks: return
+
+    doc.add_heading('ANALIZĂ VIZUALĂ ȘI COMPARATIVĂ', level=1)
+
+    for task in tasks:
+        task_type = task.get('type')
+        logger.info(f"Processing task: {task.get('id')} ({task_type})")
+
+        # Add some vertical spacing
+        doc.add_paragraph()
+
+        if task_type == 'chart':
+            if MATPLOTLIB_AVAILABLE:
+                _add_chart_task(doc, task)
+            else:
+                doc.add_paragraph("[Chart generation unavailable - Matplotlib missing]")
+
+        elif task_type == 'comparison':
+            _add_comparison_task(doc, task)
+
+    # Page break after this section before Conclusions
+    # (Optional, but acts like a chapter end)
+    # doc.add_page_break()
 
 
 def _apply_academic_styles(doc: Document) -> None:
@@ -442,6 +479,10 @@ def _generate_chart_comparison_content(doc: Document, report: Dict[str, Any]) ->
             _add_comparison_task(doc, task)
 
         doc.add_paragraph() # Spacing
+
+    # Bibliography
+    if report.get('bibliography') or report.get('jurisprudence'):
+        _add_bibliography(doc, report.get('bibliography', {}))
 
 def _add_chart_task(doc: Document, task: Dict[str, Any]):
     label = task.get('label', 'Chart Task')

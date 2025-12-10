@@ -744,17 +744,18 @@ class ThreeStageAnalyzer:
                     break
 
                 # Validate structure
+                # Validate structure
                 required_fields_dissertation = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
-                required_fields_charts = ['title', 'executive_summary', 'tasks', 'metadata']
+                # 'tasks' is now part of the dissertation object but optional in loose validation (critical in strict prompt)
 
                 missing_dissertation = [f for f in required_fields_dissertation if f not in report]
-                missing_charts = [f for f in required_fields_charts if f not in report]
 
                 is_dissertation = not missing_dissertation
-                is_charts = not missing_charts
+                # We no longer separate into "is_charts" vs "is_dissertation".
+                # We expect "is_dissertation" to be true, and ideally "tasks" to be present too.
 
-                if not is_dissertation and not is_charts and not report.get('metadata', {}).get('import_mode'):
-                    logger.error(f"Missing fields on attempt {attempt}. Missing dissertation: {missing_dissertation}. Missing charts: {missing_charts}")
+                if not is_dissertation and not report.get('metadata', {}).get('import_mode'):
+                    logger.error(f"Missing dissertation fields on attempt {attempt}: {missing_dissertation}")
                     if attempt < max_retries:
                         continue
                     report = self._create_fallback_report(content, all_case_ids, original_query, len(task_results))
