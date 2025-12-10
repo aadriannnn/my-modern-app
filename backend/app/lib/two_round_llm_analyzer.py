@@ -744,30 +744,38 @@ class ThreeStageAnalyzer:
                     break
 
                 # Validate structure
-                required_fields = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
-                missing = [f for f in required_fields if f not in report]
-                if missing and not report.get('metadata', {}).get('import_mode'):
-                    logger.error(f"Missing fields on attempt {attempt}: {missing}")
+                required_fields_dissertation = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
+                required_fields_charts = ['title', 'executive_summary', 'tasks', 'metadata']
+
+                missing_dissertation = [f for f in required_fields_dissertation if f not in report]
+                missing_charts = [f for f in required_fields_charts if f not in report]
+
+                is_dissertation = not missing_dissertation
+                is_charts = not missing_charts
+
+                if not is_dissertation and not is_charts and not report.get('metadata', {}).get('import_mode'):
+                    logger.error(f"Missing fields on attempt {attempt}. Missing dissertation: {missing_dissertation}. Missing charts: {missing_charts}")
                     if attempt < max_retries:
                         continue
                     report = self._create_fallback_report(content, all_case_ids, original_query, len(task_results))
                     break
 
                 # Filter bibliography
-                cited_ids = set()
-                for item in report.get('bibliography', {}).get('jurisprudence', []):
-                    cited_ids.add(item.get('case_id'))
+                if 'bibliography' in report and 'jurisprudence' in report['bibliography']:
+                    cited_ids = set()
+                    for item in report.get('bibliography', {}).get('jurisprudence', []):
+                        cited_ids.add(item.get('case_id'))
 
-                unknown_ids = cited_ids - all_case_ids
-                if unknown_ids:
-                    logger.warning(f"⚠️ Filtering {len(unknown_ids)} hallucinated IDs")
-                    report['bibliography']['jurisprudence'] = [
-                        item for item in report['bibliography']['jurisprudence']
-                        if item.get('case_id') in all_case_ids
-                    ]
+                    unknown_ids = cited_ids - all_case_ids
+                    if unknown_ids:
+                        logger.warning(f"⚠️ Filtering {len(unknown_ids)} hallucinated IDs")
+                        report['bibliography']['jurisprudence'] = [
+                            item for item in report['bibliography']['jurisprudence']
+                            if item.get('case_id') in all_case_ids
+                        ]
 
-                valid_cited_ids = cited_ids & all_case_ids
-                report['bibliography']['total_cases_cited'] = len(valid_cited_ids)
+                    valid_cited_ids = cited_ids & all_case_ids
+                    report['bibliography']['total_cases_cited'] = len(valid_cited_ids)
 
                 logger.info(f"✅ Success on attempt {attempt}")
                 break

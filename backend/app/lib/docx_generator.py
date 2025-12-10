@@ -18,6 +18,14 @@ from typing import Dict, Any, List
 import logging
 import re
 import datetime
+import io
+import base64
+try:
+    import matplotlib.pyplot as plt
+    MATPLOTLIB_AVAILABLE = True
+except ImportError:
+    MATPLOTLIB_AVAILABLE = False
+    logger.warning("Matplotlib not available. Charts will not be generated.")
 
 logger = logging.getLogger(__name__)
 
@@ -40,24 +48,28 @@ def generate_academic_docx(report: Dict[str, Any], output_path: str) -> None:
         # 1. Pagina de Gardă (Cover Page)
         _add_cover_page(doc, "LUCRARE DE LICENȚĂ", is_cover=True)
 
-        # 2. Prima Pagină (Title Page) - Same layout but with actual Title
-        real_title = report.get('title', 'TITLUL LUCRĂRII').upper()
-        _add_cover_page(doc, real_title, is_cover=False)
+        # Check for new Chart/Comparison format
+        if 'tasks' in report and report.get('tasks'):
+            _generate_chart_comparison_content(doc, report)
+        else:
+            # 2. Prima Pagină (Title Page) - Same layout but with actual Title
+            real_title = report.get('title', 'TITLUL LUCRĂRII').upper()
+            _add_cover_page(doc, real_title, is_cover=False)
 
-        # 3. Cuprins (Table of Contents)
-        _add_table_of_contents(doc, report)
+            # 3. Cuprins (Table of Contents)
+            _add_table_of_contents(doc, report)
 
-        # 4. Introducere (Not numbered)
-        _add_introduction(doc, report.get('introduction', {}))
+            # 4. Introducere (Not numbered)
+            _add_introduction(doc, report.get('introduction', {}))
 
-        # 5. Conținut (Chapters)
-        _add_chapters(doc, report.get('chapters', []))
+            # 5. Conținut (Chapters)
+            _add_chapters(doc, report.get('chapters', []))
 
-        # 6. Concluzii (Not numbered usually, or numbered distinctly)
-        _add_conclusions(doc, report.get('conclusions', {}))
+            # 6. Concluzii (Not numbered usually, or numbered distinctly)
+            _add_conclusions(doc, report.get('conclusions', {}))
 
-        # 7. Bibliografie
-        _add_bibliography(doc, report.get('bibliography', {}))
+            # 7. Bibliografie
+            _add_bibliography(doc, report.get('bibliography', {}))
 
         doc.save(output_path)
         logger.info(f"Successfully generated .docx document at: {output_path}")
