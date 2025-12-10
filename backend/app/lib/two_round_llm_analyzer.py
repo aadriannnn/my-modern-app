@@ -745,14 +745,39 @@ class ThreeStageAnalyzer:
 
                 # Validate structure
                 # Validate structure
-                required_fields_dissertation = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
-                # 'tasks' is now part of the dissertation object but optional in loose validation (critical in strict prompt)
+                # Check for new wrapper schema
+                if 'dissertation' in report:
+                    logger.info("Detected new wrapper schema (dissertation + visual_tasks)")
+                    dissertation_content = report['dissertation']
+                    visual_tasks = report.get('visual_tasks', [])
 
-                missing_dissertation = [f for f in required_fields_dissertation if f not in report]
+                    required_fields_dissertation = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
+                    missing_dissertation = [f for f in required_fields_dissertation if f not in dissertation_content]
 
-                is_dissertation = not missing_dissertation
-                # We no longer separate into "is_charts" vs "is_dissertation".
-                # We expect "is_dissertation" to be true, and ideally "tasks" to be present too.
+                    if not missing_dissertation:
+                        # Valid wrapper schema!
+                        # Merge tasks into dissertation content for flattening
+                        dissertation_content['tasks'] = visual_tasks
+                        # Merge metadata if present in root or ensure it exists
+                        if 'metadata' in report:
+                            dissertation_content['metadata'] = report['metadata']
+
+                        # Use this as the report
+                        report = dissertation_content
+                        is_dissertation = True
+                    else:
+                        is_dissertation = False # Malformed wrapper
+                        logger.error(f"Wrapper detected but missing fields: {missing_dissertation}")
+                else:
+                    # Legacy flat schema validation
+                    required_fields_dissertation = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
+                    # 'tasks' is now part of the dissertation object but optional in loose validation (critical in strict prompt)
+
+                    missing_dissertation = [f for f in required_fields_dissertation if f not in report]
+
+                    is_dissertation = not missing_dissertation
+                    # We no longer separate into "is_charts" vs "is_dissertation".
+                    # We expect "is_dissertation" to be true, and ideally "tasks" to be present too.
 
                 if not is_dissertation and not report.get('metadata', {}).get('import_mode'):
                     logger.error(f"Missing dissertation fields on attempt {attempt}: {missing_dissertation}")
@@ -761,8 +786,14 @@ class ThreeStageAnalyzer:
                     report = self._create_fallback_report(content, all_case_ids, original_query, len(task_results))
                     break
 
+                # Ensure charts/tasks are present in final object if possible (already merged above if wrapper)
+                if 'tasks' not in report and 'visual_tasks' in report:
+                     report['tasks'] = report['visual_tasks']
+
                 # Filter bibliography
                 if 'bibliography' in report and 'jurisprudence' in report['bibliography']:
+                    # Ensure bibliography only contains relevant cases or is complete
+                    pass # Trust the LLM extraction for now, or filter by referenced_case_ids if needed
                     cited_ids = set()
                     for item in report.get('bibliography', {}).get('jurisprudence', []):
                         cited_ids.add(item.get('case_id'))
