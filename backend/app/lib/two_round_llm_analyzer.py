@@ -118,11 +118,17 @@ class ThreeStageAnalyzer:
         total_time_seconds = 0
         total_cases = 0
 
+        from .analyzer.task_queue_manager import TaskQueueManager
+        queue_manager = TaskQueueManager()
+
         for task in tasks:
             task_id = task['id']
             query = task['query']
 
             try:
+                # Update state to PLANNING so UI shows progress
+                queue_manager.update_task_state(task_id, "planning")
+
                 # Create plan for single task
                 plan_result = await self.create_plan(query)
 
@@ -131,13 +137,20 @@ class ThreeStageAnalyzer:
                     total_time_seconds += plan_result.get('estimated_time_seconds', 0)
                     total_cases += plan_result.get('total_cases', 0)
                     results[task_id] = plan_result
+
+                    # Update state to PLANNED immediately
+                    queue_manager.update_task_state(task_id, "planned", {"plan": plan_result})
                 else:
                     failed_count += 1
                     results[task_id] = {'success': False, 'error': plan_result.get('error', 'Unknown error')}
 
+                    # Update state to FAILED immediately
+                    queue_manager.update_task_state(task_id, "failed", {"error": plan_result.get('error')})
+
             except Exception as e:
                 failed_count += 1
                 results[task_id] = {'success': False, 'error': str(e)}
+                queue_manager.update_task_state(task_id, "failed", {"error": str(e)})
 
         return {
             'success': True,

@@ -153,11 +153,8 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                     {currentStep === 'executing_queue' && (
                         <QueueExecutionStep
                             queueTasks={queueTasks}
-                            onViewResults={() => {
-                                const firstCompleted = queueTasks.find(t => t.state === 'completed');
-                                if (firstCompleted) setSelectedTaskId(firstCompleted.id);
-                                setCurrentStep('queue_results');
-                            }}
+                            onViewResults={() => { setCurrentStep('queue_results'); refreshQueue(); }}
+                            executionMode={executionMode}
                         />
                     )}
                     {currentStep === 'queue_results' && (

@@ -6,11 +6,13 @@ import type { QueueTask } from '../../../types';
 interface QueueExecutionStepProps {
     queueTasks: QueueTask[];
     onViewResults: () => void;
+    executionMode: 'review' | 'direct';
 }
 
 export const QueueExecutionStep: React.FC<QueueExecutionStepProps> = ({
     queueTasks,
-    onViewResults
+    onViewResults,
+    executionMode
 }) => {
     return (
         <div className="flex-1 flex flex-col min-h-0">
@@ -19,6 +21,7 @@ export const QueueExecutionStep: React.FC<QueueExecutionStepProps> = ({
                 {queueTasks.length > 0 ? (
                     <QueueExecutionProgress
                         tasks={queueTasks}
+                        executionMode={executionMode}
                     />
                 ) : (
                     <div className="mt-8 text-center p-8 text-gray-500">
