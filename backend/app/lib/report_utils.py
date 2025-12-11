@@ -339,8 +339,10 @@ def enrich_report_with_titles(report: Dict[str, Any], session: Session, for_docx
                     })
                     logger.info(f"Added missing case {case_id} to bibliography")
 
-        # Replace any remaining IDs in bibliography text with PLAIN text
-        _replace_ids_in_dict(biblio, id_to_title, for_docx=False)
+
+        # Note: We do NOT call _replace_ids_in_dict on bibliography here
+        # because we've already explicitly set the citations from database above.
+        # Calling it would overwrite our database-sourced citations!
         report['bibliography'] = biblio
 
     logger.info("Report enrichment completed")

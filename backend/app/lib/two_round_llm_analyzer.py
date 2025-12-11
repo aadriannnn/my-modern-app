@@ -949,6 +949,7 @@ class ThreeStageAnalyzer:
                 'warning': 'Raport generat în mod fallback - LLM a returnat text în loc de JSON'
             }
         }
+
     def _create_fallback_report(
         self,
         raw_content: str,
@@ -960,6 +961,8 @@ class ThreeStageAnalyzer:
         Create a fallback report structure from raw LLM text when JSON parsing fails.
         This ensures users always get a usable report, even if LLM returns markdown.
 
+        CRITICAL: Attempts to extract visual_tasks from raw content to preserve charts/tables.
+
         Args:
             raw_content: Raw text response from LLM
             case_ids: Set of all case IDs from task results
@@ -967,12 +970,28 @@ class ThreeStageAnalyzer:
             num_tasks: Number of tasks synthesized
 
         Returns:
-            Dictionary with report structure containing raw text
+            Dictionary with report structure containing raw text + extracted visual_tasks
         """
+        import json
+        import re
         logger.info("📦 Creating fallback report from raw LLM response...")
 
         # Clean up the raw content (remove excessive markdown if present)
         cleaned_content = raw_content.strip()
+
+        # CRITICAL: Try to extract visual_tasks from raw JSON
+        # Even if full parsing failed, visual_tasks might be valid
+        visual_tasks = []
+        try:
+            # Try to find visual_tasks array in raw content
+            # Look for "visual_tasks": [ ... ] pattern
+            tasks_match = re.search(r'"visual_tasks"\s*:\s*(\[.*?\])', cleaned_content, re.DOTALL)
+            if tasks_match:
+                tasks_json_str = tasks_match.group(1)
+                visual_tasks = json.loads(tasks_json_str)
+                logger.info(f"✅ Extracted {len(visual_tasks)} visual tasks from fallback content")
+        except Exception as e:
+            logger.warning(f"Could not extract visual_tasks from fallback content: {e}")
 
         return {
             'title': f"Analiză Juridică: {query[:80]}",
@@ -986,7 +1005,7 @@ class ThreeStageAnalyzer:
             'introduction': {
                 'context': 'Raport generat din răspuns text LLM (mod fallback)',
                 'scope': query,
-                'methodology': f'Analiză jurisprudențială pe {len(case_ids)} cazuri relevante'
+               'methodology': f'Analiză jurisprudențială pe {len(case_ids)} cazuri relevante'
             },
             'chapters': [{
                 'chapter_number': '1',
@@ -1009,7 +1028,7 @@ class ThreeStageAnalyzer:
                 'jurisprudence': [
                     {
                         'case_id': cid,
-                        'citation': f'Jurisprudența anonimizată (#{cid})',
+                        'citation': f'Cited Case #{cid}',  # Will be replaced by enrichment
                         'relevance': 'Caz analizat în raport'
                     }
                     for cid in sorted(list(case_ids))
@@ -1017,6 +1036,7 @@ class ThreeStageAnalyzer:
                 'total_cases_cited': len(case_ids),
                 'total_cases_analyzed': len(case_ids)
             },
+            'tasks': visual_tasks,  # ✅ CRITICAL: Include extracted visual tasks
             'metadata': {
                 'word_count_estimate': len(cleaned_content.split()),
                 'generation_timestamp': time.strftime('%Y-%m-%d'),
