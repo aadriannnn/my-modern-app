@@ -21,6 +21,9 @@ from .analyzer.strategy_engine import StrategyEngine
 
 logger = logging.getLogger(__name__)
 
+DEFAULT_SELECTED_COLUMNS = ["titlu", "text_situatia_de_fapt", "keywords", "tip_solutie", "obiect"]
+
+
 class ThreeStageAnalyzer:
     """
     Orchestrates the 3-stage advanced analysis (Map-Reduce) with Human-in-the-Loop.
@@ -75,6 +78,10 @@ class ThreeStageAnalyzer:
                     return {'success': False, 'error': 'Nu s-au găsit date relevante nici după extinderea căutării.'}
 
             # 4. Create Plan
+            # Ensure selected_columns is populated
+            if not strategy.get('selected_columns'):
+                strategy['selected_columns'] = list(DEFAULT_SELECTED_COLUMNS)
+
             plan = self.plan_manager.create_plan_object(user_query, strategy, total_cases, all_ids)
             self.plan_manager.save_plan(plan)
 
@@ -231,7 +238,13 @@ class ThreeStageAnalyzer:
     async def execute_chunk(self, plan: Dict[str, Any], chunk_index: int) -> Dict[str, Any]:
         try:
             chunk_ids = plan['chunks'][chunk_index]
-            data = self.data_fetcher.fetch_chunk_data(chunk_ids, plan['strategy']['selected_columns'])
+
+            # Safe access to selected_columns with fallback
+            selected_cols = plan['strategy'].get('selected_columns')
+            if not selected_cols:
+                selected_cols = list(DEFAULT_SELECTED_COLUMNS)
+
+            data = self.data_fetcher.fetch_chunk_data(chunk_ids, selected_cols)
             truncated_data, _ = self.data_fetcher.validate_and_truncate_data(data, plan['user_query'])
 
             prompt = self.prompt_manager.build_chunk_analysis_prompt(

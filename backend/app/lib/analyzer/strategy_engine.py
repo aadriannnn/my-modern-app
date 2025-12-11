@@ -105,7 +105,8 @@ class StrategyEngine:
         return {
             "strategy_type": "sql_standard",
             "count_query": f"SELECT COUNT(*) FROM blocuri WHERE ({where})",
-            "id_list_query": f"SELECT id FROM blocuri WHERE ({where}) LIMIT 100"
+            "id_list_query": f"SELECT id FROM blocuri WHERE ({where}) LIMIT 100",
+            "selected_columns": ["titlu", "text_situatia_de_fapt", "keywords", "tip_solutie", "obiect"]
         }
 
     def _determine_expansion_strategies(self, primary: Dict[str, Any], mode: str) -> List[str]:
