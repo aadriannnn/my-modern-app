@@ -46,6 +46,15 @@ def extract_all_case_ids_from_report(report: Dict[str, Any]) -> Set[int]:
     ids_in_text = re.findall(r'#(\d+)', text_content)
     case_ids.update(int(id_str) for id_str in ids_in_text)
 
+    # Extract [cite: 12, 34] pattern
+    cite_matches = re.findall(r'\[cite:\s*([\d,\s]+)\]', text_content, flags=re.IGNORECASE)
+    for match in cite_matches:
+        # split by comma
+        ids = re.split(r'[,;]\s*', match)
+        for i in ids:
+            if i.strip().isdigit():
+                case_ids.add(int(i.strip()))
+
     logger.info(f"Extracted {len(case_ids)} unique case IDs from report")
     return case_ids
 
@@ -219,6 +228,34 @@ def replace_case_ids_in_text(text: str, id_to_title: Dict[int, str], for_docx: b
 
     text = re.sub(r'#(\d+)', replace_standalone, text)
 
+    # --- Step 5: Handle [cite: 12, 34] Pattern ---
+    # Matches patterns like `[cite: 1, 2]` or `[cite: 1]` output by LLM
+    def replace_cite_tag_match(match):
+        content = match.group(1) # The extracted IDs string e.g. "1, 2"
+        parts = re.split(r'[,;]\s*', content)
+        new_parts = []
+
+        for part in parts:
+            part = part.strip()
+            if not part: continue
+            if part.isdigit():
+                case_id = int(part)
+                title = id_to_title.get(case_id)
+                if title:
+                    new_parts.append(format_replacement(case_id, title))
+                else:
+                    new_parts.append(f"[cite: {case_id}]") # Keep original if not found
+            else:
+                new_parts.append(part)
+
+        if not new_parts:
+            return match.group(0)
+
+        # Join them back.
+        return " ".join(new_parts)
+
+    text = re.sub(r'\[cite:\s*([\d,\s]+)\]', replace_cite_tag_match, text, flags=re.IGNORECASE)
+
     # --- Step 5: Final Cleanup ---
     # Fix double spaces created by prefix removal
     text = re.sub(r'\s{2,}', ' ', text)
@@ -235,7 +272,8 @@ def enrich_report_with_titles(report: Dict[str, Any], session: Session, for_docx
     This function orchestrates:
     1. Extracting all case IDs from report
     2. Fetching titles from database (preferring 'titlu' over 'denumire')
-    3. Replacing IDs with titles in text fields.
+    3. Replacing IDs with titles in text fields
+    4. Populating bibliography with database-sourced titles
 
     Args:
         for_docx: If True, uses a special `[[CITATION:ID:Title]]` format for DOCX processing (footnotes).
@@ -266,8 +304,42 @@ def enrich_report_with_titles(report: Dict[str, Any], session: Session, for_docx
     # Replace in main body (chapters, intro, etc) with requested format (e.g. footnotes for DOCX)
     _replace_ids_in_dict(report, id_to_title, for_docx)
 
-    # Replace in bibliography with PLAIN text always (we don't want footnotes in the bibliography list)
+    # Step 4: Populate bibliography with database-sourced titles
     if biblio:
+        # Ensure bibliography has the correct structure
+        if 'jurisprudence' not in biblio:
+            biblio['jurisprudence'] = []
+
+        # Update existing bibliography entries with database titles
+        for item in biblio.get('jurisprudence', []):
+            case_id = item.get('case_id')
+            if case_id:
+                # Convert to int if needed
+                if isinstance(case_id, str):
+                    try:
+                        case_id = int(case_id)
+                    except ValueError:
+                        continue
+
+                # Replace citation with database title if available
+                db_title = id_to_title.get(case_id)
+                if db_title:
+                    item['citation'] = db_title
+                    logger.info(f"Updated bibliography entry for case {case_id} with database title")
+
+        # Add any missing cases to bibliography
+        existing_case_ids = {item.get('case_id') for item in biblio.get('jurisprudence', []) if item.get('case_id')}
+        for case_id in case_ids:
+            if case_id not in existing_case_ids:
+                db_title = id_to_title.get(case_id)
+                if db_title:
+                    biblio['jurisprudence'].append({
+                        'case_id': case_id,
+                        'citation': db_title
+                    })
+                    logger.info(f"Added missing case {case_id} to bibliography")
+
+        # Replace any remaining IDs in bibliography text with PLAIN text
         _replace_ids_in_dict(biblio, id_to_title, for_docx=False)
         report['bibliography'] = biblio
 
