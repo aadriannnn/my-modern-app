@@ -128,6 +128,11 @@ class LLMClient:
         cleaned = re.sub(r'^={10,}.*$', '', cleaned, flags=re.MULTILINE)
         cleaned = re.sub(r'^-{10,}.*$', '', cleaned, flags=re.MULTILINE)
         cleaned = re.sub(r'^🔬 PHASE \d+:.*$', '', cleaned, flags=re.MULTILINE)
+
+        # Remove citation marking tags that invalidate JSON structure
+        # These are sometimes output by the LLM (e.g., [cite_start]"key": ...)
+        cleaned = cleaned.replace("[cite_start]", "").replace("[cite_end]", "")
+
         cleaned = cleaned.strip()
 
         data = None
