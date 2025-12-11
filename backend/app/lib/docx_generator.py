@@ -398,12 +398,19 @@ def _process_text(doc: Document, text: str) -> None:
 
 def _process_inline_citations(paragraph, text: str) -> None:
     pattern = r'\[\[CITATION:(\d+):(.*?)(?:\]\])'
+    matches = list(re.finditer(pattern, text))
+
+    if matches:
+        logger.info(f"Found {len(matches)} citations in text segment: {text[:50]}...")
+
     last_idx = 0
-    for match in re.finditer(pattern, text):
+    for match in matches:
         pre_text = text[last_idx:match.start()]
         if pre_text: paragraph.add_run(pre_text)
 
         title = match.group(2)
+        citation_id = match.group(1)
+        logger.debug(f"Injecting footnote for ID {citation_id}: {title[:30]}...")
         _inject_footnote(paragraph, title)
         last_idx = match.end()
 
@@ -412,57 +419,109 @@ def _process_inline_citations(paragraph, text: str) -> None:
 
 
 def _inject_footnote(paragraph, text):
+    """
+    Injects an academic-compliant footnote (10pt, indented, single-spaced).
+    """
     try:
         part = paragraph.part
-        if not hasattr(part, 'package'): return
+        if not hasattr(part, 'package'):
+            return
 
-        # Robustly get or create footnotes part
+        # Get/create footnotes part
         footnotes_part = _get_or_create_footnotes_part(part.package.main_document_part)
 
-        # Ensure we have access to the element (xml) of the part
         if hasattr(footnotes_part, 'element'):
             fp_element = footnotes_part.element
-        elif hasattr(footnotes_part, '_element') and footnotes_part._element is not None:
+        elif hasattr(footnotes_part, '_element'):
             fp_element = footnotes_part._element
         else:
-             # Should not happen if created correctly, but fallback
-             raise AttributeError("Footnotes part has no accessible element")
+            raise AttributeError("Footnotes part inaccessible")
 
+        # Calculate next ID
         ids = [int(f.get(qn('w:id'))) for f in fp_element.findall(qn('w:footnote'))]
         next_id = (max(ids) if ids else 0) + 1
 
+        # Create footnote element
         footnote = OxmlElement('w:footnote')
         footnote.set(qn('w:id'), str(next_id))
 
+        # Create paragraph for footnote text
         fp = OxmlElement('w:p')
+
+        # Formatting: properties
         fpr = OxmlElement('w:pPr')
+
+        # Style
         fpstyle = OxmlElement('w:pStyle')
         fpstyle.set(qn('w:val'), 'FootnoteText')
         fpr.append(fpstyle)
+
+        # Indent (0.5 cm = ~283 twips)
+        ind = OxmlElement('w:ind')
+        ind.set(qn('w:firstLine'), '283')
+        fpr.append(ind)
+
+        # Spacing (single-spaced = 240 twips for 12pt line, auto matches font size usually)
+        spacing = OxmlElement('w:spacing')
+        spacing.set(qn('w:line'), '240')
+        spacing.set(qn('w:lineRule'), 'auto')
+        fpr.append(spacing)
+
         fp.append(fpr)
 
+        # Footnote reference (in formatting run)
         frun = OxmlElement('w:r')
         frun.append(OxmlElement('w:footnoteRef'))
         fp.append(frun)
 
+        # Footnote Text Run (Proper formatting)
         ftrun = OxmlElement('w:r')
+
+        # Run properties: 10pt font
+        rpr = OxmlElement('w:rPr')
+        sz = OxmlElement('w:sz')
+        sz.set(qn('w:val'), '20')  # 10pt = 20 half-points
+        rpr.append(sz)
+
+        # Ensure font name is Times New Roman for footnote too
+        rfonts = OxmlElement('w:rFonts')
+        rfonts.set(qn('w:ascii'), 'Times New Roman')
+        rfonts.set(qn('w:hAnsi'), 'Times New Roman')
+        rpr.append(rfonts)
+
+        ftrun.append(rpr)
+
+        # Text content
         fttext = OxmlElement('w:t')
-        fttext.text = f" {text}"
+        fttext.set(qn('xml:space'), 'preserve')
+        fttext.text = f" {text}"  # Space after number
         ftrun.append(fttext)
+
         fp.append(ftrun)
 
-        # Append new footnote
+        # Append footnote to document
         footnote.append(fp)
         fp_element.append(footnote)
 
+        # Add superscript reference in main text
         run = paragraph.add_run()
         r = run._r
+
+        # Set superscript style
+        rpr = OxmlElement('w:rPr')
+        vert_align = OxmlElement('w:vertAlign')
+        vert_align.set(qn('w:val'), 'superscript')
+        rpr.append(vert_align)
+        r.insert(0, rpr)
+
+        # Add footnote reference
         fref = OxmlElement('w:footnoteReference')
         fref.set(qn('w:id'), str(next_id))
         r.append(fref)
 
     except Exception as e:
-        logger.warning(f"Footnote injection failed: {e}")
+        logger.warning(f"Footnote injection failed: {e}", exc_info=True)
+        # Fallback
         r = paragraph.add_run(f"[{text}]")
         r.font.superscript = True
 
