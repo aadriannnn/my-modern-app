@@ -13,7 +13,9 @@ from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING, WD_TAB_LEADER
 from docx.enum.style import WD_STYLE_TYPE
 from docx.oxml.ns import qn
-from docx.oxml import OxmlElement
+from docx.oxml import OxmlElement, parse_xml
+from docx.opc.part import XmlPart
+from docx.opc.packuri import PackURI
 from typing import Dict, Any, List
 import logging
 import re
@@ -413,10 +415,20 @@ def _inject_footnote(paragraph, text):
     try:
         part = paragraph.part
         if not hasattr(part, 'package'): return
-        main_part = part.package.main_document_part
-        footnotes_part = main_part.footnotes_part
 
-        ids = [int(f.get(qn('w:id'))) for f in footnotes_part.element.findall(qn('w:footnote'))]
+        # Robustly get or create footnotes part
+        footnotes_part = _get_or_create_footnotes_part(part.package.main_document_part)
+
+        # Ensure we have access to the element (xml) of the part
+        if hasattr(footnotes_part, 'element'):
+            fp_element = footnotes_part.element
+        elif hasattr(footnotes_part, '_element') and footnotes_part._element is not None:
+            fp_element = footnotes_part._element
+        else:
+             # Should not happen if created correctly, but fallback
+             raise AttributeError("Footnotes part has no accessible element")
+
+        ids = [int(f.get(qn('w:id'))) for f in fp_element.findall(qn('w:footnote'))]
         next_id = (max(ids) if ids else 0) + 1
 
         footnote = OxmlElement('w:footnote')
@@ -439,8 +451,9 @@ def _inject_footnote(paragraph, text):
         ftrun.append(fttext)
         fp.append(ftrun)
 
+        # Append new footnote
         footnote.append(fp)
-        footnotes_part.element.append(footnote)
+        fp_element.append(footnote)
 
         run = paragraph.add_run()
         r = run._r
@@ -452,6 +465,47 @@ def _inject_footnote(paragraph, text):
         logger.warning(f"Footnote injection failed: {e}")
         r = paragraph.add_run(f"[{text}]")
         r.font.superscript = True
+
+
+def _get_or_create_footnotes_part(document_part):
+    """
+    Retrieves the existing footnotes part or creates a new one if it doesn't exist.
+    """
+    footnote_rel_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
+
+    try:
+        return document_part.part_related_by(footnote_rel_type)
+    except KeyError:
+        # Create new part
+        pass
+
+    package = document_part.package
+    partname = PackURI("/word/footnotes.xml")
+
+    xml_content = b"""<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+      <w:footnote w:type="separator" w:id="-1">
+        <w:p>
+          <w:r>
+            <w:separator/>
+          </w:r>
+        </w:p>
+      </w:footnote>
+      <w:footnote w:type="continuationSeparator" w:id="0">
+        <w:p>
+          <w:r>
+            <w:continuationSeparator/>
+          </w:r>
+        </w:p>
+      </w:footnote>
+    </w:footnotes>"""
+
+    content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"
+
+    target_part = XmlPart(partname, content_type, None, package)
+    target_part._element = parse_xml(xml_content)
+    document_part.relate_to(target_part, footnote_rel_type)
+
+    return target_part
 
 
 def _generate_chart_comparison_content(doc: Document, report: Dict[str, Any]) -> None:
