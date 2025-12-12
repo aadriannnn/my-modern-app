@@ -874,18 +874,37 @@ class ThreeStageAnalyzer:
                 # Filter bibliography
                 if 'bibliography' in report and 'jurisprudence' in report['bibliography']:
                     # Ensure bibliography only contains relevant cases or is complete
-                    pass # Trust the LLM extraction for now, or filter by referenced_case_ids if needed
                     cited_ids = set()
                     for item in report.get('bibliography', {}).get('jurisprudence', []):
-                        cited_ids.add(item.get('case_id'))
+                        # Handle different item types: int, str, or dict
+                        if isinstance(item, dict):
+                            case_id = item.get('case_id')
+                        elif isinstance(item, (int, str)):
+                            case_id = item  # Item is directly a case_id
+                        else:
+                            logger.warning(f"Unexpected item type in jurisprudence: {type(item)}")
+                            continue
+
+                        if case_id is not None:
+                            cited_ids.add(case_id)
 
                     unknown_ids = cited_ids - all_case_ids
                     if unknown_ids:
                         logger.warning(f"⚠️ Filtering {len(unknown_ids)} hallucinated IDs")
-                        report['bibliography']['jurisprudence'] = [
-                            item for item in report['bibliography']['jurisprudence']
-                            if item.get('case_id') in all_case_ids
-                        ]
+                        # Filter to keep only valid items
+                        filtered_jurisprudence = []
+                        for item in report['bibliography']['jurisprudence']:
+                            if isinstance(item, dict):
+                                case_id = item.get('case_id')
+                            elif isinstance(item, (int, str)):
+                                case_id = item
+                            else:
+                                continue
+
+                            if case_id in all_case_ids:
+                                filtered_jurisprudence.append(item)
+
+                        report['bibliography']['jurisprudence'] = filtered_jurisprudence
 
                     valid_cited_ids = cited_ids & all_case_ids
                     report['bibliography']['total_cases_cited'] = len(valid_cited_ids)

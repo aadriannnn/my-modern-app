@@ -338,11 +338,17 @@ class QueueManager:
                  # It seems synthesize_final_report RETURNS it.
                  # Codebase convention: PlanManager handles saving.
 
-                 report = report_res # It is the report dict
+                 # Extract the actual report from report_res
+                 report = report_res.get('report', report_res) # It is the report dict
 
                  # Save it
                  import uuid
                  report_id = str(uuid.uuid4())
+
+                 # Ensure metadata exists before modifying it
+                 if 'metadata' not in report:
+                     report['metadata'] = {}
+
                  report['report_id'] = report_id
                  report['created_at'] = datetime.now().isoformat()
                  report['metadata']['original_query'] = original_query
