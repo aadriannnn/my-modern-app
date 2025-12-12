@@ -302,7 +302,7 @@ def enrich_report_with_titles(report: Dict[str, Any], session: Session, for_docx
     biblio = report.pop('bibliography', None)
 
     # Replace in main body (chapters, intro, etc) with requested format (e.g. footnotes for DOCX)
-    _replace_ids_in_dict(report, id_to_title, for_docx)
+    replace_ids_in_dict(report, id_to_title, for_docx)
 
     # Step 4: Populate bibliography with database-sourced titles
     if biblio:
@@ -349,7 +349,7 @@ def enrich_report_with_titles(report: Dict[str, Any], session: Session, for_docx
     return report
 
 
-def _replace_ids_in_dict(obj: Any, id_to_title: Dict[int, str], for_docx: bool = False) -> None:
+def replace_ids_in_dict(obj: Any, id_to_title: Dict[int, str], for_docx: bool = False) -> None:
     """
     Recursively replace case IDs in all string values within a dictionary/list structure.
     Modifies the object in-place.
@@ -359,10 +359,10 @@ def _replace_ids_in_dict(obj: Any, id_to_title: Dict[int, str], for_docx: bool =
             if isinstance(value, str):
                 obj[key] = replace_case_ids_in_text(value, id_to_title, for_docx)
             else:
-                _replace_ids_in_dict(value, id_to_title, for_docx)
+                replace_ids_in_dict(value, id_to_title, for_docx)
     elif isinstance(obj, list):
         for i, item in enumerate(obj):
             if isinstance(item, str):
                 obj[i] = replace_case_ids_in_text(item, id_to_title, for_docx)
             else:
-                _replace_ids_in_dict(item, id_to_title, for_docx)
+                replace_ids_in_dict(item, id_to_title, for_docx)

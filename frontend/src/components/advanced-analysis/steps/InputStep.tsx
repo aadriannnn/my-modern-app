@@ -19,6 +19,7 @@ interface InputStepProps {
     error: string | null;
     executionMode: 'review' | 'direct';
     setExecutionMode: (mode: 'review' | 'direct') => void;
+    onSimulate?: () => void;
 }
 
 export const InputStep: React.FC<InputStepProps> = ({
@@ -34,7 +35,8 @@ export const InputStep: React.FC<InputStepProps> = ({
     isLoading,
     error,
     executionMode,
-    setExecutionMode
+    setExecutionMode,
+    onSimulate
 }) => {
     return (
         <>
@@ -116,7 +118,16 @@ export const InputStep: React.FC<InputStepProps> = ({
             </div>
 
             <div className="p-6 border-t border-gray-100 bg-white rounded-b-2xl flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="w-full md:w-auto">
+                <div className="w-full md:w-auto flex items-center gap-4">
+                    {/* Dev Tool: Simulation Button */}
+                    <button
+                        onClick={onSimulate}
+                        className="text-xs bg-purple-100 text-purple-700 px-3 py-1 rounded hover:bg-purple-200 border border-purple-300 transition-colors shadow-sm whitespace-nowrap"
+                        title="Dev Tool: Simulează un raport final"
+                    >
+                        ⚡ Simulează
+                    </button>
+
                     <div className="relative inline-block w-full md:w-64">
                         <select
                             value={executionMode}
@@ -154,7 +165,7 @@ export const InputStep: React.FC<InputStepProps> = ({
                         title="Descompune automat întrebarea în sarcini multiple pentru cercetare avansată"
                     >
                         <Brain className="w-4 h-4" />
-                        Analizează Academică 
+                        Analizează Academică
                     </button>
                     <button
                         onClick={onCreatePlan}

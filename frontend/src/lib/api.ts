@@ -547,8 +547,8 @@ export const startFullAcademicCycle = async (query: string, notificationEmail?: 
     credentials: 'include'
   });
   if (!response.ok) {
-     const errorData = await response.json().catch(() => ({}));
-     throw new Error(errorData.detail || 'Failed to start full academic cycle');
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to start full academic cycle');
   }
   return response.json();
 };
@@ -582,7 +582,13 @@ export const getFinalReport = async (reportId: string) => {
 };
 
 export const downloadFinalReportDocx = async (reportId: string) => {
-  const response = await fetchWithTimeout(`${API_URL}/advanced-analysis/queue/final-report/${reportId}/export`, {
+  let url = `${API_URL}/advanced-analysis/queue/final-report/${reportId}/export`;
+
+  if (reportId === 'SIMULATION' || reportId === 'SIMULATION_MODE') {
+    url = `${API_URL}/dev/simulate-docx`;
+  }
+
+  const response = await fetchWithTimeout(url, {
     credentials: 'include'
   });
 
@@ -591,12 +597,29 @@ export const downloadFinalReportDocx = async (reportId: string) => {
   }
 
   const blob = await response.blob();
-  const url = window.URL.createObjectURL(blob);
+  const urlObj = window.URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.download = `referat_final_${reportId}.docx`;
+  a.href = urlObj;
+  // If simulation, use a specific filename, otherwise use reportID
+  a.download = reportId === 'SIMULATION' || reportId === 'SIMULATION_MODE'
+    ? 'referat_simulat_dev.docx'
+    : `referat_final_${reportId}.docx`;
+
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  window.URL.revokeObjectURL(url);
+  window.URL.revokeObjectURL(urlObj);
+};
+
+export const simulateReport = async () => {
+  const response = await fetchWithTimeout(`${API_URL}/dev/simulate-report`, {
+    method: 'POST',
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to simulate report');
+  }
+
+  return response.json();
 };

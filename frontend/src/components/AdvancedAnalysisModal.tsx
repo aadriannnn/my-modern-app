@@ -13,12 +13,17 @@ import {
     QueueResultsStep
 } from './advanced-analysis/steps';
 
+import { simulateReport } from '../lib/api';
+
 interface AdvancedAnalysisModalProps {
     isOpen: boolean;
     onClose: () => void;
 }
 
 const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, onClose }) => {
+    // Local state for simulation
+    const [simulationData, setSimulationData] = React.useState<any>(null);
+
     const {
         // State
         query, setQuery,
@@ -50,6 +55,16 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
         handleShowFinalReport,
         refreshQueue
     } = useAdvancedAnalysis(isOpen, onClose);
+
+    const handleSimulateReport = async () => {
+        try {
+            const data = await simulateReport();
+            setSimulationData(data);
+        } catch (err) {
+            console.error("Simulation failed:", err);
+            // Optionally show error toast or set local error
+        }
+    };
 
     return (
         <>
@@ -102,6 +117,7 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
                             error={error}
                             executionMode={executionMode}
                             setExecutionMode={setExecutionMode}
+                            onSimulate={handleSimulateReport}
                         />
                     )}
                     {currentStep === 'queue_management' && (
@@ -171,11 +187,15 @@ const AdvancedAnalysisModal: React.FC<AdvancedAnalysisModalProps> = ({ isOpen, o
             </div>
 
             {/* Final Report Modal - Rendered as separate overlay on top */}
-            {finalReportId && (
+            {(finalReportId || simulationData) && (
                 <FinalReportStep
-                    reportId={finalReportId}
-                    isOpen={!!finalReportId}
-                    onClose={() => setFinalReportId(null)}
+                    reportId={finalReportId || 'SIMULATION'}
+                    isOpen={!!finalReportId || !!simulationData}
+                    onClose={() => {
+                        setFinalReportId(null);
+                        setSimulationData(null);
+                    }}
+                    preloadedData={simulationData}
                 />
             )}
         </>

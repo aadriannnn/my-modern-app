@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getFinalReport, downloadFinalReportDocx } from '../lib/api';
+import { getFinalReport, downloadFinalReportDocx, simulateReport } from '../lib/api';
 import { FileText, BookOpen, CheckCircle2, X, Download, BarChart3, Table2 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -88,31 +88,36 @@ interface FinalReportStepProps {
     reportId: string;
     isOpen: boolean;
     onClose: () => void;
+    preloadedData?: FinalReport; // New prop for simulation
 }
 
-export const FinalReportStep: React.FC<FinalReportStepProps> = ({ reportId, isOpen, onClose }) => {
+export const FinalReportStep: React.FC<FinalReportStepProps> = ({ reportId, isOpen, onClose, preloadedData }) => {
     const [report, setReport] = useState<FinalReport | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [isExporting, setIsExporting] = useState(false);
 
     useEffect(() => {
-        if (isOpen && reportId) {
-            const loadReport = async () => {
-                try {
-                    setLoading(true);
-                    const data = await getFinalReport(reportId);
-                    setReport(data);
-                } catch (err: any) {
-                    setError(err.message || 'Eroare la încărcarea raportului');
-                } finally {
-                    setLoading(false);
-                }
-            };
-
-            loadReport();
+        if (isOpen) {
+            if (preloadedData) {
+                setReport(preloadedData);
+                setLoading(false);
+            } else if (reportId) {
+                const loadReport = async () => {
+                    try {
+                        setLoading(true);
+                        const data = await getFinalReport(reportId);
+                        setReport(data);
+                    } catch (err: any) {
+                        setError(err.message || 'Eroare la încărcarea raportului');
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+                loadReport();
+            }
         }
-    }, [reportId, isOpen]);
+    }, [reportId, isOpen, preloadedData]);
 
     const handleExportDocx = async () => {
         try {

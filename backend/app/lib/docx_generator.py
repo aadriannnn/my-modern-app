@@ -8,17 +8,19 @@ This module generates professionally formatted Word documents adhering to strict
 - Structure: Cover Page, Title Page, TOC, Introduction, Chapters, Conclusions, Bibliography.
 """
 
+import re
+import logging
 from docx import Document
 from docx.shared import Pt, Cm, RGBColor
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_LINE_SPACING, WD_TAB_LEADER
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_LINE_SPACING, WD_TAB_LEADER
 from docx.enum.style import WD_STYLE_TYPE
-from docx.oxml.ns import qn
 from docx.oxml import OxmlElement, parse_xml
+from docx.oxml.ns import qn
 from docx.opc.part import XmlPart
 from docx.opc.packuri import PackURI
+# FORCE RELOAD 1
+
 from typing import Dict, Any, List
-import logging
-import re
 import datetime
 import io
 import base64
@@ -81,6 +83,18 @@ def generate_academic_docx(report: Dict[str, Any], output_path: str) -> None:
 
         # 7. Bibliografie
         _add_bibliography(doc, report.get('bibliography', {}))
+
+        # Final verification before save
+        logger.info("[DOCUMENT SAVE] Preparing to save document...")
+        logger.info(f"[DOCUMENT SAVE] Document has {len(doc.part.package.parts)} parts total")
+
+        # Check if footnotes part exists
+        try:
+            footnote_rel_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
+            footnotes_part = doc.part.part_related_by(footnote_rel_type)
+            logger.info(f"[DOCUMENT SAVE] ✅ Footnotes part confirmed: {footnotes_part.partname}")
+        except:
+            logger.warning("[DOCUMENT SAVE] ⚠️ No footnotes part found in document before save!")
 
         doc.save(output_path)
         logger.info(f"Successfully generated .docx document at: {output_path}")
@@ -184,6 +198,49 @@ def _apply_academic_styles(doc: Document) -> None:
     bt_pf.right_indent = Cm(1.27)
     bt_pf.line_spacing_rule = WD_LINE_SPACING.SINGLE
     bt_pf.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+    _ensure_footnote_styles(doc)
+
+
+def _ensure_footnote_styles(doc: Document) -> None:
+    """
+    Explicitly define Footnote Text and Footnote Reference styles
+    to guarantee academic formatting (10pt, Times New Roman, Indented).
+    """
+    # 1. Footnote Text (Paragraph Style)
+    if 'Footnote Text' not in doc.styles:
+        style = doc.styles.add_style('Footnote Text', WD_STYLE_TYPE.PARAGRAPH)
+    else:
+        style = doc.styles['Footnote Text']
+
+    font = style.font
+    font.name = 'Times New Roman'
+    font.size = Pt(10)
+
+    pf = style.paragraph_format
+    pf.line_spacing_rule = WD_LINE_SPACING.SINGLE
+    # Academic standard: hanging indent or first line indent?
+    # Usually first line indent 1.27cm OR hanging.
+    # User requested "Prima linie indentată" (First line indented).
+    pf.first_line_indent = Cm(0.5)
+    pf.left_indent = Pt(0)
+    pf.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+
+    # 2. Footnote Reference (Character Style)
+    if 'Footnote Reference' not in doc.styles:
+        # Character style types are different, often need to access xml directly if add_style restricts
+        try:
+           ref_style = doc.styles.add_style('Footnote Reference', WD_STYLE_TYPE.CHARACTER)
+        except:
+           # If it exists but failed check?
+           ref_style = doc.styles['Footnote Reference']
+    else:
+        ref_style = doc.styles['Footnote Reference']
+
+    ref_font = ref_style.font
+    ref_font.name = 'Times New Roman'
+    ref_font.superscript = True
+    # usually 10pt or 12pt superscript, let's keep it auto/12pt base
 
 
 def _add_page_number_field(paragraph):
@@ -410,7 +467,7 @@ def _process_inline_citations(paragraph, text: str) -> None:
 
         title = match.group(2)
         citation_id = match.group(1)
-        logger.debug(f"Injecting footnote for ID {citation_id}: {title[:30]}...")
+        logger.info(f"[FOOTNOTE DEBUG] Processing citation match: ID={citation_id}, Title='{title}'")
         _inject_footnote(paragraph, title)
         last_idx = match.end()
 
@@ -448,55 +505,37 @@ def _inject_footnote(paragraph, text):
         # Create paragraph for footnote text
         fp = OxmlElement('w:p')
 
-        # Formatting: properties
+        # Style: Footnote Text
         fpr = OxmlElement('w:pPr')
-
-        # Style
         fpstyle = OxmlElement('w:pStyle')
         fpstyle.set(qn('w:val'), 'FootnoteText')
         fpr.append(fpstyle)
-
-        # Indent (0.5 cm = ~283 twips)
-        ind = OxmlElement('w:ind')
-        ind.set(qn('w:firstLine'), '283')
-        fpr.append(ind)
-
-        # Spacing (single-spaced = 240 twips for 12pt line, auto matches font size usually)
-        spacing = OxmlElement('w:spacing')
-        spacing.set(qn('w:line'), '240')
-        spacing.set(qn('w:lineRule'), 'auto')
-        fpr.append(spacing)
-
         fp.append(fpr)
 
         # Footnote reference (in formatting run)
         frun = OxmlElement('w:r')
+        frun_ref = OxmlElement('w:rPr')
+        rstyle = OxmlElement('w:rStyle')
+        rstyle.set(qn('w:val'), 'FootnoteReference')
+        frun_ref.append(rstyle)
+        frun.append(frun_ref)
         frun.append(OxmlElement('w:footnoteRef'))
         fp.append(frun)
 
-        # Footnote Text Run (Proper formatting)
+        # Separator space
+        srun = OxmlElement('w:r')
+        stext = OxmlElement('w:t')
+        stext.set(qn('xml:space'), 'preserve')
+        stext.text = ' '
+        srun.append(stext)
+        fp.append(srun)
+
+        # Footnote Text content
         ftrun = OxmlElement('w:r')
-
-        # Run properties: 10pt font
-        rpr = OxmlElement('w:rPr')
-        sz = OxmlElement('w:sz')
-        sz.set(qn('w:val'), '20')  # 10pt = 20 half-points
-        rpr.append(sz)
-
-        # Ensure font name is Times New Roman for footnote too
-        rfonts = OxmlElement('w:rFonts')
-        rfonts.set(qn('w:ascii'), 'Times New Roman')
-        rfonts.set(qn('w:hAnsi'), 'Times New Roman')
-        rpr.append(rfonts)
-
-        ftrun.append(rpr)
-
-        # Text content
         fttext = OxmlElement('w:t')
         fttext.set(qn('xml:space'), 'preserve')
-        fttext.text = f" {text}"  # Space after number
+        fttext.text = text
         ftrun.append(fttext)
-
         fp.append(ftrun)
 
         # Append footnote to document
@@ -507,17 +546,35 @@ def _inject_footnote(paragraph, text):
         run = paragraph.add_run()
         r = run._r
 
-        # Set superscript style
-        rpr = OxmlElement('w:rPr')
-        vert_align = OxmlElement('w:vertAlign')
-        vert_align.set(qn('w:val'), 'superscript')
-        rpr.append(vert_align)
-        r.insert(0, rpr)
+        # CRITICAL: Build w:rPr BEFORE footnoteReference (OOXML schema requirement)
+        # Schema order: <w:r> -> <w:rPr> -> <w:footnoteReference>
+        rPr = OxmlElement('w:rPr')
 
-        # Add footnote reference
+        # 1. Add Footnote Reference style (CRITICAL for Word to recognize footnote)
+        rStyle = OxmlElement('w:rStyle')
+        rStyle.set(qn('w:val'), 'FootnoteReference')
+        rPr.append(rStyle)
+
+        # 2. Add explicit superscript (backup if style fails)
+        vertAlign = OxmlElement('w:vertAlign')
+        vertAlign.set(qn('w:val'), 'superscript')
+        rPr.append(vertAlign)
+
+        # 3. Font name (ensures Times New Roman)
+        rFonts = OxmlElement('w:rFonts')
+        rFonts.set(qn('w:ascii'), 'Times New Roman')
+        rFonts.set(qn('w:hAnsi'), 'Times New Roman')
+        rPr.append(rFonts)
+
+        # Append rPr to run (MUST come before footnoteReference)
+        r.append(rPr)
+
+        # NOW add footnoteReference (after w:rPr)
         fref = OxmlElement('w:footnoteReference')
         fref.set(qn('w:id'), str(next_id))
         r.append(fref)
+
+        logger.info(f"[FOOTNOTE DEBUG] Generated XML for ID {next_id}: {r.xml.decode('utf-8') if hasattr(r.xml, 'decode') else str(r.xml)}")
 
     except Exception as e:
         logger.warning(f"Footnote injection failed: {e}", exc_info=True)
@@ -529,13 +586,16 @@ def _inject_footnote(paragraph, text):
 def _get_or_create_footnotes_part(document_part):
     """
     Retrieves the existing footnotes part or creates a new one if it doesn't exist.
+    CRITICAL: Must ensure OPC relationship is created and persisted.
     """
     footnote_rel_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
 
     try:
-        return document_part.part_related_by(footnote_rel_type)
+        existing_part = document_part.part_related_by(footnote_rel_type)
+        logger.info(f"[FOOTNOTE PART] Found existing footnotes part: {existing_part.partname}")
+        return existing_part
     except KeyError:
-        # Create new part
+        logger.info("[FOOTNOTE PART] No existing footnotes part found, creating new one...")
         pass
 
     package = document_part.package
@@ -560,11 +620,28 @@ def _get_or_create_footnotes_part(document_part):
 
     content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"
 
+    # Create the footnotes part
     target_part = XmlPart(partname, content_type, None, package)
     target_part._element = parse_xml(xml_content)
-    document_part.relate_to(target_part, footnote_rel_type)
+
+    logger.info(f"[FOOTNOTE PART] Created new footnotes part: {partname}")
+    logger.info(f"[FOOTNOTE PART] Content type: {content_type}")
+
+    # CRITICAL: Create relationship between document and footnotes
+    rel_id = document_part.relate_to(target_part, footnote_rel_type)
+
+    logger.info(f"[FOOTNOTE RELATIONSHIP] Created relationship: rId={rel_id}, Type={footnote_rel_type}")
+    logger.info(f"[FOOTNOTE RELATIONSHIP] Target: {partname}")
+
+    # Verify the relationship was added
+    try:
+        verify_part = document_part.part_related_by(footnote_rel_type)
+        logger.info(f"[FOOTNOTE VERIFICATION] ✅ Relationship verified! Can retrieve part: {verify_part.partname}")
+    except KeyError:
+        logger.error("[FOOTNOTE VERIFICATION] ❌ FAILED! Relationship not found after creation!")
 
     return target_part
+
 
 
 def _generate_chart_comparison_content(doc: Document, report: Dict[str, Any]) -> None:

@@ -98,9 +98,15 @@ api_router.include_router(queue_router.router)
 api_router.include_router(feedback_router.router)
 api_router.include_router(advanced_analysis_router.router)
 
+from .routers import dev_tools
+api_router.include_router(dev_tools.router, prefix="/dev", tags=["dev"])
+
 app.include_router(api_router)
 
 
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+# FORCE RELOAD 2
