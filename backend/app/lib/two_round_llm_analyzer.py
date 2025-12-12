@@ -752,7 +752,7 @@ class ThreeStageAnalyzer:
                 logger.info("Step 5/6: Parsing JSON...")
                 try:
                     report = LLMClient.parse_json_response(content)
-                LLMClient.delete_response(path)
+                    LLMClient.delete_response(path)
                 except Exception as e:
                     logger.error(f"Parse error on attempt {attempt}: {e}")
                     LLMClient.delete_response(path)
