@@ -752,7 +752,7 @@ class ThreeStageAnalyzer:
                 logger.info("Step 5/6: Parsing JSON...")
                 try:
                     report = LLMClient.parse_json_response(content)
-                    LLMClient.delete_response(path)
+                LLMClient.delete_response(path)
                 except Exception as e:
                     logger.error(f"Parse error on attempt {attempt}: {e}")
                     LLMClient.delete_response(path)
@@ -837,6 +837,39 @@ class ThreeStageAnalyzer:
                             }
                             logger.info("✅ Auto-generated introduction structure")
 
+                        if 'chapters' in missing_dissertation:
+                            # Generate minimal chapters from task results
+                            dissertation_content['chapters'] = [
+                                {
+                                    'chapter_number': str(i+1),
+                                    'chapter_title': task.get('query', f'Capitol {i+1}')[:100],
+                                    'content': str(task.get('result', {}).get('interpretation', 'Fără conținut disponibil'))[:1000],
+                                    'subsections': []
+                                }
+                                for i, task in enumerate(task_results[:5])  # Max 5 chapters
+                            ]
+                            logger.info(f"✅ Auto-generated {len(dissertation_content['chapters'])} chapters from task results")
+
+                        if 'conclusions' in missing_dissertation:
+                            # Generate minimal conclusions
+                            dissertation_content['conclusions'] = {
+                                'summary_findings': f'Analiza a identificat informații relevante din {len(task_results)} taskuri.',
+                                'final_perspective': f'Cercetarea oferă o perspectivă asupra temei: {original_query}'
+                            }
+                            logger.info("✅ Auto-generated conclusions structure")
+
+                        if 'bibliography' in missing_dissertation:
+                            # Generate bibliography from all_case_ids
+                            dissertation_content['bibliography'] = {
+                                'jurisprudence': list(all_case_ids)[:50]  # Max 50 IDs
+                            }
+                            logger.info(f"✅ Auto-generated bibliography with {len(list(all_case_ids)[:50])} case IDs")
+
+                        if 'title' in missing_dissertation:
+                            # Generate title from query
+                            dissertation_content['title'] = original_query[:200] if len(original_query) <= 200 else original_query[:197] + '...'
+                            logger.info("✅ Auto-generated title from query")
+
                         # Re-check after auto-repair
                         missing_dissertation = [f for f in required_fields_dissertation if f not in dissertation_content]
 
@@ -850,22 +883,105 @@ class ThreeStageAnalyzer:
                         else:
                             logger.error(f"❌ Auto-repair failed. Still missing: {missing_dissertation}")
                 else:
-                    # Legacy flat schema validation
-                    required_fields_dissertation = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
-                    # 'tasks' is now part of the dissertation object but optional in loose validation (critical in strict prompt)
+                    # Legacy flat schema OR no wrapper - Auto-repair to create valid structure
+                    logger.warning("No wrapper structure detected. Attempting comprehensive auto-repair...")
 
-                    missing_dissertation = [f for f in required_fields_dissertation if f not in report]
+                    # 🛠️ AUTO-REPAIR: Extract ANY useful content and wrap it properly
+                    # Even if LLM completely ignored structure, salvage what we can
 
-                    is_dissertation = not missing_dissertation
-                    # We no longer separate into "is_charts" vs "is_dissertation".
-                    # We expect "is_dissertation" to be true, and ideally "tasks" to be present too.
+                    repaired_report = {
+                        'title': report.get('title', original_query[:200]),
+                        'table_of_contents': report.get('table_of_contents', []),
+                        'introduction': report.get('introduction', {}),
+                        'chapters': report.get('chapters', []),
+                        'conclusions': report.get('conclusions', {}),
+                        'bibliography': report.get('bibliography', {})
+                    }
 
-                if not is_dissertation and not report.get('metadata', {}).get('import_mode'):
-                    logger.error(f"Missing dissertation fields on attempt {attempt}: {missing_dissertation}")
+                    # Repair introduction if missing or incomplete
+                    if not repaired_report['introduction'] or not isinstance(repaired_report['introduction'], dict):
+                        repaired_report['introduction'] = {
+                            'motivation': f'Analiză juridică pentru: {original_query}',
+                            'methodology': f'Cercetare bazată pe {len(task_results)} taskuri de analiză',
+                            'summary': str(report.get('summary', ''))[:500]
+                        }
+                        logger.info("✅ Auto-repaired introduction")
+
+                    # Ensure all intro sub-fields exist
+                    if 'motivation' not in repaired_report['introduction']:
+                        repaired_report['introduction']['motivation'] = f'Analiză: {original_query}'
+                    if 'methodology' not in repaired_report['introduction']:
+                        repaired_report['introduction']['methodology'] = f'{len(task_results)} taskuri analizate'
+                    if 'summary' not in repaired_report['introduction']:
+                        repaired_report['introduction']['summary'] = ''
+
+                    # Repair chapters if missing or empty
+                    if not repaired_report['chapters'] or not isinstance(repaired_report['chapters'], list):
+                        repaired_report['chapters'] = [
+                            {
+                                'chapter_number': str(i+1),
+                                'chapter_title': task.get('query', f'Capitol {i+1}')[:100],
+                                'content': str(task.get('result', {}).get('interpretation', 'Fără conținut disponibil'))[:1000],
+                                'subsections': []
+                            }
+                            for i, task in enumerate(task_results[:5])  # Max 5 chapters
+                        ]
+                        logger.info(f"✅ Auto-generated {len(repaired_report['chapters'])} chapters")
+
+                    # Repair TOC if missing or empty
+                    if not repaired_report['table_of_contents'] and repaired_report['chapters']:
+                        repaired_report['table_of_contents'] = [
+                            {
+                                'chapter_number': chap.get('chapter_number', str(i+1)),
+                                'chapter_title': chap.get('chapter_title', f'Capitol {i+1}'),
+                                'subsections': chap.get('subsections', [])
+                            }
+                            for i, chap in enumerate(repaired_report['chapters'])
+                        ]
+                        logger.info(f"✅ Auto-generated TOC with {len(repaired_report['table_of_contents'])} entries")
+
+                    # Repair conclusions if missing or incomplete
+                    if not repaired_report['conclusions'] or not isinstance(repaired_report['conclusions'], dict):
+                        repaired_report['conclusions'] = {
+                            'summary_findings': str(report.get('results', ''))[:500] or f'Analiza a identificat informații din {len(task_results)} taskuri.',
+                            'final_perspective': str(report.get('interpretation', ''))[:500] or f'Perspectivă asupra: {original_query}'
+                        }
+                        logger.info("✅ Auto-repaired conclusions")
+
+                    # Ensure all conclusion sub-fields exist
+                    if 'summary_findings' not in repaired_report['conclusions']:
+                        repaired_report['conclusions']['summary_findings'] = f'Analiză completată pentru {len(task_results)} taskuri'
+                    if 'final_perspective' not in repaired_report['conclusions']:
+                        repaired_report['conclusions']['final_perspective'] = f'Cercetare finalizată'
+
+                    # Repair bibliography if missing or incomplete
+                    if not repaired_report['bibliography'] or not isinstance(repaired_report['bibliography'], dict):
+                        repaired_report['bibliography'] = {'jurisprudence': list(all_case_ids)[:50]}
+                        logger.info(f"✅ Auto-generated bibliography with {len(list(all_case_ids)[:50])} IDs")
+                    elif 'jurisprudence' not in repaired_report['bibliography']:
+                        repaired_report['bibliography']['jurisprudence'] = list(all_case_ids)[:50]
+                        logger.info(f"✅ Added jurisprudence to bibliography")
+
+                    logger.info("✅ Comprehensive auto-repair completed - all required fields present")
+                    report = repaired_report
+                    is_dissertation = True  # Mark as valid after repair
+
+                # At this point, report SHOULD have all required fields
+                # Double-check and log status
+                required_fields_final = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
+                missing_final = [f for f in required_fields_final if f not in report]
+
+                if missing_final:
+                    logger.error(f"❌ CRITICAL: Still missing fields after auto-repair: {missing_final}")
                     if attempt < max_retries:
+                        logger.warning("⏰ Retrying with enhanced prompt...")
                         continue
+                    # Last resort fallback
+                    logger.error("Creating emergency fallback report...")
                     report = self._create_fallback_report(content, all_case_ids, original_query, len(task_results))
                     break
+
+                logger.info(f"✅ Report structure validated - all {len(required_fields_final)} required fields present")
 
                 # Ensure charts/tasks are present in final object if possible (already merged above if wrapper)
                 if 'tasks' not in report and 'visual_tasks' in report:

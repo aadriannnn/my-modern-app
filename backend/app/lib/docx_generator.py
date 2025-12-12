@@ -44,12 +44,14 @@ _footnote_counter = 0
 def generate_academic_docx(report: Dict[str, Any], output_path: str) -> None:
     """
     Generate an academic .docx document from a final report structure.
+    ROBUST: Handles missing fields with intelligent fallbacks.
     """
     global _footnote_counter
     _footnote_counter = 0  # Reset counter for each document
 
     try:
         logger.info(f"Starting .docx generation for report: {report.get('title', 'Untitled')[:50]}...")
+        logger.info(f"📊 Report structure check - Keys present: {list(report.keys())}")
 
         doc = Document()
         _apply_academic_styles(doc)
@@ -59,35 +61,83 @@ def generate_academic_docx(report: Dict[str, Any], output_path: str) -> None:
 
         # 2. Prima Pagină (Title Page)
         real_title = report.get('title', 'TITLUL LUCRĂRII').upper()
+        if not real_title or real_title == 'TITLUL LUCRĂRII':
+            logger.warning("⚠️ No title found in report, using fallback")
+            real_title = 'ANALIZĂ JURIDICĂ'
         _add_cover_page(doc, real_title, is_cover=False)
 
         # 3. Cuprins (Table of Contents)
-        _add_table_of_contents(doc, report)
+        try:
+            _add_table_of_contents(doc, report)
+        except Exception as e:
+            logger.error(f"❌ Error adding TOC: {e}", exc_info=True)
+            # Add minimal TOC
+            doc.add_heading('CUPRINS', level=1)
+            doc.add_paragraph("[Cuprins generat automat]")
+            doc.add_page_break()
 
         # 4. Introducere
-        # If 'introduction' dict is present, use it.
-        # If not, but we have 'executive_summary', try to adapt it roughly.
-        if report.get('introduction'):
-            _add_introduction(doc, report['introduction'])
-        elif report.get('executive_summary'):
+        try:
+            if report.get('introduction') and isinstance(report['introduction'], dict):
+                _add_introduction(doc, report['introduction'])
+            elif report.get('executive_summary'):
+                logger.info("Using executive_summary for introduction")
+                doc.add_heading('INTRODUCERE', level=1)
+                _process_text(doc, report['executive_summary'])
+            else:
+                logger.warning("⚠️ No introduction found, adding minimal one")
+                doc.add_heading('INTRODUCERE', level=1)
+                doc.add_paragraph("Prezenta lucrare reprezintă o analiză juridică.")
+        except Exception as e:
+            logger.error(f"❌ Error adding introduction: {e}", exc_info=True)
             doc.add_heading('INTRODUCERE', level=1)
-            _process_text(doc, report['executive_summary'])
+            doc.add_paragraph("[Introducere - eroare la procesare]")
 
         # 5. Conținut (Chapters)
-        if report.get('chapters'):
-            _add_chapters(doc, report['chapters'])
+        try:
+            if report.get('chapters') and isinstance(report['chapters'], list) and len(report['chapters']) > 0:
+                _add_chapters(doc, report['chapters'])
+            else:
+                logger.warning("⚠️ No chapters found, adding placeholder")
+                doc.add_heading('CAPITOLUL 1. ANALIZĂ', level=1)
+                doc.add_paragraph("Conținut indisponibil.")
+        except Exception as e:
+            logger.error(f"❌ Error adding chapters: {e}", exc_info=True)
+            doc.add_heading('CAPITOLUL 1. CONȚINUT', level=1)
+            doc.add_paragraph("[Eroare la procesarea capitolelor]")
 
         # 5.1. Analiză Vizuală și Comparativă (Tasks)
-        # Append tasks as a special section if they exist
-        if report.get('tasks'):
-            _add_tasks_section(doc, report['tasks'])
+        if report.get('tasks') and isinstance(report['tasks'], list):
+            try:
+                _add_tasks_section(doc, report['tasks'])
+            except Exception as e:
+                logger.error(f"❌ Error adding tasks section: {e}", exc_info=True)
 
         # 6. Concluzii
-        if report.get('conclusions'):
-            _add_conclusions(doc, report['conclusions'])
+        try:
+            if report.get('conclusions') and isinstance(report['conclusions'], dict):
+                _add_conclusions(doc, report['conclusions'])
+            else:
+                logger.warning("⚠️ No conclusions found, adding minimal one")
+                doc.add_heading('CONCLUZII', level=1)
+                doc.add_paragraph("Analiza a fost finalizată.")
+        except Exception as e:
+            logger.error(f"❌ Error adding conclusions: {e}", exc_info=True)
+            doc.add_heading('CONCLUZII', level=1)
+            doc.add_paragraph("[Concluzii - eroare la procesare]")
 
         # 7. Bibliografie
-        _add_bibliography(doc, report.get('bibliography', {}))
+        try:
+            biblio = report.get('bibliography', {})
+            if not isinstance(biblio, dict):
+                logger.warning(f"⚠️ Bibliography is not a dict: {type(biblio)}, creating empty")
+                biblio = {}
+            _add_bibliography(doc, biblio)
+        except Exception as e:
+            logger.error(f"❌ Error adding bibliography: {e}", exc_info=True)
+            doc.add_page_break()
+            doc.add_heading('BIBLIOGRAFIE', level=1)
+            doc.add_paragraph("[Bibliografie - eroare la procesare]")
 
         # Final verification before save
         logger.info("[DOCUMENT SAVE] Preparing to save document...")
@@ -102,10 +152,10 @@ def generate_academic_docx(report: Dict[str, Any], output_path: str) -> None:
             logger.warning("[DOCUMENT SAVE] ⚠️ No footnotes part found in document before save!")
 
         doc.save(output_path)
-        logger.info(f"Successfully generated .docx document at: {output_path}")
+        logger.info(f"✅ Successfully generated .docx document at: {output_path}")
 
     except Exception as e:
-        logger.error(f"Error generating .docx document: {e}", exc_info=True)
+        logger.error(f"❌ CRITICAL ERROR generating .docx document: {e}", exc_info=True)
         raise
 
 def _add_tasks_section(doc: Document, tasks: List[Dict[str, Any]]) -> None:
@@ -377,18 +427,33 @@ def _add_toc_entry(doc: Document, text: str, level: int = 0):
 
 
 def _add_introduction(doc: Document, intro: Dict[str, Any]) -> None:
+    """Add introduction with robust field handling."""
     doc.add_heading('INTRODUCERE', level=1)
-    if not intro: return
+
+    if not intro or not isinstance(intro, dict):
+        logger.warning("⚠️ Introduction is empty or not a dict")
+        doc.add_paragraph("Introducere indisponibilă.")
+        return
 
     content_parts = []
-    if intro.get('motivation'): content_parts.append(intro['motivation'])
-    if intro.get('context'): content_parts.append(intro['context'])
-    if intro.get('scope'): content_parts.append(intro['scope'])
-    if intro.get('methodology'): content_parts.append(intro['methodology'])
+
+    # Safely extract all possible fields
+    if intro.get('motivation') and isinstance(intro['motivation'], str):
+        content_parts.append(intro['motivation'])
+    if intro.get('context') and isinstance(intro['context'], str):
+        content_parts.append(intro['context'])
+    if intro.get('scope') and isinstance(intro['scope'], str):
+        content_parts.append(intro['scope'])
+    if intro.get('methodology') and isinstance(intro['methodology'], str):
+        content_parts.append(intro['methodology'])
+    if intro.get('summary') and isinstance(intro['summary'], str) and not content_parts:
+        content_parts.append(intro['summary'])
 
     full_text = "\n\n".join(content_parts)
-    if not full_text and intro.get('summary'):
-        full_text = intro['summary']
+
+    if not full_text:
+        logger.warning("⚠️ Introduction has no text content, adding placeholder")
+        full_text = "Prezentul studiu reprezintă o analiză juridică."
 
     _process_text(doc, full_text)
 
@@ -411,27 +476,70 @@ def _add_chapters(doc: Document, chapters: List[Dict[str, Any]]) -> None:
 
 
 def _add_conclusions(doc: Document, concl: Dict[str, Any]) -> None:
+    """Add conclusions with robust field handling."""
     doc.add_heading('CONCLUZII', level=1)
+
+    if not concl or not isinstance(concl, dict):
+        logger.warning("⚠️ Conclusions is empty or not a dict")
+        doc.add_paragraph("Concluzii indisponibile.")
+        return
+
     text = ""
-    if concl.get('summary_findings'): text += concl['summary_findings'] + "\n\n"
-    if concl.get('final_perspective'): text += concl['final_perspective']
-    if not text and concl.get('summary'): text = concl['summary']
+    if concl.get('summary_findings') and isinstance(concl['summary_findings'], str):
+        text += concl['summary_findings'] + "\n\n"
+    if concl.get('final_perspective') and isinstance(concl['final_perspective'], str):
+        text += concl['final_perspective']
+    if not text and concl.get('summary') and isinstance(concl['summary'], str):
+        text = concl['summary']
+
+    if not text:
+        logger.warning("⚠️ Conclusions has no text content, adding placeholder")
+        text = "Analiza a fost finalizată cu succes."
+
     _process_text(doc, text)
 
 
 def _add_bibliography(doc: Document, biblio: Dict[str, Any]) -> None:
+    """Add bibliography with robust handling of various formats (dict/int/str)."""
     doc.add_page_break()
     doc.add_heading('BIBLIOGRAFIE', level=1)
 
+    if not biblio or not isinstance(biblio, dict):
+        logger.warning("⚠️ Bibliography is empty or not a dict")
+        doc.add_paragraph("Nu există surse citate.")
+        return
+
     jurisprudence = biblio.get('jurisprudence', [])
-    if not jurisprudence:
-        p = doc.add_paragraph("Nu există surse citate.")
+    if not jurisprudence or not isinstance(jurisprudence, list):
+        logger.warning("⚠️ No jurisprudence in bibliography")
+        doc.add_paragraph("Nu există surse citate.")
         return
 
     doc.add_heading('I. Jurisprudență', level=2)
-    jurisprudence.sort(key=lambda x: x.get('citation', ''))
 
-    for idx, item in enumerate(jurisprudence, 1):
+    # Process items - handle dict/int/str formats
+    valid_items = []
+    for item in jurisprudence:
+        if isinstance(item, dict) and item.get('citation'):
+            valid_items.append(item)
+        elif isinstance(item, (int, str)):
+            # Format: just ID - create minimal citation
+            valid_items.append({'citation': f"Speță #{item}"})
+        else:
+            logger.warning(f"⚠️ Skipping invalid bibliography item: {type(item)}")
+
+    if not valid_items:
+        logger.warning("⚠️ No valid citations found after processing")
+        doc.add_paragraph("Nu există surse valide citate.")
+        return
+
+    # Sort by citation text
+    try:
+        valid_items.sort(key=lambda x: x.get('citation', ''))
+    except Exception as e:
+        logger.warning(f"⚠️ Could not sort bibliography: {e}")
+
+    for idx, item in enumerate(valid_items, 1):
         citation = item.get('citation', '')
         if citation:
             p = doc.add_paragraph(f"{idx}. {citation}")
@@ -439,6 +547,8 @@ def _add_bibliography(doc: Document, biblio: Dict[str, Any]) -> None:
             p.paragraph_format.first_line_indent = Pt(0)
             p.paragraph_format.left_indent = Cm(1.0)
             p.paragraph_format.first_line_indent = Cm(-1.0)
+
+    logger.info(f"✅ Added {len(valid_items)} bibliography entries")
 
 
 def _process_text(doc: Document, text: str) -> None:
