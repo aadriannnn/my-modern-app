@@ -1107,50 +1107,7 @@ class ThreeStageAnalyzer:
             logger.error(f"❌ PHASE 4 FAILED: {e}", exc_info=True)
             return {'success': False, 'error': str(e), 'recoverable': True}
 
-    def _create_fallback_report(self, raw_content: str, case_ids: set, query: str, num_tasks: int) -> Dict[str, Any]:
-        """Create fallback report from raw LLM text when JSON parsing fails"""
-        import time
-        logger.info("📦 Creating fallback report from raw text...")
 
-        return {
-            'title': f"Analiză Juridică: {query[:80]}",
-            'table_of_contents': [{'chapter_number': '1', 'chapter_title': 'Raport Complet', 'subsections': []}],
-            'introduction': {
-                'context': 'Raport generat din răspuns text LLM (mod fallback)',
-                'scope': query,
-                'methodology': f'Analiză pe {len(case_ids)} cazuri'
-            },
-            'chapters': [{
-                'chapter_number': '1',
-                'chapter_title': 'Sinteză Completă',
-                'content': raw_content.strip(),
-                'subsections': [],
-                'key_cases': sorted(list(case_ids)),
-                'key_points': [f'Raport conține {len(case_ids)} spețe']
-            }],
-            'conclusions': {
-                'summary': 'Vezi conținutul în Capitolul 1',
-                'findings': [f'Analiză pe {len(case_ids)} spețe'],
-                'implications': 'Vezi analiza detaliată',
-                'future_research': ''
-            },
-            'bibliography': {
-                'jurisprudence': [
-                    {'case_id': cid, 'citation': f'Jurisprudența anonimizată (#{cid})', 'relevance': 'Caz analizat'}
-                    for cid in sorted(list(case_ids))
-                ],
-                'total_cases_cited': len(case_ids),
-                'total_cases_analyzed': len(case_ids)
-            },
-            'metadata': {
-                'word_count_estimate': len(raw_content.split()),
-                'generation_timestamp': time.strftime('%Y-%m-%d'),
-                'tasks_synthesized': num_tasks,
-                'academic_level': 'automated',
-                'import_mode': 'raw_text_fallback',
-                'warning': 'Raport generat în mod fallback - LLM a returnat text în loc de JSON'
-            }
-        }
 
     def _create_fallback_report(
         self,
