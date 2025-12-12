@@ -773,6 +773,13 @@ class ThreeStageAnalyzer:
                 # Validate structure
                 # Validate structure
                 # Check for new wrapper schema
+
+                # 🔍 DEBUG LOGGING - Log raw response structure
+                logger.info(f"[DEBUG] Raw LLM response keys: {list(report.keys())}")
+                if 'dissertation' in report:
+                    logger.info(f"[DEBUG] Dissertation keys: {list(report['dissertation'].keys())}")
+                    logger.info(f"[DEBUG] Dissertation preview: {str(report['dissertation'])[:500]}...")
+
                 if 'dissertation' in report:
                     logger.info("Detected new wrapper schema (dissertation + visual_tasks)")
                     dissertation_content = report['dissertation']
@@ -795,6 +802,53 @@ class ThreeStageAnalyzer:
                     else:
                         is_dissertation = False # Malformed wrapper
                         logger.error(f"Wrapper detected but missing fields: {missing_dissertation}")
+
+                        # 🚑 AUTO-HEALING: Attempt to repair missing fields before fallback
+                        logger.warning(f"🔧 Attempting auto-repair for missing fields: {missing_dissertation}")
+
+                        if 'table_of_contents' in missing_dissertation:
+                            # Generate TOC from chapters if they exist
+                            if 'chapters' in dissertation_content and isinstance(dissertation_content['chapters'], list):
+                                dissertation_content['table_of_contents'] = [
+                                    {
+                                        'chapter_number': str(i+1),
+                                        'chapter_title': chap.get('chapter_title', f'Capitol {i+1}'),
+                                        'subsections': chap.get('subsections', [])
+                                    }
+                                    for i, chap in enumerate(dissertation_content.get('chapters', []))
+                                ]
+                                logger.info(f"✅ Auto-generated table_of_contents with {len(dissertation_content['table_of_contents'])} entries")
+                            else:
+                                dissertation_content['table_of_contents'] = []
+                                logger.warning("⚠️ Set empty table_of_contents (no chapters available)")
+
+                        if 'introduction' in missing_dissertation:
+                            # Generate minimal introduction structure
+                            summary_text = dissertation_content.get('summary', '')
+                            if isinstance(summary_text, str):
+                                summary_preview = summary_text[:500]
+                            else:
+                                summary_preview = ''
+
+                            dissertation_content['introduction'] = {
+                                'motivation': f'Analiza juridică pentru: {original_query}',
+                                'methodology': f'Cercetare bazată pe analiza a {len(task_results)} taskuri de analiză juridică',
+                                'summary': summary_preview
+                            }
+                            logger.info("✅ Auto-generated introduction structure")
+
+                        # Re-check after auto-repair
+                        missing_dissertation = [f for f in required_fields_dissertation if f not in dissertation_content]
+
+                        if not missing_dissertation:
+                            logger.info("✅ Auto-repair successful! All required fields now present.")
+                            dissertation_content['tasks'] = visual_tasks
+                            if 'metadata' in report:
+                                dissertation_content['metadata'] = report['metadata']
+                            report = dissertation_content
+                            is_dissertation = True
+                        else:
+                            logger.error(f"❌ Auto-repair failed. Still missing: {missing_dissertation}")
                 else:
                     # Legacy flat schema validation
                     required_fields_dissertation = ['title', 'table_of_contents', 'introduction', 'chapters', 'conclusions', 'bibliography']
