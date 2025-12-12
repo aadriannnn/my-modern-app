@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getFinalReport, downloadFinalReportDocx, simulateReport } from '../lib/api';
+import { getFinalReport, downloadFinalReportDocx } from '../lib/api';
 import { FileText, BookOpen, CheckCircle2, X, Download, BarChart3, Table2 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
