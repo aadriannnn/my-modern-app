@@ -14,11 +14,9 @@ from docx import Document
 from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_LINE_SPACING, WD_TAB_LEADER
 from docx.enum.style import WD_STYLE_TYPE
-from docx.oxml import OxmlElement, parse_xml
-from docx.oxml.ns import qn
-from docx.opc.part import XmlPart
-from docx.opc.packuri import PackURI
-# FORCE RELOAD 1
+from docx.oxml import OxmlElement  # Still needed for page numbers
+from docx.oxml.ns import qn  # Still needed for page numbers
+# FORCE RELOAD 2
 
 from typing import Dict, Any, List
 import datetime
@@ -454,6 +452,10 @@ def _process_text(doc: Document, text: str) -> None:
 
 
 def _process_inline_citations(paragraph, text: str) -> None:
+    """
+    Process [[CITATION:ID:Title]] markers and inject footnotes using native API.
+    Uses python-docx-2023's built-in .add_footnote() method.
+    """
     pattern = r'\[\[CITATION:(\d+):(.*?)(?:\]\])'
     matches = list(re.finditer(pattern, text))
 
@@ -462,185 +464,26 @@ def _process_inline_citations(paragraph, text: str) -> None:
 
     last_idx = 0
     for match in matches:
+        # Add text before citation
         pre_text = text[last_idx:match.start()]
-        if pre_text: paragraph.add_run(pre_text)
+        if pre_text:
+            paragraph.add_run(pre_text)
 
-        title = match.group(2)
+        # Extract citation details
         citation_id = match.group(1)
-        logger.info(f"[FOOTNOTE DEBUG] Processing citation match: ID={citation_id}, Title='{title}'")
-        _inject_footnote(paragraph, title)
+        citation_text = match.group(2)  # e.g., "Cited Case #1001"
+
+        logger.info(f"✅ Adding footnote via native API: ID={citation_id}, Text='{citation_text}'")
+
+        # SOLUTION: Use native python-docx-2023 API
+        # This single line replaces 165 lines of manual XML manipulation!
+        paragraph.add_footnote(citation_text)
+
         last_idx = match.end()
 
+    # Add remaining text after last citation
     if last_idx < len(text):
         paragraph.add_run(text[last_idx:])
-
-
-def _inject_footnote(paragraph, text):
-    """
-    Injects an academic-compliant footnote (10pt, indented, single-spaced).
-    """
-    try:
-        part = paragraph.part
-        if not hasattr(part, 'package'):
-            return
-
-        # Get/create footnotes part
-        footnotes_part = _get_or_create_footnotes_part(part.package.main_document_part)
-
-        if hasattr(footnotes_part, 'element'):
-            fp_element = footnotes_part.element
-        elif hasattr(footnotes_part, '_element'):
-            fp_element = footnotes_part._element
-        else:
-            raise AttributeError("Footnotes part inaccessible")
-
-        # Calculate next ID
-        ids = [int(f.get(qn('w:id'))) for f in fp_element.findall(qn('w:footnote'))]
-        next_id = (max(ids) if ids else 0) + 1
-
-        # Create footnote element
-        footnote = OxmlElement('w:footnote')
-        footnote.set(qn('w:id'), str(next_id))
-
-        # Create paragraph for footnote text
-        fp = OxmlElement('w:p')
-
-        # Style: Footnote Text
-        fpr = OxmlElement('w:pPr')
-        fpstyle = OxmlElement('w:pStyle')
-        fpstyle.set(qn('w:val'), 'FootnoteText')
-        fpr.append(fpstyle)
-        fp.append(fpr)
-
-        # Footnote reference (in formatting run)
-        frun = OxmlElement('w:r')
-        frun_ref = OxmlElement('w:rPr')
-        rstyle = OxmlElement('w:rStyle')
-        rstyle.set(qn('w:val'), 'FootnoteReference')
-        frun_ref.append(rstyle)
-        frun.append(frun_ref)
-        frun.append(OxmlElement('w:footnoteRef'))
-        fp.append(frun)
-
-        # Separator space
-        srun = OxmlElement('w:r')
-        stext = OxmlElement('w:t')
-        stext.set(qn('xml:space'), 'preserve')
-        stext.text = ' '
-        srun.append(stext)
-        fp.append(srun)
-
-        # Footnote Text content
-        ftrun = OxmlElement('w:r')
-        fttext = OxmlElement('w:t')
-        fttext.set(qn('xml:space'), 'preserve')
-        fttext.text = text
-        ftrun.append(fttext)
-        fp.append(ftrun)
-
-        # Append footnote to document
-        footnote.append(fp)
-        fp_element.append(footnote)
-
-        # Add superscript reference in main text
-        run = paragraph.add_run()
-        r = run._r
-
-        # CRITICAL: Build w:rPr BEFORE footnoteReference (OOXML schema requirement)
-        # Schema order: <w:r> -> <w:rPr> -> <w:footnoteReference>
-        rPr = OxmlElement('w:rPr')
-
-        # 1. Add Footnote Reference style (CRITICAL for Word to recognize footnote)
-        rStyle = OxmlElement('w:rStyle')
-        rStyle.set(qn('w:val'), 'FootnoteReference')
-        rPr.append(rStyle)
-
-        # 2. Add explicit superscript (backup if style fails)
-        vertAlign = OxmlElement('w:vertAlign')
-        vertAlign.set(qn('w:val'), 'superscript')
-        rPr.append(vertAlign)
-
-        # 3. Font name (ensures Times New Roman)
-        rFonts = OxmlElement('w:rFonts')
-        rFonts.set(qn('w:ascii'), 'Times New Roman')
-        rFonts.set(qn('w:hAnsi'), 'Times New Roman')
-        rPr.append(rFonts)
-
-        # Append rPr to run (MUST come before footnoteReference)
-        r.append(rPr)
-
-        # NOW add footnoteReference (after w:rPr)
-        fref = OxmlElement('w:footnoteReference')
-        fref.set(qn('w:id'), str(next_id))
-        r.append(fref)
-
-        logger.info(f"[FOOTNOTE DEBUG] Generated XML for ID {next_id}: {r.xml.decode('utf-8') if hasattr(r.xml, 'decode') else str(r.xml)}")
-
-    except Exception as e:
-        logger.warning(f"Footnote injection failed: {e}", exc_info=True)
-        # Fallback
-        r = paragraph.add_run(f"[{text}]")
-        r.font.superscript = True
-
-
-def _get_or_create_footnotes_part(document_part):
-    """
-    Retrieves the existing footnotes part or creates a new one if it doesn't exist.
-    CRITICAL: Must ensure OPC relationship is created and persisted.
-    """
-    footnote_rel_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
-
-    try:
-        existing_part = document_part.part_related_by(footnote_rel_type)
-        logger.info(f"[FOOTNOTE PART] Found existing footnotes part: {existing_part.partname}")
-        return existing_part
-    except KeyError:
-        logger.info("[FOOTNOTE PART] No existing footnotes part found, creating new one...")
-        pass
-
-    package = document_part.package
-    partname = PackURI("/word/footnotes.xml")
-
-    xml_content = b"""<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-      <w:footnote w:type="separator" w:id="-1">
-        <w:p>
-          <w:r>
-            <w:separator/>
-          </w:r>
-        </w:p>
-      </w:footnote>
-      <w:footnote w:type="continuationSeparator" w:id="0">
-        <w:p>
-          <w:r>
-            <w:continuationSeparator/>
-          </w:r>
-        </w:p>
-      </w:footnote>
-    </w:footnotes>"""
-
-    content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"
-
-    # Create the footnotes part
-    target_part = XmlPart(partname, content_type, None, package)
-    target_part._element = parse_xml(xml_content)
-
-    logger.info(f"[FOOTNOTE PART] Created new footnotes part: {partname}")
-    logger.info(f"[FOOTNOTE PART] Content type: {content_type}")
-
-    # CRITICAL: Create relationship between document and footnotes
-    rel_id = document_part.relate_to(target_part, footnote_rel_type)
-
-    logger.info(f"[FOOTNOTE RELATIONSHIP] Created relationship: rId={rel_id}, Type={footnote_rel_type}")
-    logger.info(f"[FOOTNOTE RELATIONSHIP] Target: {partname}")
-
-    # Verify the relationship was added
-    try:
-        verify_part = document_part.part_related_by(footnote_rel_type)
-        logger.info(f"[FOOTNOTE VERIFICATION] ✅ Relationship verified! Can retrieve part: {verify_part.partname}")
-    except KeyError:
-        logger.error("[FOOTNOTE VERIFICATION] ❌ FAILED! Relationship not found after creation!")
-
-    return target_part
 
 
 
