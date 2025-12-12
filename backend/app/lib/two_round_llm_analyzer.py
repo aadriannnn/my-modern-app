@@ -1001,8 +1001,16 @@ class ThreeStageAnalyzer:
                             logger.warning(f"Unexpected item type in jurisprudence: {type(item)}")
                             continue
 
+                        # Convert to int for consistent comparison with all_case_ids
                         if case_id is not None:
-                            cited_ids.add(case_id)
+                            try:
+                                case_id_int = int(case_id) if isinstance(case_id, str) else case_id
+                                if isinstance(case_id_int, int):
+                                    cited_ids.add(case_id_int)
+                                else:
+                                    logger.warning(f"⚠️ case_id not int after conversion: {type(case_id_int)}")
+                            except (ValueError, TypeError) as e:
+                                logger.warning(f"⚠️ Could not convert case_id to int: {case_id}, error: {e}")
 
                     unknown_ids = cited_ids - all_case_ids
                     if unknown_ids:
@@ -1017,8 +1025,13 @@ class ThreeStageAnalyzer:
                             else:
                                 continue
 
-                            if case_id in all_case_ids:
-                                filtered_jurisprudence.append(item)
+                            # Convert to int for comparison
+                            try:
+                                case_id_int = int(case_id) if isinstance(case_id, str) else case_id
+                                if isinstance(case_id_int, int) and case_id_int in all_case_ids:
+                                    filtered_jurisprudence.append(item)
+                            except (ValueError, TypeError):
+                                logger.warning(f"⚠️ Skipping invalid case_id during filtering: {case_id}")
 
                         report['bibliography']['jurisprudence'] = filtered_jurisprudence
 

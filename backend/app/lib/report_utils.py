@@ -24,22 +24,44 @@ def extract_all_case_ids_from_report(report: Dict[str, Any]) -> Set[int]:
     """
     case_ids = set()
 
-    # Extract from bibliography
+    # Extract from bibliography - handle mixed formats (dict/int/str)
     jurisprudence = report.get('bibliography', {}).get('jurisprudence', [])
     for item in jurisprudence:
-        case_id = item.get('case_id')
-        if case_id:
-            if isinstance(case_id, str):
-                try:
-                    case_id = int(case_id)
-                except ValueError:
-                    continue
-            case_ids.add(case_id)
+        # Handle dict format: {"case_id": 123, "citation": "..."}
+        if isinstance(item, dict):
+            case_id = item.get('case_id')
+            if case_id:
+                if isinstance(case_id, str):
+                    try:
+                        case_id = int(case_id)
+                    except ValueError:
+                        continue
+                # Ensure case_id is actually an int before adding
+                if isinstance(case_id, int):
+                    case_ids.add(case_id)
+                else:
+                    logger.warning(f"⚠️ case_id is not int after processing: {type(case_id)}")
 
-        # Also check citation field for (#ID) pattern
-        citation = item.get('citation', '')
-        ids_in_citation = re.findall(r'#(\d+)', citation)
-        case_ids.update(int(id_str) for id_str in ids_in_citation)
+            # Also check citation field for (#ID) pattern
+            citation = item.get('citation', '')
+            if citation:
+                ids_in_citation = re.findall(r'#(\d+)', citation)
+                case_ids.update(int(id_str) for id_str in ids_in_citation)
+
+        # Handle int format: 123
+        elif isinstance(item, int):
+            case_ids.add(item)
+
+        # Handle str format: "123"
+        elif isinstance(item, str):
+            try:
+                case_ids.add(int(item))
+            except ValueError:
+                # Not a number, try to extract IDs from string
+                ids_in_str = re.findall(r'#(\d+)', item)
+                case_ids.update(int(id_str) for id_str in ids_in_str)
+        else:
+            logger.warning(f"⚠️ Unexpected item type in bibliography: {type(item)}")
 
     # Extract from all text content using regex
     text_content = _extract_all_text_from_report(report)
@@ -310,25 +332,75 @@ def enrich_report_with_titles(report: Dict[str, Any], session: Session, for_docx
         if 'jurisprudence' not in biblio:
             biblio['jurisprudence'] = []
 
-        # Update existing bibliography entries with database titles
+        # Update existing bibliography entries with database titles (handle mixed formats)
+        updated_jurisprudence = []
         for item in biblio.get('jurisprudence', []):
-            case_id = item.get('case_id')
-            if case_id:
-                # Convert to int if needed
-                if isinstance(case_id, str):
-                    try:
-                        case_id = int(case_id)
-                    except ValueError:
-                        continue
+            # Handle dict format
+            if isinstance(item, dict):
+                case_id = item.get('case_id')
+                if case_id:
+                    # Convert to int if needed
+                    if isinstance(case_id, str):
+                        try:
+                            case_id = int(case_id)
+                        except ValueError:
+                            updated_jurisprudence.append(item)
+                            continue
 
-                # Replace citation with database title if available
-                db_title = id_to_title.get(case_id)
-                if db_title:
-                    item['citation'] = db_title
-                    logger.info(f"Updated bibliography entry for case {case_id} with database title")
+                    # Replace citation with database title if available
+                    db_title = id_to_title.get(case_id)
+                    if db_title:
+                        item['citation'] = db_title
+                        logger.info(f"Updated bibliography entry for case {case_id} with database title")
+
+                updated_jurisprudence.append(item)
+
+            # Handle int/str format - convert to dict
+            elif isinstance(item, (int, str)):
+                try:
+                    case_id = int(item) if isinstance(item, int) else int(item)
+                    db_title = id_to_title.get(case_id)
+                    if db_title:
+                        updated_jurisprudence.append({
+                            'case_id': case_id,
+                            'citation': db_title
+                        })
+                        logger.info(f"Converted and updated bibliography entry {case_id} to dict with database title")
+                    else:
+                        # No title found, keep as minimal dict
+                        updated_jurisprudence.append({
+                            'case_id': case_id,
+                            'citation': f"Cited Case #{case_id}"
+                        })
+                except ValueError:
+                    logger.warning(f"⚠️ Could not convert bibliography item to int: {item}")
+            else:
+                logger.warning(f"⚠️ Unexpected item type in bibliography: {type(item)}")
+
+        biblio['jurisprudence'] = updated_jurisprudence
 
         # Add any missing cases to bibliography
-        existing_case_ids = {item.get('case_id') for item in biblio.get('jurisprudence', []) if item.get('case_id')}
+        existing_case_ids = set()
+        for item in biblio.get('jurisprudence', []):
+            if isinstance(item, dict):
+                cid = item.get('case_id')
+                if cid:
+                    # Safe conversion to int
+                    try:
+                        if isinstance(cid, str):
+                            cid = int(cid)
+                        if isinstance(cid, int):
+                            existing_case_ids.add(cid)
+                        else:
+                            logger.warning(f"⚠️ case_id not int/str in bibliography: {type(cid)}")
+                    except ValueError:
+                        logger.warning(f"⚠️ Could not convert case_id to int: {cid}")
+            elif isinstance(item, (int, str)):
+                try:
+                    existing_case_ids.add(int(item))
+                except (ValueError, TypeError):
+                    logger.warning(f"⚠️ Could not convert item to int: {item}")
+
         for case_id in case_ids:
             if case_id not in existing_case_ids:
                 db_title = id_to_title.get(case_id)
