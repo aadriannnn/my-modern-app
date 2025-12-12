@@ -37,10 +37,17 @@ DEFAULT_SUPERVISOR = "Coordonator Științific:\nProf. Univ. Dr. [NUME PROFESOR]
 DEFAULT_AUTHOR = "Absolvent:\n[NUME STUDENT]"
 DEFAULT_CITY_YEAR = f"București\n{datetime.datetime.now().year}"
 
+# Global footnote counter to ensure unique sequential IDs
+# Reset for each document generation
+_footnote_counter = 0
+
 def generate_academic_docx(report: Dict[str, Any], output_path: str) -> None:
     """
     Generate an academic .docx document from a final report structure.
     """
+    global _footnote_counter
+    _footnote_counter = 0  # Reset counter for each document
+
     try:
         logger.info(f"Starting .docx generation for report: {report.get('title', 'Untitled')[:50]}...")
 
@@ -453,8 +460,8 @@ def _process_text(doc: Document, text: str) -> None:
 
 def _process_inline_citations(paragraph, text: str) -> None:
     """
-    Process [[CITATION:ID:Title]] markers and inject footnotes using native API.
-    Uses python-docx-2023's built-in .add_footnote() method.
+    Process [[CITATION:ID:Title]] markers and inject footnotes using FULL MANUAL XML.
+    Uses global footnote counter to ensure unique sequential IDs.
     """
     pattern = r'\[\[CITATION:(\d+):(.*?)(?:\]\])'
     matches = list(re.finditer(pattern, text))
@@ -473,17 +480,161 @@ def _process_inline_citations(paragraph, text: str) -> None:
         citation_id = match.group(1)
         citation_text = match.group(2)  # e.g., "Cited Case #1001"
 
-        logger.info(f"✅ Adding footnote via native API: ID={citation_id}, Text='{citation_text}'")
-
-        # SOLUTION: Use native python-docx-2023 API
-        # This single line replaces 165 lines of manual XML manipulation!
-        paragraph.add_footnote(citation_text)
+        try:
+            # FULL MANUAL IMPLEMENTATION with global counter
+            _inject_manual_footnote(paragraph, citation_text, citation_id)
+        except Exception as e:
+            logger.error(f"❌ [MANUAL ERROR] Failed for citation {citation_id}: {e}", exc_info=True)
+            # Fallback: simple superscript
+            run = paragraph.add_run(f"[{citation_id}]")
+            run.font.superscript = True
 
         last_idx = match.end()
 
     # Add remaining text after last citation
     if last_idx < len(text):
         paragraph.add_run(text[last_idx:])
+
+
+def _inject_manual_footnote(paragraph, text: str, citation_id: str) -> None:
+    """
+    Manually inject footnote using XML with global counter for unique IDs.
+    This ensures sequential footnote numbering: 1, 2, 3, 4... (no duplicates!)
+    """
+    global _footnote_counter
+
+    # Get document part from paragraph
+    part = paragraph.part
+    if not hasattr(part, 'package'):
+        logger.error("[MANUAL] Paragraph has no package")
+        return
+
+    # Get/create footnotes part
+    from docx.opc.part import XmlPart
+    from docx.opc.packuri import PackURI
+    from docx.oxml import parse_xml
+
+    footnote_rel_type = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/footnotes"
+
+    try:
+        footnotes_part = part.package.main_document_part.part_related_by(footnote_rel_type)
+    except KeyError:
+        # Create footnotes part
+        package = part.package
+        partname = PackURI("/word/footnotes.xml")
+
+        xml_content = b"""<?xml version='1.0' encoding='UTF-8' standalone='yes'?>
+<w:footnotes xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:footnote w:type="separator" w:id="-1">
+    <w:p>
+      <w:r>
+        <w:separator/>
+      </w:r>
+    </w:p>
+  </w:footnote>
+  <w:footnote w:type="continuationSeparator" w:id="0">
+    <w:p>
+      <w:r>
+        <w:continuationSeparator/>
+      </w:r>
+    </w:p>
+  </w:footnote>
+</w:footnotes>"""
+
+        content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"
+        footnotes_part = XmlPart(partname, content_type, None, package)
+        footnotes_part._element = parse_xml(xml_content)
+
+        part.package.main_document_part.relate_to(footnotes_part, footnote_rel_type)
+        logger.info(f"[MANUAL] Created footnotes part")
+
+    # Increment global counter for unique ID
+    _footnote_counter += 1
+    footnote_id = _footnote_counter
+
+    # Get footnotes XML element
+    if hasattr(footnotes_part, 'element'):
+        fp_element = footnotes_part.element
+    elif hasattr(footnotes_part, '_element'):
+        fp_element = footnotes_part._element
+    else:
+        raise AttributeError("Cannot access footnotes element")
+
+    # Create footnote content in footnotes.xml
+    footnote = OxmlElement('w:footnote')
+    footnote.set(qn('w:id'), str(footnote_id))
+
+    # Footnote paragraph
+    fp = OxmlElement('w:p')
+
+    # Paragraph properties with Footnote Text style
+    fpr = OxmlElement('w:pPr')
+    fpstyle = OxmlElement('w:pStyle')
+    fpstyle.set(qn('w:val'), 'FootnoteText')
+    fpr.append(fpstyle)
+    fp.append(fpr)
+
+    # Footnote reference mark (the number at start of footnote)
+    frun = OxmlElement('w:r')
+    frun_ref = OxmlElement('w:rPr')
+    rstyle = OxmlElement('w:rStyle')
+    rstyle.set(qn('w:val'), 'FootnoteReference')
+    frun_ref.append(rstyle)
+    frun.append(frun_ref)
+    frun.append(OxmlElement('w:footnoteRef'))
+    fp.append(frun)
+
+    # Space after number
+    srun = OxmlElement('w:r')
+    stext = OxmlElement('w:t')
+    stext.set(qn('xml:space'), 'preserve')
+    stext.text = ' '
+    srun.append(stext)
+    fp.append(srun)
+
+    # Footnote text content
+    ftrun = OxmlElement('w:r')
+    fttext = OxmlElement('w:t')
+    fttext.set(qn('xml:space'), 'preserve')
+    fttext.text = text
+    ftrun.append(fttext)
+    fp.append(ftrun)
+
+    footnote.append(fp)
+    fp_element.append(footnote)
+
+    # Add footnote reference marker in main text
+    run = paragraph.add_run()
+    r = run._r
+
+    # Build w:rPr
+    rPr = OxmlElement('w:rPr')
+
+    # Footnote Reference style
+    rStyle = OxmlElement('w:rStyle')
+    rStyle.set(qn('w:val'), 'FootnoteReference')
+    rPr.append(rStyle)
+
+    # Superscript
+    vertAlign = OxmlElement('w:vertAlign')
+    vertAlign.set(qn('w:val'), 'superscript')
+    rPr.append(vertAlign)
+
+    # Font: Times New Roman
+    rFonts = OxmlElement('w:rFonts')
+    rFonts.set(qn('w:ascii'), 'Times New Roman')
+    rFonts.set(qn('w:hAnsi'), 'Times New Roman')
+    rPr.append(rFonts)
+
+    r.append(rPr)
+
+    # Add footnoteReference with unique ID
+    fref = OxmlElement('w:footnoteReference')
+    fref.set(qn('w:id'), str(footnote_id))
+    r.append(fref)
+
+    logger.info(f"✅ [MANUAL SUCCESS] Footnote ID={footnote_id} added for citation {citation_id}")
+
 
 
 

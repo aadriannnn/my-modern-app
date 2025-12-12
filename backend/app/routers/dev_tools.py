@@ -1,9 +1,11 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from sqlmodel import Session
 from typing import Dict, Any
 import datetime
 import tempfile
 from fastapi.responses import FileResponse
 from ..lib.docx_generator import generate_academic_docx
+from ..db import get_session
 
 router = APIRouter()
 
@@ -42,9 +44,10 @@ def _get_simulated_report_data() -> Dict[str, Any]:
         }
 
 @router.get("/simulate-docx")
-async def simulate_docx():
+async def simulate_docx(session: Session = Depends(get_session)):
     """
-    Generates a real DOCX file from the simulated report data.
+    Generates a real DOCX file from the simulated report data with DATABASE-ENRICHED citations.
+    Uses the same enrichment process as production to ensure footnotes display actual case titles.
     """
     try:
         # Get simulated data
@@ -72,21 +75,20 @@ async def simulate_docx():
         if "title" not in docx_data:
              docx_data["title"] = "Raport Simulat"
 
-        # --- NEW: Enrich with Citation Markers for Footnotes ---
-        from ..lib.report_utils import replace_ids_in_dict
+        # --- NEW: Use REAL database enrichment like production ---
+        from ..lib.report_utils import enrich_report_with_titles
+        import logging
+        logger = logging.getLogger(__name__)
 
-        # Extract bibliography to build ID -> Title map
-        biblio = docx_data.get("bibliography", {}).get("jurisprudence", [])
-        id_to_title = {}
-        for item in biblio:
-            cid = item.get("case_id")
-            cite = item.get("citation")
-            if cid:
-                id_to_title[int(cid)] = cite
+        logger.info("Enriching simulated report with REAL case titles from database...")
 
-        # Transform [cite: ID] -> [[CITATION:ID:Title]] in text
-        # This allows docx_generator to create proper footnotes
-        replace_ids_in_dict(docx_data, id_to_title, for_docx=True)
+        # This will:
+        # 1. Extract case IDs from docx_data (e.g., from [[CITATION:ID:...]] or [cite: ID] patterns)
+        # 2. Query Blocuri table for real titles
+        # 3. Replace all IDs with [[CITATION:ID:RealTitle]] format
+        docx_data = enrich_report_with_titles(docx_data, session, for_docx=True)
+
+        logger.info("Citation enrichment complete - footnotes will show database titles")
         # -----------------------------------------------------
 
         # Generate document
