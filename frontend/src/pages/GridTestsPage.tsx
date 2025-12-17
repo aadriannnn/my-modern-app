@@ -169,6 +169,15 @@ const GridTestsPage: React.FC = () => {
         }
     };
 
+    // Header handlers
+    const handleToggleMenu = () => {
+        console.log("Toggle menu");
+    };
+
+    const handleContribuieClick = () => {
+        console.log("Contribuie click");
+    };
+
     // Render Setup
     if (step === 'setup') {
         const maxCases = new Set(availableQuestions.map(q => q.caseId)).size;
@@ -176,7 +185,7 @@ const GridTestsPage: React.FC = () => {
         if (availableQuestions.length === 0) {
             return (
                 <div className="min-h-screen bg-brand-light flex flex-col">
-                    <Header />
+                    <Header onToggleMenu={handleToggleMenu} onContribuieClick={handleContribuieClick} />
                     <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
                         <AlertCircle className="w-16 h-16 text-yellow-500 mb-4" />
                         <h2 className="text-2xl font-bold text-gray-800 mb-2">Nu am găsit grile disponibile</h2>
@@ -194,7 +203,7 @@ const GridTestsPage: React.FC = () => {
 
         return (
             <div className="min-h-screen bg-brand-light flex flex-col">
-                <Header />
+                <Header onToggleMenu={handleToggleMenu} onContribuieClick={handleContribuieClick} />
                 <div className="flex-1 flex flex-col items-center justify-center p-4">
                     <div className="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden">
                         <div className="bg-brand-accent p-6 text-center">
@@ -370,7 +379,7 @@ const GridTestsPage: React.FC = () => {
 
         return (
             <div className="min-h-screen bg-brand-light flex flex-col">
-                <Header />
+                <Header onToggleMenu={handleToggleMenu} onContribuieClick={handleContribuieClick} />
                 <div className="flex-1 overflow-y-auto p-4 md:p-8">
                     <div className="max-w-4xl mx-auto space-y-6">
 
