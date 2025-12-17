@@ -5,7 +5,6 @@ import { Mail, Lock, User, Loader2, AlertCircle } from 'lucide-react';
 
 const RegisterPage = () => {
     const { login } = useAuth(); // We can use login() to set state after registration
-    const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');

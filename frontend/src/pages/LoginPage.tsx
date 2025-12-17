@@ -5,7 +5,6 @@ import { Mail, Lock, Loader2, AlertCircle } from 'lucide-react';
 
 const LoginPage = () => {
     const { login } = useAuth();
-    const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
