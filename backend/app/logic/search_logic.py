@@ -476,17 +476,14 @@ def normalize_query(text: str) -> str:
 def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
     """
     Main search function that orchestrates the search logic.
-    - Routes to Pro Keyword Search if enabled.
-    - Routes to keyword search for short queries (<= 3 words).
+    - Routes to hybrid keyword search for short queries (<= 3 words).
     - Routes to semantic/vector search for longer queries.
     - Handles embedding failures by falling back to keyword search.
     - Handles searches with only "obiect" selected.
     """
     dialect = session.bind.dialect.name
 
-    # Check for Pro Search first
-    if getattr(search_request, 'pro_search', False):
-        return _search_pro_keyword(session, search_request)
+    # Explicit Pro Search check removed. Now using Hybrid logic by default for keywords.
 
     word_count = len(search_request.situatie.split())
     use_keyword_search = True
@@ -528,10 +525,63 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
 
     # This block is executed if word_count <= 3 OR if embedding failed
     if use_keyword_search:
-        if dialect == 'postgresql':
-            return _search_by_keywords_postgres(session, search_request)
-        else:
-            return _search_by_keywords_sqlite(session, search_request)
+        # HYBRID SEARCH LOGIC: Considerations (Pro) + Standard
+        logger.info("[search] using HYBRID keyword mode (Considerations + Standard)")
+
+        # Calculate range to fetch
+        orig_limit = search_request.limit if search_request.limit is not None else settings.TOP_K
+        orig_offset = search_request.offset if search_request.offset is not None else 0
+
+        # We fetch (offset + limit) from both sources to ensure we can correct pagination
+        # when merging two prioritized lists.
+        fetch_limit = orig_limit + orig_offset
+
+        # Store original values
+        saved_limit = search_request.limit
+        saved_offset = search_request.offset
+
+        try:
+            # Modify request for "fetch all required"
+            search_request.limit = fetch_limit
+            search_request.offset = 0
+
+            # 1. Considerations Search (Priority 1)
+            cons_results = _search_pro_keyword(session, search_request)
+
+            # 2. Standard Keyword Search (Priority 2)
+            if dialect == 'postgresql':
+                std_results = _search_by_keywords_postgres(session, search_request)
+            else:
+                std_results = _search_by_keywords_sqlite(session, search_request)
+
+            # 3. Merge and Deduplicate (Prioritizing Considerations)
+            seen_ids = set()
+            merged_results = []
+
+            # Add considerations results first
+            for r in cons_results:
+                if r['id'] not in seen_ids:
+                    merged_results.append(r)
+                    seen_ids.add(r['id'])
+
+            # Add standard results if needed
+            for r in std_results:
+                if r['id'] not in seen_ids:
+                    merged_results.append(r)
+                    seen_ids.add(r['id'])
+
+            # 4. Slice to requested page
+            start = orig_offset
+            end = orig_offset + orig_limit
+            final_results = merged_results[start:end]
+
+            logger.info(f"[search] Hybrid results: found {len(cons_results)} (cons) + {len(std_results)} (std) -> {len(merged_results)} total unique. Returning slice {start}-{end} ({len(final_results)}).")
+            return final_results
+
+        finally:
+            # Restore original request parameters
+            search_request.limit = saved_limit
+            search_request.offset = saved_offset
 
 def _build_pro_search_components(term: str) -> Dict[str, Any]:
     """
@@ -679,14 +729,11 @@ def build_vector_search_query_sql(term: str, limit: int = 100) -> Dict[str, str]
 
 def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
     """
-    Pro Keyword Search:
-    - Searches in 'considerente' (mapped to 'argumente_instanta' or similar in JSON).
-    - Logic:
-        - If query has diacritics: Search for exact match AND normalized match.
-        - If query has NO diacritics: Search ONLY for normalized match.
-    - Ranking: Descending order of keyword occurrences.
+    Pro Keyword Search (used as Consideration Search):
+    - Searches in 'considerente'.
+    - Returns matching cases ranked by occurrence density.
     """
-    logger.info("[search] using PRO keyword mode")
+    # logger.info("[search] using PRO keyword mode")
 
     components = _build_pro_search_components(req.situatie)
 
@@ -723,10 +770,10 @@ def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
     try:
         result = session.execute(query, params)
         rows = result.mappings().all()
-        logger.info(f"[search] Pro keyword results: {len(rows)}")
+        # logger.info(f"[search] Pro keyword results: {len(rows)}")
         results = _process_results(rows, score_metric="relevance_score")
 
-        # Inject highlight terms into the data dictionary of each result
+        # Inject highlight terms
         for res in results:
             if 'data' in res:
                 res['data']['highlight_terms'] = components["terms_to_search"]
@@ -734,8 +781,8 @@ def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
         return results
     except Exception as e:
         logger.error(f"[search] Pro keyword search failed: {e}")
-        # Fallback to standard search
-        return _search_by_keywords_sqlite(session, req)
+        # Return empty list so hybrid search can fall back/continue
+        return []
 
 def get_case_by_id(session: Session, case_id: int) -> Dict[str, Any] | None:
     """

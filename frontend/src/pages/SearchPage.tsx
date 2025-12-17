@@ -28,7 +28,6 @@ const SearchPage: React.FC = () => {
     const [isContribuieModalOpen, setIsContribuieModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProEnabled] = useState(true);
-    const [isProKeywordEnabled, setIsProKeywordEnabled] = useState(false);
     const [acteJuridice, setActeJuridice] = useState<string[]>([]);
     const [isDosarSearchLoading, setIsDosarSearchLoading] = useState(false);
 
@@ -63,7 +62,6 @@ const SearchPage: React.FC = () => {
             situatie,
             materie: searchParams.materie ? [searchParams.materie] : [],
             offset: currentOffset,
-            pro_search: isProKeywordEnabled
         };
 
         try {
@@ -78,7 +76,7 @@ const SearchPage: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [isLoading, hasMore, searchParams, situatie, isProKeywordEnabled]);
+    }, [isLoading, hasMore, searchParams, situatie]);
 
     const handleSearch = useCallback(async () => {
         if (!situatie.trim() && searchParams.obiect.length === 0) {
@@ -92,11 +90,7 @@ const SearchPage: React.FC = () => {
         setHasMore(true);
         setIsLoading(true);
 
-        if (isProKeywordEnabled) {
-            setStatus('Căutare extinsă în considerente... (poate dura mai mult)');
-        } else {
-            setStatus('Se încarcă rezultatele...');
-        }
+
 
         try {
             const payload = {
@@ -104,20 +98,16 @@ const SearchPage: React.FC = () => {
                 situatie,
                 materie: searchParams.materie ? [searchParams.materie] : [],
                 offset: 0,
-                pro_search: isProKeywordEnabled
             };
 
             const initialResults = await apiSearch(payload);
 
-            // Step 2: AI Analysis (Conditional) - Only if Pro Keyword is NOT enabled (mutually exclusive usually, or sequential?)
-            // If Pro Keyword is enabled, we probably just want those results.
-            // If user enables BOTH, we could filter the Pro Keyword results with AI?
-            // Let's assume they are independent features for now.
             // If Pro Keyword is ON, we skip the AI filtering step unless explicitly requested.
-            // The user said "optiune separata de cautare... la fel ca la filtrare AI".
-            // So it's another toggle.
+            // But now Pro Keyword logic is merged into default, so we treat it as standard.
+            // However, AI filtering is usually for when we have many results or complex query.
+            // The user logic for AI filtering remains: if PRO account and query > 3 words.
 
-            if (isProEnabled && !isProKeywordEnabled && situatie.trim().split(/\s+/).length > 3) {
+            if (isProEnabled && situatie.trim().split(/\s+/).length > 3) {
                 try {
                     setStatus("Analizez contextul juridic cu AI pentru a găsi cea mai relevantă spetă... (poate dura câteva minute)");
 
@@ -280,7 +270,7 @@ const SearchPage: React.FC = () => {
             setIsLoading(false);
         }
 
-    }, [situatie, searchParams, isProEnabled, isProKeywordEnabled]);
+    }, [situatie, searchParams, isProEnabled]);
 
     const handleFilterChange = useCallback((filterType: keyof SelectedFilters, value: any) => {
         setSearchParams(prevParams => {
@@ -407,8 +397,8 @@ const SearchPage: React.FC = () => {
                     onSituatieChange={setSituatie}
                     onSearch={handleSearch}
 
-                    isProKeywordEnabled={isProKeywordEnabled}
-                    onToggleProKeyword={setIsProKeywordEnabled}
+
+
                     acteJuridice={acteJuridice}
                     onSearchByIds={handleSearchByIds}
                     onMinimizeSidebar={() => setIsMobileMenuOpen(false)}
