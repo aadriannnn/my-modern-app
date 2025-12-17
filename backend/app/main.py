@@ -20,7 +20,8 @@ from .routers import (
     settings as settings_router,
     queue_status as queue_router,
     feedback as feedback_router,
-    advanced_analysis as advanced_analysis_router
+    advanced_analysis as advanced_analysis_router,
+    dosar_search as dosar_search_router
 )
 
 # Configure logging
@@ -97,6 +98,7 @@ api_router.include_router(settings_router.router)
 api_router.include_router(queue_router.router)
 api_router.include_router(feedback_router.router)
 api_router.include_router(advanced_analysis_router.router)
+api_router.include_router(dosar_search_router.router)
 
 from .routers import dev_tools
 api_router.include_router(dev_tools.router, prefix="/dev", tags=["dev"])

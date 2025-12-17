@@ -4,7 +4,8 @@ import LeftSidebar from '../components/LeftSidebar';
 import MainContent from '../components/MainContent';
 import CaseDetailModal from '../components/CaseDetailModal';
 import ContribuieModal from '../components/ContribuieModal';
-import { getFilters, search as apiSearch } from '../lib/api';
+import DosarSearchForm from '../components/DosarSearchForm';
+import { getFilters, search as apiSearch, searchByDosar } from '../lib/api';
 import type { Filters, SelectedFilters } from '../types';
 
 const SearchPage: React.FC = () => {
@@ -28,6 +29,8 @@ const SearchPage: React.FC = () => {
     const [isProEnabled, setIsProEnabled] = useState(false);
     const [isProKeywordEnabled, setIsProKeywordEnabled] = useState(false);
     const [acteJuridice, setActeJuridice] = useState<string[]>([]);
+    const [isDosarSearchLoading, setIsDosarSearchLoading] = useState(false);
+    const [dosarSearchInfo, setDosarSearchInfo] = useState<{ obiect: string; numar: string } | null>(null);
 
     useEffect(() => {
         const loadFilters = async () => {
@@ -316,12 +319,55 @@ const SearchPage: React.FC = () => {
         });
     }, []);
 
+    const handleDosarSearch = useCallback(async (numarDosar: string) => {
+        setIsDosarSearchLoading(true);
+        setStatus('Căutare după număr dosar...');
+
+        try {
+            const response = await searchByDosar(numarDosar);
+
+            if (!response.success) {
+                setStatus(`Eroare: ${response.error || 'Căutarea a eșuat'}`);
+                setSearchResults([]);
+                setDosarSearchInfo(null);
+                return;
+            }
+
+            // Save the portal object info for display
+            setDosarSearchInfo({
+                obiect: response.obiect_from_portal || '',
+                numar: response.numar_dosar
+            });
+
+            // Display results
+            setSearchResults(response.results);
+            setOffset(response.results.length);
+            setHasMore(false); // No pagination for dosar search
+            setActeJuridice([]); // Clear AI acts
+
+            if (response.results.length > 0) {
+                setStatus(`Căutare după număr dosar "${numarDosar}": ${response.match_count} spețe similare găsite (podobire >${response.similarity_threshold}%)`);
+            } else {
+                setStatus(`Nu au fost găsite spețe similare pentru dosarul "${numarDosar}"`);
+            }
+
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Eroare necunoscută';
+            setStatus(`Eroare la căutarea după număr dosar: ${errorMessage}`);
+            setSearchResults([]);
+            setDosarSearchInfo(null);
+        } finally {
+            setIsDosarSearchLoading(false);
+        }
+    }, []);
+
     const handleSearchByIds = useCallback((results: any[], count: number) => {
         setSearchResults(results);
         setOffset(results.length);
         setHasMore(false);
         setStatus(`Căutare după ID-uri: ${count} rezultate găsite.`);
         setActeJuridice([]); // Clear AI-generated legal acts
+        setDosarSearchInfo(null); // Clear dosar search info
     }, []);
 
     return (
@@ -359,6 +405,9 @@ const SearchPage: React.FC = () => {
                     acteJuridice={acteJuridice}
                     onSearchByIds={handleSearchByIds}
                     onMinimizeSidebar={() => setIsMobileMenuOpen(false)}
+                    onDosarSearch={handleDosarSearch}
+                    isDosarSearchLoading={isDosarSearchLoading}
+                    dosarSearchInfo={dosarSearchInfo}
                 />
             </div>
 

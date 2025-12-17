@@ -43,6 +43,13 @@ python-docx-2023
 matplotlib==3.9.2
 
 # ============================================
+# SOAP Client & Text Similarity
+# ============================================
+zeep==4.2.1
+# rapidfuzz is already installed as dependency of other packages
+# No need to add explicitly, but documenting it's used for text similarity
+
+# ============================================
 # AI & Embeddings (Optional - comment if not used)
 # ============================================
 # sentence-transformers==3.3.1

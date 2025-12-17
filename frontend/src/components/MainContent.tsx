@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters';
+import DosarSearchForm from './DosarSearchForm';
 import { Loader2, Search, Wand2, X, Copy, Check, FileText } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
@@ -34,6 +35,9 @@ interface MainContentProps {
   onToggleProKeyword?: (enabled: boolean) => void;
   acteJuridice?: string[];
   onSearchByIds?: (results: any[], count: number) => void;
+  onDosarSearch?: (numarDosar: string) => void;
+  isDosarSearchLoading?: boolean;
+  dosarSearchInfo?: { obiect: string; numar: string } | null;
 }
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
@@ -62,7 +66,10 @@ const MainContent: React.FC<MainContentProps> = ({
   isProKeywordEnabled = false,
   onToggleProKeyword,
   acteJuridice = [],
-  onSearchByIds
+  onSearchByIds,
+  onDosarSearch,
+  isDosarSearchLoading = false,
+  dosarSearchInfo
 }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
   const observer = useRef<IntersectionObserver | null>(null);
@@ -435,6 +442,26 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
   return (
     <main className="flex-1 p-4 md:p-6 bg-brand-light overflow-y-auto">
       <div className="max-w-4xl mx-auto">
+        {/* Dosar Search Form */}
+        {onDosarSearch && (
+          <>
+            <DosarSearchForm
+              onSearch={onDosarSearch}
+              isLoading={isDosarSearchLoading}
+            />
+            {dosarSearchInfo && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                <p className="text-sm text-blue-900">
+                  <span className="font-semibold">Dosar:</span> {dosarSearchInfo.numar}
+                </p>
+                <p className="text-sm text-blue-900 mt-1">
+                  <span className="font-semibold">Obiect găsit în portal:</span> {dosarSearchInfo.obiect}
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
         {/* Search Bar */}
         <div className="mb-6">
           <div className="relative group">

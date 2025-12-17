@@ -623,3 +623,22 @@ export const simulateReport = async () => {
 
   return response.json();
 };
+
+// Dosar Search API
+export const searchByDosar = async (numarDosar: string) => {
+  const response = await fetchWithTimeout(`${API_URL}/search-by-dosar`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ numar_dosar: numarDosar }),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to search by dosar number');
+  }
+
+  return response.json();
+};
