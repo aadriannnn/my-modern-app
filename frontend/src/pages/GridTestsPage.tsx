@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle, XCircle, AlertCircle, BookOpen, Award, Check, Shuffle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, AlertCircle, BookOpen, Award, Shuffle } from 'lucide-react';
 import Header from '../components/Header';
+import CaseDetailModal from '../components/CaseDetailModal';
 
 interface Question {
     id: string; // Unique ID for keying
@@ -33,6 +34,10 @@ const GridTestsPage: React.FC = () => {
     const [quizQuestions, setQuizQuestions] = useState<Question[]>([]);
     const [answers, setAnswers] = useState<Record<string, string>>({}); // valid -> selectedAnswer
     const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
+
+    // Modal state for viewing case details
+    const [selectedCase, setSelectedCase] = useState<any | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Extract questions from cases on mount
     useEffect(() => {
@@ -140,6 +145,20 @@ const GridTestsPage: React.FC = () => {
     const handleAnswerSelect = (option: string) => {
         const q = quizQuestions[currentQuestionIndex];
         setAnswers(prev => ({ ...prev, [q.id]: option }));
+    };
+
+    const handleOpenCase = (caseId: number) => {
+        const foundCase = sourceCases.find((c: any) => c.id === caseId);
+        if (foundCase) {
+            // Ensure structure matches CaseDetailModal expectation (it expects { id, data: {...} })
+            // If foundCase is already {id, data}, use it. If it's flat, wrap it.
+            // Based on extraction logic: const data = c.data || c;
+            const modalPayload = foundCase.data ? foundCase : { id: foundCase.id, data: foundCase };
+            setSelectedCase(modalPayload);
+            setIsModalOpen(true);
+        } else {
+            console.error("Case not found for ID:", caseId);
+        }
     };
 
     const handleNext = () => {
@@ -408,7 +427,13 @@ const GridTestsPage: React.FC = () => {
 
                                         <div className="flex items-center gap-2 text-sm text-gray-500 bg-gray-50 p-2 rounded-lg inline-flex">
                                             <BookOpen className="w-4 h-4" />
-                                            Sursa: <span className="font-semibold text-brand-text">{q.caseName}</span>
+                                            Sursa:
+                                            <button
+                                                onClick={() => handleOpenCase(q.caseId)}
+                                                className="font-semibold text-brand-accent hover:text-brand-accent-dark hover:underline text-left"
+                                            >
+                                                {q.caseName}
+                                            </button>
                                         </div>
                                     </div>
                                 ))}
@@ -432,6 +457,12 @@ const GridTestsPage: React.FC = () => {
 
                     </div>
                 </div>
+
+                <CaseDetailModal
+                    isOpen={isModalOpen}
+                    onClose={() => setIsModalOpen(false)}
+                    result={selectedCase}
+                />
             </div>
         );
     }
