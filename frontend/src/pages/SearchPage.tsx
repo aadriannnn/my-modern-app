@@ -25,7 +25,7 @@ const SearchPage: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isContribuieModalOpen, setIsContribuieModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-    const [isProEnabled, setIsProEnabled] = useState(true);
+    const [isProEnabled] = useState(true);
     const [isProKeywordEnabled, setIsProKeywordEnabled] = useState(false);
     const [acteJuridice, setActeJuridice] = useState<string[]>([]);
     const [isDosarSearchLoading, setIsDosarSearchLoading] = useState(false);
