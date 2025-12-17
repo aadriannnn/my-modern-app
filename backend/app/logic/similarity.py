@@ -5,7 +5,7 @@ Provides normalized text comparison using Levenshtein distance.
 """
 
 from rapidfuzz import fuzz
-from .normalization import normalize_text
+from .normalization import normalize_text, normalize_materie
 import logging
 
 logger = logging.getLogger(__name__)
@@ -116,3 +116,89 @@ def batch_calculate_similarity(
             similarities.append(fuzz.ratio(target, candidate))
 
     return similarities
+
+
+def calculate_composite_score(
+    obiect_similarity: float,
+    materie_portal: str,
+    materie_db: str,
+    weight_obiect: float = 0.7,
+    weight_materie: float = 0.3
+) -> float:
+    """
+    Calculate composite relevance score based on obiect similarity and materie match.
+
+    Args:
+        obiect_similarity: Similarity percentage (0-100) for obiect field
+        materie_portal: Materie from ReJust portal
+        materie_db: Materie from local database
+        weight_obiect: Weight for obiect similarity (default: 0.7)
+        weight_materie: Weight for materie match (default: 0.3)
+
+    Returns:
+        Composite score (0-100)
+
+    Logic:
+        - If materie matches: bonus = 100
+        - If materie doesn't match: bonus = 0
+        - Final score = (obiect_sim * weight_obiect) + (materie_bonus * weight_materie)
+        - If one of the materie is missing, fallback to just obiect similarity (effectively re-normalizing weight to 1.0 for obiect)
+    """
+    # Normalize materie values for comparison
+    materie_portal_norm = normalize_materie(materie_portal) if materie_portal else ""
+    materie_db_norm = normalize_materie(materie_db) if materie_db else ""
+
+    # If either is missing, we can't compare materie, so rely on object similarity
+    if not materie_portal_norm or not materie_db_norm:
+        return obiect_similarity
+
+    # Calculate materie bonus
+    materie_bonus = 100.0 if materie_portal_norm == materie_db_norm else 0.0
+
+    # Composite score
+    composite_score = (obiect_similarity * weight_obiect) + (materie_bonus * weight_materie)
+
+    return composite_score
+
+
+def find_similar_objects_with_materie(
+    target_object: str,
+    target_materie: str,
+    candidate_objects: list[tuple[int, str, str]],  # (id, obiect, materie)
+    threshold: float = 80.0
+) -> list[tuple[int, str, float, float]]:  # (id, obiect, similarity, composite_score)
+    """
+    Find similar objects with materie-based ranking.
+
+    Returns:
+        List of (id, obiect, obiect_similarity, composite_score) tuples,
+        sorted by composite_score descending
+    """
+    matches = []
+
+    for case_id, candidate_object, candidate_materie in candidate_objects:
+        # Calculate obiect similarity
+        obiect_sim = calculate_similarity(target_object, candidate_object)
+
+        # Determine effective threshold for initial filtering.
+        # If we have a materie match, the score could be boosted.
+        # But usually we still want some basic textual relevance.
+        # Let's keep the threshold primarily on text similarity to filter out complete noise.
+        # OR we could lower the threshold if materie matches?
+        # For now, let's stick to the requested logic:
+        # "Rezultat dorit: Cazurile cu aceeași materie să apară primele, chiar dacă au similaritate de obiect ușor mai mică."
+        # This implies we still want related objects.
+
+        if obiect_sim >= threshold:
+            # Calculate composite score
+            composite_score = calculate_composite_score(
+                obiect_similarity=obiect_sim,
+                materie_portal=target_materie,
+                materie_db=candidate_materie
+            )
+            matches.append((case_id, candidate_object, obiect_sim, composite_score))
+
+    # Sort by composite score descending
+    matches.sort(key=lambda x: x[3], reverse=True)
+
+    return matches

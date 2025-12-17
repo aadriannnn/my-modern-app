@@ -4,7 +4,6 @@ import LeftSidebar from '../components/LeftSidebar';
 import MainContent from '../components/MainContent';
 import CaseDetailModal from '../components/CaseDetailModal';
 import ContribuieModal from '../components/ContribuieModal';
-import DosarSearchForm from '../components/DosarSearchForm';
 import { getFilters, search as apiSearch, searchByDosar } from '../lib/api';
 import type { Filters, SelectedFilters } from '../types';
 
@@ -30,7 +29,7 @@ const SearchPage: React.FC = () => {
     const [isProKeywordEnabled, setIsProKeywordEnabled] = useState(false);
     const [acteJuridice, setActeJuridice] = useState<string[]>([]);
     const [isDosarSearchLoading, setIsDosarSearchLoading] = useState(false);
-    const [dosarSearchInfo, setDosarSearchInfo] = useState<{ obiect: string; numar: string } | null>(null);
+    const [dosarSearchInfo, setDosarSearchInfo] = useState<{ obiect: string; numar: string; materie?: string | null } | null>(null);
 
     useEffect(() => {
         const loadFilters = async () => {
@@ -336,6 +335,7 @@ const SearchPage: React.FC = () => {
             // Save the portal object info for display
             setDosarSearchInfo({
                 obiect: response.obiect_from_portal || '',
+                materie: response.materie_from_portal,
                 numar: response.numar_dosar
             });
 

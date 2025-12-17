@@ -10,7 +10,7 @@ from sqlmodel import Session, select, text
 from ..db import get_session
 from ..schemas import DosarSearchRequest, DosarSearchResponse
 from ..lib.rejust_client import get_rejust_client
-from ..logic.similarity import find_similar_objects
+from ..logic.similarity import find_similar_objects_with_materie
 import logging
 import json
 
@@ -52,6 +52,7 @@ async def search_by_dosar_number(
             return DosarSearchResponse(
                 success=False,
                 obiect_from_portal=None,
+                materie_from_portal=None,
                 numar_dosar=numar_dosar,
                 results=[],
                 match_count=0,
@@ -59,14 +60,16 @@ async def search_by_dosar_number(
             )
 
         obiect_from_portal = portal_result["obiect"]
-        logger.info(f"Fetched object from portal: {obiect_from_portal[:100]}...")
+        materie_from_portal = portal_result.get("materie")
+        logger.info(f"Fetched from portal: obiect='{obiect_from_portal[:100]}...', materie='{materie_from_portal}'")
 
         # Step 2: Query ALL cases from database (unfiltered)
-        # We need to get all cases with their 'obiect' field for comparison
+        # We need to get all cases with their 'obiect' and 'materie' fields for comparison
         query = text("""
             SELECT
                 id,
-                obj->>'obiect' as obiect
+                obj->>'obiect' as obiect,
+                obj->>'materie' as materie
             FROM blocuri
             WHERE obj->>'obiect' IS NOT NULL
                 AND obj->>'obiect' != ''
@@ -78,12 +81,15 @@ async def search_by_dosar_number(
         logger.info(f"Retrieved {len(rows)} cases from database for comparison")
 
         # Step 3: Prepare candidates for similarity matching
-        candidates = [(row[0], row[1]) for row in rows]
+        # candidates must be list of (id, obiect, materie)
+        candidates = [(row[0], row[1], row[2]) for row in rows]
 
-        # Step 4: Find similar cases (>80% threshold)
+        # Step 4: Find similar cases (>80% threshold on object similarity)
         similarity_threshold = 80.0
-        matches = find_similar_objects(
+        # Returns list of (id, obiect, similarity, composite_score)
+        matches = find_similar_objects_with_materie(
             target_object=obiect_from_portal,
+            target_materie=materie_from_portal,
             candidate_objects=candidates,
             threshold=similarity_threshold
         )
@@ -93,6 +99,7 @@ async def search_by_dosar_number(
             return DosarSearchResponse(
                 success=True,
                 obiect_from_portal=obiect_from_portal,
+                materie_from_portal=materie_from_portal,
                 numar_dosar=numar_dosar,
                 results=[],
                 match_count=0,
@@ -106,8 +113,9 @@ async def search_by_dosar_number(
         # Step 5: Fetch complete case data for matches
         matching_ids = [match[0] for match in matches]
 
-        # Create a mapping of ID to similarity for later use
-        id_to_similarity = {match[0]: match[2] for match in matches}
+        # Create a mapping of ID to scores for later use
+        # match structure: (id, obiect, similarity, composite_score)
+        id_to_scores = {match[0]: {"similarity": match[2], "composite": match[3]} for match in matches}
 
         # Fetch full case data
         cases_query = text(f"""
@@ -135,8 +143,10 @@ async def search_by_dosar_number(
             else:
                 obj = obj_data
 
-            # Get similarity score for this case
-            similarity_score = id_to_similarity.get(case_id, 0.0)
+            # Get scores for this case
+            scores = id_to_scores.get(case_id, {"similarity": 0.0, "composite": 0.0})
+            similarity_score = scores["similarity"]
+            composite_score = scores["composite"]
 
             # Build result in same format as search results
             case_result = {
@@ -153,21 +163,23 @@ async def search_by_dosar_number(
                 "tip_speta": obj.get('tip_speta', "—"),
                 "materie": obj.get('materie', "—"),
                 "obiect": obj.get('obiect', ""),
-                "score": similarity_score / 100.0,  # Normalize to 0-1 scale for consistency
-                "similarity_percentage": similarity_score,  # Keep percentage for display
+                "score": composite_score / 100.0,  # Use composite score for main ranking (0-1)
+                "composite_score": composite_score,
+                "similarity_percentage": similarity_score,  # Keep original object similarity for display
                 "data": obj
             }
 
             formatted_results.append(case_result)
 
-        # Sort by similarity descending
-        formatted_results.sort(key=lambda x: x['similarity_percentage'], reverse=True)
+        # Sort by composite score descending
+        formatted_results.sort(key=lambda x: x['composite_score'], reverse=True)
 
         logger.info(f"Returning {len(formatted_results)} matching cases")
 
         return DosarSearchResponse(
             success=True,
             obiect_from_portal=obiect_from_portal,
+            materie_from_portal=materie_from_portal,
             numar_dosar=numar_dosar,
             results=formatted_results,
             match_count=len(formatted_results),

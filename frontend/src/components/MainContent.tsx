@@ -37,7 +37,7 @@ interface MainContentProps {
   onSearchByIds?: (results: any[], count: number) => void;
   onDosarSearch?: (numarDosar: string) => void;
   isDosarSearchLoading?: boolean;
-  dosarSearchInfo?: { obiect: string; numar: string } | null;
+  dosarSearchInfo?: { obiect: string; numar: string; materie?: string | null } | null;
 }
 
 type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
@@ -457,6 +457,11 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
                 <p className="text-sm text-blue-900 mt-1">
                   <span className="font-semibold">Obiect găsit în portal:</span> {dosarSearchInfo.obiect}
                 </p>
+                {dosarSearchInfo.materie && (
+                  <p className="text-sm text-blue-900 mt-1">
+                    <span className="font-semibold">Materie:</span> {dosarSearchInfo.materie}
+                  </p>
+                )}
               </div>
             )}
           </>

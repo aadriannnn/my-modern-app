@@ -47,3 +47,38 @@ def extract_base_obiect(obiect_orig):
     if not base_term:
         return None
     return base_term
+
+def normalize_materie(materie: str) -> str:
+    """
+    Normalize materie field for consistent comparison.
+
+    Mapping:
+        "CIVIL", "Civil", "Drept civil" -> "civil"
+        "PENAL", "Penal", "Drept penal" -> "penal"
+        "ADMINISTRATIV", "Contencios administrativ" -> "administrativ"
+    """
+    if not materie:
+        return ""
+
+    # Use existing normalize_text for basic cleanup (lowercase, diacritics, etc.)
+    materie_lower = normalize_text(materie)
+
+    # Canonical mappings
+    if "civil" in materie_lower:
+        return "civil"
+    elif "penal" in materie_lower:
+        return "penal"
+    elif "admin" in materie_lower or "contencios" in materie_lower:
+        return "administrativ"
+    elif "munc" in materie_lower:
+        return "munca"
+    elif "comercial" in materie_lower:
+        return "comercial"
+    elif "faliment" in materie_lower or "insolvent" in materie_lower:
+        return "faliment"
+    elif "minor" in materie_lower and "familie" in materie_lower:
+        return "minori si familie"
+    elif "intellectual" in materie_lower or "intelectuala" in materie_lower:
+        return "proprietate intelectuala"
+    else:
+        return materie_lower

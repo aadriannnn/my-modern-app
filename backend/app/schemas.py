@@ -124,6 +124,11 @@ class DosarSearchResponse(BaseModel):
         description="The case object fetched from the court portal"
     )
 
+    materie_from_portal: Optional[str] = Field(
+        None,
+        description="The case matter (materie) fetched from the court portal"
+    )
+
     numar_dosar: str = Field(..., description="The searched case number")
 
     results: List[Dict] = Field(

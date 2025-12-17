@@ -108,6 +108,12 @@ class ReJustClient:
             # Extract the obiect field
             obiect = getattr(dosar, 'obiect', None)
 
+            # Extract materie field
+            materie = getattr(dosar, 'materie', None)
+            if not materie:
+                # Fallback to categorieCaz
+                materie = getattr(dosar, 'categorieCaz', None)
+
             if not obiect:
                 logger.warning(f"Case found but no obiect field: {numar_dosar}")
                 return {
@@ -122,6 +128,7 @@ class ReJustClient:
             return {
                 "success": True,
                 "obiect": obiect,
+                "materie": materie,
                 "numar": getattr(dosar, 'numar', numar_dosar),
                 "categorie_caz": str(getattr(dosar, 'categorieCaz', '')),
                 "stadiu_procesual": str(getattr(dosar, 'stadiuProcesual', '')),
