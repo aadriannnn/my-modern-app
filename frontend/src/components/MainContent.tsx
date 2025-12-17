@@ -30,8 +30,7 @@ interface MainContentProps {
   onSituatieChange: (value: string) => void;
   onSearch: () => void;
   onMinimizeSidebar?: () => void;
-  isProEnabled?: boolean;
-  onTogglePro?: (enabled: boolean) => void;
+
   isProKeywordEnabled?: boolean;
   onToggleProKeyword?: (enabled: boolean) => void;
   acteJuridice?: string[];
@@ -62,8 +61,7 @@ const MainContent: React.FC<MainContentProps> = ({
   onSituatieChange,
   onSearch,
   onMinimizeSidebar,
-  isProEnabled = false,
-  onTogglePro,
+
   isProKeywordEnabled = false,
   onToggleProKeyword,
   acteJuridice = [],

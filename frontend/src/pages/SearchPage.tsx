@@ -398,8 +398,7 @@ const SearchPage: React.FC = () => {
                     situatie={situatie}
                     onSituatieChange={setSituatie}
                     onSearch={handleSearch}
-                    isProEnabled={isProEnabled}
-                    onTogglePro={setIsProEnabled}
+
                     isProKeywordEnabled={isProKeywordEnabled}
                     onToggleProKeyword={setIsProKeywordEnabled}
                     acteJuridice={acteJuridice}
