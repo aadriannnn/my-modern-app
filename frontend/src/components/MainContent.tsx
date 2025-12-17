@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters';
 
@@ -82,6 +83,7 @@ const MainContent: React.FC<MainContentProps> = ({
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
   const [idSearchInput, setIdSearchInput] = useState('');
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   const handleGenerateDocument = async () => {
     if (!selectedAct) return;
@@ -679,6 +681,39 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
           onRemoveFilter={onRemoveFilter}
           onClearFilters={onClearFilters}
         />
+
+        {/* --- GRID TESTS ENTRY POINT --- */}
+        {results.length > 0 && (user?.rol === 'pro' || user?.rol === 'admin') && (
+          <div className="mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-2xl shadow-lg relative overflow-hidden group">
+            <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-10 -translate-y-10 group-hover:translate-x-5 group-hover:-translate-y-5 transition-transform duration-500">
+              <Wand2 className="w-48 h-48 text-white" />
+            </div>
+
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="text-white">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide backdrop-blur-sm">
+                    Nou
+                  </span>
+                  <span className="text-blue-100 font-medium text-sm">Exclusiv Pro & Admin</span>
+                </div>
+                <h3 className="text-2xl font-bold mb-2">Teste Grilă din Spețe</h3>
+                <p className="text-blue-100 max-w-xl">
+                  Generează automat teste grilă din întrebările de doctrină identificate în rezultatele căutării tale.
+                  Verifică-ți cunoștințele și pregătește-te eficient.
+                </p>
+              </div>
+
+              <button
+                onClick={() => navigate('/grid-tests', { state: { results } })}
+                className="whitespace-nowrap px-6 py-3 bg-white text-indigo-600 font-bold rounded-xl shadow-lg hover:shadow-xl hover:bg-blue-50 transform hover:-translate-y-0.5 transition-all flex items-center gap-2"
+              >
+                <FileText className="w-5 h-5" />
+                Începe Testul
+              </button>
+            </div>
+          </div>
+        )}
 
         {acteJuridice && acteJuridice.length > 0 && (
           <div className="mb-6 bg-white p-4 rounded-xl shadow-sm border border-brand-accent/20">

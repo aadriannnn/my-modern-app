@@ -28,7 +28,7 @@ interface CaseDetailModalProps {
 type FeedbackType = 'good' | 'bad' | null;
 
 const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, result }) => {
-  const [activeTab, setActiveTab] = useState("Metadate");
+  const [activeTab, setActiveTab] = useState("Date de identificare");
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
   const [feedback, setFeedback] = useState<FeedbackType>(null);
@@ -73,7 +73,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
 
   // Navigation tabs definition
   const navTabs = [
-    "Metadate",
+    "Date de identificare",
     "Situația de fapt",
     "Argumente",
     "Hotărâre",
@@ -86,7 +86,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
 
   const renderContent = () => {
     switch (activeTab) {
-      case "Metadate":
+      case "Date de identificare":
         return (
           <>
             {renderField("Titlu", caseData.titlu)}

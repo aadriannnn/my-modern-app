@@ -9,11 +9,12 @@ import { DosarProvider } from './context/DosarContext';
 import DosarDrawer from './components/DosarDrawer';
 import DosarToast from './components/DosarToast';
 import TestAnalysisPage from './pages/TestAnalysisPage';
-
-import { AuthProvider } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import CompleteProfilePage from './pages/CompleteProfilePage';
+
+import { AuthProvider } from './context/AuthContext';
+import GridTestsPage from './pages/GridTestsPage';
 
 const App: React.FC = () => {
   return (
@@ -28,6 +29,7 @@ const App: React.FC = () => {
 
           <Route path="/landing" element={<LandingPage />} />
           <Route path="/" element={<SearchPage />} />
+          <Route path="/grid-tests" element={<GridTestsPage />} />
           <Route path="/setari" element={<SettingsPage />} />
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
