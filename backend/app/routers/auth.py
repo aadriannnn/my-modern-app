@@ -26,6 +26,31 @@ from ..schemas import (
 settings = get_settings()
 logger = logging.getLogger(__name__)
 
+# Initialize Google Flow
+google_flow = None
+try:
+    if settings.GOOGLE_CLIENT_ID and settings.GOOGLE_CLIENT_SECRET and settings.GOOGLE_REDIRECT_URI:
+        client_config = {
+            "web": {
+                "client_id": settings.GOOGLE_CLIENT_ID,
+                "client_secret": settings.GOOGLE_CLIENT_SECRET,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": [str(settings.GOOGLE_REDIRECT_URI)],
+            }
+        }
+        google_flow = Flow.from_client_config(
+            client_config,
+            scopes=[
+                "openid",
+                "https://www.googleapis.com/auth/userinfo.email",
+                "https://www.googleapis.com/auth/userinfo.profile",
+            ],
+            redirect_uri=str(settings.GOOGLE_REDIRECT_URI)
+        )
+except Exception as e:
+    logger.warning(f"Failed to initialize Google Auth: {e}")
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
