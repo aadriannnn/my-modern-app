@@ -80,6 +80,19 @@ class Settings(BaseSettings):
     USER_SETARI: Optional[str] = None
     PASS_SETARI: Optional[str] = None
 
+    # Auth & Security
+    SECRET_KEY: str = "supersecretkeyshouldbechanged"
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 43200 # 30 days
+
+    # Google OAuth
+    GOOGLE_CLIENT_ID: Optional[str] = None
+    GOOGLE_CLIENT_SECRET: Optional[str] = None
+    GOOGLE_REDIRECT_URI: Optional[str] = None # e.g. http://localhost:8000/api/auth/google/callback
+    FRONTEND_BASE_URL: str = "http://localhost:5173"
+
+    SECURE_COOKIE: bool = False
+
     class Config:
         # Make .env path absolute relative to this file
         env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "backend", ".env")

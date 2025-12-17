@@ -1,7 +1,9 @@
+import uuid
+import enum
 from typing import Optional, List, Any
 from sqlmodel import SQLModel, Field, Column
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.types import JSON, ARRAY, String
+from sqlalchemy.types import JSON, ARRAY, String, Enum as SAEnum, Boolean, DateTime
 from pgvector.sqlalchemy import Vector
 from datetime import datetime
 from .config import get_settings
@@ -13,7 +15,43 @@ db_specific_json = JSONB if is_postgres else JSON
 db_specific_array = ARRAY(String) if is_postgres else JSON
 
 
+class ClientRole(str, enum.Enum):
+    BASIC = "basic"
+    PRO = "pro"
+    ADMIN = "admin"
+
+class ClientDB(SQLModel, table=True):
+    __tablename__ = "clienti"
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    email: str = Field(index=True, unique=True, nullable=False)
+    parolaHash: Optional[str] = Field(default=None)
+    rol: ClientRole = Field(sa_column=Column(SAEnum(ClientRole), default=ClientRole.BASIC, nullable=False))
+    dataCreare: datetime = Field(default_factory=datetime.utcnow)
+    ipInregistrare: Optional[str] = None
+    termeniAcceptati: bool = Field(default=False)
+    lastLogin: Optional[datetime] = None
+    numeComplet: Optional[str] = None
+    functie: Optional[str] = None
+    telefon: Optional[str] = None
+    google_id: Optional[str] = Field(default=None, index=True, sa_column_kwargs={"unique": True})
+    esteContGoogle: bool = Field(default=False)
+    numeFacturare: Optional[str] = None
+    adresaFacturare: Optional[str] = None
+    cuiFacturare: Optional[str] = None
+    nrRegComFacturare: Optional[str] = None
+    telefonFacturare: Optional[str] = None
+    banca: Optional[str] = None
+    contIBAN: Optional[str] = None
+    puncte_ramase: Optional[int] = Field(default=0)
+    stripe_customer_id: Optional[str] = Field(default=None, index=True)
+    stripe_subscription_id: Optional[str] = Field(default=None, index=True)
+    subscription_status: Optional[str] = None
+    pro_status_active_until: Optional[datetime] = None
+    user_type: Optional[str] = None
+
+
 class Blocuri(SQLModel, table=True):
+
     id: Optional[int] = Field(default=None, primary_key=True)
     obj: dict = Field(sa_column=Column(db_specific_json))
     vector: Optional[List[float]] = Field(default=None, sa_column=Column(Vector(settings.VECTOR_DIM)))

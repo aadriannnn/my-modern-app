@@ -50,7 +50,14 @@ class ExceptionLoggingMiddleware(BaseHTTPMiddleware):
 settings = get_settings()
 app = FastAPI(title=settings.APP_NAME)
 
+from starlette.middleware.sessions import SessionMiddleware
+
 app.add_middleware(ExceptionLoggingMiddleware)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SECRET_KEY,
+    https_only=settings.SECURE_COOKIE
+)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.CORS_ORIGINS,

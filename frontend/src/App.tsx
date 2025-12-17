@@ -10,21 +10,31 @@ import DosarDrawer from './components/DosarDrawer';
 import DosarToast from './components/DosarToast';
 import TestAnalysisPage from './pages/TestAnalysisPage';
 
+import { AuthProvider } from './context/AuthContext';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import CompleteProfilePage from './pages/CompleteProfilePage';
+
 const App: React.FC = () => {
   return (
-    <DosarProvider>
-      <DosarDrawer />
-      <DosarToast />
-      <Routes>
-        <Route path="/landing" element={<LandingPage />} />
-        <Route path="/" element={<SearchPage />} />
-        <Route path="/setari" element={<SettingsPage />} />
-        <Route path="/terms" element={<TermsPage />} />
-        <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
-        <Route path="/test-analysis" element={<TestAnalysisPage />} />
-      </Routes>
+    <AuthProvider>
+      <DosarProvider>
+        <DosarDrawer />
+        <DosarToast />
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/complete-profile" element={<CompleteProfilePage />} />
 
-    </DosarProvider>
+          <Route path="/landing" element={<LandingPage />} />
+          <Route path="/" element={<SearchPage />} />
+          <Route path="/setari" element={<SettingsPage />} />
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/test-analysis" element={<TestAnalysisPage />} />
+        </Routes>
+      </DosarProvider>
+    </AuthProvider>
   );
 };
 

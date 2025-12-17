@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Optional
+import enum
+from datetime import datetime
 
 class CaseCreate(BaseModel):
     title: str
@@ -155,3 +157,41 @@ class DosarSearchResponse(BaseModel):
         None,
         description="Additional metadata from portal (category, stage, etc.)"
     )
+
+# =======================
+# Auth Schemas
+# =======================
+class ClientRole(str, enum.Enum): # Defining enum here as well if needed for schemas, or import from models
+    BASIC = "basic"
+    PRO = "pro"
+    ADMIN = "admin"
+
+class LoginRequest(BaseModel):
+    email: str
+    parola: str
+
+class RegistrationRequest(BaseModel):
+    email: str
+    parola: str
+    numeComplet: str
+    termeniAcceptati: bool
+    functie: Optional[str] = None
+    telefon: Optional[str] = None
+    numeFacturare: Optional[str] = None
+    adresaFacturare: Optional[str] = None
+    cuiFacturare: Optional[str] = None
+    user_type: Optional[str] = None
+
+class ClientDataResponse(BaseModel):
+    id: str
+    email: str
+    rol: str
+    numeComplet: Optional[str] = None
+    functie: Optional[str] = None
+    telefon: Optional[str] = None
+    puncte_ramase: Optional[int] = 0
+    esteContGoogle: bool = False
+    dataCreare: datetime
+
+    class Config:
+        from_attributes = True
