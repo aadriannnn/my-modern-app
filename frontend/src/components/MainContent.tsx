@@ -9,6 +9,7 @@ import UserJourneyMap from './UserJourneyMap';
 import ExampleCaseButton from './ExampleCaseButton';
 import AdvancedAnalysisModal from './AdvancedAnalysisModal';
 import { searchByIds } from '../lib/api';
+import { useAuth } from '../context/AuthContext';
 
 interface MainContentProps {
   results: any[];
@@ -84,6 +85,7 @@ const MainContent: React.FC<MainContentProps> = ({
   const [copySuccess, setCopySuccess] = useState(false);
   const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
   const [idSearchInput, setIdSearchInput] = useState('');
+  const { user } = useAuth();
 
   const handleGenerateDocument = async () => {
     if (!selectedAct) return;
@@ -506,7 +508,7 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
                 </div>
               </label>
 
-              {onToggleProKeyword && (
+              {onToggleProKeyword && (user?.rol === 'admin' || user?.rol === 'pro') && (
                 <label className="flex items-center cursor-pointer select-none group">
                   <div className="relative">
                     <input
@@ -541,68 +543,74 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
             Căutare Avansată
           </button>
 
-          <button
-            onClick={() => setShowAdvancedAnalysis(true)}
-            className="mt-2 w-full bg-white text-brand-accent border-2 border-brand-accent/20 px-6 py-2.5 rounded-xl flex items-center justify-center font-bold text-sm hover:bg-brand-accent/5 transition-all duration-200"
-          >
-            <span className="mr-2">🔬</span>
-            Analiză Juridică AI (Experimental)
-          </button>
+          {user?.rol === 'admin' && (
+            <button
+              onClick={() => setShowAdvancedAnalysis(true)}
+              className="mt-2 w-full bg-white text-brand-accent border-2 border-brand-accent/20 px-6 py-2.5 rounded-xl flex items-center justify-center font-bold text-sm hover:bg-brand-accent/5 transition-all duration-200"
+            >
+              <span className="mr-2">🔬</span>
+              Analiză Juridică AI (Experimental)
+            </button>
+          )}
 
-          {/* ID Search Section */}
-          <div className="mt-4 p-4 bg-white rounded-xl shadow-sm border border-gray-200">
-            <label className="block text-sm font-bold text-brand-text mb-2 flex items-center">
-              <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
-              Căutare după ID-uri
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={idSearchInput}
-                onChange={(e) => setIdSearchInput(e.target.value)}
-                onKeyPress={async (e) => {
-                  if (e.key === 'Enter' && idSearchInput.trim() && !isLoading) {
-                    try {
-                      const results = await searchByIds(idSearchInput.trim());
-                      if (onSearchByIds) {
-                        onSearchByIds(results, results.length);
+          {/* ID Search Section - Admin Only */}
+          {user?.rol === 'admin' && (
+            <div className="mt-4 p-4 bg-white rounded-xl shadow-sm border border-gray-200">
+              <label className="block text-sm font-bold text-brand-text mb-2 flex items-center">
+                <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
+                Căutare după ID-uri
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={idSearchInput}
+                  onChange={(e) => setIdSearchInput(e.target.value)}
+                  onKeyPress={async (e) => {
+                    if (e.key === 'Enter' && idSearchInput.trim() && !isLoading) {
+                      try {
+                        const results = await searchByIds(idSearchInput.trim());
+                        if (onSearchByIds) {
+                          onSearchByIds(results, results.length);
+                        }
+                      } catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : 'Eroare necunoscută';
+                        alert(`Eroare la căutarea după ID-uri: ${errorMessage}`);
                       }
-                    } catch (error) {
-                      const errorMessage = error instanceof Error ? error.message : 'Eroare necunoscută';
-                      alert(`Eroare la căutarea după ID-uri: ${errorMessage}`);
                     }
-                  }
-                }}
-                placeholder="Exemplu: 122,1566,234"
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              />
-              <button
-                onClick={async () => {
-                  if (idSearchInput.trim() && !isLoading) {
-                    try {
-                      const results = await searchByIds(idSearchInput.trim());
-                      if (onSearchByIds) {
-                        onSearchByIds(results, results.length);
+                  }}
+                  placeholder="Exemplu: 122,1566,234"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                />
+                <button
+                  onClick={async () => {
+                    if (idSearchInput.trim() && !isLoading) {
+                      try {
+                        const results = await searchByIds(idSearchInput.trim());
+                        if (onSearchByIds) {
+                          onSearchByIds(results, results.length);
+                        }
+                      } catch (error) {
+                        const errorMessage = error instanceof Error ? error.message : 'Eroare necunoscută';
+                        alert(`Eroare la căutarea după ID-uri: ${errorMessage}`);
                       }
-                    } catch (error) {
-                      const errorMessage = error instanceof Error ? error.message : 'Eroare necunoscută';
-                      alert(`Eroare la căutarea după ID-uri: ${errorMessage}`);
                     }
-                  }
-                }}
-                disabled={!idSearchInput.trim() || isLoading}
-                className={`px-6 py-2 rounded-lg font-semibold text-white transition-all duration-200 ${!idSearchInput.trim() || isLoading
-                  ? 'bg-gray-300 cursor-not-allowed'
-                  : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-md'
-                  }`}
-              >
-                Caută
-              </button>
+                  }}
+                  disabled={!idSearchInput.trim() || isLoading}
+                  className={`px-6 py-2 rounded-lg font-semibold text-white transition-all duration-200 ${!idSearchInput.trim() || isLoading
+                    ? 'bg-gray-300 cursor-not-allowed'
+                    : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-md'
+                    }`}
+                >
+                  Caută
+                </button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 italic">
+                Introduceți unul sau mai multe ID-uri separate prin virgulă.
+              </p>
             </div>
-            <p className="text-xs text-gray-500 mt-2 italic">
-              Introduceți unul sau mai multe ID-uri separate prin virgulă.
-            </p>
-          </div>
+          )}
+
+
         </div>
 
         {/* Features Section & User Journey - Show when no search has been performed */}
