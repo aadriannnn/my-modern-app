@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters';
-import DosarSearchForm from './DosarSearchForm';
+
 import { Loader2, Search, Wand2, X, Copy, Check, FileText } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
@@ -442,29 +442,21 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
   return (
     <main className="flex-1 p-4 md:p-6 bg-brand-light overflow-y-auto">
       <div className="max-w-4xl mx-auto">
-        {/* Dosar Search Form */}
-        {onDosarSearch && (
-          <>
-            <DosarSearchForm
-              onSearch={onDosarSearch}
-              isLoading={isDosarSearchLoading}
-            />
-            {dosarSearchInfo && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                <p className="text-sm text-blue-900">
-                  <span className="font-semibold">Dosar:</span> {dosarSearchInfo.numar}
-                </p>
-                <p className="text-sm text-blue-900 mt-1">
-                  <span className="font-semibold">Obiect găsit în portal:</span> {dosarSearchInfo.obiect}
-                </p>
-                {dosarSearchInfo.materie && (
-                  <p className="text-sm text-blue-900 mt-1">
-                    <span className="font-semibold">Materie:</span> {dosarSearchInfo.materie}
-                  </p>
-                )}
-              </div>
+        {/* Dosar Search Display Info */}
+        {onDosarSearch && dosarSearchInfo && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+            <p className="text-sm text-blue-900">
+              <span className="font-semibold">Dosar:</span> {dosarSearchInfo.numar}
+            </p>
+            <p className="text-sm text-blue-900 mt-1">
+              <span className="font-semibold">Obiect găsit în portal:</span> {dosarSearchInfo.obiect}
+            </p>
+            {dosarSearchInfo.materie && (
+              <p className="text-sm text-blue-900 mt-1">
+                <span className="font-semibold">Materie:</span> {dosarSearchInfo.materie}
+              </p>
             )}
-          </>
+          </div>
         )}
 
         {/* Search Bar */}
@@ -475,7 +467,7 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
               ref={textareaRef}
               value={situatie}
               onChange={(e) => onSituatieChange(e.target.value)}
-              placeholder="Introduceți situația de fapt sau cuvinte cheie relevante. Utilizați filtrele din meniu pentru a rafina rezultatele..."
+              placeholder="Introduceți situația de fapt, cuvinte cheie sau un număr de dosar (ex: 35893/302/2025)..."
               className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl bg-white text-brand-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent shadow-sm transition-all duration-200 resize-none overflow-y-auto min-h-[96px]"
               style={{ lineHeight: '24px' }}
             />
@@ -512,13 +504,29 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
           <button
             ref={searchButtonRef}
             onClick={() => {
-              onSearch();
+              // Regex to find dosar number
+              const dosarRegex = /(\d{1,6}\/\d{1,4}\/\d{4}(?:\/[a-zA-Z0-9\.-]+)?)/;
+              const match = situatie.match(dosarRegex);
+
+              if (match && onDosarSearch) {
+                // Found a dosar number - perform dosar search
+                onDosarSearch(match[0]);
+              } else {
+                // Standard search
+                onSearch();
+              }
               onMinimizeSidebar?.();
             }}
-            className="mt-3 w-full bg-brand-accent text-white px-6 py-3 rounded-xl flex items-center justify-center font-bold text-lg hover:bg-brand-accent-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 shadow-md"
+            disabled={isLoading || isDosarSearchLoading}
+            className={`mt-3 w-full bg-brand-accent text-white px-6 py-3 rounded-xl flex items-center justify-center font-bold text-lg hover:bg-brand-accent-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 shadow-md ${(isLoading || isDosarSearchLoading) ? 'opacity-75 cursor-not-allowed' : ''
+              }`}
           >
-            <Search size={24} className="mr-2" />
-            Căutare Avansată
+            {isLoading || isDosarSearchLoading ? (
+              <Loader2 className="animate-spin h-6 w-6 mr-2" />
+            ) : (
+              <Search size={24} className="mr-2" />
+            )}
+            {isLoading ? 'Se caută...' : (isDosarSearchLoading ? 'Căutare Dosar...' : 'Caută')}
           </button>
 
           {user?.rol === 'admin' && (
