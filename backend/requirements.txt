@@ -46,8 +46,7 @@ matplotlib==3.9.2
 # SOAP Client & Text Similarity
 # ============================================
 zeep==4.2.1
-# rapidfuzz is already installed as dependency of other packages
-# No need to add explicitly, but documenting it's used for text similarity
+rapidfuzz>=3.0.0
 
 # ============================================
 # AI & Embeddings (Optional - comment if not used)
