@@ -10,6 +10,8 @@ interface LegalCodesSectionProps {
         keywords?: string[] | string;
         situatia_de_fapt_full?: string;
         Rezumat_generat_de_AI_Cod?: string;
+        fragment_cod?: string;
+        legea_aplicabila?: string;
     };
 }
 
@@ -137,11 +139,42 @@ const LegalCodesSection: React.FC<LegalCodesSectionProps> = ({ caseData }) => {
     }
 
     return (
-        <div className="space-y-4">
-            <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-2">
-                    Articole de cod relevante
-                </h3>
+        <div className="space-y-6">
+            {/* Secțiune nouă pentru Legea Aplicabilă și Fragment Cod */}
+            {(caseData.legea_aplicabila || caseData.fragment_cod) && (
+                <div className="bg-white border border-brand-accent/20 rounded-xl overflow-hidden shadow-sm">
+                    <div className="bg-brand-accent/5 px-5 py-3 border-b border-brand-accent/10 flex flex-wrap items-center gap-3">
+                        <h3 className="text-md font-semibold text-brand-dark flex items-center gap-2">
+                            <BookOpen size={18} className="text-brand-accent" />
+                            Cadru Legal Aplicabil
+                        </h3>
+                        {caseData.legea_aplicabila && (
+                            <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-brand-accent text-white shadow-sm">
+                                {caseData.legea_aplicabila}
+                            </span>
+                        )}
+                    </div>
+
+                    {caseData.fragment_cod && (
+                        <div className="p-5">
+                            <div className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed font-normal bg-gray-50 p-4 rounded-lg border border-gray-200">
+                                {caseData.fragment_cod}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            <div className="mb-2">
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-semibold text-gray-800">
+                        Articole Identificate Automat
+                    </h3>
+                    <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                        AI Generated
+                    </span>
+                </div>
+
                 <p className="text-sm text-gray-600">
                     Am găsit {articles.length} {articles.length === 1 ? 'articol' : 'articole'} potrivit{articles.length === 1 ? '' : 'e'} pentru această speță.
                 </p>

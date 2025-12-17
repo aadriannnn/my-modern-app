@@ -12,6 +12,8 @@ import LongTextField from "./LongTextField";
 import DocumentModelsSection from "./DocumentModelsSection";
 import DocumentModelModal from "./DocumentModelModal";
 import LegalCodesSection from "./LegalCodesSection";
+import CompetenceSection from "./CompetenceSection";
+import TaxSection from "./TaxSection";
 
 // Refined type definitions for clarity
 interface CaseDetailModalProps {
@@ -78,6 +80,8 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
     "Elemente utile",
     "Modele",
     "Coduri",
+    "Competență",
+    "Taxe",
   ];
 
   const renderContent = () => {
@@ -126,6 +130,10 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
         return <DocumentModelsSection caseData={caseData} onViewModel={handleViewModel} />;
       case "Coduri":
         return <LegalCodesSection caseData={caseData} />;
+      case "Competență":
+        return <CompetenceSection caseData={caseData} />;
+      case "Taxe":
+        return <TaxSection caseData={caseData} />;
       default:
         return null;
     }
