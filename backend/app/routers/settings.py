@@ -275,45 +275,44 @@ async def analyze_llm_data(
             }
 
         # Check network settings first to determine candidate count and mode
+        # Check network settings
         network_enabled = settings_manager.get_value('setari_retea', 'retea_enabled', False)
 
-        custom_template = None
-        if network_enabled:
-            # Use more candidates for network mode (default 50 or max available)
-            candidate_count = settings_manager.get_value('setari_generale', 'top_k_results', 50)
+        # UNIFIED LOGIC: ALWAYS use the strict "network-style" configuration
+        # Use more candidates for better filtering (default 50 or max available)
+        candidate_count = settings_manager.get_value('setari_generale', 'top_k_results', 50)
 
-            # Custom prompt for network mode - ULTRA-STRICT ZERO-TOLERANCE
-            custom_template = (
-                "⚠️⚠️⚠️ INTERZIS TOTAL: ORICE TEXT IN AFARA JSON ⚠️⚠️⚠️\\n\\n"
-                "SARCINA: Selecteaza max 10 spete relevante din {num_candidates} candidate.\\n\\n"
-                "SITUATIA: \"{query_text}\"\\n\\n"
-                "CANDIDATE:\\n{prompt_spete}\\n\\n"
-                "═══════════════════════════════════════════════════════════════\\n"
-                "FORMATUL RASPUNSULUI - ZERO TOLERANTA LA ABATERI:\\n"
-                "═══════════════════════════════════════════════════════════════\\n\\n"
-                "PRIMUL CARACTER din raspuns: {{\\n"
-                "ULTIMUL CARACTER din raspuns: }}\\n\\n"
-                "Structura JSON (EXCLUSIV acest format):\\n"
-                "{{\\n"
-                "  \"numar_speta\": [123, 456],\\n"
-                "  \"acte_juridice\": [\"Tip1\", \"Tip2\"]\\n"
-                "}}\\n\\n"
-                "❌❌❌ INTERZIS ABSOLUT (ZERO EXCEPTII): ❌❌❌\\n"
-                "• ZERO text INAINTE de {{\\n"
-                "• ZERO text DUPA }}\\n"
-                "• ZERO note explicative (nici in paranteze)\\n"
-                "• ZERO 'Considerente Juridice'\\n"
-                "• ZERO 'Observatii'\\n"
-                "• ZERO rationament profesional\\n"
-                "• ZERO comentarii de orice fel\\n"
-                "• ZERO markdown (```json)\\n"
-                "• ZERO repetare prompt\\n\\n"
-                "NU esti platit sa explici. Esti platit sa livrezi DOAR JSON.\\n"
-                "Orice caracter in afara {{ }} = ESEC TOTAL.\\n\\n"
-                "INCEPE ACUM CU {{ (prima litera din raspuns trebuie sa fie acolada):"
-            )
-        else:
-            candidate_count = settings_manager.get_value('setari_llm', 'ai_filtering_llm_candidate_count', 5)
+        # Custom prompt - ULTRA-STRICT ZERO-TOLERANCE (Used for both Network and Local)
+        custom_template = (
+            "⚠️⚠️⚠️ INTERZIS TOTAL: ORICE TEXT IN AFARA JSON ⚠️⚠️⚠️\\n\\n"
+            "SARCINA: Selecteaza max 10 spete relevante din {num_candidates} candidate.\\n\\n"
+            "SITUATIA: \"{query_text}\"\\n\\n"
+            "CANDIDATE:\\n{prompt_spete}\\n\\n"
+            "═══════════════════════════════════════════════════════════════\\n"
+            "FORMATUL RASPUNSULUI - ZERO TOLERANTA LA ABATERI:\\n"
+            "═══════════════════════════════════════════════════════════════\\n\\n"
+            "PRIMUL CARACTER din raspuns: {{\\n"
+            "ULTIMUL CARACTER din raspuns: }}\\n\\n"
+            "Structura JSON (EXCLUSIV acest format):\\n"
+            "{{\\n"
+            "  \"numar_speta\": [ID_SPETA_1, ID_SPETA_2],\\n"
+            "  \"acte_juridice\": [\"Tip_Act_1\", \"Tip_Act_2\"]\\n"
+            "}}\\n\\n"
+            "❌❌❌ INTERZIS ABSOLUT (ZERO EXCEPTII): ❌❌❌\\n"
+            "• NU COPIA ID-urile 123, 456 DIN EXEMPLU! Foloseste ID-urile reale din lista de CANDIDATE.\\n"
+            "• ZERO text INAINTE de {{\\n"
+            "• ZERO text DUPA }}\\n"
+            "• ZERO note explicative (nici in paranteze)\\n"
+            "• ZERO 'Considerente Juridice'\\n"
+            "• ZERO 'Observatii'\\n"
+            "• ZERO rationament profesional\\n"
+            "• ZERO comentarii de orice fel\\n"
+            "• ZERO markdown (```json)\\n"
+            "• ZERO repetare prompt\\n\\n"
+            "NU esti platit sa explici. Esti platit sa livrezi DOAR JSON.\\n"
+            "Orice caracter in afara {{ }} = ESEC TOTAL.\\n\\n"
+            "INCEPE ACUM CU {{ (prima litera din raspuns trebuie sa fie acolada):"
+        )
 
         # Generate the prompt using the helper
         all_candidates, optimized_prompt = _generate_llm_data(
@@ -450,6 +449,14 @@ async def analyze_llm_data(
                     # La fallback nu avem acte juridice
 
 
+                # ===== FALLBACK PENTRU REȚEA DACA NU GASESTE NIMIC =====
+                if not ai_selected_ids:
+                    logger.warning("[AI FILTERING] ⚠️ LLM nu a returnat niciun rezultat. Fallback la toate candidatele.")
+                    ai_selected_ids = [c['id'] for c in payload.get('all_candidates', [])]
+                    # Putem dezactiva exclusive_display sau il lasam True cu toate ID-urile.
+                    # Daca il lasam True cu toate ID-urile, se comporta ca si cum LLM le-a ales pe toate.
+                    # E mai sigur sa afisam tot.
+
                 # ===== ȘTERGERE FIȘIER RĂSPUNS =====
                 logger.info("[AI FILTERING] Curățăm fișierul de răspuns...")
 
@@ -490,44 +497,127 @@ async def analyze_llm_data(
             logger.info(f"Sending request to LLM at {llm_url}...")
 
             # --- CONFIGURARE MODEL QWEN ---
-            llm_payload = {
-                "model": "verdict-ro:latest",  # Model corect cu tag :latest
-                "prompt": payload['prompt'],
-                "stream": False,
-                "options": {
-                    "num_ctx": 4096,         # Context window pentru Qwen
-                    "temperature": 0.1,      # Precizie maximă
-                    "top_p": 0.9,           # Nucleus sampling
-                    "top_k": 40,            # Top-k sampling
-                    "repeat_penalty": 1.1   # Evită repetări
+            # --- CONFIGURARE MODEL QWEN ---
+            # BYPASS LLM EXECUTION (User Request: "nu este un llm capabil")
+            # We keep the implementation but skip execution to show all results immediately.
+            SKIP_LLM = True
+
+            if not SKIP_LLM:
+                llm_payload = {
+                    "model": "verdict-ro:latest",  # Model corect cu tag :latest
+                    "prompt": payload['prompt'],
+                    "stream": False,
+                    "options": {
+                        "num_ctx": 4096,         # Context window pentru Qwen
+                        "temperature": 0.1,      # Precizie maximă
+                        "top_p": 0.9,           # Nucleus sampling
+                        "top_k": 40,            # Top-k sampling
+                        "repeat_penalty": 1.1   # Evită repetări
+                    }
                 }
-            }
-            # ------------------------------
+                # ------------------------------
 
-            async with httpx.AsyncClient(timeout=180.0) as client:  # Reduced from 1200s - model is pre-loaded
-                response = await client.post(llm_url, json=llm_payload)
-                response.raise_for_status()
-                result = response.json()
+                async with httpx.AsyncClient(timeout=180.0) as client:  # Reduced from 1200s - model is pre-loaded
+                    response = await client.post(llm_url, json=llm_payload)
+                    response.raise_for_status()
+                    result = response.json()
 
-            logger.info("Received response from LLM")
+                logger.info("Received response from LLM")
 
-            # Parse AI-selected IDs from response (can be single or comma-separated)
-            llm_response_text = result.get('response', '')
-            ai_selected_ids = []
+                # Parse AI-selected IDs from response (UNIFIED LOGIC)
+                llm_response_text = result.get('response', '')
+                ai_selected_ids = []
+                acte_juridice = []
 
-            # Extract all numbers from response
-            import re
-            id_matches = re.findall(r'\d+', llm_response_text)
-            ai_selected_ids = [int(id_str) for id_str in id_matches]
+                # Use robust JSON parsing logic (same as network mode)
+                import json
+                import re
 
-            logger.info(f"LLM selected IDs: {ai_selected_ids}")
+                try:
+                    # 1. Direct JSON parse
+                    try:
+                        data = json.loads(llm_response_text)
+                        logger.info("[AI FILTERING - Local] Parsare directă JSON reușită")
+                    except json.JSONDecodeError:
+                        # 2. Extract JSON block
+                        start_idx = llm_response_text.find('{')
+                        end_idx = llm_response_text.rfind('}')
+
+                        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                            json_str = llm_response_text[start_idx:end_idx+1]
+                            data = json.loads(json_str)
+                            logger.info("[AI FILTERING - Local] Parsare bloc JSON extras reușită")
+                        else:
+                            raise ValueError("Nu s-a găsit un bloc JSON valid")
+
+                    # Extract data
+                    if "numar_speta" in data:
+                        if isinstance(data["numar_speta"], list):
+                            ai_selected_ids = [int(x) for x in data["numar_speta"] if str(x).isdigit()]
+                        elif isinstance(data["numar_speta"], (str, int)):
+                                ai_selected_ids = [int(data["numar_speta"])]
+
+                    if "acte_juridice" in data and isinstance(data["acte_juridice"], list):
+                        acte_juridice = [str(x) for x in data["acte_juridice"]]
+
+                except Exception as e:
+                    logger.error(f"[AI FILTERING - Local] ❌ Eroare la parsarea JSON: {e}")
+                    # Fallback to regex
+                    logger.warning("[AI FILTERING - Local] ⚠️ Fallback la extragerea simplă de numere...")
+                    id_matches = re.findall(r'\d+', llm_response_text)
+                    ai_selected_ids = [int(id_str) for id_str in id_matches]
+
+                logger.info(f"LLM selected IDs: {ai_selected_ids}")
+            else:
+                # SKIP MODE
+                logger.info("[AI FILTERING - Local] ⏭️ LLM skipped by configuration. Returning all candidates.")
+                ai_selected_ids = []
+                acte_juridice = []
+                # Fallback logic below will handle empty list by filling with all candidates
+                llm_response_text = "LLM Skipped - All candidates returned."
+                result = {"skipped": True}
+
+            # ===== FALLBACK LOCAL DACA NU GASESTE NIMIC =====
+            # ===== FALLBACK / SMART FILTERING DUPLICATE =====
+            if not ai_selected_ids:
+                logger.warning("[AI FILTERING - Local] ⚠️ LLM nu a returnat rezultate (sau a fost skipped). Aplicăm Smart Filtering.")
+
+                # Retrieve candidates (guaranteed sorted by relevance from _generate_llm_data)
+                all_cands = payload.get('all_candidates', [])
+
+                # 1. Identificăm TOP 3 candidate ca referință de relevanță
+                top_candidates = all_cands[:3]
+
+                # 2. Extragem materiile (legal subjects) predominante din top 3
+                relevant_materii = set()
+                for c in top_candidates:
+                    m = c.get('materie')
+                    if m and m != "Nedefinit":
+                        relevant_materii.add(m)
+
+                logger.info(f"[AI FILTERING] 🧠 Materii relevante identificate din Top 3: {relevant_materii}")
+
+                if relevant_materii:
+                    # 3. Filtrăm TOATE candidatele pentru a păstra doar cele din materiile relevante
+                    # Astfel eliminăm zgomotul (ex: un caz Penal rătăcit printre Civile)
+                    ai_selected_ids = [
+                        c['id'] for c in all_cands
+                        if c.get('materie') in relevant_materii
+                    ]
+                    logger.info(f"[AI FILTERING] 🧠 Smart Filtering: S-au păstrat {len(ai_selected_ids)} din {len(all_cands)} spete (Materia: {list(relevant_materii)})")
+                else:
+                    # Fallback total: dacă nu putem determina materia, returnăm tot
+                    logger.warning("[AI FILTERING] ⚠️ Nu s-au putut identifica materii relevante. Se returnează toate candidatele.")
+                    ai_selected_ids = [c['id'] for c in all_cands]
 
             return {
                 'success': True,
                 'response': llm_response_text,
                 'ai_selected_ids': ai_selected_ids,
+                'acte_juridice': acte_juridice,
                 'all_candidates': payload.get('all_candidates', []),
-                'full_response': result
+                'full_response': result,
+                'exclusive_display': True  # Flag to tell UI to show ONLY these results
             }
 
         # Add to queue and get job_id immediately
@@ -605,11 +695,20 @@ def _generate_llm_data(session: Session, ultima: Any, candidate_count: int = Non
     result = session.execute(query, params)
     results = result.mappings().all()
 
+    # Sort results to match input order in speta_ids_to_process
+    # This ensures 'all_candidates' is sorted by relevance (as provided by the search engine)
+    results_map = {row['id']: row for row in results}
+
     spete_export = []
     spete_text_list = []
 
-    for row in results:
+    for speta_id in speta_ids_to_process:
+        if speta_id not in results_map:
+            continue
+
+        row = results_map[speta_id]
         obj_data = row['obj']
+
         if isinstance(obj_data, str):
             try:
                 obj = json.loads(obj_data)
@@ -633,6 +732,9 @@ def _generate_llm_data(session: Session, ultima: Any, candidate_count: int = Non
         obiect = obj.get('obiect', '')
         tip_act_juridic = obj.get('tip_act_juridic', 'Necunoscut')
 
+        # Extract materie (legal subject) for smart filtering
+        materie = obj.get('materie') or obj.get('materia') or obj.get('categorie_caz') or "Nedefinit"
+
         # Create speta_item with ALL fields from obj
         speta_item = obj.copy()
 
@@ -641,16 +743,18 @@ def _generate_llm_data(session: Session, ultima: Any, candidate_count: int = Non
             'id': row['id'],
             'denumire': obj.get('denumire', f'Caz #{row["id"]}'),
             'situatia_de_fapt': situatia,
-            'situatia_de_fapt_full': situatia,  # Map for frontend compatibility (MainContent.tsx uses this key)
+            'situatia_de_fapt_full': situatia,  # Map for frontend compatibility
             'text_individualizare': text_individualizare,
             'obiect': obiect,
             'tip_act_juridic': tip_act_juridic,
-            'data': obj  # Include original obj as 'data' property for frontend compatibility (ResultItem.tsx uses result.data)
+            'materie': materie, # Added for smart filtering
+            'data': obj  # Include original obj as 'data' property
         })
         spete_export.append(speta_item)
 
         spete_text_list.append(f"""
 CAZ #{row['id']}:
+MATERIE: {materie}
 TIP ACT JURIDIC: {tip_act_juridic}
 OBIECT: {obiect}
 SITUATIA DE FAPT: {situatia}
