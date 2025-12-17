@@ -487,49 +487,29 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
           </div>
 
           {/* Pro Feature Checkbox */}
-          {onTogglePro && (
-            <div className="mt-3 flex flex-col gap-2 mb-2">
-              <label className="flex items-center cursor-pointer select-none group">
-                <div className="relative">
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={isProEnabled}
-                    onChange={(e) => onTogglePro(e.target.checked)}
-                  />
-                  <div className={`block w-10 h-6 rounded-full transition-colors duration-200 ease-in-out ${isProEnabled ? 'bg-brand-accent' : 'bg-gray-300'}`}></div>
-                  <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ease-in-out ${isProEnabled ? 'transform translate-x-4' : ''}`}></div>
-                </div>
-                <div className="ml-3 text-sm font-medium text-brand-text flex items-center">
-                  Funcție Pro (Filtrare AI)
-                  <span className="ml-2 px-2 py-0.5 text-[10px] font-bold bg-gradient-to-r from-amber-400 to-orange-500 text-white rounded-full uppercase tracking-wider shadow-sm">
-                    BETA
-                  </span>
-                </div>
-              </label>
 
-              {onToggleProKeyword && (user?.rol === 'admin' || user?.rol === 'pro') && (
-                <label className="flex items-center cursor-pointer select-none group">
-                  <div className="relative">
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={isProKeywordEnabled}
-                      onChange={(e) => onToggleProKeyword && onToggleProKeyword(e.target.checked)}
-                    />
-                    <div className={`block w-10 h-6 rounded-full transition-colors duration-200 ease-in-out ${isProKeywordEnabled ? 'bg-purple-600' : 'bg-gray-300'}`}></div>
-                    <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ease-in-out ${isProKeywordEnabled ? 'transform translate-x-4' : ''}`}></div>
-                  </div>
-                  <div className="ml-3 text-sm font-medium text-brand-text flex items-center">
-                    Căutare Pro (Cuvinte cheie în considerente)
-                    <span className="ml-2 px-2 py-0.5 text-[10px] font-bold bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-full uppercase tracking-wider shadow-sm">
-                      NEW
-                    </span>
-                  </div>
-                </label>
-              )}
-            </div>
+
+          {onToggleProKeyword && (user?.rol === 'admin' || user?.rol === 'pro') && (
+            <label className="flex items-center cursor-pointer select-none group">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={isProKeywordEnabled}
+                  onChange={(e) => onToggleProKeyword && onToggleProKeyword(e.target.checked)}
+                />
+                <div className={`block w-10 h-6 rounded-full transition-colors duration-200 ease-in-out ${isProKeywordEnabled ? 'bg-purple-600' : 'bg-gray-300'}`}></div>
+                <div className={`dot absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform duration-200 ease-in-out ${isProKeywordEnabled ? 'transform translate-x-4' : ''}`}></div>
+              </div>
+              <div className="ml-3 text-sm font-medium text-brand-text flex items-center">
+                Căutare Pro (Cuvinte cheie în considerente)
+                <span className="ml-2 px-2 py-0.5 text-[10px] font-bold bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-full uppercase tracking-wider shadow-sm">
+                  NEW
+                </span>
+              </div>
+            </label>
           )}
+
 
           <button
             ref={searchButtonRef}
@@ -1043,7 +1023,7 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
         isOpen={showAdvancedAnalysis}
         onClose={() => setShowAdvancedAnalysis(false)}
       />
-    </main>
+    </main >
   );
 };
 
