@@ -12,7 +12,7 @@ const SearchPage: React.FC = () => {
     const { user } = useAuth();
     const [filters, setFilters] = useState<Filters | null>(null);
     const [searchResults, setSearchResults] = useState<any[]>([]);
-    const [status, setStatus] = useState('Așteptare căutare...');
+    const [status, setStatus] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [offset, setOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
@@ -37,10 +37,10 @@ const SearchPage: React.FC = () => {
     useEffect(() => {
         const loadFilters = async () => {
             try {
-                setStatus('Încărcare filtre...');
+                // setStatus('Încărcare filtre...');
                 const filterData = await getFilters();
                 setFilters(filterData);
-                setStatus('Filtre încărcate.');
+                setStatus('');
             } catch (error) {
                 console.error('Failed to load filters:', error);
                 setStatus('Eroare la încărcarea filtrelor.');
