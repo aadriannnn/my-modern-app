@@ -266,7 +266,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-6xl transform overflow-hidden rounded-2xl bg-gray-50 text-left align-middle shadow-xl transition-all flex flex-col max-h-[90vh]">
+              <Dialog.Panel className="w-[95vw] max-w-none transform overflow-hidden rounded-2xl bg-gray-50 text-left align-middle shadow-xl transition-all flex flex-col h-[90vh]">
                 <header className="flex justify-between items-center p-5 border-b border-gray-200 bg-white sticky top-0">
                   <Dialog.Title as="h3" className="text-xl font-bold text-brand-dark leading-6 truncate">
                     {caseData.titlu || "Detalii Speță"}

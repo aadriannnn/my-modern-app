@@ -37,13 +37,15 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
       <div className="flex items-center justify-between h-16">
         {/* Left Section: Logo and Mobile Menu */}
         <div className="flex items-center space-x-4">
-          <button
-            onClick={onToggleMenu}
-            className="text-gray-400 hover:text-white md:hidden"
-            aria-label="Toggle menu"
-          >
-            <Menu size={24} />
-          </button>
+          {(user?.rol === 'admin' || user?.rol === 'pro') && (
+            <button
+              onClick={onToggleMenu}
+              className="text-gray-400 hover:text-white md:hidden"
+              aria-label="Toggle menu"
+            >
+              <Menu size={24} />
+            </button>
+          )}
           <Link to="/">
             <img src={logo} alt="Logo" className="h-8 w-auto" />
           </Link>

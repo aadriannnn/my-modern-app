@@ -6,8 +6,10 @@ import CaseDetailModal from '../components/CaseDetailModal';
 import ContribuieModal from '../components/ContribuieModal';
 import { getFilters, search as apiSearch, searchByDosar } from '../lib/api';
 import type { Filters, SelectedFilters } from '../types';
+import { useAuth } from '../context/AuthContext';
 
 const SearchPage: React.FC = () => {
+    const { user } = useAuth();
     const [filters, setFilters] = useState<Filters | null>(null);
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [status, setStatus] = useState('Așteptare căutare...');
@@ -29,7 +31,9 @@ const SearchPage: React.FC = () => {
     const [isProKeywordEnabled, setIsProKeywordEnabled] = useState(false);
     const [acteJuridice, setActeJuridice] = useState<string[]>([]);
     const [isDosarSearchLoading, setIsDosarSearchLoading] = useState(false);
+
     const [dosarSearchInfo, setDosarSearchInfo] = useState<{ obiect: string; numar: string; materie?: string | null } | null>(null);
+    const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
 
     useEffect(() => {
         const loadFilters = async () => {
@@ -377,14 +381,18 @@ const SearchPage: React.FC = () => {
                 onContribuieClick={() => setIsContribuieModalOpen(true)}
             />
             <div className="flex flex-1 overflow-hidden">
-                <LeftSidebar
-                    filters={filters}
-                    selectedFilters={searchParams}
-                    onFilterChange={handleFilterChange}
-                    isOpen={isMobileMenuOpen}
-                    onClose={() => setIsMobileMenuOpen(false)}
-                    onContribuieClick={() => setIsContribuieModalOpen(true)}
-                />
+                {(user?.rol === 'admin' || user?.rol === 'pro') && (
+                    <LeftSidebar
+                        filters={filters}
+                        selectedFilters={searchParams}
+                        onFilterChange={handleFilterChange}
+                        isOpen={isMobileMenuOpen}
+                        onClose={() => setIsMobileMenuOpen(false)}
+                        onContribuieClick={() => setIsContribuieModalOpen(true)}
+                        isDesktopOpen={isDesktopSidebarOpen}
+                        onDesktopToggle={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
+                    />
+                )}
                 <MainContent
                     results={searchResults}
                     status={status}
