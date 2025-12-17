@@ -642,3 +642,44 @@ export const searchByDosar = async (numarDosar: string) => {
 
   return response.json();
 };
+
+// User Management API
+export const getUsers = async (page = 1, limit = 20, search = '') => {
+  const queryParams = new URLSearchParams({
+    page: page.toString(),
+    limit: limit.toString(),
+  });
+  if (search) {
+    queryParams.append('search', search);
+  }
+
+  const response = await fetchWithTimeout(`${API_URL}/auth/users?${queryParams.toString()}`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to fetch users');
+  }
+
+  return response.json();
+};
+
+export const updateUserRole = async (userId: string, role: string) => {
+  const response = await fetchWithTimeout(`${API_URL}/auth/users/${userId}/role`, {
+    method: 'PUT',
+    headers: {
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ rol: role }),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to update user role');
+  }
+
+  return response.json();
+};

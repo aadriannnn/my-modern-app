@@ -12,6 +12,7 @@ from jose import JWTError, jwt
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 from google_auth_oauthlib.flow import Flow
+from pydantic import BaseModel
 
 from ..config import get_settings
 from ..db import get_session
@@ -27,48 +28,11 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+
 # Security Context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 ACCESS_TOKEN_COOKIE_NAME = "access_token"
-
-# Google OAuth Setup
-GOOGLE_SCOPES = [
-    "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/userinfo.profile",
-    "openid",
-]
-
-google_flow = None
-if all([settings.GOOGLE_CLIENT_ID, settings.GOOGLE_CLIENT_SECRET, settings.GOOGLE_REDIRECT_URI]):
-    try:
-        redirect_uris = [str(settings.GOOGLE_REDIRECT_URI)]
-        # Add simpler handling for JS origins
-        javascript_origins = [
-            "http://localhost:5173",
-            "http://localhost:3000",
-            str(settings.FRONTEND_BASE_URL).rstrip('/')
-        ]
-
-        google_flow = Flow.from_client_config(
-            client_config={
-                "web": {
-                    "client_id": str(settings.GOOGLE_CLIENT_ID),
-                    "client_secret": str(settings.GOOGLE_CLIENT_SECRET),
-                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-                    "token_uri": "https://oauth2.googleapis.com/token",
-                    "redirect_uris": redirect_uris,
-                    "javascript_origins": javascript_origins
-                }
-            },
-            scopes=GOOGLE_SCOPES,
-            redirect_uri=str(settings.GOOGLE_REDIRECT_URI)
-        )
-        logger.info("Google OAuth Flow initialized.")
-    except Exception as e:
-        logger.error(f"Failed to initialize Google OAuth: {e}")
-else:
-    logger.warning("Google OAuth settings missing. Google login will be unavailable.")
-
+SETTINGS_TOKEN_COOKIE_NAME = "settings_access_token"
 
 # =======================
 # Helpers
@@ -140,6 +104,50 @@ async def get_current_admin_user(current_user: ClientDB = Depends(get_current_us
     if current_user.rol != ClientRole.ADMIN:
         raise HTTPException(status_code=403, detail="Admin privileges required")
     return current_user
+
+async def verify_settings_access(request: Request) -> bool:
+    token = request.cookies.get(SETTINGS_TOKEN_COOKIE_NAME)
+    logger.info(f"verify_settings_access: Cookie {SETTINGS_TOKEN_COOKIE_NAME} -> {token}")
+
+    if not token:
+        logger.warning("verify_settings_access: No token found in cookies.")
+        return False
+
+    if token.lower().startswith("bearer "):
+        token = token.split(" ", 1)[1]
+
+    payload = await verify_token(token)
+    logger.info(f"verify_settings_access: Decoded payload -> {payload}")
+
+    if not payload:
+        logger.warning("verify_settings_access: Token invalid or decoding failed.")
+        return False
+
+    if payload.get("sub") == "settings_admin":
+        logger.info("verify_settings_access: Success - Settings Admin identified.")
+        return True
+
+    logger.warning(f"verify_settings_access: 'sub' mismatch. Expected 'settings_admin', got '{payload.get('sub')}'")
+    return False
+
+async def get_current_admin_or_settings_user(
+    request: Request,
+    db: Session = Depends(get_session)
+):
+    # Method 1: Check if it's a regular admin user
+    try:
+        user = await get_current_user_optional(request, db)
+        if user and user.rol == ClientRole.ADMIN:
+            return user
+    except Exception:
+        pass
+
+    # Method 2: Check if it's logged in via settings password
+    is_settings_admin = await verify_settings_access(request)
+    if is_settings_admin:
+        return True
+
+    raise HTTPException(status_code=403, detail="Admin privileges required (via App Account or Settings Password)")
 
 # =======================
 # Routes
@@ -255,7 +263,7 @@ async def google_initiate(request: Request):
         raise HTTPException(status_code=500, detail="Google Auth not configured")
 
     state = str(uuid.uuid4())
-    request.session["oauth_state"] = state # Requires SessionMiddleware!
+    request.session["oauth_state"] = state
 
     authorization_url, _ = google_flow.authorization_url(
         access_type="offline",
@@ -268,14 +276,6 @@ async def google_initiate(request: Request):
 async def google_callback(request: Request, response: Response, db: Session = Depends(get_session)):
     if not google_flow:
         raise HTTPException(status_code=500, detail="Google Auth not configured")
-
-    # Verify State (CSRF)
-    # Note: Requires SessionMiddleware to be active in main.py
-    # If not using SessionMiddleware, we might skip this or use cookies for state.
-    # For now assuming session is not present or we need to handle it.
-    # The reference used request.session. If main.py doesn't have it, this fails.
-    # I should check main.py for SessionMiddleware.
-    # Reference Step 581: if "session" not in request.scope...
 
     code = request.query_params.get("code")
     if not code:
@@ -343,6 +343,70 @@ async def google_callback(request: Request, response: Response, db: Session = De
         )
         return redirect_resp
 
+
     except Exception as e:
         logger.error(f"Google Callback Error: {e}")
         return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login-error?error=callback_failed")
+
+# =======================
+# User Management Routes
+# =======================
+
+@router.get("/users", dependencies=[Depends(get_current_admin_or_settings_user)])
+async def list_users(
+    page: int = 1,
+    limit: int = 20,
+    search: Optional[str] = None,
+    db: Session = Depends(get_session)
+):
+    from sqlmodel import func, or_
+
+    offset = (page - 1) * limit
+
+    query = select(ClientDB)
+
+    if search:
+        search_filter = or_(
+            ClientDB.email.ilike(f"%{search}%"),
+            ClientDB.numeComplet.ilike(f"%{search}%"),
+            ClientDB.cuiFacturare.ilike(f"%{search}%")
+        )
+        query = query.where(search_filter)
+
+    # Count total
+    count_query = select(func.count()).select_from(query.subquery())
+    total = db.exec(count_query).one()
+
+    # Get items
+    query = query.offset(offset).limit(limit).order_by(ClientDB.dataCreare.desc())
+    items = db.exec(query).all()
+
+    total_pages = (total + limit - 1) // limit
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "limit": limit,
+        "pages": total_pages
+    }
+
+class UserRoleUpdate(BaseModel):
+    rol: ClientRole
+
+@router.put("/users/{user_id}/role", dependencies=[Depends(get_current_admin_or_settings_user)])
+async def update_user_role(
+    user_id: str,
+    update_data: UserRoleUpdate,
+    db: Session = Depends(get_session)
+):
+    user = db.get(ClientDB, user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    user.rol = update_data.rol
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    return user

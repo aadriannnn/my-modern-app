@@ -1,9 +1,10 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Response
 from pydantic import BaseModel
 from typing import Dict, Any
 from sqlmodel import Session
+from datetime import timedelta
 from ..settings_manager import settings_manager
-from ..routers.auth import get_current_user
+from ..routers.auth import get_current_user, create_access_token, SETTINGS_TOKEN_COOKIE_NAME
 from ..db import get_session
 from ..config import get_settings as get_env_settings
 from ..lib.network_file_saver import NetworkFileSaver
@@ -25,7 +26,7 @@ class GenerateDocumentRequest(BaseModel):
 
 
 @router.post("/login", response_model=Dict[str, bool])
-async def login_settings(credentials: LoginRequest):
+async def login_settings(credentials: LoginRequest, response: Response):
     """
     Verify settings page credentials.
     """
@@ -40,6 +41,23 @@ async def login_settings(credentials: LoginRequest):
         raise HTTPException(status_code=500, detail="Server misconfiguration: Credentials not set")
 
     if credentials.username == valid_user and credentials.password == valid_pass:
+        # Generate generic token for settings access
+        expires = timedelta(minutes=1440) # 24 hours
+        token = create_access_token(
+            data={"sub": "settings_admin", "rol": "admin"},
+            expires_delta=expires
+        )
+
+        samesite = "none" if env_settings.SECURE_COOKIE else "lax"
+        response.set_cookie(
+            key=SETTINGS_TOKEN_COOKIE_NAME,
+            value=f"Bearer {token}",
+            httponly=True,
+            secure=env_settings.SECURE_COOKIE,
+            samesite=samesite,
+            max_age=int(expires.total_seconds()),
+            path="/"
+        )
         return {"success": True}
 
     raise HTTPException(status_code=401, detail="Invalid credentials")
