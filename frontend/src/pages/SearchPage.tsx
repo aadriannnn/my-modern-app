@@ -4,6 +4,7 @@ import LeftSidebar from '../components/LeftSidebar';
 import MainContent from '../components/MainContent';
 import CaseDetailModal from '../components/CaseDetailModal';
 import ContribuieModal from '../components/ContribuieModal';
+import Footer from '../components/Footer';
 import { getFilters, search as apiSearch, searchByDosar } from '../lib/api';
 import type { Filters, SelectedFilters } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -418,6 +419,7 @@ const SearchPage: React.FC = () => {
                 isOpen={isContribuieModalOpen}
                 onClose={() => setIsContribuieModalOpen(false)}
             />
+            <Footer />
         </div>
     );
 };

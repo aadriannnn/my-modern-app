@@ -440,7 +440,7 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
   };
 
   return (
-    <main className="flex-1 p-4 md:p-6 bg-brand-light overflow-y-auto">
+    <main className="flex-1 p-4 md:p-6 bg-brand-light overflow-y-auto pb-20">
       <div className="w-full mx-auto">
         {/* Dosar Search Display Info */}
         {onDosarSearch && dosarSearchInfo && (
