@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import logo from '@/assets/icons/logo.png';
-import { Menu, PlusCircle, FolderOpen, User as UserIcon, LogOut, LogIn } from 'lucide-react';
+import { Menu, PlusCircle, FolderOpen, User as UserIcon, LogOut, LogIn, Crown } from 'lucide-react';
 import { useDosar } from '../context/DosarContext';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
@@ -69,6 +69,16 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
             <span className="hidden lg:inline">Contribuie cu o speță</span>
             <span className="lg:hidden">Contribuie</span>
           </button>
+
+          <Link
+            to="/abonamente"
+            className="flex items-center text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors duration-200"
+          >
+            <Crown size={18} className="mr-2" />
+            <span className="hidden lg:inline">Abonamente</span>
+            <span className="lg:hidden">Premium</span>
+          </Link>
+
           <DosarButton />
 
           {isAuthenticated ? (

@@ -15,6 +15,8 @@ import CompleteProfilePage from './pages/CompleteProfilePage';
 
 import { AuthProvider } from './context/AuthContext';
 import GridTestsPage from './pages/GridTestsPage';
+import PaymentReturnPage from './pages/PaymentReturnPage';
+import PricingPage from './pages/PricingPage';
 
 const App: React.FC = () => {
   return (
@@ -34,6 +36,8 @@ const App: React.FC = () => {
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/test-analysis" element={<TestAnalysisPage />} />
+          <Route path="/payment-return" element={<PaymentReturnPage />} />
+          <Route path="/abonamente" element={<PricingPage />} />
         </Routes>
       </DosarProvider>
     </AuthProvider>

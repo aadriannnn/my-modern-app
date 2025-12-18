@@ -1,0 +1,148 @@
+{
+  "plans": [
+    {
+      "id": "inscriere",
+      "name": "Înscriere",
+      "points_granted": 0,
+      "price": 0,
+      "currency": "Lei",
+      "interval": "one-time",
+      "features": [
+        {"name": "Valabil nelimitat", "details": null},
+        {"name": "Afișări", "details": "20"},
+        {"name": "Profil detaliat", "details": null},
+        {"name": "Căutare avansată", "details": null},
+        {"name": "Selecții", "details": null},
+        {"name": "Statistici", "details": null},
+        {"name": "Fără anonimizare", "details": null}
+      ],
+      "is_popular": false,
+      "discount_percentage": null,
+      "is_customizable": false,
+      "stripe_price_id": null,
+      "cta_text": "Creează cont",
+      "cta_link": "/register",
+      "is_free": true
+    },
+    {
+      "id": "startup",
+      "name": "StartUp",
+      "points_granted": 1000,
+      "price": 651,
+      "currency": "Lei",
+      "interval": "An",
+      "features": [
+        {"name": "Valabil un an", "details": null},
+        {"name": "Afișări", "details": "1000"},
+        {"name": "Profil detaliat", "details": null},
+        {"name": "Căutare avansată", "details": null},
+        {"name": "Selecții", "details": null},
+        {"name": "Statistici", "details": null},
+        {"name": "Fără anonimizare", "details": null}
+      ],
+      "is_popular": false,
+      "discount_percentage": null,
+      "is_customizable": false,
+      "stripe_price_id": "price_1RLSRe2NYfTY9eAftbwemwfs",
+      "default_price": "price_1RLSRe2NYfTY9eAftbwemwfs",
+      "cta_text": "Comandă",
+      "cta_link": null,
+      "is_free": false
+    },
+    {
+      "id": "office",
+      "name": "Office",
+      "points_granted": 1200,
+      "price": 1067,
+      "currency": "Lei",
+      "interval": "An",
+      "features": [
+        {"name": "Valabil un an", "details": null},
+        {"name": "Afișări", "details": "1200"},
+        {"name": "Profil detaliat", "details": null},
+        {"name": "Căutare avansată", "details": null},
+        {"name": "Selecții", "details": null},
+        {"name": "Statistici", "details": null},
+        {"name": "Fără anonimizare", "details": null}
+      ],
+      "is_popular": true,
+      "discount_percentage": null,
+      "is_customizable": false,
+      "stripe_price_id": "price_1RLROQ2NfYw0PiPdyS25TEor",
+      "cta_text": "Comandă",
+      "cta_link": null,
+      "is_free": false
+    },
+    {
+      "id": "business",
+      "name": "Business",
+      "price": 2265,
+      "currency": "Lei",
+      "interval": "An",
+      "features": [
+        {"name": "Valabil un an", "details": null},
+        {"name": "Afișări", "details": "3000"},
+        {"name": "Profil detaliat", "details": null},
+        {"name": "Căutare avansată", "details": null},
+        {"name": "Selecții", "details": null},
+        {"name": "Statistici", "details": null},
+        {"name": "Fără anonimizare", "details": null}
+      ],
+      "is_popular": false,
+      "discount_percentage": null,
+      "is_customizable": false,
+      "stripe_price_id": "price_1RLRP42NfYw0PiPdpMmf6Z87",
+      "cta_text": "Comandă",
+      "cta_link": null,
+      "is_free": false
+    },
+    {
+      "id": "nelimitat",
+      "name": "Nelimitat",
+      "points_granted": 10000,
+      "price": 817,
+      "currency": "Lei",
+      "interval": "Lună",
+      "features": [
+        {"name": "Valabil nelimitat", "details": null},
+        {"name": "Afișări nelimitat", "details": null},
+        {"name": "Profil detaliat", "details": null},
+        {"name": "Căutare avansată", "details": null},
+        {"name": "Selecții", "details": null},
+        {"name": "Statistici", "details": null},
+        {"name": "Fără anonimizare", "details": null}
+      ],
+      "is_popular": false,
+      "discount_percentage": 20,
+      "is_customizable": false,
+      "stripe_price_id": "price_1RLRPr2NfYw0PiPdTBhubFGH",
+      "cta_text": "Comandă",
+      "cta_link": null,
+      "is_free": false
+    },
+    {
+      "id": "personalizeaza",
+      "name": "Personalizează",
+      "points_granted": 6000,
+      "price": 3518,
+      "currency": "Lei",
+      "interval": "An",
+      "features": [
+        {"name": "Valabilitate", "details": "Valabil un an"},
+        {"name": "Afișări", "details": "6000"},
+        {"name": "Profil detaliat", "details": "Selectează"},
+        {"name": "Căutare avansată", "details": "Selectează"},
+        {"name": "Selecții", "details": "Selectează"},
+        {"name": "Statistici", "details": "Selectează"},
+        {"name": "Anonimizare", "details": "Fără anonimizare"}
+      ],
+      "is_popular": false,
+      "discount_percentage": null,
+      "is_customizable": true,
+      "stripe_price_id": "price_1RLRQU2NfYw0PiPdFakk3pbF",
+      "cta_text": "Comandă",
+      "cta_link": null,
+      "is_free": false
+    }
+  ]
+}

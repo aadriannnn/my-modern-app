@@ -91,6 +91,18 @@ class Settings(BaseSettings):
     GOOGLE_REDIRECT_URI: Optional[str] = None # e.g. http://localhost:8000/api/auth/google/callback
     FRONTEND_BASE_URL: str = "http://localhost:5173"
 
+    # Stripe Settings
+    STRIPE_SECRET_KEY: Optional[str] = None
+    STRIPE_PUBLISHABLE_KEY: Optional[str] = None
+    STRIPE_WEBHOOK_SECRET: Optional[str] = None
+
+    # Stripe Price IDs for Points (Optional/Future use)
+    STRIPE_PRICE_ID_POINTS_PACK1: Optional[str] = None
+    STRIPE_PRICE_ID_POINTS_PACK2: Optional[str] = None
+
+    # Subscription Defaults
+    SUBSCRIPTION_DEFAULT_DURATION_DAYS: int = 31
+
     SECURE_COOKIE: bool = False
 
     class Config:
