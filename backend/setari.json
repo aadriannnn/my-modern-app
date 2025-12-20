@@ -239,7 +239,7 @@
   },
   "setari_retea": {
     "retea_enabled": {
-      "value": false,
+      "value": true,
       "label": "Activează Salvare Prompturi în Rețea",
       "tooltip": "Dacă este activat, toate prompturile LLM vor fi salvate pe calculatorul din rețea înainte de trimitere.",
       "type": "boolean"
