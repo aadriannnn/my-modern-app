@@ -67,7 +67,7 @@ class LLMClient:
         """
         import httpx
 
-        logger.info(f"[{label}] Using LOCAL GPU LLM (verdict-ro:latest)")
+        logger.info(f"[{label}] Using LOCAL GPU LLM (verdict-line)")
 
         try:
             # Get LLM URL from config
@@ -75,11 +75,12 @@ class LLMClient:
 
             # Prepare payload with optimized GPU parameters
             payload = {
-                "model": "verdict-ro:latest",
+                "model": "verdict-line",
                 "prompt": prompt,
-               "stream": False,
+                "format": "json",
+                "stream": False,
                 "options": {
-                    "num_ctx": 4096,         # Context window for Qwen
+                    "num_ctx": 16384,         # Context window for Qwen 14B
                     "temperature": 0.1,      # Low temperature for precision
                     "top_p": 0.9,           # Nucleus sampling
                     "top_k": 40,            # Top-k sampling

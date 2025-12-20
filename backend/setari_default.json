@@ -423,7 +423,7 @@
             "options": [
                 {
                     "value": "local",
-                    "label": "Local GPU (verdict-ro:latest) - Rapid"
+                    "label": "Local GPU (verdict-line) - Rapid"
                 },
                 {
                     "value": "network",

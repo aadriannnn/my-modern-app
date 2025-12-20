@@ -504,11 +504,12 @@ async def analyze_llm_data(
 
             if not SKIP_LLM:
                 llm_payload = {
-                    "model": "verdict-ro:latest",  # Model corect cu tag :latest
+                    "model": "verdict-line",
                     "prompt": payload['prompt'],
+                    "format": "json",
                     "stream": False,
                     "options": {
-                        "num_ctx": 4096,         # Context window pentru Qwen
+                        "num_ctx": 16384,         # Context window - massive input
                         "temperature": 0.1,      # Precizie maximă
                         "top_p": 0.9,           # Nucleus sampling
                         "top_k": 40,            # Top-k sampling
@@ -517,7 +518,7 @@ async def analyze_llm_data(
                 }
                 # ------------------------------
 
-                async with httpx.AsyncClient(timeout=180.0) as client:  # Reduced from 1200s - model is pre-loaded
+                async with httpx.AsyncClient(timeout=180.0) as client:  # Standardized timeout
                     response = await client.post(llm_url, json=llm_payload)
                     response.raise_for_status()
                     result = response.json()
