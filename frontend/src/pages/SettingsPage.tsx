@@ -844,7 +844,7 @@ const SettingsPage: React.FC = () => {
                                         Configurează parametrii pentru această secțiune. Modificările au efect imediat după salvare.
                                     </p>
                                 </div>
-                                {renderSection(settings[activeTab] as SettingsSection)}
+                                {renderSection(settings[activeTab] as SettingsSection, [activeTab])}
                             </div>
                         ) : null}
                     </div>
