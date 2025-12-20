@@ -497,8 +497,12 @@ async def analyze_llm_data(
             logger.info(f"Sending request to LLM at {llm_url}...")
 
             # --- CONFIGURARE MODEL QWEN ---
-            # --- CONFIGURARE MODEL QWEN ---
             SKIP_LLM = False
+
+            # Initialize variables to avoid UnboundLocalError in case of exceptions
+            ai_selected_ids = []
+            acte_juridice = []
+            llm_response_text = ""
 
             if not SKIP_LLM:
                 llm_payload = {
@@ -525,6 +529,9 @@ async def analyze_llm_data(
 
                     logger.info("Received response from LLM")
                     llm_response_text = result.get('response', '')
+
+                    # LOG RAW RESPONSE for debugging
+                    logger.info(f"[AI FILTERING - Local] RAW LLM RESPONSE: {llm_response_text}")
 
                     # Use robust JSON parsing logic
                     import json
@@ -565,6 +572,12 @@ async def analyze_llm_data(
                         ai_selected_ids = [int(id_str) for id_str in id_matches]
 
                     logger.info(f"LLM selected IDs: {ai_selected_ids}")
+
+                except httpx.HTTPStatusError as e:
+                    error_body = e.response.text
+                    logger.error(f"[AI FILTERING - Local] ❌ EROARE HTTP {e.response.status_code}: {error_body}")
+                    llm_response_text = f"Eroare HTTP: {error_body}"
+                    ai_selected_ids = []
 
                 except httpx.TimeoutException:
                     logger.error(f"[AI FILTERING - Local] ⏳ TIMEOUT (180s) - LLM nu a răspuns la timp.")
