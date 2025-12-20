@@ -67,7 +67,7 @@ class LLMClient:
         """
         import httpx
 
-        logger.info(f"[{label}] Using LOCAL GPU LLM (verdict-line)")
+        logger.info(f"[{label}] Using LOCAL GPU LLM (verdict-ro:latest)")
 
         try:
             # Get LLM URL from config
@@ -80,7 +80,7 @@ class LLMClient:
                 "format": "json",
                 "stream": False,
                 "options": {
-                    "num_ctx": 8192,         # Adjusted to 8k to prevent OOM
+                    "num_ctx": 12288,         # Testing 12k limit
                     "temperature": 0.1,      # Low temperature for precision
                     "top_p": 0.9,           # Nucleus sampling
                     "top_k": 40,            # Top-k sampling

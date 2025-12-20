@@ -512,7 +512,7 @@ async def analyze_llm_data(
                     "format": "json",
                     "stream": False,
                     "options": {
-                        "num_ctx": 8192,         # Adjusted to 8k to prevent OOM
+                        "num_ctx": 12288,         # Testing 12k limit
                         "temperature": 0.1,
                         "top_p": 0.9,
                         "top_k": 40,
