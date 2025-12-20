@@ -79,7 +79,7 @@ class LLMClient:
                 "prompt": prompt,
                 "format": "json",
                 "stream": False,
-                "keep_alive": -1,       # Prevent model unloading
+                "keep_alive": "5m",       # Unload model after 5 minutes
                 "options": {
                     "num_ctx": 8192,         # STRICT LIMIT 8k for VRAM Stability
                     "temperature": 0.1,      # Low temperature for precision
