@@ -80,7 +80,7 @@ class LLMClient:
                 "format": "json",
                 "stream": False,
                 "options": {
-                    "num_ctx": 16384,         # Context window for Qwen 14B
+                    "num_ctx": 8192,         # Adjusted to 8k to prevent OOM
                     "temperature": 0.1,      # Low temperature for precision
                     "top_p": 0.9,           # Nucleus sampling
                     "top_k": 40,            # Top-k sampling

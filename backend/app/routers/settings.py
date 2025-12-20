@@ -503,6 +503,7 @@ async def analyze_llm_data(
             ai_selected_ids = []
             acte_juridice = []
             llm_response_text = ""
+            result = {}     # Initialize result dict to avoid UnboundLocalError
 
             if not SKIP_LLM:
                 llm_payload = {
@@ -511,7 +512,7 @@ async def analyze_llm_data(
                     "format": "json",
                     "stream": False,
                     "options": {
-                        "num_ctx": 16384,
+                        "num_ctx": 8192,         # Adjusted to 8k to prevent OOM
                         "temperature": 0.1,
                         "top_p": 0.9,
                         "top_k": 40,
