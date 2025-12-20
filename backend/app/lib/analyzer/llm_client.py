@@ -79,8 +79,9 @@ class LLMClient:
                 "prompt": prompt,
                 "format": "json",
                 "stream": False,
+                "keep_alive": -1,       # Prevent model unloading
                 "options": {
-                    "num_ctx": 12288,         # Testing 12k limit
+                    "num_ctx": 8192,         # STRICT LIMIT 8k for VRAM Stability
                     "temperature": 0.1,      # Low temperature for precision
                     "top_p": 0.9,           # Nucleus sampling
                     "top_k": 40,            # Top-k sampling
