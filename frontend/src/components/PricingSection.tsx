@@ -64,7 +64,7 @@ const PricingSection: React.FC = () => {
     const fetchPlans = async () => {
         try {
             setLoading(true);
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/billing/plans`);
+            const response = await fetch('/api/billing/plans');
             if (!response.ok) throw new Error('Nu s-au putut încărca planurile.');
             const data: SubscriptionPageData = await response.json();
             setPlans(data.plans || []);
@@ -87,7 +87,7 @@ const PricingSection: React.FC = () => {
             setProcessingPlanId(plan.id);
             setError(null);
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/billing/create-checkout-session`, {
+            const response = await fetch('/api/billing/create-checkout-session', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -174,8 +174,8 @@ const PricingSection: React.FC = () => {
                     <div
                         key={plan.id}
                         className={`relative rounded-2xl p-8 border transition-all duration-300 flex flex-col ${plan.is_popular
-                                ? 'border-blue-200 bg-blue-50/30 shadow-xl scale-105 z-10 ring-1 ring-blue-100'
-                                : 'border-slate-200 bg-white hover:border-blue-200 hover:shadow-lg'
+                            ? 'border-blue-200 bg-blue-50/30 shadow-xl scale-105 z-10 ring-1 ring-blue-100'
+                            : 'border-slate-200 bg-white hover:border-blue-200 hover:shadow-lg'
                             }`}
                     >
                         {plan.is_popular && (
@@ -208,8 +208,8 @@ const PricingSection: React.FC = () => {
                             onClick={() => handleSubscribe(plan)}
                             disabled={!!processingPlanId}
                             className={`w-full py-4 px-6 rounded-xl font-bold transition-all flex items-center justify-center gap-2 text-base ${plan.is_popular
-                                    ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl hover:-translate-y-0.5'
-                                    : 'bg-slate-900 text-white hover:bg-slate-800 shadow-md hover:shadow-lg'
+                                ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-lg hover:shadow-xl hover:-translate-y-0.5'
+                                : 'bg-slate-900 text-white hover:bg-slate-800 shadow-md hover:shadow-lg'
                                 }`}
                         >
                             {processingPlanId === plan.id ? (
