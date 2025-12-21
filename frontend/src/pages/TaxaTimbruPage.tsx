@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-    Calculator, Plus, Trash2, HelpCircle, ChevronDown, ChevronUp,
-    AlertCircle, CheckCircle, Info, ThumbsUp, Sparkles, Receipt
+    Calculator, Plus, Trash2, ChevronDown,
+    AlertCircle, CheckCircle, Info, Sparkles, Receipt
 } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+
 
 // Interfaces mirroring backend schemas
 interface TipCerereTaxaOption {
@@ -75,16 +75,7 @@ interface LLMSuggestionInfo {
 // ---------------------------------------------------------------------------
 // Helper: Get Required Fields based on ID
 // ---------------------------------------------------------------------------
-const getRequiredFieldsForId = (id: string | null): string[] => {
-    if (!id) return [];
-    // Only basic mapping here. For full logic ideally we'd get this from backend too,
-    // but for now we can infer or hardcode common patterns if not dynamic.
-    // Ideally the backend 'TipCerereTaxaOption' could return 'required_fields' list.
-    // The current backend endpoint `get_tipuri_cereri_taxa` returns `necesita_valoare_obiect`.
-    // We might need to extend backend to return all required fields or map them here.
-    // For now, let's rely on `necesita_valoare_obiect` and some heuristics or hardcode a few common ones if critical.
-    return [];
-};
+
 
 // ---------------------------------------------------------------------------
 // Component: CapatCerereCalculator
@@ -218,8 +209,6 @@ const CapatCerereCalculator: React.FC<CapatCerereCalculatorProps> = ({
 // Main Page Component
 // ---------------------------------------------------------------------------
 const TaxaTimbruPage: React.FC = () => {
-    const { user } = useAuth();
-    const [isLoadingOptions, setIsLoadingOptions] = useState(false);
     const [options, setOptions] = useState<TipCerereTaxaOption[]>([]);
 
     // Form State
@@ -244,7 +233,6 @@ const TaxaTimbruPage: React.FC = () => {
     // Load Options
     useEffect(() => {
         const fetchOptions = async () => {
-            setIsLoadingOptions(true);
             try {
                 const res = await fetch('/api/tipuri-cereri-taxa');
                 if (!res.ok) throw new Error("Failed to load options");
@@ -253,8 +241,6 @@ const TaxaTimbruPage: React.FC = () => {
             } catch (err) {
                 console.error(err);
                 setError("Nu s-au putut încărca tipurile de cereri.");
-            } finally {
-                setIsLoadingOptions(false);
             }
         };
         fetchOptions();
