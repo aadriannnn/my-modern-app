@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getSettings, updateSettings, resetSettings, refreshFilters, precalculateModelsCodes, getPrecalculateStatus, stopPrecalculate, getFeedbackStats, type FeedbackStats } from '../lib/api';
-import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square, ThumbsUp, ThumbsDown, BarChart3, Users, User, CreditCard } from 'lucide-react';
+import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square, ThumbsUp, ThumbsDown, BarChart3, Users, User, CreditCard, ArrowLeft } from 'lucide-react';
 import { Switch } from '@headlessui/react';
 import SEOHead from '../components/SEOHead';
 import { useAuth } from '../context/AuthContext';
@@ -422,38 +422,49 @@ const SettingsPage: React.FC = () => {
                         </p>
                     </div>
 
-                    {isAdmin && activeTab !== 'profile' && activeTab !== 'subscription' && activeTab !== 'users' && (
-                        <div className="flex items-center gap-3">
-                            <button
-                                onClick={handleReset}
-                                disabled={saving || refreshing}
-                                className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium text-sm"
-                            >
-                                <RotateCcw className="w-4 h-4" />
-                                Resetează
-                            </button>
-                            <button
-                                onClick={handleRefreshFilters}
-                                disabled={saving || refreshing}
-                                className={`flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium text-sm border border-blue-200 ${refreshing ? 'opacity-75 cursor-wait' : ''}`}
-                            >
-                                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                                {refreshing ? 'Se reîncarcă...' : 'Reîncarcă Filtre'}
-                            </button>
-                            <button
-                                onClick={handleSave}
-                                disabled={saving}
-                                className={`flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm shadow-blue-200 ${saving ? 'opacity-75 cursor-wait' : ''}`}
-                            >
-                                {saving ? (
-                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                ) : (
-                                    <Save className="w-4 h-4" />
-                                )}
-                                {saving ? 'Se salvează...' : 'Salvează'}
-                            </button>
-                        </div>
-                    )}
+                    <div className="flex items-center gap-3">
+                        {isAdmin && activeTab !== 'profile' && activeTab !== 'subscription' && activeTab !== 'users' && (
+                            <>
+                                <button
+                                    onClick={handleReset}
+                                    disabled={saving || refreshing}
+                                    className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium text-sm"
+                                >
+                                    <RotateCcw className="w-4 h-4" />
+                                    Resetează
+                                </button>
+                                <button
+                                    onClick={handleRefreshFilters}
+                                    disabled={saving || refreshing}
+                                    className={`flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium text-sm border border-blue-200 ${refreshing ? 'opacity-75 cursor-wait' : ''}`}
+                                >
+                                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                                    {refreshing ? 'Se reîncarcă...' : 'Reîncarcă Filtre'}
+                                </button>
+                                <button
+                                    onClick={handleSave}
+                                    disabled={saving}
+                                    className={`flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm shadow-blue-200 ${saving ? 'opacity-75 cursor-wait' : ''}`}
+                                >
+                                    {saving ? (
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    ) : (
+                                        <Save className="w-4 h-4" />
+                                    )}
+                                    {saving ? 'Se salvează...' : 'Salvează'}
+                                </button>
+                                <div className="h-6 w-px bg-slate-300 mx-2"></div>
+                            </>
+                        )}
+
+                        <button
+                            onClick={() => navigate('/')}
+                            className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium text-sm"
+                        >
+                            <ArrowLeft className="w-4 h-4" />
+                            Înapoi la Site
+                        </button>
+                    </div>
                 </div>
             </header>
 

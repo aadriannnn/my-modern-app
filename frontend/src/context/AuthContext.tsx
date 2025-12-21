@@ -8,6 +8,7 @@ interface User {
   numeComplet?: string;
   esteContGoogle: boolean;
   needs_profile_completion?: boolean;
+  dataCreare?: string;
 }
 
 interface AuthContextType {
