@@ -477,8 +477,8 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
     """
     Main search function implementing three-level cascading search strategy.
 
-    Level 1: Standard keyword search (fastest, always executed)
-    Level 2: Semantic embeddings search (moderate cost, only if Level 1 < 5 results)
+    Level 1: Semantic embeddings search (fastest, always executed)
+    Level 2: Standard keyword search (moderate cost, only if Level 1 < 5 results)
     Level 3: Considerente deep search (slowest, only if Level 2 < 5 results)
 
     Each level adds to the previous results, with early exit when >= 5 results found.
@@ -521,73 +521,76 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
         search_request.offset = 0
 
         # =================================================================
-        # LEVEL 1: STANDARD KEYWORD SEARCH (Always executed first)
+        # LEVEL 1: EMBEDDINGS SEMANTIC SEARCH (Always executed first)
         # =================================================================
-        logger.info("[Level 1] Executing standard keyword search...")
-
-        if dialect == 'postgresql':
-            level1_results = _search_by_keywords_postgres(session, search_request)
-        else:
-            level1_results = _search_by_keywords_sqlite(session, search_request)
-
-        logger.info(f"[Level 1] Standard keyword search returned {len(level1_results)} results")
-
-        # Check if we have enough results
-        if len(level1_results) >= 5:
-            logger.info(f"[Level 1] Sufficient results ({len(level1_results)} >= 5), returning without escalation")
-
-            # Slice to requested page
-            start = orig_offset
-            end = orig_offset + orig_limit
-            final_results = level1_results[start:end]
-
-            logger.info(f"[Level 1] Returning {len(final_results)} results")
-            return final_results
-
-        # =================================================================
-        # LEVEL 2: EMBEDDINGS SEMANTIC SEARCH (Only if < 5 results)
-        # =================================================================
-        logger.info(f"[Level 2] Insufficient results ({len(level1_results)} < 5), trying semantic embeddings...")
+        logger.info("[Level 1] Executing semantic embeddings search...")
 
         embedding = embed_text(search_request.situatie)
 
-        # Track all results for merging
-        all_results = level1_results.copy()
-        seen_ids = {r['id'] for r in level1_results}
-
         # Check if embedding succeeded (indicated by a non-zero vector)
         if any(v != 0.0 for v in embedding):
-            logger.info("[Level 2] Embedding successful, executing semantic search...")
+            logger.info("[Level 1] Embedding successful, executing semantic search...")
 
             # Execute semantic search
             if dialect == 'postgresql':
-                level2_results = _search_postgres(session, search_request, embedding)
+                level1_results = _search_postgres(session, search_request, embedding)
             else:
-                level2_results = _search_sqlite(session, search_request)
+                level1_results = _search_sqlite(session, search_request)
 
-            # Merge Level 2 results (deduplicate)
-            level2_added = 0
-            for r in level2_results:
-                if r['id'] not in seen_ids:
-                    all_results.append(r)
-                    seen_ids.add(r['id'])
-                    level2_added += 1
+            logger.info(f"[Level 1] Embeddings search returned {len(level1_results)} results")
 
-            logger.info(f"[Level 2] Embeddings search added {level2_added} new results -> {len(all_results)} total")
-
-            # Check if we now have enough results
-            if len(all_results) >= 5:
-                logger.info(f"[Level 2] Sufficient results ({len(all_results)} >= 5), returning without further escalation")
+            # Check if we have enough results
+            if len(level1_results) >= 5:
+                logger.info(f"[Level 1] Sufficient results ({len(level1_results)} >= 5), returning without escalation")
 
                 # Slice to requested page
                 start = orig_offset
                 end = orig_offset + orig_limit
-                final_results = all_results[start:end]
+                final_results = level1_results[start:end]
 
-                logger.info(f"[Level 2] Returning {len(final_results)} results")
+                logger.info(f"[Level 1] Returning {len(final_results)} results")
                 return final_results
+
+            # Track results for next levels
+            all_results = level1_results.copy()
+            seen_ids = {r['id'] for r in level1_results}
         else:
-            logger.warning("[Level 2] Embedding generation failed, skipping semantic search")
+            # Embedding failed, start with empty results
+            logger.warning("[Level 1] Embedding generation failed, starting with 0 results")
+            all_results = []
+            seen_ids = set()
+
+        # =================================================================
+        # LEVEL 2: STANDARD KEYWORD SEARCH (Only if < 5 results)
+        # =================================================================
+        logger.info(f"[Level 2] Insufficient results ({len(all_results)} < 5), trying standard keyword search...")
+
+        if dialect == 'postgresql':
+            level2_results = _search_by_keywords_postgres(session, search_request)
+        else:
+            level2_results = _search_by_keywords_sqlite(session, search_request)
+
+        # Merge Level 2 results (deduplicate)
+        level2_added = 0
+        for r in level2_results:
+            if r['id'] not in seen_ids:
+                all_results.append(r)
+                seen_ids.add(r['id'])
+                level2_added += 1
+
+        logger.info(f"[Level 2] Standard keyword search added {level2_added} new results -> {len(all_results)} total")
+
+        # Check if we now have enough results
+        if len(all_results) >= 5:
+            logger.info(f"[Level 2] Sufficient results ({len(all_results)} >= 5), returning without further escalation")
+
+            # Slice to requested page
+            start = orig_offset
+            end = orig_offset + orig_limit
+            final_results = all_results[start:end]
+
+            logger.info(f"[Level 2] Returning {len(final_results)} results")
+            return final_results
 
         # =================================================================
         # LEVEL 3: CONSIDERENTE DEEP SEARCH (Last resort if < 5 results)
