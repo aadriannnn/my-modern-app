@@ -8,12 +8,30 @@
       "currency": "RON",
       "interval": "Nelimitat",
       "features": [
-        {"name": "Înregistrare gratuită", "details": "Cont valabil permanent"},
-        {"name": "Căutare în jurisprudență", "details": "Acces la baza de date"},
-        {"name": "Vizualizări limitate", "details": "20 afișări spețe"},
-        {"name": "Profil personalizat", "details": "Date personale securizate"},
-        {"name": "Salvare rezultate", "details": "Dosar virtual pentru spețe favorite"},
-        {"name": "Statistici utilizare", "details": "Monitorizare activitate"}
+        {
+          "name": "Înregistrare gratuită",
+          "details": "Cont valabil permanent"
+        },
+        {
+          "name": "Căutare în jurisprudență",
+          "details": "Acces la baza de date"
+        },
+        {
+          "name": "Vizualizări limitate",
+          "details": "20 afișări spețe"
+        },
+        {
+          "name": "Profil personalizat",
+          "details": "Date personale securizate"
+        },
+        {
+          "name": "Salvare rezultate",
+          "details": "Dosar virtual pentru spețe favorite"
+        },
+        {
+          "name": "Statistici utilizare",
+          "details": "Monitorizare activitate"
+        }
       ],
       "is_popular": false,
       "discount_percentage": null,
@@ -31,21 +49,51 @@
       "currency": "RON",
       "interval": "Lună",
       "features": [
-        {"name": "Toate beneficiile Basic", "details": null},
-        {"name": "Acces nelimitat", "details": "Vizualizări nelimitate"},
-        {"name": "Filtre avansate", "details": "Căutare după materie și obiect"},
-        {"name": "Teste Grilă", "details": "Generate automat din jurisprudență"},
-        {"name": "Calculator Taxă de Timbru", "details": "Calcul automat cu asistent AI"},
-        {"name": "Căutare complexă", "details": "După număr dosar și AI"},
-        {"name": "Analiză AI", "details": "Filtrare inteligentă jurisprudență"},
-        {"name": "Generare acte juridice", "details": "Redactare automată cu AI"},
-        {"name": "6 perspective analitice", "details": "Vizualizare completă spețe"},
-        {"name": "Suport prioritar", "details": "Asistență dedicată"}
+        {
+          "name": "Toate beneficiile Basic",
+          "details": null
+        },
+        {
+          "name": "Acces nelimitat",
+          "details": "Vizualizări nelimitate"
+        },
+        {
+          "name": "Filtre avansate",
+          "details": "Căutare după materie și obiect"
+        },
+        {
+          "name": "Teste Grilă",
+          "details": "Generate automat din jurisprudență"
+        },
+        {
+          "name": "Calculator Taxă de Timbru",
+          "details": "Calcul automat cu asistent AI"
+        },
+        {
+          "name": "Căutare complexă",
+          "details": "După număr dosar și AI"
+        },
+        {
+          "name": "Analiză AI",
+          "details": "Filtrare inteligentă jurisprudență"
+        },
+        {
+          "name": "Generare acte juridice",
+          "details": "Redactare automată cu AI"
+        },
+        {
+          "name": "6 perspective analitice",
+          "details": "Vizualizare completă spețe"
+        },
+        {
+          "name": "Suport prioritar",
+          "details": "Asistență dedicată"
+        }
       ],
       "is_popular": false,
       "discount_percentage": null,
       "is_customizable": false,
-      "stripe_price_id": null,
+      "stripe_price_id": "price_1SgobR2NfYw0PiPd2qtuPktZ",
       "cta_text": "Abonează-te Acum",
       "cta_link": null,
       "is_free": false
@@ -58,21 +106,51 @@
       "currency": "RON",
       "interval": "6 Luni",
       "features": [
-        {"name": "Toate beneficiile Basic", "details": null},
-        {"name": "Acces nelimitat", "details": "Vizualizări nelimitate"},
-        {"name": "Filtre avansate", "details": "Căutare după materie și obiect"},
-        {"name": "Teste Grilă", "details": "Generate automat din jurisprudență"},
-        {"name": "Calculator Taxă de Timbru", "details": "Calcul automat cu asistent AI"},
-        {"name": "Căutare complexă", "details": "După număr dosar și AI"},
-        {"name": "Analiză AI", "details": "Filtrare inteligentă jurisprudență"},
-        {"name": "Generare acte juridice", "details": "Redactare automată cu AI"},
-        {"name": "6 perspective analitice", "details": "Vizualizare completă spețe"},
-        {"name": "Suport prioritar", "details": "Asistență dedicată"}
+        {
+          "name": "Toate beneficiile Basic",
+          "details": null
+        },
+        {
+          "name": "Acces nelimitat",
+          "details": "Vizualizări nelimitate"
+        },
+        {
+          "name": "Filtre avansate",
+          "details": "Căutare după materie și obiect"
+        },
+        {
+          "name": "Teste Grilă",
+          "details": "Generate automat din jurisprudență"
+        },
+        {
+          "name": "Calculator Taxă de Timbru",
+          "details": "Calcul automat cu asistent AI"
+        },
+        {
+          "name": "Căutare complexă",
+          "details": "După număr dosar și AI"
+        },
+        {
+          "name": "Analiză AI",
+          "details": "Filtrare inteligentă jurisprudență"
+        },
+        {
+          "name": "Generare acte juridice",
+          "details": "Redactare automată cu AI"
+        },
+        {
+          "name": "6 perspective analitice",
+          "details": "Vizualizare completă spețe"
+        },
+        {
+          "name": "Suport prioritar",
+          "details": "Asistență dedicată"
+        }
       ],
       "is_popular": true,
       "discount_percentage": 14,
       "is_customizable": false,
-      "stripe_price_id": null,
+      "stripe_price_id": "price_1Sgoc62NfYw0PiPdHlPCFunv",
       "cta_text": "Abonează-te Acum",
       "cta_link": null,
       "is_free": false
@@ -85,21 +163,51 @@
       "currency": "RON",
       "interval": "An",
       "features": [
-        {"name": "Toate beneficiile Basic", "details": null},
-        {"name": "Acces nelimitat", "details": "Vizualizări nelimitate"},
-        {"name": "Filtre avansate", "details": "Căutare după materie și obiect"},
-        {"name": "Teste Grilă", "details": "Generate automat din jurisprudență"},
-        {"name": "Calculator Taxă de Timbru", "details": "Calcul automat cu asistent AI"},
-        {"name": "Căutare complexă", "details": "După număr dosar și AI"},
-        {"name": "Analiză AI", "details": "Filtrare inteligentă jurisprudență"},
-        {"name": "Generare acte juridice", "details": "Redactare automată cu AI"},
-        {"name": "6 perspective analitice", "details": "Vizualizare completă spețe"},
-        {"name": "Suport prioritar", "details": "Asistență dedicată"}
+        {
+          "name": "Toate beneficiile Basic",
+          "details": null
+        },
+        {
+          "name": "Acces nelimitat",
+          "details": "Vizualizări nelimitate"
+        },
+        {
+          "name": "Filtre avansate",
+          "details": "Căutare după materie și obiect"
+        },
+        {
+          "name": "Teste Grilă",
+          "details": "Generate automat din jurisprudență"
+        },
+        {
+          "name": "Calculator Taxă de Timbru",
+          "details": "Calcul automat cu asistent AI"
+        },
+        {
+          "name": "Căutare complexă",
+          "details": "După număr dosar și AI"
+        },
+        {
+          "name": "Analiză AI",
+          "details": "Filtrare inteligentă jurisprudență"
+        },
+        {
+          "name": "Generare acte juridice",
+          "details": "Redactare automată cu AI"
+        },
+        {
+          "name": "6 perspective analitice",
+          "details": "Vizualizare completă spețe"
+        },
+        {
+          "name": "Suport prioritar",
+          "details": "Asistență dedicată"
+        }
       ],
       "is_popular": false,
       "discount_percentage": 29,
       "is_customizable": false,
-      "stripe_price_id": null,
+      "stripe_price_id": "price_1Sgock2NfYw0PiPdtP2KYDXZ",
       "cta_text": "Abonează-te Acum",
       "cta_link": null,
       "is_free": false
