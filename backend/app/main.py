@@ -76,15 +76,22 @@ def on_startup():
     init_db()
     logger.info("Step 1: Database initialization complete. All tables created.")
 
-    logger.info("Step 2: Loading all filter data into memory cache...")
+    logger.info("Step 2: Ensuring subscription fields exist (migration check)...")
+    with next(get_session()) as session:
+        from .lib.subscription_migration import ensure_subscription_fields, migrate_existing_pro_users
+        ensure_subscription_fields(session)
+        migrate_existing_pro_users(session)
+    logger.info("Step 2: Subscription fields verified and existing users migrated.")
+
+    logger.info("Step 3: Loading all filter data into memory cache...")
     with next(get_session()) as session:
         load_all_filters_into_memory(session)
-    logger.info("Step 2: In-memory cache loaded successfully.")
+    logger.info("Step 3: In-memory cache loaded successfully.")
 
-    logger.info("Step 3: Starting queue manager worker...")
+    logger.info("Step 4: Starting queue manager worker...")
     from .logic.queue_manager import queue_manager
     queue_manager.start_worker()
-    logger.info("Step 3: Queue manager worker started.")
+    logger.info("Step 4: Queue manager worker started.")
 
     logger.info("--- Backend Startup Sequence Finished ---")
 

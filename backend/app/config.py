@@ -100,8 +100,15 @@ class Settings(BaseSettings):
     STRIPE_PRICE_ID_POINTS_PACK1: Optional[str] = None
     STRIPE_PRICE_ID_POINTS_PACK2: Optional[str] = None
 
+    # Stripe Price IDs for Premium Plans
+    STRIPE_PRICE_ID_PREMIUM_MONTHLY: Optional[str] = None
+    STRIPE_PRICE_ID_PREMIUM_SEMIANNUAL: Optional[str] = None
+    STRIPE_PRICE_ID_PREMIUM_ANNUAL: Optional[str] = None
+
     # Subscription Defaults
     SUBSCRIPTION_DEFAULT_DURATION_DAYS: int = 31
+    SUBSCRIPTION_EXPIRY_WARNING_DAYS: int = 7
+    SUBSCRIPTION_PAYMENT_FAILURE_MAX_ATTEMPTS: int = 3
 
     SECURE_COOKIE: bool = False
 

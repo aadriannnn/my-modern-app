@@ -585,6 +585,479 @@ async def send_partner_lawyer_status_update_email(
         logger.exception(f"Eroare la trimiterea emailului de actualizare status partener ({status_lower}) către {lawyer_email}: {e}")
         return False
 
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# +++ SUBSCRIPTION EMAIL NOTIFICATIONS                                +++++
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+async def send_subscription_confirmation_email(
+    user_email: str,
+    user_name: Optional[str],
+    plan_name: str,
+    subscription_start: datetime,
+    subscription_end: datetime,
+    amount: float,
+    currency: str = "RON"
+) -> bool:
+    """
+    Trimite email de confirmare imediat după finalizarea cu succes a plății.
+    """
+    if not transactional_emails_api:
+        logger.error("API-ul Brevo nu este configurat. Emailul de confirmare abonament nu poate fi trimis.")
+        return False
+
+    subject = f"✅ Abonamentul tău {plan_name} a fost confirmat!"
+
+    # Format dates
+    try:
+        from backend.app.models import BUCHAREST_TZ
+        if subscription_start.tzinfo is None and BUCHAREST_TZ:
+            subscription_start = BUCHAREST_TZ.localize(subscription_start)
+        if subscription_end.tzinfo is None and BUCHAREST_TZ:
+            subscription_end = BUCHAREST_TZ.localize(subscription_end)
+
+        start_formatted = subscription_start.strftime("%d %B %Y")
+        end_formatted = subscription_end.strftime("%d %B %Y")
+    except Exception as e:
+        logger.error(f"Eroare formatare date: {e}")
+        start_formatted = str(subscription_start.date())
+        end_formatted = str(subscription_end.date())
+
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+        <div style="background-color: white; border-radius: 12px; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #1e40af; margin: 0; font-size: 28px;">🎉 Plată Confirmată!</h1>
+            </div>
+
+            <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">
+                Salut {user_name or 'Utilizator'},
+            </p>
+
+            <p style="font-size: 16px; color: #374151; margin-bottom: 25px;">
+                Abonamentul tău <strong>{plan_name}</strong> a fost activat cu succes!
+                Plata ta de <strong>{amount:.2f} {currency}</strong> a fost procesată.
+            </p>
+
+            <div style="background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 20px; margin: 25px 0; border-radius: 6px;">
+                <h3 style="margin-top: 0; color: #1e40af; font-size: 18px;">📋 Detalii Abonament</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Plan:</td>
+                        <td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">{plan_name}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Valoare:</td>
+                        <td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">{amount:.2f} {currency}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Data activare:</td>
+                        <td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">{start_formatted}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; color: #6b7280; font-weight: 500;">Valabil până la:</td>
+                        <td style="padding: 8px 0; color: #111827; font-weight: 600; text-align: right;">{end_formatted}</td>
+                    </tr>
+                </table>
+            </div>
+
+            <div style="margin: 30px 0;">
+                <a href="{settings.FRONTEND_BASE_URL.rstrip('/')}/setari"
+                   style="display: inline-block; background-color: #2563eb; color: white; text-decoration: none;
+                          padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                    Vezi Detalii Abonament
+                </a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+            <p style="font-size: 14px; color: #6b7280; margin: 0;">
+                Ai întrebări? Contactează-ne la {DEFAULT_SENDER_EMAIL}
+            </p>
+
+            <p style="font-size: 12px; color: #9ca3af; margin-top: 20px;">
+                Mulțumim că ai ales LegeaAplicata.ro!
+            </p>
+        </div>
+    </div>
+    """
+
+    logger.info(f"Trimitere email confirmare abonament către {user_email}")
+
+    loop = asyncio.get_event_loop()
+    try:
+        success = await loop.run_in_executor(
+            None,
+            send_email,
+            user_email,
+            user_name or "Utilizator Premium",
+            subject,
+            html_content
+        )
+        if success:
+            logger.info(f"✓ Email confirmare abonament trimis către {user_email}")
+        else:
+            logger.error(f"✗ Trimitere email confirmare abonament eșuată către {user_email}")
+        return success
+    except Exception as e:
+        logger.exception(f"Eroare trimitere email confirmare abonament către {user_email}: {e}")
+        return False
+
+
+async def send_subscription_activated_email(
+    user_email: str,
+    user_name: Optional[str],
+    plan_name: str
+) -> bool:
+    """
+    Trimite email când webhook-ul confirmă activarea abonamentului.
+    Conține lista de beneficii deblocate.
+    """
+    if not transactional_emails_api:
+        logger.error("API-ul Brevo nu este configurat.")
+        return False
+
+    subject = f"🚀 Abonamentul tău {plan_name} este acum activ!"
+
+    benefits = [
+        "✓ Acces nelimitat la întreaga bază de jurisprudență",
+        "✓ Filtre avansate pentru căutare specializată",
+        "✓ Teste grilă generate automat din spețe",
+        "✓ Calculator taxă de timbru cu asistent AI",
+        "✓ Căutare complexă după număr dosar",
+        "✓ Analiză inteligentă cu AI pentru filtrare jurisprudență",
+        "✓ Generare automată acte juridice",
+        "✓ 6 perspective analitice complete pentru fiecare speță",
+        "✓ Suport tehnic prioritar"
+    ]
+
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+        <div style="background-color: white; border-radius: 12px; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #10b981; margin: 0; font-size: 28px;">🎊 Bun Venit în Premium!</h1>
+            </div>
+
+            <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">
+                Salut {user_name or 'Utilizator'},
+            </p>
+
+            <p style="font-size: 16px; color: #374151; margin-bottom: 25px;">
+                Abonamentul tău <strong>{plan_name}</strong> este complet activat!
+                Acum ai acces la toate funcțiile premium ale platformei.
+            </p>
+
+            <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; padding: 20px; margin: 25px 0; border-radius: 6px;">
+                <h3 style="margin-top: 0; color: #059669; font-size: 18px;">🎁 Ce Ai Deblocat:</h3>
+                <ul style="margin: 15px 0; padding-left: 20px; color: #374151;">
+                    {"".join(f'<li style="margin: 10px 0;">{benefit}</li>' for benefit in benefits)}
+                </ul>
+            </div>
+
+            <div style="margin: 30px 0; text-align: center;">
+                <a href="{settings.FRONTEND_BASE_URL.rstrip('/')}"
+                   style="display: inline-block; background-color: #10b981; color: white; text-decoration: none;
+                          padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                    Începe să Explorezi
+                </a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+            <p style="font-size: 14px; color: #6b7280; margin: 0;">
+                Succes în activitatea ta juridică!
+            </p>
+        </div>
+    </div>
+    """
+
+    logger.info(f"Trimitere email activare abonament către {user_email}")
+
+    loop = asyncio.get_event_loop()
+    try:
+        success = await loop.run_in_executor(
+            None,
+            send_email,
+            user_email,
+            user_name or "Utilizator Premium",
+            subject,
+            html_content
+        )
+        if success:
+            logger.info(f"✓ Email activare trimis către {user_email}")
+        else:
+            logger.error(f"✗ Email activare eșuat către {user_email}")
+        return success
+    except Exception as e:
+        logger.exception(f"Eroare email activare către {user_email}: {e}")
+        return False
+
+
+async def send_subscription_expiring_soon_email(
+    user_email: str,
+    user_name: Optional[str],
+    expiry_date: datetime,
+    plan_name: str,
+    days_remaining: int
+) -> bool:
+    """
+    Trimite email de avertizare când abonamentul expiră în curând (7 zile).
+    """
+    if not transactional_emails_api:
+        logger.error("API-ul Brevo nu este configurat.")
+        return False
+
+    subject = f"⚠️ Abonamentul tău expiră în {days_remaining} zile"
+
+    try:
+        from backend.app.models import BUCHAREST_TZ
+        if expiry_date.tzinfo is None and BUCHAREST_TZ:
+            expiry_date = BUCHAREST_TZ.localize(expiry_date)
+        expiry_formatted = expiry_date.strftime("%d %B %Y")
+    except Exception as e:
+        logger.error(f"Eroare formatare dată: {e}")
+        expiry_formatted = str(expiry_date.date())
+
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+        <div style="background-color: white; border-radius: 12px; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #f59e0b; margin: 0; font-size: 28px;">⏰ Abonamentul Tău Expiră Curând</h1>
+            </div>
+
+            <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">
+                Salut {user_name or 'Utilizator'},
+            </p>
+
+            <p style="font-size: 16px; color: #374151; margin-bottom: 25px;">
+                Abonamentul tău <strong>{plan_name}</strong> expiră pe <strong>{expiry_formatted}</strong>
+                (în {days_remaining} zile).
+            </p>
+
+            <div style="background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0; border-radius: 6px;">
+                <p style="margin: 0; color: #92400e; font-size: 15px;">
+                    Pentru a continua să beneficiezi de toate funcțiile premium, reînnoiește-ți abonamentul înainte de data expirării.
+                </p>
+            </div>
+
+            <div style="margin: 30px 0; text-align: center;">
+                <a href="{settings.FRONTEND_BASE_URL.rstrip('/')}/abonamente"
+                   style="display: inline-block; background-color: #f59e0b; color: white; text-decoration: none;
+                          padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                    Reînnoiește Abonamentul
+                </a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+            <p style="font-size: 14px; color: #6b7280; margin: 0;">
+                Ai întrebări? Contactează-ne la {DEFAULT_SENDER_EMAIL}
+            </p>
+        </div>
+    </div>
+    """
+
+    logger.info(f"Trimitere email expirare apropiată către {user_email}")
+
+    loop = asyncio.get_event_loop()
+    try:
+        success = await loop.run_in_executor(
+            None,
+            send_email,
+            user_email,
+            user_name or "Utilizator",
+            subject,
+            html_content
+        )
+        if success:
+            logger.info(f"✓ Email expirare apropiată trimis către {user_email}")
+        else:
+            logger.error(f"✗ Email expirare apropiată eșuat către {user_email}")
+        return success
+    except Exception as e:
+        logger.exception(f"Eroare email expirare apropiată către {user_email}: {e}")
+        return False
+
+
+async def send_subscription_expired_email(
+    user_email: str,
+    user_name: Optional[str],
+    expired_date: datetime,
+    plan_name: str
+) -> bool:
+    """
+    Trimite email când abonamentul a expirat și utilizatorul a fost retrogradat la Basic.
+    """
+    if not transactional_emails_api:
+        logger.error("API-ul Brevo nu este configurat.")
+        return False
+
+    subject = "📅 Abonamentul tău a expirat"
+
+    try:
+        from backend.app.models import BUCHAREST_TZ
+        if expired_date.tzinfo is None and BUCHAREST_TZ:
+            expired_date = BUCHAREST_TZ.localize(expired_date)
+        expired_formatted = expired_date.strftime("%d %B %Y")
+    except Exception as e:
+        logger.error(f"Eroare formatare dată: {e}")
+        expired_formatted = str(expired_date.date())
+
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+        <div style="background-color: white; border-radius: 12px; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #6b7280; margin: 0; font-size: 28px;">Abonamentul Tău A Expirat</h1>
+            </div>
+
+            <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">
+                Salut {user_name or 'Utilizator'},
+            </p>
+
+            <p style="font-size: 16px; color: #374151; margin-bottom: 25px;">
+                Abonamentul tău <strong>{plan_name}</strong> a expirat pe <strong>{expired_formatted}</strong>.
+            </p>
+
+            <div style="background-color: #f3f4f6; border-left: 4px solid #6b7280; padding: 20px; margin: 25px 0; border-radius: 6px;">
+                <p style="margin: 0 0 10px 0; color: #374151; font-size: 15px;">
+                    <strong>Contul tău a fost schimbat la planul Basic (gratuit)</strong>
+                </p>
+                <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                    Vei continua să ai acces limitat la platformă, dar funcțiile premium nu mai sunt disponibile.
+                </p>
+            </div>
+
+            <p style="font-size: 16px; color: #374151; margin: 25px 0;">
+                Vrei să-ți recapeți accesul complet? Reabonează-te acum!
+            </p>
+
+            <div style="margin: 30px 0; text-align: center;">
+                <a href="{settings.FRONTEND_BASE_URL.rstrip('/')}/abonamente"
+                   style="display: inline-block; background-color: #2563eb; color: white; text-decoration: none;
+                          padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                    Reactivează Premium
+                </a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+            <p style="font-size: 14px; color: #6b7280; margin: 0;">
+                Întrebări? Suntem aici să te ajutăm: {DEFAULT_SENDER_EMAIL}
+            </p>
+        </div>
+    </div>
+    """
+
+    logger.info(f"Trimitere email expirare completă către {user_email}")
+
+    loop = asyncio.get_event_loop()
+    try:
+        success = await loop.run_in_executor(
+            None,
+            send_email,
+            user_email,
+            user_name or "Utilizator",
+            subject,
+            html_content
+        )
+        if success:
+            logger.info(f"✓ Email expirare completă trimis către {user_email}")
+        else:
+            logger.error(f"✗ Email expirare completă eșuat către {user_email}")
+        return success
+    except Exception as e:
+        logger.exception(f"Eroare email expirare completă către {user_email}: {e}")
+        return False
+
+
+async def send_subscription_cancelled_email(
+    user_email: str,
+    user_name: Optional[str],
+    plan_name: str,
+    access_until: datetime
+) -> bool:
+    """
+    Trimite email când utilizatorul anulează abonamentul.
+    Accesul rămâne activ până la sfârșitul perioadei plătite.
+    """
+    if not transactional_emails_api:
+        logger.error("API-ul Brevo nu este configurat.")
+        return False
+
+    subject = "Anulare abonament confirmată"
+
+    try:
+        from backend.app.models import BUCHAREST_TZ
+        if access_until.tzinfo is None and BUCHAREST_TZ:
+            access_until = BUCHAREST_TZ.localize(access_until)
+        access_formatted = access_until.strftime("%d %B %Y")
+    except Exception as e:
+        logger.error(f"Eroare formatare dată: {e}")
+        access_formatted = str(access_until.date())
+
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb;">
+        <div style="background-color: white; border-radius: 12px; padding: 30px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+            <div style="text-align: center; margin-bottom: 30px;">
+                <h1 style="color: #6b7280; margin: 0; font-size: 28px;">Abonament Anulat</h1>
+            </div>
+
+            <p style="font-size: 16px; color: #374151; margin-bottom: 20px;">
+                Salut {user_name or 'Utilizator'},
+            </p>
+
+            <p style="font-size: 16px; color: #374151; margin-bottom: 25px;">
+                Am procesat cererea ta de anulare pentru abonamentul <strong>{plan_name}</strong>.
+            </p>
+
+            <div style="background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 20px; margin: 25px 0; border-radius: 6px;">
+                <p style="margin: 0; color: #1e40af; font-size: 15px;">
+                    <strong>👉 Vei continua să ai acces Premium până pe {access_formatted}</strong>
+                </p>
+            </div>
+
+            <p style="font-size: 16px; color: #374151; margin: 25px 0;">
+                După această dată, contul tău va trece automat la planul Basic (gratuit).
+                Dacă te răzgândești, poți reactiva abonamentul oricând.
+            </p>
+
+            <div style="margin: 30px 0; text-align: center;">
+                <a href="{settings.FRONTEND_BASE_URL.rstrip('/')}/setari"
+                   style="display: inline-block; background-color: #2563eb; color: white; text-decoration: none;
+                          padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 16px;">
+                    Vezi Setări Cont
+                </a>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+
+            <p style="font-size: 14px; color: #6b7280; margin: 0;">
+                Ne pare rău să te vedem plecat. Feedback-ul tău este important: {DEFAULT_SENDER_EMAIL}
+            </p>
+        </div>
+    </div>
+    """
+
+    logger.info(f"Trimitere email anulare abonament către {user_email}")
+
+    loop = asyncio.get_event_loop()
+    try:
+        success = await loop.run_in_executor(
+            None,
+            send_email,
+            user_email,
+            user_name or "Utilizator",
+            subject,
+            html_content
+        )
+        if success:
+            logger.info(f"✓ Email anulare abonament trimis către {user_email}")
+        else:
+            logger.error(f"✗ Email anulare abonament eșuat către {user_email}")
+        return success
+    except Exception as e:
+        logger.exception(f"Eroare email anulare abonament către {user_email}: {e}")
+        return False
+
 # Exemplu de utilizare (păstrat comentat)
 # if __name__ == "__main__":
 #     test_recipient = os.getenv("TEST_EMAIL_RECIPIENT", "destinatar_test@domeniu.com")

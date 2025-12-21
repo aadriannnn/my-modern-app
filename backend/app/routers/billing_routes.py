@@ -243,6 +243,25 @@ async def create_billing_portal_session(
 
 @router.post("/stripe-webhook")
 async def stripe_webhook(request: Request, db: Session = Depends(get_session)):
+    """
+    Comprehensive Stripe webhook handler for subscription lifecycle events.
+    Handles: checkout completion, subscription creation/update/deletion, invoice payments.
+    """
+    from ..lib.subscription_helpers import (
+        validate_and_upgrade_user,
+        downgrade_user_to_basic,
+        cancel_subscription,
+        calculate_subscription_end_date,
+        get_plan_name_from_id,
+        get_plan_price
+    )
+    from ..email_sender import (
+        send_subscription_confirmation_email,
+        send_subscription_activated_email,
+        send_subscription_cancelled_email,
+        send_subscription_expired_email
+    )
+
     payload = await request.body()
     sig_header = request.headers.get('stripe-signature')
 
@@ -251,46 +270,434 @@ async def stripe_webhook(request: Request, db: Session = Depends(get_session)):
             payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
         )
     except ValueError as e:
+        logger.error(f"Invalid webhook payload: {e}")
         raise HTTPException(status_code=400, detail="Invalid payload")
     except SignatureVerificationError as e:
+        logger.error(f"Invalid webhook signature: {e}")
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    logger.info(f"Webhook received: {event.type}")
+    logger.info(f"🔔 Webhook received: {event.type}")
 
-    # Handle events
-    if event.type == 'checkout.session.completed':
-        session = event.data.object
-        app_user_id = session.metadata.get('app_user_id')
-        if app_user_id:
-            await update_user_subscription_details(
-                db,
-                user_id=app_user_id,
-                customer_id=session.customer,
-                subscription_id=session.subscription,
-                status='active' # Simplification, check payment status ideally
-            )
+    try:
+        # ==================================================================
+        # Event: checkout.session.completed
+        # When: User completes payment in Stripe Checkout
+        # ==================================================================
+        if event.type == 'checkout.session.completed':
+            session = event.data.object
+            app_user_id = session.metadata.get('app_user_id')
 
-    elif event.type == 'customer.subscription.updated':
-        subscription = event.data.object
-        # Look up user by customer id
-        user_db = db.query(ClientDB).filter(ClientDB.stripe_customer_id == subscription.customer).first()
-        if user_db:
-            await update_user_subscription_details(
-                db,
-                user_id=str(user_db.id),
-                subscription_id=subscription.id,
-                status=subscription.status,
-                pro_status_active_until=datetime.fromtimestamp(subscription.current_period_end)
-            )
+            if not app_user_id:
+                logger.warning("checkout.session.completed without app_user_id in metadata")
+                return {"status": "ignored"}
 
-    elif event.type == 'customer.subscription.deleted':
-        subscription = event.data.object
-        user_db = db.query(ClientDB).filter(ClientDB.stripe_customer_id == subscription.customer).first()
-        if user_db:
-             await update_user_subscription_details(
-                db,
-                user_id=str(user_db.id),
-                status='canceled'
-            )
+            # Get subscription details from Stripe
+            subscription_id = session.subscription
+            customer_id = session.customer
+
+            # Retrieve the actual subscription object for detailed info
+            try:
+                subscription = stripe.Subscription.retrieve(subscription_id)
+                plan_price_id = subscription['items']['data'][0]['price']['id']
+
+                # Map Stripe price ID to our plan ID
+                price_to_plan_map = {
+                    settings.STRIPE_PRICE_ID_PREMIUM_MONTHLY: "premium_monthly",
+                    settings.STRIPE_PRICE_ID_PREMIUM_SEMIANNUAL: "premium_semiannual",
+                    settings.STRIPE_PRICE_ID_PREMIUM_ANNUAL: "premium_annual"
+                }
+
+                plan_id = price_to_plan_map.get(plan_price_id, "premium_monthly")
+                amount_paid = session.amount_total / 100.0 if session.amount_total else get_plan_price(plan_id)
+
+            except Exception as e:
+                logger.error(f"Error retrieving subscription details: {e}")
+                plan_id = "premium_monthly"
+                amount_paid = 70.0
+
+            # Upgrade user
+            subscription_data = {
+                'stripe_subscription_id': subscription_id,
+                'stripe_customer_id': customer_id,
+                'amount': amount_paid,
+                'currency': 'RON',
+                'payment_method': 'card',
+                'start_date': datetime.utcnow()
+            }
+
+            success = await validate_and_upgrade_user(db, app_user_id, plan_id, subscription_data)
+
+            if success:
+                # Get updated user
+                user = db.query(ClientDB).filter(ClientDB.id == app_user_id).first()
+                if user:
+                    # Send confirmation email
+                    await send_subscription_confirmation_email(
+                        user_email=user.email,
+                        user_name=user.numeComplet,
+                        plan_name=get_plan_name_from_id(plan_id),
+                        subscription_start=user.subscription_start_date,
+                        subscription_end=user.subscription_end_date,
+                        amount=amount_paid,
+                        currency='RON'
+                    )
+                    logger.info(f"✓ User {user.email} upgraded via checkout.session.completed")
+
+        # ==================================================================
+        # Event: customer.subscription.created
+        # When: Subscription is created (after checkout)
+        # ==================================================================
+        elif event.type == 'customer.subscription.created':
+            subscription = event.data.object
+            customer_id = subscription.customer
+
+            user_db = db.query(ClientDB).filter(ClientDB.stripe_customer_id == customer_id).first()
+            if user_db and user_db.rol == ClientRole.PRO:
+                # Send activation email
+                plan_name = get_plan_name_from_id(user_db.subscription_plan_id or "premium_monthly")
+                await send_subscription_activated_email(
+                    user_email=user_db.email,
+                    user_name=user_db.numeComplet,
+                    plan_name=plan_name
+                )
+                logger.info(f"✓ Activation email sent to {user_db.email}")
+
+        # ==================================================================
+        # Event: customer.subscription.updated
+        # When: Subscription status changes (renewal, reactivation, etc.)
+        # ==================================================================
+        elif event.type == 'customer.subscription.updated':
+            subscription = event.data.object
+            customer_id = subscription.customer
+            new_status = subscription.status
+            current_period_end = datetime.fromtimestamp(subscription.current_period_end)
+
+            user_db = db.query(ClientDB).filter(ClientDB.stripe_customer_id == customer_id).first()
+            if user_db:
+                user_db.subscription_status = new_status
+                user_db.subscription_end_date = current_period_end
+                user_db.pro_status_active_until = current_period_end
+
+                # Handle status changes
+                if new_status == 'active':
+                    user_db.rol = ClientRole.PRO
+                    logger.info(f"✓ Subscription reactivated for {user_db.email}")
+                elif new_status in ['past_due', 'unpaid']:
+                    logger.warning(f"⚠️ Subscription {new_status} for {user_db.email}")
+                    # Keep PRO access but flag as problematic
+                    user_db.subscription_status = new_status
+
+                db.commit()
+                logger.info(f"✓ Subscription updated for {user_db.email}: status={new_status}")
+
+        # ==================================================================
+        # Event: customer.subscription.deleted
+        # When: Subscription is cancelled by user or expires
+        # ==================================================================
+        elif event.type == 'customer.subscription.deleted':
+            subscription = event.data.object
+            customer_id = subscription.customer
+
+            user_db = db.query(ClientDB).filter(ClientDB.stripe_customer_id == customer_id).first()
+            if user_db:
+                # Mark as cancelled
+                if not user_db.subscription_cancelled_at:
+                    user_db.subscription_cancelled_at = datetime.utcnow()
+
+                user_db.subscription_auto_renew = False
+                user_db.subscription_status = "cancelled"
+
+                # Check if we should downgrade immediately or wait
+                if user_db.subscription_end_date and user_db.subscription_end_date < datetime.utcnow():
+                    # Already expired, downgrade now
+                    await downgrade_user_to_basic(db, str(user_db.id), "expired")
+                    plan_name = get_plan_name_from_id(user_db.subscription_plan_id or "Premium")
+                    await send_subscription_expired_email(
+                        user_email=user_db.email,
+                        user_name=user_db.numeComplet,
+                        expired_date=user_db.subscription_end_date,
+                        plan_name=plan_name
+                    )
+                else:
+                    # Still has time, send cancellation email with access_until date
+                    db.commit()
+                    plan_name = get_plan_name_from_id(user_db.subscription_plan_id or "Premium")
+                    await send_subscription_cancelled_email(
+                        user_email=user_db.email,
+                        user_name=user_db.numeComplet,
+                        plan_name=plan_name,
+                        access_until=user_db.subscription_end_date
+                    )
+
+                logger.info(f"✓ Subscription deleted for {user_db.email}")
+
+        # ==================================================================
+        # Event: invoice.payment_succeeded
+        # When: Payment for subscription renewal succeeds
+        # ==================================================================
+        elif event.type == 'invoice.payment_succeeded':
+            invoice = event.data.object
+            customer_id = invoice.customer
+            subscription_id = invoice.subscription
+
+            if subscription_id:  # Only process subscription invoices
+                user_db = db.query(ClientDB).filter(ClientDB.stripe_customer_id == customer_id).first()
+                if user_db:
+                    # Retrieve subscription for new period end
+                    try:
+                        subscription = stripe.Subscription.retrieve(subscription_id)
+                        new_period_end = datetime.fromtimestamp(subscription.current_period_end)
+
+                        user_db.subscription_end_date = new_period_end
+                        user_db.pro_status_active_until = new_period_end
+                        user_db.subscription_status = "active"
+                        user_db.rol = ClientRole.PRO  # Ensure still PRO
+
+                        db.commit()
+                        logger.info(f"✓ Subscription renewed for {user_db.email} until {new_period_end}")
+
+                        # Send renewal confirmation email
+                        plan_name = get_plan_name_from_id(user_db.subscription_plan_id or "Premium")
+                        await send_subscription_confirmation_email(
+                            user_email=user_db.email,
+                            user_name=user_db.numeComplet,
+                            plan_name=plan_name,
+                            subscription_start=datetime.utcnow(),
+                            subscription_end=new_period_end,
+                            amount=invoice.amount_paid / 100.0,
+                            currency='RON'
+                        )
+                    except Exception as e:
+                        logger.error(f"Error processing invoice.payment_succeeded: {e}")
+
+        # ==================================================================
+        # Event: invoice.payment_failed
+        # When: Payment for subscription renewal fails
+        # ==================================================================
+        elif event.type == 'invoice.payment_failed':
+            invoice = event.data.object
+            customer_id = invoice.customer
+
+            user_db = db.query(ClientDB).filter(ClientDB.stripe_customer_id == customer_id).first()
+            if user_db:
+                user_db.subscription_status = "payment_failed"
+                db.commit()
+                logger.warning(f"⚠️ Payment failed for {user_db.email}")
+
+                # TODO: Send payment failed email (can add later)
+                # After 3 failures, Stripe will cancel the subscription automatically
+
+    except Exception as e:
+        logger.error(f"Error processing webhook {event.type}: {e}", exc_info=True)
+        # Return 200 even on error to prevent Stripe retries
+        return {"status": "error", "message": str(e)}
 
     return {"status": "success"}
+
+
+# ==================================================================
+# SUBSCRIPTION MANAGEMENT ENDPOINTS (User)
+# ==================================================================
+
+@router.get("/subscription/status")
+async def get_subscription_status(
+    current_user: ClientDB = Depends(get_current_user)
+):
+    """Get current subscription status for authenticated user."""
+    from ..lib.subscription_helpers import get_subscription_status_summary
+
+    return get_subscription_status_summary(current_user)
+
+
+@router.post("/subscription/cancel")
+async def cancel_user_subscription(
+    current_user: ClientDB = Depends(get_current_user),
+    db: Session = Depends(get_session)
+):
+    """Cancel subscription but keep access until end of billing period."""
+    from ..lib.subscription_helpers import cancel_subscription
+    from ..email_sender import send_subscription_cancelled_email
+
+    if not current_user.stripe_subscription_id:
+        raise HTTPException(status_code=400, detail="No active subscription found")
+
+    try:
+        # Cancel in Stripe
+        stripe.Subscription.modify(
+            current_user.stripe_subscription_id,
+            cancel_at_period_end=True
+        )
+
+        # Update local DB
+        success = await cancel_subscription(db, str(current_user.id))
+
+        if success:
+            # Refresh user
+            db.refresh(current_user)
+
+            # Send email
+            from ..lib.subscription_helpers import get_plan_name_from_id
+            await send_subscription_cancelled_email(
+                user_email=current_user.email,
+                user_name=current_user.numeComplet,
+                plan_name=get_plan_name_from_id(current_user.subscription_plan_id or "Premium"),
+                access_until=current_user.subscription_end_date
+            )
+
+            return {
+                "success": True,
+                "message": "Subscription cancelled. Access remains until end of billing period.",
+                "access_until": current_user.subscription_end_date.isoformat() if current_user.subscription_end_date else None
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Failed to cancel subscription")
+
+    except Exception as e:
+        logger.error(f"Cancel subscription error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/subscription/reactivate")
+async def reactivate_subscription(
+    current_user: ClientDB = Depends(get_current_user),
+    db: Session = Depends(get_session)
+):
+    """Reactivate a cancelled subscription."""
+    if not current_user.stripe_subscription_id:
+        raise HTTPException(status_code=400, detail="No subscription found")
+
+    try:
+        # Reactivate in Stripe
+        stripe.Subscription.modify(
+            current_user.stripe_subscription_id,
+            cancel_at_period_end=False
+        )
+
+        # Update local DB
+        user = db.query(ClientDB).filter(ClientDB.id == current_user.id).first()
+        if user:
+            user.subscription_auto_renew = True
+            user.subscription_status = "active"
+            user.subscription_cancelled_at = None
+            db.commit()
+
+            return {
+                "success": True,
+                "message": "Subscription reactivated successfully"
+            }
+        else:
+            raise HTTPException(status_code=404, detail="User not found")
+
+    except Exception as e:
+        logger.error(f"Reactivate subscription error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================================================================
+# ADMIN ENDPOINTS
+# ==================================================================
+
+@router.get("/admin/subscriptions")
+async def list_all_subscriptions(
+    current_user: ClientDB = Depends(get_current_user),
+    db: Session = Depends(get_session),
+    status_filter: Optional[str] = Query(None, description="Filter by status"),
+    plan_filter: Optional[str] = Query(None, description="Filter by plan"),
+    limit: int = Query(50, le=500),
+    offset: int = Query(0)
+):
+    """List all subscriptions (admin only)."""
+    if current_user.rol != ClientRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    query = db.query(ClientDB).filter(ClientDB.subscription_plan_id.isnot(None))
+
+    if status_filter:
+        query = query.filter(ClientDB.subscription_status == status_filter)
+
+    if plan_filter:
+        query = query.filter(ClientDB.subscription_plan_id == plan_filter)
+
+    total = query.count()
+    users = query.offset(offset).limit(limit).all()
+
+    from ..lib.subscription_helpers import get_subscription_status_summary
+
+    return {
+        "total": total,
+        "subscriptions": [
+            {
+                "user_id": user.id,
+                "email": user.email,
+                "name": user.numeComplet,
+                **get_subscription_status_summary(user)
+            }
+            for user in users
+        ]
+    }
+
+
+@router.post("/admin/grant-subscription")
+async def admin_grant_subscription(
+    user_id: str = Body(...),
+    plan_id: str = Body(...),
+    duration_days: int = Body(...),
+    reason: str = Body(default="admin_grant"),
+    current_user: ClientDB = Depends(get_current_user),
+    db: Session = Depends(get_session)
+):
+    """Manually grant subscription to a user (admin only)."""
+    if current_user.rol != ClientRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    from ..lib.subscription_helpers import grant_manual_subscription, get_plan_name_from_id
+    from ..email_sender import send_subscription_confirmation_email
+    from datetime import timedelta
+
+    success = await grant_manual_subscription(db, user_id, plan_id, duration_days, reason)
+
+    if success:
+        # Get updated user and send email
+        user = db.query(ClientDB).filter(ClientDB.id == user_id).first()
+        if user:
+            await send_subscription_confirmation_email(
+                user_email=user.email,
+                user_name=user.numeComplet,
+                plan_name=get_plan_name_from_id(plan_id),
+                subscription_start=user.subscription_start_date,
+                subscription_end=user.subscription_end_date,
+                amount=0.0,
+                currency="RON"
+            )
+
+        return {
+            "success": True,
+            "message": f"Granted {plan_id} for {duration_days} days to user {user_id}"
+        }
+    else:
+        raise HTTPException(status_code=500, detail="Failed to grant subscription")
+
+
+@router.post("/admin/extend-subscription")
+async def admin_extend_subscription(
+    user_id: str = Body(...),
+    additional_days: int = Body(...),
+    reason: str = Body(default="admin_extension"),
+    current_user: ClientDB = Depends(get_current_user),
+    db: Session = Depends(get_session)
+):
+    """Extend an existing subscription (admin only)."""
+    if current_user.rol != ClientRole.ADMIN:
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    from ..lib.subscription_helpers import extend_subscription
+
+    success = await extend_subscription(db, user_id, additional_days, reason)
+
+    if success:
+        return {
+            "success": True,
+            "message": f"Extended subscription by {additional_days} days"
+        }
+    else:
+        raise HTTPException(status_code=404, detail="User or subscription not found")

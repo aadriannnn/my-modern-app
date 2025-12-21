@@ -43,11 +43,23 @@ class ClientDB(SQLModel, table=True):
     banca: Optional[str] = None
     contIBAN: Optional[str] = None
     puncte_ramase: Optional[int] = Field(default=0)
+
+    # Stripe Integration Fields (existing)
     stripe_customer_id: Optional[str] = Field(default=None, index=True)
     stripe_subscription_id: Optional[str] = Field(default=None, index=True)
     subscription_status: Optional[str] = None
     pro_status_active_until: Optional[datetime] = None
     user_type: Optional[str] = None
+
+    # Enhanced Subscription Tracking Fields (new)
+    subscription_plan_id: Optional[str] = Field(default=None, index=True)  # premium_monthly, premium_semiannual, premium_annual
+    subscription_start_date: Optional[datetime] = Field(default=None, index=True)
+    subscription_end_date: Optional[datetime] = Field(default=None, index=True)
+    subscription_payment_method: Optional[str] = Field(default=None)  # card, manual_grant, etc.
+    subscription_amount: Optional[float] = Field(default=None)  # Amount paid
+    subscription_currency: Optional[str] = Field(default="RON")  # Currency
+    subscription_auto_renew: bool = Field(default=True)  # Auto-renewal status
+    subscription_cancelled_at: Optional[datetime] = Field(default=None)  # When cancelled (if applicable)
 
 
 class Blocuri(SQLModel, table=True):
