@@ -185,7 +185,14 @@ const CapatCerereCard: React.FC<CapatCerereCardProps> = ({
 };
 
 // Main Widget Component
-const TaxCalculatorWidget: React.FC = () => {
+interface TaxCalculatorWidgetProps {
+    caseData?: {
+        obiect?: string;
+        [key: string]: any;
+    };
+}
+
+const TaxCalculatorWidget: React.FC<TaxCalculatorWidgetProps> = ({ caseData }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [options, setOptions] = useState<TipCerereTaxaOption[]>([]);
 
@@ -203,8 +210,8 @@ const TaxCalculatorWidget: React.FC = () => {
     const [taxaResult, setTaxaResult] = useState<TaxaResult | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    // LLM State
-    const [obiectDosar, setObiectDosar] = useState("");
+    // LLM State - Initialize with case object if available
+    const [obiectDosar, setObiectDosar] = useState(caseData?.obiect || "");
     const [isAnalyzingLLM, setIsAnalyzingLLM] = useState(false);
     const [llmSuggestion, setLlmSuggestion] = useState<LLMSuggestionInfo | null>(null);
 
@@ -337,7 +344,10 @@ const TaxCalculatorWidget: React.FC = () => {
                             <input
                                 type="text"
                                 className="flex-1 border border-indigo-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
-                                placeholder="Descrieți pe scurt obiectul dosarului (ex: acțiune de divort cu partaj)..."
+                                placeholder={caseData?.obiect
+                                    ? `Obiect speță: ${caseData.obiect}`
+                                    : "Descrieți pe scurt obiectul dosarului (ex: acțiune de divort cu partaj)..."
+                                }
                                 value={obiectDosar}
                                 onChange={(e) => setObiectDosar(e.target.value)}
                             />
