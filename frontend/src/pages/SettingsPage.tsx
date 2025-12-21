@@ -241,7 +241,7 @@ const SettingsPage: React.FC = () => {
             setAnalysisResult(null);
             setError(null);
 
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/settings/analyze-llm-data`, {
+            const response = await fetch('/api/settings/analyze-llm-data', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -636,7 +636,7 @@ const SettingsPage: React.FC = () => {
                         <div className="flex items-center gap-3">
                             <button
                                 onClick={() => {
-                                    const url = `${import.meta.env.VITE_API_URL || 'http://localhost:8000/api'}/settings/materie-statistics/export`;
+                                    const url = '/api/settings/materie-statistics/export';
                                     window.open(url, '_blank');
                                 }}
                                 disabled={saving || refreshing}

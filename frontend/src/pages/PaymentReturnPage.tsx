@@ -19,7 +19,7 @@ const PaymentReturnPage: React.FC = () => {
 
         const fetchSessionStatus = async () => {
             try {
-                const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/billing/session-status?session_id=${sessionId}`);
+                const response = await fetch(`/api/billing/session-status?session_id=${sessionId}`);
                 const data = await response.json();
 
                 if (data.status === 'open') {
