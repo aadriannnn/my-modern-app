@@ -93,7 +93,7 @@
       "is_popular": false,
       "discount_percentage": null,
       "is_customizable": false,
-      "stripe_price_id": "price_1SgobR2NfYw0PiPd2qtuPktZ",
+      "stripe_price_id": "price_1Sgp2S2NYfTY9eAfucCEKmai",
       "cta_text": "Abonează-te Acum",
       "cta_link": null,
       "is_free": false
@@ -150,7 +150,7 @@
       "is_popular": true,
       "discount_percentage": 14,
       "is_customizable": false,
-      "stripe_price_id": "price_1Sgoc62NfYw0PiPdHlPCFunv",
+      "stripe_price_id": "price_1Sgp2z2NYfTY9eAfoS9p4K58",
       "cta_text": "Abonează-te Acum",
       "cta_link": null,
       "is_free": false
@@ -207,7 +207,7 @@
       "is_popular": false,
       "discount_percentage": 29,
       "is_customizable": false,
-      "stripe_price_id": "price_1Sgock2NfYw0PiPdtP2KYDXZ",
+      "stripe_price_id": "price_1Sgp3N2NYfTY9eAfD0zmvPhj",
       "cta_text": "Abonează-te Acum",
       "cta_link": null,
       "is_free": false
