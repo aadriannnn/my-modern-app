@@ -476,18 +476,14 @@ def normalize_query(text: str) -> str:
 def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
     """
     Main search function that orchestrates the search logic.
-    - Routes to hybrid keyword search for short queries (<= 3 words).
-    - Routes to semantic/vector search for longer queries.
-    - Handles embedding failures by falling back to keyword search.
+    - Routes to semantic/vector search for complex queries when embeddings are available.
+    - Uses keyword search with smart considerente fallback: only searches in considerente
+      when standard search returns fewer than 5 results.
     - Handles searches with only "obiect" selected.
     """
     dialect = session.bind.dialect.name
 
-    # Explicit Pro Search check removed. Now using Hybrid logic by default for keywords.
-
-    word_count = len(search_request.situatie.split())
-    use_keyword_search = True
-
+    # Handle "obiect only" mode
     if not search_request.situatie.strip() and search_request.obiect:
         logger.info("[search] using 'obiect' only mode")
         filter_clause, params = _build_common_where_clause(search_request, dialect)
@@ -507,64 +503,68 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
         result = session.execute(text(query_str), params)
         return _process_results(result.mappings().all(), score_metric=None)
 
-    if word_count > 3:
-        logger.info("[search] using embedding mode (>3 words)")
-        embedding = embed_text(search_request.situatie)
+    # Try embedding-based semantic search
+    logger.info("[search] attempting embedding-based search")
+    embedding = embed_text(search_request.situatie)
 
-        # Check if embedding failed (indicated by a zero vector)
-        if any(v != 0.0 for v in embedding):
-            use_keyword_search = False
-            if dialect == 'postgresql':
-                return _search_postgres(session, search_request, embedding)
-            else:
-                # Fallback for SQLite when embedding is successful but platform is not PG
-                return _search_sqlite(session, search_request)
+    # Check if embedding succeeded (indicated by a non-zero vector)
+    if any(v != 0.0 for v in embedding):
+        logger.info("[search] using semantic search (embedding successful)")
+        if dialect == 'postgresql':
+            return _search_postgres(session, search_request, embedding)
         else:
-            logger.warning("[search] embedding failed, falling back to keyword search.")
-            # Fallback to keyword search is implicitly handled below
+            # Fallback for SQLite when embedding is successful but platform is not PG
+            return _search_sqlite(session, search_request)
+    else:
+        logger.warning("[search] embedding failed, falling back to keyword search")
 
-    # This block is executed if word_count <= 3 OR if embedding failed
-    if use_keyword_search:
-        # HYBRID SEARCH LOGIC: Considerations (Pro) + Standard
-        logger.info("[search] using HYBRID keyword mode (Considerations + Standard)")
+    # KEYWORD SEARCH with smart considerente fallback
+    # Strategy: Execute standard search first, only search in considerente if < 5 results
 
-        # Calculate range to fetch
-        orig_limit = search_request.limit if search_request.limit is not None else settings.TOP_K
-        orig_offset = search_request.offset if search_request.offset is not None else 0
+    logger.info("[search] executing standard keyword search")
 
-        # We fetch (offset + limit) from both sources to ensure we can correct pagination
-        # when merging two prioritized lists.
+    # Calculate range to fetch
+    orig_limit = search_request.limit if search_request.limit is not None else settings.TOP_K
+    orig_offset = search_request.offset if search_request.offset is not None else 0
+
+    # Store original values
+    saved_limit = search_request.limit
+    saved_offset = search_request.offset
+
+    try:
+        # For initial check, we need to fetch enough to know if we have < 5 results
+        # We'll fetch (offset + limit) to handle pagination correctly
         fetch_limit = orig_limit + orig_offset
+        search_request.limit = fetch_limit
+        search_request.offset = 0
 
-        # Store original values
-        saved_limit = search_request.limit
-        saved_offset = search_request.offset
+        # 1. Execute standard keyword search
+        if dialect == 'postgresql':
+            std_results = _search_by_keywords_postgres(session, search_request)
+        else:
+            std_results = _search_by_keywords_sqlite(session, search_request)
 
-        try:
-            # Modify request for "fetch all required"
-            search_request.limit = fetch_limit
-            search_request.offset = 0
+        logger.info(f"[search] standard keyword search returned {len(std_results)} results")
 
-            # 1. Considerations Search (Priority 1)
+        # 2. Check if we need to search in considerente
+        if len(std_results) < 5:
+            logger.info(f"[search] insufficient results ({len(std_results)} < 5), searching in considerente...")
+
+            # Search in considerente
             cons_results = _search_pro_keyword(session, search_request)
+            logger.info(f"[search] considerente search returned {len(cons_results)} results")
 
-            # 2. Standard Keyword Search (Priority 2)
-            if dialect == 'postgresql':
-                std_results = _search_by_keywords_postgres(session, search_request)
-            else:
-                std_results = _search_by_keywords_sqlite(session, search_request)
-
-            # 3. Merge and Deduplicate (Prioritizing Considerations)
+            # 3. Merge and Deduplicate (Prioritize considerente results)
             seen_ids = set()
             merged_results = []
 
-            # Add considerations results first
+            # Add considerente results first (higher priority)
             for r in cons_results:
                 if r['id'] not in seen_ids:
                     merged_results.append(r)
                     seen_ids.add(r['id'])
 
-            # Add standard results if needed
+            # Add standard results
             for r in std_results:
                 if r['id'] not in seen_ids:
                     merged_results.append(r)
@@ -575,13 +575,24 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
             end = orig_offset + orig_limit
             final_results = merged_results[start:end]
 
-            logger.info(f"[search] Hybrid results: found {len(cons_results)} (cons) + {len(std_results)} (std) -> {len(merged_results)} total unique. Returning slice {start}-{end} ({len(final_results)}).")
+            logger.info(f"[search] merged results: {len(cons_results)} (considerente) + {len(std_results)} (standard) -> {len(merged_results)} total unique. Returning slice {start}-{end} ({len(final_results)}).")
+            return final_results
+        else:
+            # Sufficient results from standard search, no need for considerente
+            logger.info(f"[search] sufficient results from standard search ({len(std_results)} >= 5), skipping considerente search")
+
+            # Slice to requested page
+            start = orig_offset
+            end = orig_offset + orig_limit
+            final_results = std_results[start:end]
+
+            logger.info(f"[search] returning {len(final_results)} results from standard search")
             return final_results
 
-        finally:
-            # Restore original request parameters
-            search_request.limit = saved_limit
-            search_request.offset = saved_offset
+    finally:
+        # Restore original request parameters
+        search_request.limit = saved_limit
+        search_request.offset = saved_offset
 
 def _build_pro_search_components(term: str) -> Dict[str, Any]:
     """
