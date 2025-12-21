@@ -475,11 +475,13 @@ def normalize_query(text: str) -> str:
 
 def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
     """
-    Main search function that orchestrates the search logic.
-    - Routes to semantic/vector search for complex queries when embeddings are available.
-    - Uses keyword search with smart considerente fallback: only searches in considerente
-      when standard search returns fewer than 5 results.
-    - Handles searches with only "obiect" selected.
+    Main search function implementing three-level cascading search strategy.
+
+    Level 1: Standard keyword search (fastest, always executed)
+    Level 2: Semantic embeddings search (moderate cost, only if Level 1 < 5 results)
+    Level 3: Considerente deep search (slowest, only if Level 2 < 5 results)
+
+    Each level adds to the previous results, with early exit when >= 5 results found.
     """
     dialect = session.bind.dialect.name
 
@@ -503,26 +505,6 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
         result = session.execute(text(query_str), params)
         return _process_results(result.mappings().all(), score_metric=None)
 
-    # Try embedding-based semantic search
-    logger.info("[search] attempting embedding-based search")
-    embedding = embed_text(search_request.situatie)
-
-    # Check if embedding succeeded (indicated by a non-zero vector)
-    if any(v != 0.0 for v in embedding):
-        logger.info("[search] using semantic search (embedding successful)")
-        if dialect == 'postgresql':
-            return _search_postgres(session, search_request, embedding)
-        else:
-            # Fallback for SQLite when embedding is successful but platform is not PG
-            return _search_sqlite(session, search_request)
-    else:
-        logger.warning("[search] embedding failed, falling back to keyword search")
-
-    # KEYWORD SEARCH with smart considerente fallback
-    # Strategy: Execute standard search first, only search in considerente if < 5 results
-
-    logger.info("[search] executing standard keyword search")
-
     # Calculate range to fetch
     orig_limit = search_request.limit if search_request.limit is not None else settings.TOP_K
     orig_offset = search_request.offset if search_request.offset is not None else 0
@@ -532,62 +514,106 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
     saved_offset = search_request.offset
 
     try:
-        # For initial check, we need to fetch enough to know if we have < 5 results
+        # For progressive search, we need to fetch enough to know if we have < 5 results
         # We'll fetch (offset + limit) to handle pagination correctly
         fetch_limit = orig_limit + orig_offset
         search_request.limit = fetch_limit
         search_request.offset = 0
 
-        # 1. Execute standard keyword search
+        # =================================================================
+        # LEVEL 1: STANDARD KEYWORD SEARCH (Always executed first)
+        # =================================================================
+        logger.info("[Level 1] Executing standard keyword search...")
+
         if dialect == 'postgresql':
-            std_results = _search_by_keywords_postgres(session, search_request)
+            level1_results = _search_by_keywords_postgres(session, search_request)
         else:
-            std_results = _search_by_keywords_sqlite(session, search_request)
+            level1_results = _search_by_keywords_sqlite(session, search_request)
 
-        logger.info(f"[search] standard keyword search returned {len(std_results)} results")
+        logger.info(f"[Level 1] Standard keyword search returned {len(level1_results)} results")
 
-        # 2. Check if we need to search in considerente
-        if len(std_results) < 5:
-            logger.info(f"[search] insufficient results ({len(std_results)} < 5), searching in considerente...")
-
-            # Search in considerente
-            cons_results = _search_pro_keyword(session, search_request)
-            logger.info(f"[search] considerente search returned {len(cons_results)} results")
-
-            # 3. Merge and Deduplicate (Prioritize considerente results)
-            seen_ids = set()
-            merged_results = []
-
-            # Add considerente results first (higher priority)
-            for r in cons_results:
-                if r['id'] not in seen_ids:
-                    merged_results.append(r)
-                    seen_ids.add(r['id'])
-
-            # Add standard results
-            for r in std_results:
-                if r['id'] not in seen_ids:
-                    merged_results.append(r)
-                    seen_ids.add(r['id'])
-
-            # 4. Slice to requested page
-            start = orig_offset
-            end = orig_offset + orig_limit
-            final_results = merged_results[start:end]
-
-            logger.info(f"[search] merged results: {len(cons_results)} (considerente) + {len(std_results)} (standard) -> {len(merged_results)} total unique. Returning slice {start}-{end} ({len(final_results)}).")
-            return final_results
-        else:
-            # Sufficient results from standard search, no need for considerente
-            logger.info(f"[search] sufficient results from standard search ({len(std_results)} >= 5), skipping considerente search")
+        # Check if we have enough results
+        if len(level1_results) >= 5:
+            logger.info(f"[Level 1] Sufficient results ({len(level1_results)} >= 5), returning without escalation")
 
             # Slice to requested page
             start = orig_offset
             end = orig_offset + orig_limit
-            final_results = std_results[start:end]
+            final_results = level1_results[start:end]
 
-            logger.info(f"[search] returning {len(final_results)} results from standard search")
+            logger.info(f"[Level 1] Returning {len(final_results)} results")
             return final_results
+
+        # =================================================================
+        # LEVEL 2: EMBEDDINGS SEMANTIC SEARCH (Only if < 5 results)
+        # =================================================================
+        logger.info(f"[Level 2] Insufficient results ({len(level1_results)} < 5), trying semantic embeddings...")
+
+        embedding = embed_text(search_request.situatie)
+
+        # Track all results for merging
+        all_results = level1_results.copy()
+        seen_ids = {r['id'] for r in level1_results}
+
+        # Check if embedding succeeded (indicated by a non-zero vector)
+        if any(v != 0.0 for v in embedding):
+            logger.info("[Level 2] Embedding successful, executing semantic search...")
+
+            # Execute semantic search
+            if dialect == 'postgresql':
+                level2_results = _search_postgres(session, search_request, embedding)
+            else:
+                level2_results = _search_sqlite(session, search_request)
+
+            # Merge Level 2 results (deduplicate)
+            level2_added = 0
+            for r in level2_results:
+                if r['id'] not in seen_ids:
+                    all_results.append(r)
+                    seen_ids.add(r['id'])
+                    level2_added += 1
+
+            logger.info(f"[Level 2] Embeddings search added {level2_added} new results -> {len(all_results)} total")
+
+            # Check if we now have enough results
+            if len(all_results) >= 5:
+                logger.info(f"[Level 2] Sufficient results ({len(all_results)} >= 5), returning without further escalation")
+
+                # Slice to requested page
+                start = orig_offset
+                end = orig_offset + orig_limit
+                final_results = all_results[start:end]
+
+                logger.info(f"[Level 2] Returning {len(final_results)} results")
+                return final_results
+        else:
+            logger.warning("[Level 2] Embedding generation failed, skipping semantic search")
+
+        # =================================================================
+        # LEVEL 3: CONSIDERENTE DEEP SEARCH (Last resort if < 5 results)
+        # =================================================================
+        logger.info(f"[Level 3] Still insufficient results ({len(all_results)} < 5), searching in considerente...")
+
+        # Search in considerente
+        level3_results = _search_pro_keyword(session, search_request)
+
+        # Merge Level 3 results (deduplicate)
+        level3_added = 0
+        for r in level3_results:
+            if r['id'] not in seen_ids:
+                all_results.append(r)
+                seen_ids.add(r['id'])
+                level3_added += 1
+
+        logger.info(f"[Level 3] Considerente search added {level3_added} new results -> {len(all_results)} total")
+
+        # Slice to requested page
+        start = orig_offset
+        end = orig_offset + orig_limit
+        final_results = all_results[start:end]
+
+        logger.info(f"[Level 3] Final results: returning {len(final_results)} from {len(all_results)} total unique cases")
+        return final_results
 
     finally:
         # Restore original request parameters
