@@ -8,7 +8,6 @@ import SEOHead from '../components/SEOHead';
 
 import SettingsLogin from '../components/SettingsLogin';
 import UserManagement from '../components/UserManagement';
-import SubscriptionSettings from '../components/SubscriptionSettings';
 
 interface SettingItem {
     value: any;
@@ -775,21 +774,7 @@ const SettingsPage: React.FC = () => {
                 <div className="flex flex-col lg:flex-row gap-8">
                     {/* Sidebar Navigation */}
                     <nav className="w-full lg:w-64 flex-shrink-0 space-y-1">
-                        <div className="mb-2 px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                            Contul Meu
-                        </div>
-                        <button
-                            onClick={() => setActiveTab('abonament')}
-                            className={`w-full text-left px-4 py-3 rounded-lg font-medium transition-all duration-200 flex items-center justify-between ${activeTab === 'abonament'
-                                ? 'bg-white text-blue-600 shadow-sm ring-1 ring-slate-200'
-                                : 'text-slate-600 hover:bg-white/50 hover:text-slate-900'
-                                }`}
-                        >
-                            Abonament & Plăți
-                            {activeTab === 'abonament' && (
-                                <div className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-                            )}
-                        </button>
+
 
                         <div className="mt-6 mb-2 px-4 py-2 text-xs font-semibold text-slate-400 uppercase tracking-wider border-t border-slate-100 pt-6">
                             Setări Algoritmi
@@ -832,9 +817,7 @@ const SettingsPage: React.FC = () => {
 
                     {/* Content Section */}
                     <div className="flex-1 min-w-0">
-                        {activeTab === 'abonament' ? (
-                            <SubscriptionSettings />
-                        ) : activeTab === 'users' ? (
+                        {activeTab === 'users' ? (
                             <UserManagement />
                         ) : settings && settings[activeTab] ? (
                             <div className="animate-in fade-in duration-300">
