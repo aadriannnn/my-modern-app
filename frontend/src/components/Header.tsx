@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import logo from '@/assets/icons/logo.png';
-import { Menu, PlusCircle, FolderOpen, User as UserIcon, LogOut, LogIn, Crown } from 'lucide-react';
+import { Menu, PlusCircle, FolderOpen, User as UserIcon, LogOut, LogIn, Crown, Calculator } from 'lucide-react';
 import { useDosar } from '../context/DosarContext';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
@@ -61,6 +61,15 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
 
         {/* Right Section: Actions */}
         <div className="flex items-center space-x-6">
+
+          <Link
+            to="/taxa-timbru"
+            className="hidden sm:flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"
+          >
+            <Calculator size={18} className="mr-2" />
+            <span className="hidden lg:inline">Calculator Taxe</span>
+            <span className="lg:hidden">Taxe</span>
+          </Link>
           <button
             onClick={onContribuieClick}
             className="hidden sm:flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"

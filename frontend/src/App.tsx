@@ -17,6 +17,7 @@ import { AuthProvider } from './context/AuthContext';
 import GridTestsPage from './pages/GridTestsPage';
 import PaymentReturnPage from './pages/PaymentReturnPage';
 import PricingPage from './pages/PricingPage';
+import TaxaTimbruPage from './pages/TaxaTimbruPage';
 
 const App: React.FC = () => {
   return (
@@ -38,6 +39,7 @@ const App: React.FC = () => {
           <Route path="/test-analysis" element={<TestAnalysisPage />} />
           <Route path="/payment-return" element={<PaymentReturnPage />} />
           <Route path="/abonamente" element={<PricingPage />} />
+          <Route path="/taxa-timbru" element={<TaxaTimbruPage />} />
         </Routes>
       </DosarProvider>
     </AuthProvider>

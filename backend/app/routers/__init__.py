@@ -8,3 +8,4 @@ from .modele import router as modele_router
 from .settings import router as settings_router
 from .coduri import router as coduri_router
 from .auth import router as auth_router
+from .taxa_timbru_routes import router as taxa_timbru_router

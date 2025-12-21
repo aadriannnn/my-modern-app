@@ -195,3 +195,84 @@ class ClientDataResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+# =======================
+# Taxa Timbru Schemas
+# =======================
+
+class CapatCerereInput(BaseModel):
+    id_intern: str
+    Valoare_Obiect: Optional[float] = None
+    Valoare_Bun_Imobil: Optional[float] = None
+    Numar_Coproprietari_Mostenitori: Optional[int] = None
+    Tip_Divort: Optional[str] = None
+    Este_Contestatie_Executare_Pe_Fond: Optional[bool] = None
+    Valoare_Bunuri_Contestate_Executare: Optional[float] = None
+    Valoare_Debit_Urmarit_Executare: Optional[float] = None
+    Numar_Pagini: Optional[int] = None
+    Numar_Exemplare: Optional[int] = None
+    Numar_Inscrise_Supralegalizare: Optional[int] = None
+    Numar_Participanti_Recuzati: Optional[int] = None
+    Contine_Transfer_Imobiliar: Optional[bool] = None
+    Contine_Partaj: Optional[bool] = None
+    Numar_Motive_Revizuire: Optional[int] = None
+    Numar_Motive_Anulare_Arbitraj: Optional[int] = None
+    Este_Nava_Aeronava: Optional[bool] = None
+    Este_Ordonanta_UE_Indisponibilizare: Optional[bool] = None
+    Valoare_Creanta_Creditor: Optional[float] = None
+    Valoare_Afectata_Prin_Act_Fraudulos: Optional[float] = None
+    Valoare_Obiect_Subiacent: Optional[float] = None
+    Este_Evaluabil: Optional[bool] = None
+    Este_Cale_Atac_Doar_Considerente: Optional[bool] = None
+    Motive_Recurs_Invocate: Optional[List[str]] = []
+    Valoare_Contestata_Recurs: Optional[float] = None
+
+    class Config:
+        extra = 'ignore'
+
+class DateGeneraleInput(BaseModel):
+    Filtru_Proces_Vechi: bool = False
+    Aplica_Scutire: bool = False
+    Temei_Scutire_Selectat: Optional[str] = None
+    Taxa_Achitata_Prima_Instanta: Optional[float] = None
+    Stadiu_Procesual: Optional[str] = None
+
+    class Config:
+        extra = 'ignore'
+
+class TaxaTimbruRequest(BaseModel):
+    """Request schema for calculating stamp duty."""
+    capete_cerere: List[CapatCerereInput]
+    date_generale: DateGeneraleInput
+
+class TaxaTimbruResponse(BaseModel):
+    """Response schema for stamp duty calculation."""
+    taxa_finala: float
+    detaliere_calcul: str
+
+class TipCerereTaxaOption(BaseModel):
+    """Schema for a tax request type option."""
+    id_intern: str
+    nume_standard: str
+    categorie: str
+    articol_referinta: Optional[str] = None
+    evaluabil: Optional[bool] = None
+    necesita_valoare_obiect: Optional[bool] = None
+    campuri_necesare: Optional[List[str]] = []
+
+class SugestieIncadrareLLMRequest(BaseModel):
+    obiect_dosar: str
+    confirm_deduct_points: Optional[bool] = False
+
+class SugestieIncadrareLLMResponse(BaseModel):
+    criminal_classification: Optional[str] = None
+    sugested_id_intern: Optional[str] = None
+    sugested_nume_standard: Optional[str] = None
+    original_input_obiect: str
+    llm_raw_suggestion: Optional[str] = None
+    error_message: Optional[str] = None
+
+class CategorizationOption(BaseModel):
+    id: str
+    description: str
