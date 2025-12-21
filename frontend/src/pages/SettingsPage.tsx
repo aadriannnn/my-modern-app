@@ -412,59 +412,61 @@ const SettingsPage: React.FC = () => {
             />
             {/* Header */}
             <header className="bg-white border-b border-slate-200 sticky top-0 z-30">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-slate-900">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+                    {/* Back Button - Mobile First */}
+                    <button
+                        onClick={() => navigate('/')}
+                        className="flex items-center gap-2 px-3 py-2 text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all font-medium text-sm sm:text-base group border border-transparent hover:border-blue-200 flex-shrink-0"
+                        title="Înapoi la pagina principală"
+                    >
+                        <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
+                        <span className="hidden sm:inline">Pagina Principală</span>
+                        <span className="sm:hidden">Înapoi</span>
+                    </button>
+
+                    {/* Title Section */}
+                    <div className="flex-1 min-w-0">
+                        <h1 className="text-lg sm:text-2xl font-bold text-slate-900 truncate">
                             {isAdmin ? 'Configurare Sistem' : 'Contul Meu'}
                         </h1>
-                        <p className="text-sm text-slate-500 mt-1">
+                        <p className="text-xs sm:text-sm text-slate-500 mt-0.5 hidden md:block truncate">
                             {isAdmin ? 'Ajustează parametrii și gestionează utilizatorii' : 'Gestionează setările contului și abonamentul'}
                         </p>
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        {isAdmin && activeTab !== 'profile' && activeTab !== 'subscription' && activeTab !== 'users' && (
-                            <>
-                                <button
-                                    onClick={handleReset}
-                                    disabled={saving || refreshing}
-                                    className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium text-sm"
-                                >
-                                    <RotateCcw className="w-4 h-4" />
-                                    Resetează
-                                </button>
-                                <button
-                                    onClick={handleRefreshFilters}
-                                    disabled={saving || refreshing}
-                                    className={`flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium text-sm border border-blue-200 ${refreshing ? 'opacity-75 cursor-wait' : ''}`}
-                                >
-                                    <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                                    {refreshing ? 'Se reîncarcă...' : 'Reîncarcă Filtre'}
-                                </button>
-                                <button
-                                    onClick={handleSave}
-                                    disabled={saving}
-                                    className={`flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm shadow-blue-200 ${saving ? 'opacity-75 cursor-wait' : ''}`}
-                                >
-                                    {saving ? (
-                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    ) : (
-                                        <Save className="w-4 h-4" />
-                                    )}
-                                    {saving ? 'Se salvează...' : 'Salvează'}
-                                </button>
-                                <div className="h-6 w-px bg-slate-300 mx-2"></div>
-                            </>
-                        )}
-
-                        <button
-                            onClick={() => navigate('/')}
-                            className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium text-sm"
-                        >
-                            <ArrowLeft className="w-4 h-4" />
-                            Înapoi la Site
-                        </button>
-                    </div>
+                    {/* Admin Action Buttons - Desktop Only */}
+                    {isAdmin && activeTab !== 'profile' && activeTab !== 'subscription' && activeTab !== 'users' && (
+                        <div className="hidden lg:flex items-center gap-3 flex-shrink-0">
+                            <button
+                                onClick={handleReset}
+                                disabled={saving || refreshing}
+                                className="flex items-center gap-2 px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors font-medium text-sm"
+                            >
+                                <RotateCcw className="w-4 h-4" />
+                                Resetează
+                            </button>
+                            <button
+                                onClick={handleRefreshFilters}
+                                disabled={saving || refreshing}
+                                className={`flex items-center gap-2 px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors font-medium text-sm border border-blue-200 ${refreshing ? 'opacity-75 cursor-wait' : ''}`}
+                            >
+                                <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+                                {refreshing ? 'Se reîncarcă...' : 'Reîncarcă Filtre'}
+                            </button>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className={`flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm shadow-blue-200 ${saving ? 'opacity-75 cursor-wait' : ''}`}
+                            >
+                                {saving ? (
+                                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                ) : (
+                                    <Save className="w-4 h-4" />
+                                )}
+                                {saving ? 'Se salvează...' : 'Salvează'}
+                            </button>
+                        </div>
+                    )}
                 </div>
             </header>
 

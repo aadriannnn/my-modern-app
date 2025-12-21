@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
-import { CheckCircle2, ChevronRight, Loader2, AlertCircle, CreditCard, Clock, ShieldCheck, Star, Sparkles, AlertTriangle, Lock } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Loader2, AlertCircle, CreditCard, Clock, ShieldCheck, Star, Sparkles, AlertTriangle, Lock, ArrowLeft } from 'lucide-react';
 import {
     EmbeddedCheckoutProvider,
     EmbeddedCheckout
@@ -162,6 +162,19 @@ const PricingSection: React.FC = () => {
 
     return (
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            {/* Back Button */}
+            <div className="mb-8">
+                <button
+                    onClick={() => navigate('/')}
+                    className="group inline-flex items-center gap-2 px-4 py-2.5 text-slate-700 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all font-medium text-sm sm:text-base border-2 border-transparent hover:border-blue-200 shadow-sm hover:shadow-md"
+                    title="Înapoi la pagina principală"
+                >
+                    <ArrowLeft className="w-5 h-5 transition-transform group-hover:-translate-x-1" />
+                    <span className="hidden sm:inline">Înapoi la Pagina Principală</span>
+                    <span className="sm:hidden">Acasă</span>
+                </button>
+            </div>
+
             {/* Hero Section */}
             <div className="text-center mb-16">
                 <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-4">
