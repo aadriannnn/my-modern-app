@@ -74,83 +74,10 @@ async def sugereaza_incadrare_obiect_llm(
     if not case_description or len(case_description.strip()) < 3:
         raise HTTPException(status_code=400, detail="Descrierea obiectului dosarului este prea scurtă.")
 
-    # 1. Get options
-    options = taxa_timbru_logic.get_tipuri_cereri_taxa()
-    if not options:
-         return SugestieIncadrareLLMResponse(
-            original_input_obiect=case_description,
-            error_message="Nu există opțiuni de categorizare încărcate."
-        )
-
-    # 2. Prepare Prompt
-    options_text_parts = []
-    for opt in options:
-        # Use simple description for token efficiency
-        desc = f"{opt.nume_standard} ({opt.categorie})"
-        options_text_parts.append(f"- ID: {opt.id_intern}, Descriere: \"{desc}\"")
-
-    options_text = "\n".join(options_text_parts)
-
-    system_prompt = f"""Ești un asistent juridic expert în legislația română privind taxele judiciare de timbru (OUG 80/2013).
-Sarcina ta este să analizezi obiectul dosarului și să alegi cel mai potrivit ID din lista de mai jos.
-Returnează DOAR ID-ul categoriei alese (ex: OUG80_ART3_1_GEN). Dacă nu ești sigur, returnează NEDETERMINAT.
-
-Opțiuni disponibile:
-{options_text}"""
-
-    user_prompt = f"""Obiectul dosarului este:
-"{case_description}"
-
-Care este ID-ul corect din lista de mai sus? Returnează doar ID-ul."""
-
-    full_prompt = f"{system_prompt}\n\n{user_prompt}"
-
-    # 3. Call Local LLM via LLMClient
+    # Call Logic Function directly
     try:
-        success, content, _ = await LLMClient.call_llm_local(full_prompt, timeout=60, label="TaxaTimbru Suggestion")
-
-        if not success:
-             return SugestieIncadrareLLMResponse(
-                original_input_obiect=case_description,
-                error_message=f"Eroare la apelul LLM: {content}"
-            )
-
-        # 4. Parse Response (Expect raw ID string from local LLM if prompted correctly, or JSON if conditioned)
-        # Local LLM response might be chatty, try to extract ID.
-        raw_suggestion = content.strip()
-        suggested_id = "NEDETERMINAT"
-
-        # Simple extraction logic: check if any valid ID is present in the response
-        valid_ids = {opt.id_intern for opt in options}
-
-        # Direct match check
-        if raw_suggestion in valid_ids:
-            suggested_id = raw_suggestion
-        else:
-            # Search for ID in text
-            for vid in valid_ids:
-                if vid in raw_suggestion:
-                    suggested_id = vid
-                    break
-
-        # Find standard name
-        suggested_nume_standard = None
-        if suggested_id != "NEDETERMINAT":
-            for opt in options:
-                if opt.id_intern == suggested_id:
-                    suggested_nume_standard = opt.nume_standard
-                    break
-
-        return SugestieIncadrareLLMResponse(
-            original_input_obiect=case_description,
-            sugested_id_intern=suggested_id,
-            sugested_nume_standard=suggested_nume_standard,
-            llm_raw_suggestion=raw_suggestion
-        )
-
+        result = await taxa_timbru_logic.suggest_tax_classification(case_description)
+        return result
     except Exception as e:
-        logger.exception("Eroare neasteptata la sugestia LLM taxa timbru")
-        return SugestieIncadrareLLMResponse(
-            original_input_obiect=case_description,
-            error_message=f"Eroare internă server: {str(e)}"
-        )
+        logger.exception("Eroare neasteptata la sugestia LLM taxa timbru (route)")
+        raise HTTPException(status_code=500, detail=f"Eroare internă server: {str(e)}")

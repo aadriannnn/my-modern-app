@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getSettings, updateSettings, resetSettings, refreshFilters, precalculateModelsCodes, getPrecalculateStatus, stopPrecalculate, getFeedbackStats, type FeedbackStats } from '../lib/api';
+import { getSettings, updateSettings, resetSettings, refreshFilters, precalculateModelsCodes, getPrecalculateStatus, stopPrecalculate, precalculateTax, getPrecalculateTaxStatus, stopPrecalculateTax, getFeedbackStats, type FeedbackStats } from '../lib/api';
 import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square, ThumbsUp, ThumbsDown, BarChart3, Users, User, CreditCard, ArrowLeft } from 'lucide-react';
 import { Switch } from '@headlessui/react';
 import SEOHead from '../components/SEOHead';
@@ -135,6 +135,10 @@ const SettingsPage: React.FC = () => {
     const [precalcStatus, setPrecalcStatus] = useState<any>(null);
     const [showRestartDialog, setShowRestartDialog] = useState(false);
 
+    // Tax Pre-calculation State
+    const [taxPrecalculating, setTaxPrecalculating] = useState(false);
+    const [taxPrecalcStatus, setTaxPrecalcStatus] = useState<any>(null);
+
 
     // Poll for status when precalculating
     useEffect(() => {
@@ -172,6 +176,31 @@ const SettingsPage: React.FC = () => {
         const interval = setInterval(pollStatus, 2000);
         return () => clearInterval(interval);
     }, [precalculating]);
+
+    // Polling for Tax Pre-calculation Status
+    useEffect(() => {
+        if (!taxPrecalculating) return;
+        const pollTaxStatus = async () => {
+            try {
+                const status = await getPrecalculateTaxStatus();
+                setTaxPrecalcStatus(status);
+                if (!status.is_running && status.last_run_stats?.stopped !== true) {
+                    setTaxPrecalculating(false);
+                    if (status.last_run_stats) {
+                        setSuccess(`Pre-calculare taxe finalizată! Procesate: ${status.last_run_stats.processed}`);
+                        setTimeout(() => setSuccess(null), 5000);
+                    }
+                } else if (!status.is_running && status.last_run_stats?.stopped) {
+                    setTaxPrecalculating(false);
+                }
+            } catch (err) {
+                console.error("Error polling tax status:", err);
+            }
+        };
+        pollTaxStatus();
+        const interval = setInterval(pollTaxStatus, 2000); // 2 second poll
+        return () => clearInterval(interval);
+    }, [taxPrecalculating]);
 
     const handlePrecalculate = async () => {
         try {
@@ -211,6 +240,31 @@ const SettingsPage: React.FC = () => {
         } catch (err: any) {
             setError(err.message || 'Eroare la oprirea procesului.');
             console.error(err);
+            setTimeout(() => setError(null), 5000);
+        }
+    };
+
+    const handlePrecalculateTax = async () => {
+        try {
+            const status = await getPrecalculateTaxStatus();
+            // Start the process (restart=false implies resume if possible)
+            const result = await precalculateTax(false);
+            if (result.success) {
+                setTaxPrecalculating(true);
+                setSuccess('Procesul de pre-calculare taxe a început în fundal.');
+                setTimeout(() => setSuccess(null), 3000);
+            }
+        } catch (err: any) {
+            setError(err.message || 'Eroare la pornirea pre-calculării taxelor.');
+            setTimeout(() => setError(null), 5000);
+        }
+    };
+
+    const handleStopPrecalculateTax = async () => {
+        try {
+            await stopPrecalculateTax();
+        } catch (err: any) {
+            setError(err.message || 'Eroare la oprirea procesului.');
             setTimeout(() => setError(null), 5000);
         }
     };
@@ -646,6 +700,76 @@ const SettingsPage: React.FC = () => {
                                                 <div className="font-bold text-blue-600">{precalcStatus.current_progress.with_modele?.toLocaleString()}</div>
                                             </div>
                                         </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Tax Pre-calculation Banner */}
+                        <div className="mb-8 bg-gradient-to-br from-indigo-50 to-cyan-50 border border-indigo-200 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-start justify-between mb-4">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-900 mb-2">⚖️ Optimizare Taxe (AI / LLM)</h3>
+                                    <p className="text-sm text-slate-600 leading-relaxed max-w-3xl">
+                                        Analizează automat toate spețele folosind Inteligența Artificială pentru a genera sugestii de taxare.
+                                        Acest proces rulează în fundal cu pauze inteligente pentru a proteja resursele serverului.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                    {taxPrecalculating ? (
+                                        <button
+                                            onClick={handleStopPrecalculateTax}
+                                            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-xl hover:from-red-700 hover:to-orange-700 transition-all font-medium shadow-lg shadow-red-200"
+                                        >
+                                            <Square className="w-5 h-5" />
+                                            Oprește Analiza AI
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handlePrecalculateTax}
+                                            disabled={saving || refreshing}
+                                            className={`flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-indigo-600 to-cyan-600 text-white rounded-xl hover:from-indigo-700 hover:to-cyan-700 transition-all font-medium shadow-lg shadow-purple-200 ${(saving || refreshing) ? 'opacity-75 cursor-not-allowed' : ''}`}
+                                        >
+                                            <Play className="w-5 h-5" />
+                                            Start Analiză AI Taxe
+                                        </button>
+                                    )}
+
+                                    {taxPrecalcStatus?.can_resume && !taxPrecalculating && (
+                                        <div className="px-4 py-2 bg-yellow-50 text-yellow-700 rounded-lg text-sm font-medium border border-yellow-200">
+                                            📊 {taxPrecalcStatus.incomplete_count?.toLocaleString()} spețe neanalizate
+                                        </div>
+                                    )}
+                                </div>
+
+                                {taxPrecalculating && taxPrecalcStatus?.current_progress && (
+                                    <div className="bg-white/50 rounded-xl p-4 border border-indigo-100">
+                                        <div className="flex justify-between text-sm font-medium text-slate-700 mb-2">
+                                            <span>Progres Analiză AI</span>
+                                            <span>
+                                                {taxPrecalcStatus.current_progress.processed} / {taxPrecalcStatus.current_progress.total} spețe
+                                            </span>
+                                        </div>
+                                        <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
+                                            <div
+                                                className="bg-indigo-600 h-2.5 rounded-full transition-all duration-500 relative"
+                                                style={{ width: `${(taxPrecalcStatus.current_progress.processed / (taxPrecalcStatus.current_progress.total || 1)) * 100}%` }}
+                                            >
+                                                <div className="absolute inset-0 bg-white/30 animate-[shimmer_2s_infinite]"></div>
+                                            </div>
+                                        </div>
+                                        <div className="flex justify-between text-xs text-slate-500 mt-2">
+                                            <span>Succes: {taxPrecalcStatus.current_progress.success_count}</span>
+                                            {taxPrecalcStatus.current_progress.error_count > 0 && (
+                                                <span className="text-red-500">Erori: {taxPrecalcStatus.current_progress.error_count}</span>
+                                            )}
+                                        </div>
+                                        <p className="text-xs text-indigo-600 mt-2 italic flex items-center gap-1">
+                                            <Info className="w-3 h-3" />
+                                            Sistemul face pauze periodice pentru re-inițializarea modelului AI.
+                                        </p>
                                     </div>
                                 )}
                             </div>

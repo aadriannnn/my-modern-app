@@ -202,6 +202,74 @@ async def stop_precalculate():
         )
 
 
+@router.post("/precalculate-tax", response_model=Dict[str, Any])
+async def precalculate_tax(
+    restart: bool = False
+):
+    """
+    Triggers pre-calculation of tax suggestions (LLM) for all cases.
+    """
+    from ..logic.tax_precalculation_service import start_tax_precalculation, tax_precalc_status, tax_precalc_status_lock
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"Tax Pre-calculation endpoint called, restart={restart}")
+
+    # Check if already running
+    with tax_precalc_status_lock:
+        if tax_precalc_status['is_running']:
+            return {
+                'success': False,
+                'message': 'Tax precalculation process is already running',
+                'is_running': True
+            }
+
+    result = start_tax_precalculation(restart_from_zero=restart)
+    return result
+
+
+@router.get("/precalculate-tax-status", response_model=Dict[str, Any])
+async def get_precalculate_tax_status():
+    """
+    Get the current status of the tax precalculation process.
+    """
+    from ..db import engine as main_engine
+    from sqlmodel import Session
+    from ..logic.tax_precalculation_service import get_tax_precalculation_status
+
+    try:
+        with Session(main_engine) as main_session:
+            status = get_tax_precalculation_status(main_session)
+            return status
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting tax precalculation status: {str(e)}"
+        )
+
+
+@router.post("/precalculate-tax-stop", response_model=Dict[str, Any])
+async def stop_precalculate_tax():
+    """
+    Stop the currently running tax precalculation process.
+    """
+    from ..logic.tax_precalculation_service import stop_tax_precalculation
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info("Stop tax precalculation requested")
+
+    try:
+        result = stop_tax_precalculation()
+        return result
+    except Exception as e:
+        logger.error(f"Error stopping tax precalculation: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error stopping tax precalculation: {str(e)}"
+        )
+
+
 @router.get("/export-llm-data", response_model=Dict[str, Any])
 async def export_llm_data(
     session: Session = Depends(get_session)

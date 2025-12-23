@@ -276,6 +276,41 @@ export const stopPrecalculate = async () => {
   return response.json();
 };
 
+export const precalculateTax = async (restart: boolean = false) => {
+  const response = await fetchWithTimeout(`${API_URL}/settings/precalculate-tax?restart=${restart}`, {
+    method: 'POST',
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to precalculate tax');
+  }
+  return response.json();
+};
+
+export const getPrecalculateTaxStatus = async () => {
+  const response = await fetchWithTimeout(`${API_URL}/settings/precalculate-tax-status`, {
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to get tax precalculate status');
+  }
+  return response.json();
+};
+
+export const stopPrecalculateTax = async () => {
+  const response = await fetchWithTimeout(`${API_URL}/settings/precalculate-tax-stop`, {
+    method: 'POST',
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Failed to stop tax precalculation');
+  }
+  return response.json();
+};
+
 // Queue status subscription using Server-Sent Events
 export const subscribeToQueueStatus = (
   requestId: string,

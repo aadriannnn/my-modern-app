@@ -230,6 +230,25 @@ const TaxCalculatorWidget: React.FC<TaxCalculatorWidgetProps> = ({ caseData }) =
         fetchOptions();
     }, []);
 
+    // Load pre-calculated suggestion if available
+    useEffect(() => {
+        if (caseData?.sugestie_llm_taxa) {
+            const suggestion = caseData.sugestie_llm_taxa;
+            // Map backend fields to frontend interface
+            setLlmSuggestion({
+                sugested_id_intern: suggestion.id_intern,
+                sugested_nume_standard: suggestion.nume_standard,
+                original_input_obiect: "Analiză automată (Pre-calculat)",
+                llm_raw_suggestion: JSON.stringify(suggestion),
+                error_message: suggestion.error_message
+            });
+            // Auto-populate input for visibility
+            if (!obiectDosar && caseData.obiect) {
+                setObiectDosar(caseData.obiect);
+            }
+        }
+    }, [caseData]);
+
     const addCapat = () => {
         setCapeteCerere(prev => [...prev, { uniqueId: Date.now(), id_intern: null }]);
     };
@@ -340,25 +359,33 @@ const TaxCalculatorWidget: React.FC<TaxCalculatorWidgetProps> = ({ caseData }) =
                             <Sparkles size={16} className="mr-2 text-indigo-600" />
                             Asistent AI pentru Încadrare
                         </h3>
-                        <div className="flex gap-2 mb-3">
-                            <input
-                                type="text"
-                                className="flex-1 border border-indigo-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
-                                placeholder={caseData?.obiect
-                                    ? `Obiect speță: ${caseData.obiect}`
-                                    : "Descrieți pe scurt obiectul dosarului (ex: acțiune de divort cu partaj)..."
-                                }
-                                value={obiectDosar}
-                                onChange={(e) => setObiectDosar(e.target.value)}
-                            />
-                            <button
-                                onClick={getLLMSuggestion}
-                                disabled={isAnalyzingLLM || !obiectDosar}
-                                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center whitespace-nowrap"
-                            >
-                                {isAnalyzingLLM ? 'Analizez...' : 'Sugerează Încadrarea'}
-                            </button>
-                        </div>
+                        {/* Logic conditional: Ascunde input dacă avem sugestie pre-calculată */}
+                        {!caseData?.sugestie_llm_taxa ? (
+                            <div className="flex gap-2 mb-3">
+                                <input
+                                    type="text"
+                                    className="flex-1 border border-indigo-200 rounded-lg px-4 py-2 text-sm focus:ring-2 focus:ring-indigo-400 outline-none"
+                                    placeholder={caseData?.obiect
+                                        ? `Obiect speță: ${caseData.obiect}`
+                                        : "Descrieți pe scurt obiectul dosarului (ex: acțiune de divort cu partaj)..."
+                                    }
+                                    value={obiectDosar}
+                                    onChange={(e) => setObiectDosar(e.target.value)}
+                                />
+                                <button
+                                    onClick={getLLMSuggestion}
+                                    disabled={isAnalyzingLLM || !obiectDosar}
+                                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center whitespace-nowrap"
+                                >
+                                    {isAnalyzingLLM ? 'Analizez...' : 'Sugerează Încadrarea'}
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="mb-3 text-sm text-indigo-700 bg-indigo-50 p-3 rounded-lg border border-indigo-100 flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
+                                <Sparkles className="w-5 h-5 text-indigo-500 fill-indigo-100 flex-shrink-0" />
+                                <span className="font-medium">Această speță are o încadrare sugerată automat de AI (Pre-calculată).</span>
+                            </div>
+                        )}
 
                         {llmSuggestion && (
                             <div className={`mt-3 p-3 rounded-lg text-sm flex items-start gap-3 ${llmSuggestion.error_message ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-green-50 text-green-800 border border-green-100'}`}>
