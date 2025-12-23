@@ -246,7 +246,7 @@ const SettingsPage: React.FC = () => {
 
     const handlePrecalculateTax = async () => {
         try {
-            const status = await getPrecalculateTaxStatus();
+            await getPrecalculateTaxStatus();
             // Start the process (restart=false implies resume if possible)
             const result = await precalculateTax(false);
             if (result.success) {
