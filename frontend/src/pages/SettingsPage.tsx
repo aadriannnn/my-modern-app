@@ -198,7 +198,7 @@ const SettingsPage: React.FC = () => {
             }
         };
         pollTaxStatus();
-        const interval = setInterval(pollTaxStatus, 2000); // 2 second poll
+        const interval = setInterval(pollTaxStatus, 120000); // 2 minute poll
         return () => clearInterval(interval);
     }, [taxPrecalculating]);
 
