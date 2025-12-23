@@ -983,6 +983,154 @@ def search_companies(session: Session, query: str, is_cui: bool) -> List[Dict[st
                     elif item:
                         caen_codes.append(str(item))
 
+            # --- Financial Indicators Calculation ---
+            def safe_float(val):
+                if val is None or val == "": return None
+                if isinstance(val, (int, float)): return float(val)
+                try:
+                    # Handle string numbers like "1.990" or "1990" or "1,55"
+                    # In this dataset, 1990 is "1990". "1.5" would be standard.
+                    # Safety cleanup
+                    clean = str(val).replace(',', '.') # valid for standard float parsing if needed, though mostly integers here
+                    if clean.strip() == "": return None
+                    return float(clean)
+                except (ValueError, TypeError):
+                    return None
+
+            def safe_div(n, d):
+                n_f = safe_float(n)
+                d_f = safe_float(d)
+                if n_f is None or d_f is None: return None
+                return (n_f / d_f * 100) if d_f != 0 else None
+
+            # Helper to extract value from indicatori_financiari (case-insensitive substring match)
+            def get_fin_indicator(indicators, keywords):
+                if not indicators or not isinstance(indicators, dict):
+                    return 0.0
+                for k, v in indicators.items():
+                    k_lower = k.lower()
+                    if any(kw in k_lower for kw in keywords):
+                        try:
+                            val = v
+                            if isinstance(v, dict):
+                                val = v.get('Valoare', v.get('valoare', 0))
+                            return safe_float(val) or 0.0
+                        except (ValueError, TypeError):
+                            pass
+                return 0.0
+
+            # Try to get financial data from specific year container first
+            fin_data = company_data.get('date_financiare_2024') or {}
+
+            # Extract raw values (strings or numbers) with multiple fallbacks
+            profit_brut_raw = fin_data.get('profit_brut') or company_data.get('profit_brut') or company_data.get('Profit Brut')
+            profit_net_raw = fin_data.get('profit_net') or company_data.get('profit_net') or company_data.get('Profit Net')
+            cifra_afaceri_raw = fin_data.get('cifra_de_afaceri_neta') or company_data.get('cifra_de_afaceri_neta') or company_data.get('Cifra de Afaceri Netă')
+
+            # Liabilities & Assets
+            datorii_raw = fin_data.get('datorii') or company_data.get('datorii') or company_data.get('Datorii')
+            capitaluri_proprii_raw = fin_data.get('capitaluri_total_din_care') or fin_data.get('capitaluri_proprii') or company_data.get('capitaluri_proprii') or company_data.get('Capitaluri Proprii')
+
+            # Calculate Total Assets (Active)
+            # Prioritize explicit total, else sum components
+            total_active_raw = fin_data.get('total_active') or fin_data.get('active_total') or company_data.get('total_active') or company_data.get('Total Active')
+            active_imob_raw = fin_data.get('active_imobilizate_total') or company_data.get('active_imobilizate_total')
+            active_circ_raw = fin_data.get('active_circulante_total_din_care') or company_data.get('active_circulante_total_din_care')
+
+            total_active_val = safe_float(total_active_raw)
+            if total_active_val is None:
+                aim = safe_float(active_imob_raw)
+                ac = safe_float(active_circ_raw)
+                # If we have at least one component, we can try to sum (assuming missing one is 0)
+                # But better to require at least one to be non-None to avoid summing None+None = 0 implying valid 0 assets.
+                if aim is not None or ac is not None:
+                    total_active_val = (aim or 0.0) + (ac or 0.0)
+
+            # EBITDA Calculation
+            indicators = company_data.get('indicatori_financiari') or company_data.get('Indicatori Financiari')
+            cheltuieli_dobanzi = get_fin_indicator(indicators, ['dobanzile', 'dobanzi', 'interest'])
+            cheltuieli_amortizare = get_fin_indicator(indicators, ['amortizarea', 'amortizari', 'depreciation'])
+
+            ebitda = None
+            profit_brut_val = safe_float(profit_brut_raw)
+            if profit_brut_val is not None:
+                ebitda = profit_brut_val + cheltuieli_dobanzi + cheltuieli_amortizare
+
+            # Calculate Ratios
+            # Margins require positive turnover to be meaningful
+            marja_profit_net = safe_div(profit_net_raw, cifra_afaceri_raw)
+            marja_profit_brut = safe_div(profit_brut_raw, cifra_afaceri_raw)
+
+            # Asset-based ratios require Positive Total Assets (> 0)
+            # Negative total assets (e.g. from overdrawn accounts) make these ratios mathematically valid but accountingly meaningless (-3000%).
+            roa = None
+            rata_datoriilor = None
+            rata_autonomiei = None
+
+            if total_active_val is not None and total_active_val > 0:
+                roa = safe_div(profit_net_raw, total_active_val)
+                rata_datoriilor = safe_div(datorii_raw, total_active_val)
+                rata_autonomiei = safe_div(capitaluri_proprii_raw, total_active_val)
+
+            roe = safe_div(profit_net_raw, capitaluri_proprii_raw)
+
+            # --- Generate Automated Conclusions ---
+            analiza = []
+
+            # 1. Rata Datoriilor
+            if rata_datoriilor is not None:
+                d_val = rata_datoriilor
+                d_desc = "Nivel echilibrat."
+                if d_val < 50:
+                    d_desc = "Excelent. Grad redus de îndatorare, indică stabilitate financiară ridicată."
+                elif d_val > 80:
+                    d_desc = "Ridicat. Dependență semnificativă de surse externe de finanțare (>80%)."
+                elif d_val > 65:
+                    d_desc = "Moderată spre ridicată. Compania utilizează efectul de levier, 65%+ din active fiind finanțate prin datorii."
+                else:
+                    d_desc = "Echilibrat. Raport optim între datorii și active."
+
+                analiza.append(f"• Rata Datoriilor ({d_val:.2f}%): {d_desc}")
+
+            # 2. Autonomie
+            if rata_autonomiei is not None:
+                a_val = rata_autonomiei
+                a_desc = "Structură acceptabilă."
+                if a_val > 30:
+                    a_desc = "Solidă. Peste 30% din activitatea companiei este finanțată din fonduri proprii."
+                elif a_val < 10:
+                    a_desc = "Fragilă. Capitalizarea proprii este redusă (<10%), risc de insolvabilitate în caz de șocuri."
+
+                analiza.append(f"• Autonomie Financiară ({a_val:.2f}%): {a_desc}")
+
+            # 3. Profitability Check
+            m_net = safe_float(marja_profit_net)
+            if m_net is not None:
+                p_desc = ""
+                if m_net > 20: p_desc = "Profitabilitate excelentă."
+                elif m_net > 5: p_desc = "Nivel sănătos de performanță."
+                elif m_net > 0: p_desc = "Pozitivă, dar marjele sunt strânse."
+                elif m_net == 0: p_desc = "Profitabilitate nulă (break-even)."
+                else: p_desc = "Negativă. Activitatea generează pierderi raportat la cifra de afaceri."
+
+                analiza.append(f"• Marja Profit Net ({m_net:.2f}%): {p_desc}")
+
+            # Edge Case: Negative Assets
+            if total_active_val is not None and total_active_val < 0:
+                analiza = ["⚠ ATENȚIE CRITICĂ: Compania înregistrează ACTIVE NETE NEGATIVE. Situația indică probleme majore de solvabilitate și posibili indicatori de insolvență. Indicatorii uzuali nu pot fi interpretați standard."]
+
+            company_data['Analiza_Financiara_Text'] = "\n".join(analiza)
+
+            # Add calculated fields to company_data
+            company_data['EBITDA'] = ebitda
+            company_data['Marja_Profit_Net'] = marja_profit_net
+            company_data['Marja_Profit_Brut'] = marja_profit_brut
+            company_data['ROA'] = roa
+            company_data['ROE'] = roe
+            company_data['Rata_Datoriilor'] = rata_datoriilor
+            company_data['Rata_Autonomiei_Financiare'] = rata_autonomiei
+            # ---------------------------------------------
+
             results.append({
                 'id': row.id,
                 'type': 'company',

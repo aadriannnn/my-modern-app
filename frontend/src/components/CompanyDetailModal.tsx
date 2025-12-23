@@ -1,6 +1,8 @@
 import React from 'react';
 import { X, Building2, MapPin, Activity, TrendingUp, Users, Globe, Phone, Mail } from 'lucide-react';
 import type { CompanyResult } from '../types';
+import { useAuth } from '../context/AuthContext';
+import { Lock } from 'lucide-react';
 
 interface CompanyDetailModalProps {
     isOpen: boolean;
@@ -9,6 +11,9 @@ interface CompanyDetailModalProps {
 }
 
 const CompanyDetailModal: React.FC<CompanyDetailModalProps> = ({ isOpen, company, onClose }) => {
+    const { user } = useAuth();
+    const isPro = user?.rol === 'pro' || user?.rol === 'admin';
+
     if (!isOpen || !company) return null;
 
     const data = company.data;
@@ -225,6 +230,96 @@ const CompanyDetailModal: React.FC<CompanyDetailModalProps> = ({ isOpen, company
                                 </div>
                             </section>
                         )}
+
+                        {/* Indicatori Financiari Calculați (PRO Features) */}
+                        <section>
+                            <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                                <TrendingUp className="w-5 h-5 text-purple-600" />
+                                Indicatori Financiari Calculați
+                                {!isPro && (
+                                    <span className="ml-2 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full font-bold uppercase tracking-wider">
+                                        PRO
+                                    </span>
+                                )}
+                            </h3>
+
+                            {!isPro ? (
+                                <div className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-8 flex flex-col items-center justify-center text-center">
+                                    <div className="bg-white p-4 rounded-full shadow-md mb-4">
+                                        <Lock className="w-8 h-8 text-purple-600" />
+                                    </div>
+                                    <h4 className="text-xl font-bold text-gray-900 mb-2">
+                                        Acces Exclusiv la Analiză Financiară Aprofundată
+                                    </h4>
+                                    <p className="text-gray-600 mb-6 max-w-md">
+                                        Vizualizați indicatori de performanță esențiali (EBITDA, ROA, ROE, Marje Profit) pentru o evaluare completă a sănătății financiare a companiei. Disponibil doar pentru membrii PRO.
+                                    </p>
+                                    <button
+                                        onClick={() => window.location.href = '/subscription'}
+                                        className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                                    >
+                                        Activează Abonamentul PRO
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <FinancialCard
+                                        label="EBITDA"
+                                        value={data.EBITDA}
+                                        color="purple"
+                                    />
+                                    <FinancialCard
+                                        label="Marja Profit Net (%)"
+                                        value={data.Marja_Profit_Net}
+                                        color="blue"
+                                        isPercentage
+                                    />
+                                    <FinancialCard
+                                        label="Marja Profit Brut (%)"
+                                        value={data.Marja_Profit_Brut}
+                                        color="blue"
+                                        isPercentage
+                                    />
+                                    <FinancialCard
+                                        label="ROA (%)"
+                                        value={data.ROA}
+                                        color="green"
+                                        isPercentage
+                                    />
+                                    <FinancialCard
+                                        label="ROE (%)"
+                                        value={data.ROE}
+                                        color="green"
+                                        isPercentage
+                                    />
+                                    <FinancialCard
+                                        label="Rata Datoriilor"
+                                        value={data.Rata_Datoriilor}
+                                        color="red"
+                                        isPercentage
+                                    />
+                                    <FinancialCard
+                                        label="Autonomie Financiară"
+                                        value={data.Rata_Autonomiei_Financiare}
+                                        color="green"
+                                        isPercentage
+                                    />
+                                </div>
+                            )}
+
+                            {data.Analiza_Financiara_Text && (
+                                <div className="mt-6 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-indigo-100 rounded-xl">
+                                    <h4 className="text-sm font-bold text-indigo-900 mb-3 flex items-center gap-2 uppercase tracking-wide">
+                                        <TrendingUp className="w-4 h-4" />
+                                        Concluzii Automate
+                                    </h4>
+                                    <div className="text-indigo-800 text-sm leading-relaxed whitespace-pre-line font-medium">
+                                        {data.Analiza_Financiara_Text}
+                                    </div>
+                                </div>
+                            )}
+                        </section>
+
                     </div>
                 </div>
             </div>
@@ -244,18 +339,37 @@ const InfoItem: React.FC<{ label: string; value: any }> = ({ label, value }) => 
     );
 };
 
-const FinancialCard: React.FC<{ label: string; value: any; color: string }> = ({ label, value, color }) => {
-    if (!value && value !== 0) return null;
+const FinancialCard: React.FC<{ label: string; value: any; color: string; isPercentage?: boolean }> = ({ label, value, color, isPercentage }) => {
+    // Hide card if value is null, undefined, or empty string (unless it is exactly 0)
+    if (value === null || value === undefined || value === '') return null;
 
     const colorClasses = {
         blue: 'bg-blue-50 text-blue-700 border-blue-100',
         green: 'bg-green-50 text-green-700 border-green-100',
         purple: 'bg-purple-50 text-purple-700 border-purple-100',
+        red: 'bg-red-50 text-red-700 border-red-100',
     }[color] || 'bg-gray-50 text-gray-700 border-gray-100';
 
-    const formattedValue = typeof value === 'number'
-        ? new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON' }).format(value)
-        : value;
+    let formattedValue = '-';
+    let numericValue = value;
+
+    if (typeof value === 'string') {
+        const cleanVal = value.replace(/,/g, '');
+        const parsed = parseFloat(cleanVal);
+        if (!isNaN(parsed)) {
+            numericValue = parsed;
+        } else {
+            formattedValue = value;
+        }
+    }
+
+    if (typeof numericValue === 'number' && !isNaN(numericValue)) {
+        if (isPercentage) {
+            formattedValue = `${numericValue.toLocaleString('ro-RO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
+        } else {
+            formattedValue = new Intl.NumberFormat('ro-RO', { style: 'currency', currency: 'RON' }).format(numericValue);
+        }
+    }
 
     return (
         <div className={`p-4 rounded-xl border ${colorClasses}`}>
