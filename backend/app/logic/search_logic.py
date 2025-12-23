@@ -2,7 +2,7 @@ import logging
 import requests
 import unicodedata
 import re
-from sqlmodel import Session, text
+from sqlmodel import Session, text, select
 from typing import List, Dict, Any, Tuple
 
 from ..config import get_settings
@@ -842,3 +842,161 @@ def get_case_by_id(session: Session, case_id: int) -> Dict[str, Any] | None:
     processed_result = _process_results([result], score_metric=None)
     logger.info(f"Successfully fetched and processed case ID {case_id}.")
     return processed_result[0] if processed_result else None
+
+
+def detect_company_query(query: str) -> tuple:
+    """
+    Detect if query is for company search.
+
+    Returns:
+        (is_company_query, is_cui)
+    """
+    query_clean = query.strip()
+
+    # Check if numeric and > 10000 (CUI pattern)
+    if query_clean.isdigit() and int(query_clean) > 10000:
+        return (True, True)
+
+    # Check for company keywords (case-insensitive)
+    company_keywords = ['SC', 'S.C.', 'SA', 'S.A.', 'SRL', 'S.R.L.', 'PF', 'P.F.', 'II']
+    query_upper = query_clean.upper()
+
+    for keyword in company_keywords:
+        if keyword in query_upper:
+            return (True, False)
+
+    return (False, False)
+
+
+def search_companies(session: Session, query: str, is_cui: bool) -> List[Dict[str, Any]]:
+    """
+    Search for companies in blocuri_firme table.
+
+    Args:
+        session: Database session
+        query: Search query (CUI or company name)
+        is_cui: True if searching by CUI, False if searching by name
+
+    Returns:
+        List of company results formatted for frontend display
+    """
+    from ..models import BlocuriFirme
+
+    results = []
+
+    try:
+        if is_cui:
+            # Exact CUI match
+            statement = select(BlocuriFirme).where(
+                text("obj->>'CUI' = :query")
+            ).params(query=query).limit(10)
+            rows = session.exec(statement).all()
+        else:
+            # Company name search with smart matching
+
+            # 1. Try exact case-insensitive match first
+            exact_statement = select(BlocuriFirme).where(
+                text("LOWER(obj->>'DENUMIRE') = LOWER(:query)")
+            ).params(query=query).limit(1)
+
+            exact_rows = session.exec(exact_statement).all()
+
+            if exact_rows:
+                # Found exact match
+                rows = exact_rows
+            else:
+                # 2. Try partial match with ILIKE (contains)
+                ilike_statement = select(BlocuriFirme).where(
+                    text("obj->>'DENUMIRE' ILIKE :query_pattern")
+                ).params(query_pattern=f"%{query}%").limit(5)
+
+                ilike_rows = session.exec(ilike_statement).all()
+
+                if len(ilike_rows) > 0:
+                    # Found partial matches
+                    rows = ilike_rows
+                else:
+                    # 3. Fuzzy trigram search as last resort
+                    # Normalize query: remove spaces, lowercase for better fuzzy matching
+                    normalized_query = query.lower().replace(' ', '').replace('.', '')
+
+                    # Use trigram similarity on normalized names
+                    fuzzy_statement = select(BlocuriFirme).order_by(
+                        text("LOWER(REPLACE(REPLACE(obj->>'DENUMIRE', ' ', ''), '.', '')) <-> :normalized_query")
+                    ).params(normalized_query=normalized_query).limit(3)
+
+                    rows = session.exec(fuzzy_statement).all()
+
+        for row in rows:
+            company_data = row.obj
+
+            # Build full address from ADR_* fields
+            address_parts = []
+            if company_data.get('ADR_DEN_STRADA'):
+                address_parts.append(company_data['ADR_DEN_STRADA'])
+            if company_data.get('ADR_NR_STRADA'):
+                address_parts.append(f"nr. {company_data['ADR_NR_STRADA']}")
+            if company_data.get('ADR_BLOC'):
+                address_parts.append(f"bl. {company_data['ADR_BLOC']}")
+            if company_data.get('ADR_SCARA'):
+                address_parts.append(f"sc. {company_data['ADR_SCARA']}")
+            if company_data.get('ADR_ETAJ'):
+                address_parts.append(f"et. {company_data['ADR_ETAJ']}")
+            if company_data.get('ADR_APARTAMENT'):
+                address_parts.append(f"ap. {company_data['ADR_APARTAMENT']}")
+            if company_data.get('ADR_LOCALITATE'):
+                address_parts.append(company_data['ADR_LOCALITATE'])
+            if company_data.get('ADR_JUDET'):
+                address_parts.append(f"jud. {company_data['ADR_JUDET']}")
+
+            full_address = ", ".join(address_parts) if address_parts else ""
+
+            # Extract status description from stare field
+            # stare is a LIST: [{'cod_stare': '1048', 'descriere_stare': 'funcțiune'}]
+            stare_value = company_data.get('stare', '')
+            stare_display = ''
+
+            if isinstance(stare_value, list) and len(stare_value) > 0:
+                # stare is a list, get first element
+                first_stare = stare_value[0]
+                if isinstance(first_stare, dict):
+                    stare_display = first_stare.get('descriere_stare', '')
+                else:
+                    stare_display = str(first_stare)
+            elif isinstance(stare_value, dict):
+                # Fallback for dict format
+                stare_display = stare_value.get('descriere_stare', '')
+            elif stare_value:
+                # Fallback for string
+                stare_display = str(stare_value)
+
+            # Format CAEN codes - extract just the code if it's an object
+            caen_raw = company_data.get('activitati_caen', [])
+            caen_codes = []
+            if isinstance(caen_raw, list):
+                for item in caen_raw:
+                    if isinstance(item, dict):
+                        # If CAEN is an object, extract the code field
+                        code = item.get('cod', item.get('code', item.get('caen', '')))
+                        if code:
+                            caen_codes.append(str(code))
+                    elif item:
+                        caen_codes.append(str(item))
+
+            results.append({
+                'id': row.id,
+                'type': 'company',
+                'denumire': company_data.get('DENUMIRE', ''),
+                'cui': str(company_data.get('CUI', '')),
+                'adresa': full_address,
+                'nr_reg_com': company_data.get('COD_INMATRICULARE', ''),
+                'stare': stare_display,
+                'caen': caen_codes,
+                'data': company_data  # Full data for detailed view
+            })
+    except Exception as e:
+        logger.error(f"Error searching companies: {e}")
+        # Return empty results on error
+        pass
+
+    return results

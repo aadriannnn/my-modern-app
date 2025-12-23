@@ -3,6 +3,7 @@ import Header from '../components/Header';
 import LeftSidebar from '../components/LeftSidebar';
 import MainContent from '../components/MainContent';
 import CaseDetailModal from '../components/CaseDetailModal';
+import CompanyDetailModal from '../components/CompanyDetailModal';
 import ContribuieModal from '../components/ContribuieModal';
 import Footer from '../components/Footer';
 import { getFilters, search as apiSearch, searchByDosar } from '../lib/api';
@@ -26,6 +27,8 @@ const SearchPage: React.FC = () => {
     });
     const [selectedCase, setSelectedCase] = useState<any | null>(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [selectedCompany, setSelectedCompany] = useState<any | null>(null);
+    const [isCompanyModalOpen, setIsCompanyModalOpen] = useState(false);
     const [isContribuieModalOpen, setIsContribuieModalOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [isProEnabled] = useState(true);
@@ -284,8 +287,14 @@ const SearchPage: React.FC = () => {
     }, []);
 
     const handleViewCase = (caseData: any) => {
-        setSelectedCase(caseData);
-        setIsModalOpen(true);
+        // Check if it's a company or a legal case
+        if (caseData.type === 'company') {
+            setSelectedCompany(caseData);
+            setIsCompanyModalOpen(true);
+        } else {
+            setSelectedCase(caseData);
+            setIsModalOpen(true);
+        }
     };
 
     const handleRemoveFilter = useCallback((filterType: string, valueToRemove: string) => {
@@ -413,6 +422,12 @@ const SearchPage: React.FC = () => {
                 isOpen={isModalOpen}
                 result={selectedCase}
                 onClose={() => setIsModalOpen(false)}
+            />
+
+            <CompanyDetailModal
+                isOpen={isCompanyModalOpen}
+                company={selectedCompany}
+                onClose={() => setIsCompanyModalOpen(false)}
             />
 
             <ContribuieModal

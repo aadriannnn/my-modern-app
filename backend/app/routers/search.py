@@ -28,12 +28,25 @@ async def search(
         # Define the processor function that will be called by queue worker
         async def process_search(payload: dict):
             """Process the actual search when queue worker calls it."""
+            from ..logic.search_logic import detect_company_query, search_companies
+
             # Recreate SearchRequest from payload
             search_req = SearchRequest(**payload['search_request'])
+
             # Get fresh session for this worker
             with next(get_session()) as worker_session:
-                results = search_cases(worker_session, search_req)
-                logger.info(f"Search completed successfully, returning {len(results)} results.")
+                # Detect if this is a company query
+                is_company, is_cui = detect_company_query(search_req.situatie)
+
+                if is_company:
+                    # Route to company search
+                    results = search_companies(worker_session, search_req.situatie, is_cui)
+                    logger.info(f"Company search completed, returning {len(results)} company results.")
+                else:
+                    # Standard case search
+                    results = search_cases(worker_session, search_req)
+                    logger.info(f"Search completed successfully, returning {len(results)} case results.")
+
                 return results
 
         # Prepare payload

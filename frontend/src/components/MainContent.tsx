@@ -2,6 +2,8 @@ import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters';
+import CompanyCard from './CompanyCard';
+import type { CompanyResult } from '../types';
 
 import { Loader2, Search, Wand2, X, Copy, Check, FileText } from 'lucide-react';
 import Advertisement from './Advertisement';
@@ -416,13 +418,20 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
       <div className="space-y-4">
         {results.map((result, index) => (
           <div ref={results.length === index + 1 ? lastResultElementRef : null} key={`${result.id}-${index}`}>
-            <ResultItem
-              result={result}
-              activeView={activeView}
-              onViewCase={() => onViewCase(result)}
-              isAISelected={result.isAISelected || false}
-              isCandidateCase={result.isCandidateCase || false}
-            />
+            {result.type === 'company' ? (
+              <CompanyCard
+                company={result as CompanyResult}
+                onViewDetails={() => onViewCase(result)}
+              />
+            ) : (
+              <ResultItem
+                result={result}
+                activeView={activeView}
+                onViewCase={() => onViewCase(result)}
+                isAISelected={result.isAISelected || false}
+                isCandidateCase={result.isCandidateCase || false}
+              />
+            )}
           </div>
         ))}
         {isLoading && (
@@ -588,7 +597,8 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
           </>
         )}
 
-        {results.length > 0 && (
+        {/* Only show view navigation for legal case results, not company results */}
+        {results.length > 0 && !results.some(r => r.type === 'company') && (
           <>
             {/* Mobile View - Vertical Stack */}
             <div className="md:hidden mb-4">
@@ -683,7 +693,8 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
         />
 
         {/* --- GRID TESTS ENTRY POINT --- */}
-        {results.length > 0 && (user?.rol === 'pro' || user?.rol === 'admin') && (
+        {/* Only show for legal case results, not company results */}
+        {results.length > 0 && !results.some(r => r.type === 'company') && (user?.rol === 'pro' || user?.rol === 'admin') && (
           <div className="mb-6 bg-gradient-to-r from-blue-600 to-indigo-600 p-6 rounded-2xl shadow-lg relative overflow-hidden group">
             <div className="absolute top-0 right-0 p-8 opacity-10 transform translate-x-10 -translate-y-10 group-hover:translate-x-5 group-hover:-translate-y-5 transition-transform duration-500">
               <Wand2 className="w-48 h-48 text-white" />

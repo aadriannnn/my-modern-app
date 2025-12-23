@@ -90,3 +90,24 @@ export interface QueueState {
   version: string;
   tasks: QueueTask[];
 }
+
+// Company search result type
+export interface CompanyResult {
+  id: number;
+  type: 'company';
+  denumire: string;
+  cui: string;
+  adresa: string;
+  nr_reg_com: string;
+  stare: string;
+  caen: string[];
+  data: {
+    CUI: string;
+    DENUMIRE: string;
+    ADRESA: string;
+    NR_REG_COM: string;
+    STARE: string;
+    CAEN: any[];
+    [key: string]: any; // For additional financial fields
+  };
+}

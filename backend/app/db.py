@@ -2,7 +2,7 @@ import logging
 from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy import text
 from .config import get_settings
-from .models import Blocuri, MaterieStatistics, FeedbackStatistics, UltimaInterogare, ClientDB, ClientRole
+from .models import Blocuri, MaterieStatistics, FeedbackStatistics, UltimaInterogare, ClientDB, ClientRole, BlocuriFirme
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -64,6 +64,23 @@ def init_db():
         # Use a more robust check for PostgreSQL
         if engine.url.drivername == "postgresql":
             session.exec(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+
+            # Create pg_trgm extension for fuzzy text matching (if not already exists)
+            session.exec(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+
+            # Create indexes for company search optimization
+            try:
+                # Index for CUI exact match searches
+                session.exec(text("CREATE INDEX IF NOT EXISTS idx_blocuri_firme_cui ON blocuri_firme ((obj->>'CUI'))"))
+
+                # Trigram index for fuzzy company name searches
+                session.exec(text("CREATE INDEX IF NOT EXISTS idx_blocuri_firme_denumire_trgm ON blocuri_firme USING GIN ((obj->>'DENUMIRE') gin_trgm_ops)"))
+
+                session.commit()
+                logger.info("Company search indexes created successfully")
+            except Exception as e:
+                logger.warning(f"Could not create company search indexes (table may not exist yet): {e}")
+                session.rollback()
 
         # Seed data for testing if the blocuri table is empty
         try:

@@ -159,3 +159,11 @@ class MaterieStatistics(SQLModel, table=True):
     materie: str = Field(primary_key=True)  # The materie name (e.g., "Penal", "Civil")
     display_count: int = Field(default=0, index=True)  # Number of times displayed
     last_updated: datetime = Field(default_factory=datetime.utcnow, nullable=False)
+
+
+class BlocuriFirme(SQLModel, table=True):
+    """Model for Romanian company data from blocuri_firme table."""
+    __tablename__ = 'blocuri_firme'
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    obj: dict = Field(sa_column=Column(db_specific_json))
