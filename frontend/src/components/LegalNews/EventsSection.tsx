@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { NewsApi } from '../../lib/api-news';
 import { type LegalNewsEvent } from '../../types/news';
-import EventCard from '../../components/LegalNews/EventCard';
+import EventCard from '../../pages/LegalNews/EventCard';
 
 const EventsSection: React.FC = () => {
     const [events, setEvents] = useState<LegalNewsEvent[]>([]);
