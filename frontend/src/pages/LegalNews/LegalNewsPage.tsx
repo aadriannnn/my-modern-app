@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useLocation } from 'react-router-dom';
 import Header from '../../components/Header';
 import LegalNewsTabs from './LegalNewsTabs';
 import ArticlesSection from './ArticlesSection';
@@ -8,7 +9,7 @@ import JobsSection from './JobsSection';
 import AuthorsSection from './AuthorsSection';
 
 const LegalNewsPage: React.FC = () => {
-    const [activeTab, setActiveTab] = useState('news');
+    const location = useLocation();
 
     const toggleMenu = () => {
         console.log("Toggle menu");
@@ -19,14 +20,13 @@ const LegalNewsPage: React.FC = () => {
     };
 
     const renderContent = () => {
-        switch (activeTab) {
-            case 'news': return <ArticlesSection />;
-            case 'events': return <EventsSection />;
-            case 'books': return <BooksSection />;
-            case 'jobs': return <JobsSection />;
-            case 'authors': return <AuthorsSection />;
-            default: return <ArticlesSection />;
-        }
+        const path = location.pathname;
+        if (path === '/stiri' || path.startsWith('/stiri/')) return <ArticlesSection />;
+        if (path.startsWith('/evenimente')) return <EventsSection />;
+        if (path.startsWith('/editura')) return <BooksSection />;
+        if (path.startsWith('/cariere')) return <JobsSection />;
+        if (path.startsWith('/profesionisti')) return <AuthorsSection />;
+        return <ArticlesSection />;
     };
 
     return (
@@ -45,7 +45,7 @@ const LegalNewsPage: React.FC = () => {
             </div>
 
             <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <LegalNewsTabs activeTab={activeTab} onTabChange={setActiveTab} />
+                <LegalNewsTabs />
 
                 <div className="min-h-[400px]">
                     {renderContent()}

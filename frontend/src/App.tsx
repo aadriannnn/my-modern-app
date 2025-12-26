@@ -46,8 +46,13 @@ const App: React.FC = () => {
           <Route path="/taxa-timbru" element={<TaxaTimbruPage />} />
 
           {/* Legal News Routes */}
+          {/* Legal News Routes */}
           <Route path="/stiri" element={<LegalNewsPage />} />
           <Route path="/stiri/articol/:slug" element={<ArticleDetailPage />} />
+          <Route path="/evenimente" element={<LegalNewsPage />} />
+          <Route path="/editura" element={<LegalNewsPage />} />
+          <Route path="/cariere" element={<LegalNewsPage />} />
+          <Route path="/profesionisti" element={<LegalNewsPage />} />
         </Routes>
       </DosarProvider>
     </AuthProvider>
