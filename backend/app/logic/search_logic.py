@@ -159,6 +159,11 @@ def _process_results(rows: List[Dict], score_metric: str = "semantic_distance") 
             "solutia": obj.get("solutia", ""),
             "tip_speta": obj.get('tip_speta', "—"),
             "materie": obj.get('materie', "—"),
+            # New juridical fields
+            "probele_retinute": obj.get('probele_retinute') or "",
+            "tip_act_juridic": obj.get('tip_act_juridic') or "",
+            "tip_solutie": obj.get('tip_solutie') or "",
+            "cereri_accesorii": obj.get('cereri_accesorii') or "",
         }
         data['situatia_de_fapt_full'] = data.get('situatia_de_fapt', '')
         results.append({
@@ -174,6 +179,7 @@ def _process_results(rows: List[Dict], score_metric: str = "semantic_distance") 
             "solutia": data['solutia'],
             "tip_speta": data['tip_speta'],
             "materie": data['materie'],
+            "cereri_accesorii": data['cereri_accesorii'],
             "score": score if not math.isnan(score) else 0.0,
             "data": data
         })

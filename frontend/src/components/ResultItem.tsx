@@ -6,7 +6,7 @@ import ShareButton from './ShareButton';
 import { useDosar } from '../context/DosarContext';
 import AIResultBadge from './AIResultBadge';
 
-type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
+type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod' | 'cereri_accesorii';
 
 interface ResultItemProps {
   result: any;
@@ -18,7 +18,8 @@ interface ResultItemProps {
 
 const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView, isAISelected = false, isCandidateCase = false }) => {
   const { addToDosar, removeFromDosar, isCaseInDosar } = useDosar();
-  const content = result?.[activeView] || 'Nu există descriere disponibilă.';
+  // Try to access content from result or result.data
+  const content = result?.[activeView] || result?.data?.[activeView] || 'Nu există descriere disponibilă.';
 
   // Don't render the component if the content for the active view is missing or just "null"
   if (!content || typeof content !== 'string' || content.trim().toLowerCase() === 'null' || content.trim() === '') {

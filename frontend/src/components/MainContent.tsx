@@ -42,10 +42,6 @@ interface MainContentProps {
   dosarSearchInfo?: { obiect: string; numar: string; materie?: string | null } | null;
 }
 
-type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
-
-
-
 // Example case text for user education
 const EXAMPLE_CASE = "Contestatorii au formulat contestație la executare silită împotriva actelor de executare pornite de un executor judecătoresc la cererea creditorului, bazate pe două contracte de împrumut. Aceștia au solicitat anularea actelor de executare, reducerea cheltuielilor de executare și anularea titlurilor executorii (contractele de împrumut), argumentând că prețurile din contracte erau neserioase, sumele împrumutate nu au fost primite integral și că actele ascundeau o operațiune de cămătărie.";
 
@@ -370,6 +366,8 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
     textarea.style.height = `${newHeight}px`;
   }, [situatie]);
 
+  type ViewType = 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod' | 'cereri_accesorii';
+
 
 
   const lastResultElementRef = useCallback((node: HTMLDivElement | null) => {
@@ -390,6 +388,7 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
     { key: 'text_doctrina', label: 'Doctrină' },
     { key: 'text_ce_invatam', label: 'Ce învățăm' },
     { key: 'Rezumat_generat_de_AI_Cod', label: 'Rezumat AI' },
+    { key: 'cereri_accesorii', label: 'Cereri accesorii' },
   ];
 
   const renderContent = () => {

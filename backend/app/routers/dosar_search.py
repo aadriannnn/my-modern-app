@@ -163,6 +163,11 @@ async def search_by_dosar_number(
                 "tip_speta": obj.get('tip_speta', "—"),
                 "materie": obj.get('materie', "—"),
                 "obiect": obj.get('obiect', ""),
+                # New juridical fields
+                "probele_retinute": obj.get('probele_retinute') or "",
+                "tip_act_juridic": obj.get('tip_act_juridic') or "",
+                "tip_solutie": obj.get('tip_solutie') or "",
+                "cereri_accesorii": obj.get('cereri_accesorii') or "",
                 "score": composite_score / 100.0,  # Use composite score for main ranking (0-1)
                 "composite_score": composite_score,
                 "similarity_percentage": similarity_score,  # Keep original object similarity for display

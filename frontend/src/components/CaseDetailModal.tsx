@@ -95,6 +95,10 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
             {renderField("Materie", caseData.materie)}
             {renderField("Obiect", caseData.obiect)}
             {renderField("Părți", caseData.parti)}
+            {renderField("Probe Reținute", caseData.probele_retinute)}
+            {renderField("Act Juridic", caseData.tip_act_juridic)}
+            {renderField("Tip Soluție", caseData.tip_solutie)}
+            {renderField("Cereri Accesorii", caseData.cereri_accesorii)}
           </>
         );
       case "Situația de fapt":
