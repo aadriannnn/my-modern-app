@@ -12,7 +12,7 @@ const BookCard: React.FC<BookCardProps> = ({ book }) => {
             <div className="h-64 bg-gray-50 flex items-center justify-center p-6 relative overflow-hidden">
                 {book.imageUrl ? (
                     <img
-                        src={`/api/uploads/${book.imageUrl}`}
+                        src={book.imageUrl?.startsWith('/') ? book.imageUrl : `/api/uploads/${book.imageUrl}`}
                         alt={book.title}
                         className="h-full object-contain shadow-md group-hover:scale-105 transition-transform duration-300"
                         onError={(e) => {

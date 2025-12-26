@@ -16,7 +16,7 @@ from .models_news import (
     LegalNewsEvent,
     LegalNewsJob
 )
-from .config import settings
+# from .config import settings
 
 # --- Configuration ---
 # Assuming this file is in backend/app/

@@ -1,6 +1,8 @@
 import logging
 import traceback
 from fastapi import FastAPI, Request, APIRouter
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.middleware.cors import CORSMiddleware
@@ -52,6 +54,14 @@ class ExceptionLoggingMiddleware(BaseHTTPMiddleware):
 
 settings = get_settings()
 app = FastAPI(title=settings.APP_NAME)
+
+# Mount 'data' directory to serve static files (e.g. legal news images)
+# backend/app/main.py -> parent=app -> parent=backend -> / data
+data_dir = Path(__file__).resolve().parent.parent / "data"
+if data_dir.exists():
+    app.mount("/data", StaticFiles(directory=data_dir), name="data")
+else:
+    logger.warning(f"Data directory not found for static mounting: {data_dir}")
 
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -137,4 +147,4 @@ def health():
     return {"status": "ok"}
 
 
-# FORCE RELOAD 2
+# FORCE RELOAD 5

@@ -14,11 +14,13 @@ from ..models_news import (
 logger = logging.getLogger(__name__)
 
 # Config: ../data/legal_news relative to backend/app/lib/
-DATA_DIR = Path(__file__).resolve().parent.parent / "data" / "legal_news"
+DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "legal_news"
 IMAGES_BASE_URL = "/data/legal_news/images/"
 
-def _construct_image_url(filename):
+def _construct_image_url(filename, subdir=None):
     if filename:
+        if subdir:
+            return f"{IMAGES_BASE_URL}{subdir}/{filename}"
         return f"{IMAGES_BASE_URL}{filename}"
     return None
 
@@ -48,7 +50,7 @@ def seed_news_data(session: Session):
                     existing = session.exec(select(LegalNewsAuthor).where(LegalNewsAuthor.id == item["id"])).first()
                     if not existing:
                         # Construct URLs
-                        item["profileImageUrl"] = _construct_image_url(item.get("imageFileName"))
+                        item["profileImageUrl"] = _construct_image_url(item.get("imageFileName"), "authors")
 
                         author = LegalNewsAuthor(**item)
                         session.add(author)
@@ -88,7 +90,9 @@ def seed_news_data(session: Session):
                             except: item["publishDate"] = datetime.utcnow()
 
                         # Images
-                        item["imageUrl"] = _construct_image_url(item.get("imageFileName"))
+                        item["imageUrl"] = _construct_image_url(item.get("imageFileName")) # Articles seem to be in root images based on user image? or strictly no subdir?
+                        # Based on user image, root images seem to be article images (adrian-nicolau_verdictline...)
+                        # So no subdir for articles.
 
                         article = LegalNewsArticle(**item)
                         session.add(article)
@@ -109,7 +113,7 @@ def seed_news_data(session: Session):
                 for item in data:
                     existing = session.exec(select(LegalNewsEvent).where(LegalNewsEvent.id == item["id"])).first()
                     if not existing:
-                        item["imageUrl"] = _construct_image_url(item.get("imageFileName"))
+                        item["imageUrl"] = _construct_image_url(item.get("imageFileName"), "events")
 
                         # Date parsing
                         # JSON might have 'startDate' or 'date'
@@ -171,7 +175,14 @@ def seed_news_data(session: Session):
                 for item in data:
                     existing = session.exec(select(LegalNewsBook).where(LegalNewsBook.id == item["id"])).first()
                     if not existing:
-                        item["imageUrl"] = _construct_image_url(item.get("imageFileName"))
+                        item["imageUrl"] = _construct_image_url(item.get("imageFileName"), "books")
+
+                        # Map 'authors' list to 'author' string
+                        if "authors" in item and isinstance(item["authors"], list):
+                            item["author"] = ", ".join(item["authors"])
+                            del item["authors"]
+                        elif "author" not in item:
+                             item["author"] = "Autor Necunoscut"
 
                         # Fix price type if needed (Str vs Float)
                         if item.get("price") and not isinstance(item["price"], str):

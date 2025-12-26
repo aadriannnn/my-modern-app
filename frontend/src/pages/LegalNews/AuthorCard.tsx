@@ -12,7 +12,7 @@ const AuthorCard: React.FC<AuthorCardProps> = ({ author }) => {
             <div className="w-24 h-24 rounded-full bg-gray-100 mb-4 overflow-hidden border-2 border-brand-light group-hover:border-brand-accent transition-colors">
                 {author.profileImageUrl ? (
                     <img
-                        src={`/api/uploads/${author.profileImageUrl}`}
+                        src={author.profileImageUrl?.startsWith('/') ? author.profileImageUrl : `/api/uploads/${author.profileImageUrl}`}
                         alt={author.name}
                         className="w-full h-full object-cover"
                         onError={(e) => {

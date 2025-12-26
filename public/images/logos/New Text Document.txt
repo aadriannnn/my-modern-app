@@ -1,0 +1,2 @@
+LegalNewsSection aici gasesc pentru sectiunea oportunitati cariera
+// src/components/Sidebar.jsx aici gasesc penttru reclama dreapta

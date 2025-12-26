@@ -6,7 +6,8 @@ import ArticlesSection from './ArticlesSection';
 import EventsSection from './EventsSection';
 import BooksSection from './BooksSection';
 import JobsSection from './JobsSection';
-import AuthorsSection from './AuthorsSection';
+import ProfessionalsSection from './ProfessionalsSection';
+import ArticleDetailPage from './ArticleDetailPage';
 
 const LegalNewsPage: React.FC = () => {
     const location = useLocation();
@@ -19,13 +20,19 @@ const LegalNewsPage: React.FC = () => {
         console.log("Contribuie click");
     };
 
+    const path = location.pathname;
+
+    // Check if we are on a detail page that handles its own layout
+    if (path.includes('/articol/')) {
+        return <ArticleDetailPage />;
+    }
+
     const renderContent = () => {
-        const path = location.pathname;
-        if (path === '/stiri' || path.startsWith('/stiri/')) return <ArticlesSection />;
+        if (path === '/stiri' || path === '/stiri/') return <ArticlesSection />;
         if (path.startsWith('/evenimente')) return <EventsSection />;
         if (path.startsWith('/editura')) return <BooksSection />;
         if (path.startsWith('/cariere')) return <JobsSection />;
-        if (path.startsWith('/profesionisti')) return <AuthorsSection />;
+        if (path.startsWith('/profesionisti') || path.startsWith('/stiri/autor')) return <ProfessionalsSection />;
         return <ArticlesSection />;
     };
 

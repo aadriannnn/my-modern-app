@@ -16,9 +16,9 @@ const EventCard: React.FC<EventCardProps> = ({ event }) => {
             <div className="relative h-48 bg-gray-100">
                 {event.imageUrl ? (
                     <img
-                        src={`/api/uploads/${event.imageUrl}`}
+                        src={event.imageUrl?.startsWith('/') ? event.imageUrl : `/api/uploads/${event.imageUrl}`}
                         alt={event.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         onError={(e) => {
                             (e.target as HTMLImageElement).src = 'https://placehold.co/600x400/e2e8f0/1e293b?text=Eveniment';
                         }}
