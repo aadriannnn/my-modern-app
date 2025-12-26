@@ -1,62 +1,112 @@
 import React from 'react';
-import { Calendar, MapPin, ExternalLink } from 'lucide-react';
-import { type LegalNewsEvent } from '../../types/news';
+import { MapPin, Calendar } from 'lucide-react';
+import { Link } from 'react-router-dom';
+
+interface Event {
+    id: string;
+    slug: string;
+    title: string;
+    description?: string;
+    date: string | Date;
+    location?: string;
+    imageUrl?: string;
+    organizer?: string;
+    isLive?: boolean;
+    isArchived?: boolean;
+    detailsLink?: string; // External or internal link
+}
 
 interface EventCardProps {
-    event: LegalNewsEvent;
+    event: Event;
 }
 
 const EventCard: React.FC<EventCardProps> = ({ event }) => {
-    const eventDate = new Date(event.date);
-    const day = eventDate.getDate();
-    const month = eventDate.toLocaleString('ro-RO', { month: 'short' }).toUpperCase();
+    const { title, date, location, imageUrl, isLive, isArchived, detailsLink, slug } = event;
+
+    const dateObj = new Date(date);
+    const formattedDate = dateObj.toLocaleDateString('ro-RO', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+    });
+    const formattedTime = dateObj.toLocaleTimeString('ro-RO', {
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    const linkTarget = detailsLink || `/evenimente/${slug}`;
+    const isExternal = detailsLink?.startsWith('http');
 
     return (
-        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col h-full border border-gray-100">
-            <div className="relative h-48 bg-gray-100">
-                {event.imageUrl ? (
-                    <img
-                        src={event.imageUrl?.startsWith('/') ? event.imageUrl : `/api/uploads/${event.imageUrl}`}
-                        alt={event.title}
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        onError={(e) => {
-                            (e.target as HTMLImageElement).src = 'https://placehold.co/600x400/e2e8f0/1e293b?text=Eveniment';
-                        }}
-                    />
+        <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 overflow-hidden border border-slate-200 flex flex-col h-full">
+            {/* Banner Section */}
+            <div className="relative h-48 bg-slate-100 group">
+                {imageUrl ? (
+                    <img src={imageUrl} alt={title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                 ) : (
-                    <div className="flex items-center justify-center h-full text-gray-400">
-                        <Calendar size={48} opacity={0.5} />
+                    <div className="w-full h-full flex items-center justify-center bg-slate-800 text-white p-6 text-center">
+                        <span className="text-xl font-bold opacity-50">Legal News Event</span>
                     </div>
                 )}
-                <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm rounded-lg p-2 text-center shadow-sm min-w-[60px]">
-                    <span className="block text-sm font-bold text-gray-500">{month}</span>
-                    <span className="block text-2xl font-bold text-brand-secondary leading-none">{day}</span>
-                </div>
+
+                {isLive && (
+                    <div className="absolute top-3 right-3 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded animate-pulse">
+                        LIVE
+                    </div>
+                )}
             </div>
 
+            {/* Content Section */}
             <div className="p-5 flex-grow flex flex-col">
-                <h3 className="text-xl font-bold text-gray-900 mb-2 line-clamp-2">
-                    {event.title}
+                <h3 className="text-lg font-bold text-slate-900 mb-3 leading-snug font-serif">
+                    {isExternal ? (
+                        <a href={linkTarget} target="_blank" rel="noopener noreferrer" className="hover:text-blue-700 transition-colors">
+                            {title}
+                        </a>
+                    ) : (
+                        <Link to={linkTarget} className="hover:text-blue-700 transition-colors">
+                            {title}
+                        </Link>
+                    )}
                 </h3>
 
-                {event.location && (
-                    <div className="flex items-center text-gray-500 text-sm mb-3">
-                        <MapPin size={16} className="mr-1.5" />
-                        {event.location}
+                <div className="space-y-2 mb-6 text-sm text-slate-600">
+                    <div className="flex items-center gap-2">
+                        <Calendar className="w-4 h-4 text-slate-400" />
+                        <span>{formattedDate}, {formattedTime}</span>
                     </div>
-                )}
+                    {location && (
+                        <div className="flex items-center gap-2">
+                            <MapPin className="w-4 h-4 text-slate-400" />
+                            <span>{location}</span>
+                        </div>
+                    )}
+                </div>
 
-                <p className="text-gray-600 text-sm line-clamp-3 mb-4 flex-grow">
-                    {event.description}
-                </p>
-
-                <div className="mt-auto pt-4 border-t border-gray-100 flex items-center justify-between">
-                    <span className="text-sm font-medium text-brand-primary">
-                        {event.organizer || "Organizator Necunoscut"}
-                    </span>
-                    <button className="text-brand-accent hover:text-brand-accent-dark text-sm font-medium flex items-center transition-colors">
-                        Detalii <ExternalLink size={14} className="ml-1" />
-                    </button>
+                <div className="mt-auto">
+                    {isExternal ? (
+                        <a
+                            href={linkTarget}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={`block w-full py-2.5 px-4 rounded-lg text-center font-medium border transition-colors ${isArchived
+                                ? 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                                : 'border-blue-600 text-blue-600 hover:bg-blue-50'
+                                }`}
+                        >
+                            {isArchived ? 'ARHIVĂ' : 'Detalii'}
+                        </a>
+                    ) : (
+                        <Link
+                            to={linkTarget}
+                            className={`block w-full py-2.5 px-4 rounded-lg text-center font-medium border transition-colors ${isArchived
+                                ? 'border-slate-300 text-slate-600 hover:bg-slate-50'
+                                : 'border-blue-600 text-blue-600 hover:bg-blue-50'
+                                }`}
+                        >
+                            {isArchived ? 'ARHIVĂ' : 'Detalii'}
+                        </Link>
+                    )}
                 </div>
             </div>
         </div>
