@@ -19,6 +19,10 @@ import PaymentReturnPage from './pages/PaymentReturnPage';
 import PricingPage from './pages/PricingPage';
 import TaxaTimbruPage from './pages/TaxaTimbruPage';
 
+
+import LegalNewsPage from './pages/LegalNews/LegalNewsPage';
+import ArticleDetailPage from './pages/LegalNews/ArticleDetailPage';
+
 const App: React.FC = () => {
   return (
     <AuthProvider>
@@ -40,6 +44,10 @@ const App: React.FC = () => {
           <Route path="/payment-return" element={<PaymentReturnPage />} />
           <Route path="/abonamente" element={<PricingPage />} />
           <Route path="/taxa-timbru" element={<TaxaTimbruPage />} />
+
+          {/* Legal News Routes */}
+          <Route path="/stiri" element={<LegalNewsPage />} />
+          <Route path="/stiri/articol/:slug" element={<ArticleDetailPage />} />
         </Routes>
       </DosarProvider>
     </AuthProvider>

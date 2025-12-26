@@ -72,6 +72,15 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
           </button>
 
           <Link
+            to="/stiri"
+            className="hidden sm:flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"
+          >
+            <FolderOpen size={18} className="mr-2" /> {/* Reusing icon for now or use one like Newspaper if available */}
+            <span className="hidden lg:inline">Știri Juridice</span>
+            <span className="lg:hidden">Știri</span>
+          </Link>
+
+          <Link
             to="/abonamente"
             className="flex items-center text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors duration-200"
           >

@@ -21,9 +21,10 @@ from .routers import (
     queue_status as queue_router,
     feedback as feedback_router,
     advanced_analysis as advanced_analysis_router,
-    dosar_search as dosar_search_router,
+    dosar_search_router,
     billing_routes as billing_router,
-    taxa_timbru_routes as taxa_timbru_router
+    taxa_timbru_routes as taxa_timbru_router,
+    legal_news_routes
 )
 
 # Configure logging
@@ -93,6 +94,12 @@ def on_startup():
     queue_manager.start_worker()
     logger.info("Step 4: Queue manager worker started.")
 
+    logger.info("Step 5: Seeding legal news data...")
+    with next(get_session()) as session:
+        from .lib.news_seeder import seed_news_data
+        seed_news_data(session)
+    logger.info("Step 5: Legal news data seeded.")
+
     logger.info("--- Backend Startup Sequence Finished ---")
 
 
@@ -114,9 +121,10 @@ api_router.include_router(settings_router.router)
 api_router.include_router(queue_router.router)
 api_router.include_router(feedback_router.router)
 api_router.include_router(advanced_analysis_router.router)
-api_router.include_router(dosar_search_router.router)
+api_router.include_router(dosar_search_router)
 api_router.include_router(billing_router.router)
 api_router.include_router(taxa_timbru_router.router)
+api_router.include_router(legal_news_routes)
 
 from .routers import dev_tools
 api_router.include_router(dev_tools.router, prefix="/dev", tags=["dev"])

@@ -9,3 +9,9 @@ from .settings import router as settings_router
 from .coduri import router as coduri_router
 from .auth import router as auth_router
 from .taxa_timbru_routes import router as taxa_timbru_router
+from .queue_status import router as queue_router
+from .feedback import router as feedback_router
+from .advanced_analysis import router as advanced_analysis_router
+from .dosar_search import router as dosar_search_router
+from .billing_routes import router as billing_router
+from .legal_news_routes import router as legal_news_routes

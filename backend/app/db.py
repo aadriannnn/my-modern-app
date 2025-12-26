@@ -3,6 +3,7 @@ from sqlmodel import SQLModel, create_engine, Session
 from sqlalchemy import text
 from .config import get_settings
 from .models import Blocuri, MaterieStatistics, FeedbackStatistics, UltimaInterogare, ClientDB, ClientRole, BlocuriFirme
+from .models_news import LegalNewsAuthor, LegalNewsArticle, LegalNewsEvent, LegalNewsJob, LegalNewsBook
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
