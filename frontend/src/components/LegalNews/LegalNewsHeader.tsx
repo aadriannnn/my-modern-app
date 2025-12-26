@@ -1,185 +1,206 @@
-import React, { useRef } from 'react';
-import { Link as RouterLink, NavLink, useNavigate } from 'react-router-dom';
-import {
-    Box, Container, Flex, Spacer, HStack, VStack, IconButton, Button,
-    Menu, MenuButton, MenuList, MenuItem, MenuDivider, Avatar,
-    useDisclosure,
-    InputGroup, Input, InputRightElement,
-    Drawer, DrawerBody, DrawerFooter, DrawerHeader, DrawerOverlay, DrawerContent, DrawerCloseButton,
-    Accordion, AccordionItem, AccordionButton, AccordionPanel, AccordionIcon,
-    Link as ChakraLink, Text, Icon, Collapse, useTheme
-} from '@chakra-ui/react';
-import {
-    FiMenu, FiSearch, FiX,
-    FiSettings, FiLogOut, FiLogIn, FiUserPlus, FiChevronDown, FiFile, FiUserCheck,
-    FiMoreVertical, FiBriefcase, FiCalendar, FiMessageSquare,
-    FiUsers, FiAward, FiCpu, FiHome, FiBook,
-    FiMail, FiPhone,
-} from 'react-icons/fi';
-import { FaHandshake } from 'react-icons/fa';
+import React, { useState } from 'react';
+import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useSectionTheme } from '../../context/SectionThemeContext';
-import ThemeToggleButton from '../ThemeToggleButton';
+import {
+    Home,
+    MessageSquare,
+    Users,
+    Calendar,
+    Briefcase,
+    Book,
+    Award,
+    Menu,
+    X,
+    Search,
+    LogIn,
+    UserPlus,
+    LogOut,
+    Settings,
+    // MoreVertical,
+    ChevronDown,
+    Handshake
+} from 'lucide-react';
+// import { useSectionTheme } from '../../context/SectionThemeContext';
 
+// Navigation Data
 const menuData = [
-    { name: 'Homepage', path: '/stiri', icon: FiHome },
-    { name: 'Articole', path: '/stiri/articole', icon: FiMessageSquare },
-    { name: 'Profesioniști', path: '/profesionisti', icon: FiUsers },
-    { name: 'Evenimente', path: '/evenimente', icon: FiCalendar },
-    { name: 'Cariere', path: '/cariera', icon: FiBriefcase },
-    { name: 'Editură', path: '/editura', icon: FiBook },
-    { name: 'AI Juridic', path: 'https://app.verdictline.com/login', icon: FiAward, external: true },
+    { name: 'Homepage', path: '/stiri', icon: Home },
+    { name: 'Articole', path: '/stiri/articole', icon: MessageSquare },
+    { name: 'Profesioniști', path: '/profesionisti', icon: Users },
+    { name: 'Evenimente', path: '/evenimente', icon: Calendar },
+    { name: 'Cariere', path: '/cariera', icon: Briefcase },
+    { name: 'Editură', path: '/editura', icon: Book },
+    { name: 'AI Juridic', path: 'https://app.verdictline.com/login', icon: Award, external: true },
 ];
 
-const DesktopNavItem = ({ item }: { item: any }) => {
-    const commonProps = {
-        variant: "ghost", color: "white", _hover: { bg: 'whiteAlpha.100' },
-        fontWeight: "medium", fontSize: "sm",
-        leftIcon: item.icon ? <Icon as={item.icon} boxSize={4} /> : undefined,
-        px: { base: 2, lg: 2, xl: 2.5 },
-    };
+interface NavItemProps {
+    item: typeof menuData[0];
+}
 
+const DesktopNavItem: React.FC<NavItemProps> = ({ item }) => {
+    const commonClasses = "flex items-center gap-2 px-3 py-2 text-sm font-medium text-white/90 hover:bg-white/10 hover:text-white rounded-md transition-colors";
+
+    // External Link
     if (item.external) {
         return (
-            <Button
-                as={ChakraLink} href={item.path} isExternal
-                {...commonProps}
-            >
-                {item.name}
-            </Button>
-        );
-    } else {
-        return (
-            <Button
-                as={NavLink} to={item.path}
-                // end={item.path === '/stiri'}
-                _activeLink={{ bg: 'whiteAlpha.200', fontWeight: 'semibold' }}
-                {...commonProps}
-            >
-                {item.name}
-            </Button>
+            <a href={item.path} target="_blank" rel="noopener noreferrer" className={commonClasses}>
+                <item.icon className="h-4 w-4" />
+                <span>{item.name}</span>
+            </a>
         );
     }
-};
 
-const DesktopNavDropdown = ({ item }: { item: any }) => {
-    const { colorMode } = useSectionTheme(); // Get basic theme info
-
-    // Simplification: Using hardcoded colors or semantic tokens if available to ensure it works
-    const bg = colorMode === 'light' ? "white" : "gray.800";
-    const color = colorMode === 'light' ? "gray.800" : "white";
-    const borderColor = colorMode === 'light' ? "gray.200" : "gray.700";
-    const hoverBg = colorMode === 'light' ? "gray.100" : "gray.700";
-
-    const menuListStyles = {
-        bg: bg,
-        color: color,
-        border: "1px solid",
-        borderColor: borderColor,
-        boxShadow: "md", minW: "220px", zIndex: "dropdown"
-    };
-    const menuItemStyles = {
-        fontSize: "sm",
-        _hover: { bg: hoverBg },
-        fontWeight: "normal"
-    };
-
+    // Internal Link
     return (
-        <Menu placement="bottom-start">
-            <MenuButton
-                as={Button} variant="ghost" color="white"
-                _hover={{ bg: 'whiteAlpha.100' }} _active={{ bg: 'whiteAlpha.200' }}
-                fontWeight="medium" fontSize="sm"
-                leftIcon={item.icon ? <Icon as={item.icon} boxSize={4} /> : undefined}
-                rightIcon={<Icon as={FiChevronDown} boxSize={3} />}
-                px={{ base: 2, lg: 2, xl: 2.5 }}
-            >
-                {item.name}
-            </MenuButton>
-            <MenuList {...menuListStyles}>
-                {item.children.map((child: any) => (
-                    <MenuItem
-                        key={child.name}
-                        as={child.external ? ChakraLink : RouterLink}
-                        to={!child.external ? child.path || '#' : undefined}
-                        href={child.external ? child.path : undefined}
-                        {...(child.external && { isExternal: child.external })}
-                        {...menuItemStyles}
-                        {...(!child.external && { as: NavLink, to: child.path || '#', end: false })}
-                    >
-                        {child.name}
-                    </MenuItem>
-                ))}
-            </MenuList>
-        </Menu>
+        <NavLink
+            to={item.path}
+            className={({ isActive }) =>
+                isActive
+                    ? `${commonClasses} bg-white/20 text-white font-semibold`
+                    : commonClasses
+            }
+        >
+            <item.icon className="h-4 w-4" />
+            <span>{item.name}</span>
+        </NavLink>
     );
 };
 
-const MobileMenuItem = ({ item, onClose }: { item: any, onClose: () => void }) => {
-    const { themeName, colorMode } = useSectionTheme();
-    // const commonLinkPropsBase = {
-    //     display: "flex", alignItems: "center", w: "full", py: 3, px: 4,
-    //     fontSize: "md", fontWeight: "medium", color: "gray.700",
-    // };
+const UserMenu = ({ user, logout }: { user: any, logout: () => void }) => {
+    const [isOpen, setIsOpen] = useState(false);
 
-    const hoverBg = colorMode === 'light' ? "gray.100" : "gray.700";
-    const headerBg = colorMode === 'light' ? "gray.50" : "gray.800";
-    const newsTextSecondary = "gray.500";
+    return (
+        <div className="relative">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="flex items-center gap-2 px-2 py-1 text-sm font-medium text-white hover:bg-white/10 rounded-md transition-colors"
+            >
+                <div className="h-6 w-6 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold text-white uppercase">
+                    {(user?.numeComplet || user?.email || 'U').charAt(0)}
+                </div>
+                <span className="hidden lg:block max-w-[100px] truncate">
+                    {user?.numeComplet ? user.numeComplet.split(' ')[0] : user?.email}
+                </span>
+                <ChevronDown className="h-3 w-3" />
+            </button>
 
-    if (item.children) {
-        return (
-            <AccordionItem border="none">
-                <h2>
-                    <AccordionButton py={3} px={4} _hover={{ bg: hoverBg }}>
-                        <HStack flex='1' textAlign='left' spacing={3}>
-                            {item.icon && <Icon as={item.icon} boxSize={5} color={newsTextSecondary} />}
-                            <Text fontWeight="medium">{item.name}</Text>
-                        </HStack>
-                        <AccordionIcon />
-                    </AccordionButton>
-                </h2>
-                <AccordionPanel pb={2} pt={1} bg={headerBg}>
-                    <VStack align="stretch" spacing={0}>
-                        {item.children.map((child: any) => (
-                            <ChakraLink
-                                key={child.name} display="block" py={2} px={4} pl={12} fontSize="sm"
-                                _hover={{ bg: hoverBg }}
-                                onClick={onClose}
-                                as={child.external ? 'a' : NavLink}
-                                href={child.external ? child.path : undefined}
-                                to={!child.external ? child.path || '#' : undefined}
-                                {...(child.external && { isExternal: child.external, target: "_blank", rel: "noopener noreferrer" })}
-                            >
-                                {child.name}
-                            </ChakraLink>
-                        ))}
-                    </VStack>
-                </AccordionPanel>
-            </AccordionItem>
-        );
-    } else {
-        return (
-            <Box borderBottom="1px solid" borderColor="gray.100">
-                <ChakraLink
-                    display="flex" alignItems="center" w="full" py={3} px={4}
-                    fontSize="md" fontWeight="medium"
-                    // color="gray.700"
-                    as={item.external ? 'a' : NavLink}
-                    href={item.external ? item.path : undefined}
-                    to={!item.external ? item.path : undefined}
-                    {...(item.external && { isExternal: item.external, target: "_blank", rel: "noopener noreferrer" })}
-                    onClick={onClose}
-                    _hover={{ bg: 'gray.100' }}
-                >
-                    <HStack spacing={3}>
-                        {item.icon && <Icon as={item.icon} boxSize={5} color={newsTextSecondary} />}
-                        <Text>{item.name}</Text>
-                    </HStack>
-                </ChakraLink>
-            </Box>
-        );
-    }
+            {isOpen && (
+                <>
+                    <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-20 border border-gray-100 dark:bg-gray-800 dark:border-gray-700">
+                        <Link
+                            to="/setari"
+                            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700"
+                            onClick={() => setIsOpen(false)}
+                        >
+                            <Settings className="h-4 w-4" />
+                            Setări Cont
+                        </Link>
+                        <div className="border-t border-gray-100 dark:border-gray-700 my-1"></div>
+                        <button
+                            onClick={() => {
+                                logout();
+                                setIsOpen(false);
+                            }}
+                            className="flex w-full items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20"
+                        >
+                            <LogOut className="h-4 w-4" />
+                            Deconectare
+                        </button>
+                    </div>
+                </>
+            )}
+        </div>
+    );
 };
+
+interface MobileMenuProps {
+    isOpen: boolean;
+    onClose: () => void;
+    isAuthenticated: boolean;
+    user: any;
+    logout: () => void;
+    onLogin: () => void;
+    onRegister: () => void;
+}
+
+const MobileMenu: React.FC<MobileMenuProps> = ({ isOpen, onClose, isAuthenticated, logout, onLogin, onRegister }) => {
+    if (!isOpen) return null;
+
+    return (
+        <div className="fixed inset-0 z-50 lg:hidden">
+            <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+            <div className="fixed inset-y-0 left-0 w-64 bg-white dark:bg-gray-900 shadow-xl overflow-y-auto">
+                <div className="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+                    <h2 className="text-lg font-bold text-gray-900 dark:text-white">Meniu</h2>
+                    <button onClick={onClose} className="p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500">
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+
+                <div className="p-2 space-y-1">
+                    {menuData.map((item) => (
+                        <div key={item.name}>
+                            {item.external ? (
+                                <a
+                                    href={item.path}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center gap-3 px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-md"
+                                    onClick={onClose}
+                                >
+                                    <item.icon className="h-5 w-5 text-gray-400" />
+                                    <span>{item.name}</span>
+                                </a>
+                            ) : (
+                                <NavLink
+                                    to={item.path}
+                                    className={({ isActive }) =>
+                                        `flex items-center gap-3 px-4 py-3 rounded-md ${isActive ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 font-medium' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800'}`
+                                    }
+                                    onClick={onClose}
+                                >
+                                    <item.icon className="h-5 w-5 text-gray-400" />
+                                    <span>{item.name}</span>
+                                </NavLink>
+                            )}
+                        </div>
+                    ))}
+                </div>
+
+                <div className="p-4 border-t border-gray-100 dark:border-gray-800 mt-2 bg-gray-50 dark:bg-gray-800/50">
+                    {!isAuthenticated ? (
+                        <div className="space-y-2">
+                            <button
+                                onClick={() => { onLogin(); onClose(); }}
+                                className="flex w-full items-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+                            >
+                                <LogIn className="h-4 w-4" />
+                                Login
+                            </button>
+                            <button
+                                onClick={() => { onRegister(); onClose(); }}
+                                className="flex w-full items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700"
+                            >
+                                <UserPlus className="h-4 w-4" />
+                                Register
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={() => { logout(); onClose(); }}
+                            className="flex w-full items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-md text-sm font-medium"
+                        >
+                            <LogOut className="h-4 w-4" />
+                            Deconectare
+                        </button>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 
 interface LegalNewsHeaderProps {
     searchNews: (term: string) => void;
@@ -188,20 +209,15 @@ interface LegalNewsHeaderProps {
 }
 
 const LegalNewsHeader: React.FC<LegalNewsHeaderProps> = ({ searchNews, setSearchTerm, searchTerm }) => {
-    const { themeName, colorMode } = useSectionTheme();
-    // const chakraFullTheme = useTheme();
-    const { isOpen: isDrawerOpen, onOpen: onDrawerOpen, onClose: onDrawerClose } = useDisclosure();
-    const { isOpen: isMobileSearchOpen, onToggle: onMobileSearchToggle } = useDisclosure();
-    const btnRef = useRef<HTMLButtonElement>(null);
-    const navigate = useNavigate();
+    // const { themeName } = useSectionTheme(); // Not directly used in structure currently
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
 
+    const navigate = useNavigate();
     const { isAuthenticated, user, logout } = useAuth();
 
-    // Simplified: Navigating to separate login/register pages instead of modals for now
-    // to reduce complexity and dependency on missing compnents.
     const handleLogin = () => navigate('/login');
     const handleRegister = () => navigate('/register');
-
 
     const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => { setSearchTerm(event.target.value); };
     const handleSearchSubmit = (event: React.FormEvent) => {
@@ -209,211 +225,139 @@ const LegalNewsHeader: React.FC<LegalNewsHeaderProps> = ({ searchNews, setSearch
         if (searchTerm.trim().length >= 3) { searchNews(searchTerm.trim()); }
     };
 
-    const handleMobileNavigateAndClose = (path: string) => {
-        navigate(path);
-        onDrawerClose();
-    };
-
-    const handleMobileActionAndClose = (actionFn: () => void) => {
-        actionFn();
-        onDrawerClose();
-    }
-
-    const numDirectLinksDesktop = 6;
-
-    // Custom header background color (Dark Blue typically)
-    const headerBg = "#0F172A"; // Example: Slate 900 or similar professional dark blue
+    const headerBgColor = "#0F172A"; // Slate 900
 
     return (
-        <>
-            <Box
-                as="header" position="sticky" top="0" zIndex={100}
-                bg={headerBg}
-                color="white"
-                boxShadow="sm" w="full"
-            >
-                <Container maxW={{ base: "100%", md: "90%", lg: "1400px" }} px={{ base: 2, sm: 3, md: 4, lg: 6 }}>
-                    <VStack spacing={0} display={{ base: 'none', lg: 'flex' }} w="100%">
-                        <Flex w="100%" h={{ lg: "72px" }} alignItems="center" py={2} borderBottomWidth="1px" borderColor="whiteAlpha.200">
-                            <Box flexShrink={0}>
-                                <ChakraLink as={RouterLink} to="/stiri" _hover={{ textDecoration: 'none' }} color="white">
-                                    <Text fontSize={{ base: 'xl', md: '2xl' }} fontWeight="bold"> LegeaAplicata </Text>
-                                </ChakraLink>
-                            </Box>
-                            <Spacer />
-                            <HStack spacing={3} flexShrink={1} minWidth="0">
-                                <Button
-                                    as={RouterLink}
-                                    to="#"
-                                    colorScheme="blue"
-                                    variant="solid"
-                                    size="sm"
-                                    leftIcon={<Icon as={FaHandshake} />}
-                                    flexShrink={0}
-                                >
-                                    Program Avocați
-                                </Button>
-                                <Box flexShrink={1} maxW={{ lg: "320px", xl: "420px" }} w="100%">
-                                    <form onSubmit={handleSearchSubmit}>
-                                        <InputGroup size="sm">
-                                            <Input
-                                                type="search" placeholder="Caută știri, articole, jurisprudență..." value={searchTerm} onChange={handleSearchChange}
-                                                bg="whiteAlpha.200"
-                                                border="none"
-                                                _placeholder={{ color: "whiteAlpha.700" }}
-                                                color="white"
-                                                _focus={{ bg: "whiteAlpha.300", outline: "none" }}
-                                                size="sm"
-                                                borderRadius="md"
-                                            />
-                                            <InputRightElement>
-                                                <IconButton aria-label="Caută" icon={<FiSearch />} size="xs" type="submit" variant="ghost" color="whiteAlpha.700" _hover={{ color: 'white' }} />
-                                            </InputRightElement>
-                                        </InputGroup>
-                                    </form>
-                                </Box>
-                            </HStack>
-                            <Spacer />
-                            <HStack spacing={{ base: 2, md: 3, lg: 2 }} flexShrink={0}>
-                                <Box>
-                                    {!isAuthenticated ? (
-                                        <HStack spacing={{ md: 1, lg: 2 }}>
-                                            <Button size="sm" onClick={handleLogin} leftIcon={<FiLogIn />} variant="ghost" color="white" _hover={{ bg: "whiteAlpha.200" }}>Login</Button>
-                                            <Button size="sm" onClick={handleRegister} leftIcon={<FiUserPlus />} colorScheme="blue" >Register</Button>
-                                        </HStack>
-                                    ) : (
-                                        <Menu placement="bottom-end">
-                                            <MenuButton
-                                                as={Button} size="sm" variant="ghost" color="white" _hover={{ bg: "whiteAlpha.200" }}
-                                                px={{ base: 1, lg: 2 }} aria-label="Meniu utilizator"
-                                            >
-                                                <HStack spacing={{ base: 1, lg: 2 }}>
-                                                    <Avatar size="xs" name={user?.numeComplet || user?.email} />
-                                                    <Text fontSize="sm" display={{ base: 'none', lg: 'inline' }} color="white">
-                                                        {user?.numeComplet ? user.numeComplet.split(' ')[0] : user?.email}
-                                                    </Text>
-                                                    <Icon as={FiChevronDown} />
-                                                </HStack>
-                                            </MenuButton>
-                                            <MenuList bg="white" color="gray.800" zIndex="popover">
-                                                <MenuItem icon={<Icon as={FiSettings} fontSize="md" />} as={RouterLink} to="/setari" fontSize="sm"> Setări Cont </MenuItem>
-                                                <MenuDivider />
-                                                <MenuItem icon={<Icon as={FiLogOut} fontSize="md" color="red.500" />} onClick={logout} color="red.500" fontSize="sm"> Deconectare </MenuItem>
-                                            </MenuList>
-                                        </Menu>
-                                    )}
-                                </Box>
-                                {/* ThemeToggle not used in header directly or needs adaptation */}
-                            </HStack>
-                        </Flex>
-                        <Flex w="100%" h={{ lg: "52px" }} alignItems="center" justifyContent="center" borderTopWidth="1px" borderColor="whiteAlpha.200">
-                            <HStack
-                                spacing={{ base: 1, lg: 2, xl: 3 }}
-                                display={{ base: 'none', lg: 'flex' }}
-                                flexShrink={1}
-                                minWidth="0"
+        <div style={{ backgroundColor: headerBgColor }} className="sticky top-0 z-40 w-full shadow-sm">
+            <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-[1400px]">
+                {/* Desktop Header */}
+                <div className="hidden lg:flex flex-col w-full">
+                    {/* Top Bar */}
+                    <div className="flex h-[72px] items-center py-2 border-b border-white/10">
+                        {/* Logo */}
+                        <Link to="/stiri" className="flex-shrink-0 text-white hover:opacity-90 transition-opacity">
+                            <span className="text-2xl font-bold">LegeaAplicata</span>
+                        </Link>
+
+                        <div className="flex-1 px-8 flex justify-end items-center gap-4">
+                            {/* Action Button */}
+                            <Link
+                                to="#"
+                                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-md text-sm font-medium transition-colors"
                             >
-                                {menuData.slice(0, numDirectLinksDesktop).map(item =>
-                                    // @ts-ignore
-                                    item.children ? (<DesktopNavDropdown key={item.name} item={item} />)
-                                        : (<DesktopNavItem key={item.name} item={item} />)
-                                )}
-                                {menuData.length > numDirectLinksDesktop && (
-                                    <DesktopNavDropdown item={{ name: "Mai Mult", icon: FiMoreVertical, children: menuData.slice(numDirectLinksDesktop) }} />
-                                )}
-                            </HStack>
-                        </Flex>
-                    </VStack>
-                    <Flex h={{ base: "60px" }} alignItems="center" display={{ base: 'flex', lg: 'none' }} w="100%">
-                        <IconButton
-                            aria-label="Meniu" icon={<FiMenu />} size="md" fontSize="xl" variant="ghost"
-                            color="white" _hover={{ bg: 'whiteAlpha.100' }}
-                            onClick={onDrawerOpen} ref={btnRef} mr={{ base: 1, sm: 2 }}
+                                <Handshake className="h-4 w-4" />
+                                <span>Program Avocați</span>
+                            </Link>
+
+                            {/* Search Bar */}
+                            <div className="max-w-md w-full">
+                                <form onSubmit={handleSearchSubmit} className="relative">
+                                    <input
+                                        type="search"
+                                        placeholder="Caută știri, articole..."
+                                        value={searchTerm}
+                                        onChange={handleSearchChange}
+                                        className="w-full bg-white/10 border-0 text-white placeholder-white/60 rounded-md py-1.5 pl-3 pr-10 text-sm focus:ring-1 focus:ring-white/30 focus:bg-white/20 transition-all"
+                                    />
+                                    <button
+                                        type="submit"
+                                        className="absolute right-0 top-0 h-full px-3 text-white/60 hover:text-white transition-colors"
+                                    >
+                                        <Search className="h-4 w-4" />
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        {/* User Actions */}
+                        <div className="flex items-center gap-3">
+                            {!isAuthenticated ? (
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={handleLogin}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-white hover:bg-white/10 rounded-md transition-colors"
+                                    >
+                                        <LogIn className="h-4 w-4" />
+                                        <span>Login</span>
+                                    </button>
+                                    <button
+                                        onClick={handleRegister}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-white text-slate-900 hover:bg-gray-100 rounded-md transition-colors"
+                                    >
+                                        <UserPlus className="h-4 w-4" />
+                                        <span>Register</span>
+                                    </button>
+                                </div>
+                            ) : (
+                                <UserMenu user={user} logout={logout} />
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Navigation Bar */}
+                    <div className="flex h-[52px] items-center justify-center">
+                        <nav className="flex items-center gap-1">
+                            {menuData.map((item) => (
+                                <DesktopNavItem key={item.name} item={item} />
+                            ))}
+                        </nav>
+                    </div>
+                </div>
+
+                {/* Mobile Header */}
+                <div className="flex lg:hidden h-[60px] items-center justify-between w-full">
+                    <button
+                        onClick={() => setIsMobileMenuOpen(true)}
+                        className="p-2 -ml-2 text-white hover:bg-white/10 rounded-md"
+                    >
+                        <Menu className="h-6 w-6" />
+                    </button>
+
+                    <Link to="/stiri" className="text-white">
+                        <span className="text-xl font-bold">LegeaAplicata</span>
+                    </Link>
+
+                    <button
+                        onClick={() => setIsMobileSearchOpen(!isMobileSearchOpen)}
+                        className="p-2 -mr-2 text-white hover:bg-white/10 rounded-md"
+                    >
+                        {isMobileSearchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+                    </button>
+                </div>
+            </div>
+
+            {/* Mobile Search Bar Expand */}
+            {isMobileSearchOpen && (
+                <div className="lg:hidden bg-white dark:bg-gray-800 p-3 border-b border-gray-200 dark:border-gray-700 shadow-md">
+                    <form onSubmit={handleSearchSubmit} className="relative">
+                        <input
+                            type="search"
+                            placeholder="Caută știri..."
+                            value={searchTerm}
+                            onChange={handleSearchChange}
+                            className="w-full bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-600 rounded-md py-2 pl-3 pr-10 text-sm text-gray-900 dark:text-white"
                         />
-                        <ChakraLink as={RouterLink} to="/stiri" _hover={{ textDecoration: 'none' }} flexShrink={0}
-                            mx={{ base: 'auto', lg: 0 }}
-                            ml={{ base: 2, lg: 0 }}
-                            color="white"
+                        <button
+                            type="submit"
+                            className="absolute right-2 top-2.5 text-gray-500"
                         >
-                            <Text fontSize={{ base: 'xl', md: '2xl' }} fontWeight="bold"> LegeaAplicata </Text>
-                        </ChakraLink>
-                        <Spacer />
-                        <IconButton
-                            aria-label="Caută" icon={<FiSearch />} size="md" fontSize="lg" variant="ghost"
-                            color="white" _hover={{ bg: 'whiteAlpha.100' }}
-                            onClick={onMobileSearchToggle} mr={1}
-                        />
-                    </Flex>
-                </Container>
-                <Collapse in={isMobileSearchOpen} animateOpacity>
-                    <Box bg="white" py={3} px={{ base: 2, sm: 3, md: 4 }} borderBottomWidth="1px" borderColor="gray.200">
-                        <form onSubmit={handleSearchSubmit}>
-                            <InputGroup size="md">
-                                <Input
-                                    type="search" placeholder="Caută știri, articole..." value={searchTerm} onChange={handleSearchChange}
-                                    variant="outline"
-                                    size="md"
-                                    borderRadius="md"
-                                    color="gray.800"
-                                    pr="3rem"
-                                />
-                                <InputRightElement width="3rem">
-                                    <IconButton aria-label="Închide căutare" icon={<FiX />} size="sm" variant="ghost" onClick={onMobileSearchToggle} />
-                                </InputRightElement>
-                            </InputGroup>
-                        </form>
-                    </Box>
-                </Collapse>
-                <Drawer isOpen={isDrawerOpen} placement='left' onClose={onDrawerClose} finalFocusRef={btnRef} size={{ base: "xs", sm: "sm" }}>
-                    <DrawerOverlay />
-                    <DrawerContent bg="white" color="gray.800">
-                        <DrawerCloseButton _focus={{ boxShadow: "outline" }} />
-                        <DrawerHeader borderBottomWidth='1px' borderColor="gray.200"> Meniu Principal </DrawerHeader>
-                        <DrawerBody p={0} display="flex" flexDirection="column">
-                            <Box flexGrow={1} overflowY="auto">
-                                <Accordion allowToggle defaultIndex={[]}>
-                                    {menuData.map(item => (
-                                        <MobileMenuItem key={item.name} item={item} onClose={onDrawerClose} />
-                                    ))}
-                                </Accordion>
-                            </Box>
-                            <VStack
-                                spacing={2} align="stretch" p={4}
-                                borderTopWidth="1px" borderColor="gray.200"
-                                flexShrink={0} bg="gray.50"
-                            >
-                                {!isAuthenticated ? (
-                                    <>
-                                        <Button
-                                            leftIcon={<FiLogIn />}
-                                            variant="outline"
-                                            justifyContent='flex-start'
-                                            onClick={() => handleMobileActionAndClose(handleLogin)}
-                                            size="md"
-                                        > Login </Button>
-                                        <Button
-                                            leftIcon={<FiUserPlus />}
-                                            colorScheme="blue"
-                                            justifyContent='flex-start'
-                                            onClick={() => handleMobileActionAndClose(handleRegister)}
-                                            size="md"
-                                        > Register </Button>
-                                    </>
-                                ) : (
-                                    <Button
-                                        leftIcon={<FiLogOut />}
-                                        colorScheme="red" variant="ghost"
-                                        justifyContent='flex-start'
-                                        onClick={() => handleMobileActionAndClose(logout)}
-                                        size="md"
-                                    > Deconectare </Button>
-                                )}
-                            </VStack>
-                        </DrawerBody>
-                    </DrawerContent>
-                </Drawer>
-            </Box>
-        </>
+                            <Search className="h-4 w-4" />
+                        </button>
+                    </form>
+                </div>
+            )}
+
+            {/* Mobile Menu Overlay */}
+            <MobileMenu
+                isOpen={isMobileMenuOpen}
+                onClose={() => setIsMobileMenuOpen(false)}
+                isAuthenticated={isAuthenticated}
+                user={user}
+                logout={logout}
+                onLogin={handleLogin}
+                onRegister={handleRegister}
+            />
+        </div>
     );
 };
 

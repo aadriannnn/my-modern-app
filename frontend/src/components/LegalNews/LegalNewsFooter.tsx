@@ -1,13 +1,7 @@
-import React from 'react';
-import { Link as RouterLink } from 'react-router-dom';
-import {
-    Box, Container, SimpleGrid, VStack, Heading, Text,
-    Link as ChakraLink, Flex, Icon, useColorModeValue
-} from '@chakra-ui/react';
-import { useSectionTheme } from '../../context/SectionThemeContext';
+// import React from 'react';
+import { Link } from 'react-router-dom';
 
 const LegalNewsFooter = () => {
-    const { themeName } = useSectionTheme();
     const currentYear = new Date().getFullYear();
 
     const policyLinks = [
@@ -28,101 +22,63 @@ const LegalNewsFooter = () => {
     }
 
     const FooterLinkList = ({ title, links }: { title: string, links: LinkItem[] }) => (
-        <VStack align={{ base: 'center', sm: 'flex-start' }} spacing={3}>
-            <Heading
-                as="h4"
-                size="sm"
-                fontWeight="semibold"
-                mb={1}
-                pb={2}
-                borderBottomWidth="1px"
-                borderColor="whiteAlpha.400"
-                display="inline-block"
-            // variant={themeName}
-            >
+        <div className="flex flex-col space-y-3 sm:items-start items-center text-center sm:text-left">
+            <h4 className="border-b border-white/20 pb-2 mb-1 text-sm font-semibold inline-block">
                 {title}
-            </Heading>
+            </h4>
             {links.map(link => (
-                <ChakraLink
+                <Link
                     key={link.name}
-                    as={RouterLink}
                     to={link.path}
-                    fontSize="sm"
-                    display="block"
-                // variant={themeName}
+                    className="block text-sm hover:text-white transition-colors"
                 >
                     {link.name}
-                </ChakraLink>
+                </Link>
             ))}
-        </VStack>
+        </div>
     );
 
-    // Hardcoded colors for now to match "news" theme generally, or use useColorModeValue if needed
-    // In the reference, these use specific variants. I'll stick to a dark blue theme for the footer as typical for "news".
-    const bg = "gray.900";
-    const color = "gray.100";
-
     return (
-        <Box
-            as="footer"
-            bg={bg}
-            color={color}
-            pt={{ base: 10, md: 16 }}
-            pb={0}
-        >
-            <Container maxW="1200px">
-                <SimpleGrid
-                    columns={{ base: 1, sm: 2, md: 3 }}
-                    spacing={{ base: 8, md: 10 }}
-                    textAlign={{ base: 'center', sm: 'left' }}
-                >
+        <footer className="bg-gray-900 text-gray-300 pt-10 md:pt-16 pb-0">
+            <div className="mx-auto max-w-[1200px] px-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8 md:gap-10">
                     <FooterLinkList title="Politici" links={policyLinks} />
 
                     <FooterLinkList title="Companie" links={aboutLinks} />
 
-                    <VStack
-                        align={{ base: 'center', sm: 'flex-start' }}
-                        spacing={2}
-                        mt={{ base: 4, sm: 0 }}
-                    >
-                        <Heading as="h5" size="md" fontWeight="bold">
+                    <div className="flex flex-col space-y-2 mt-4 sm:mt-0 items-center sm:items-start text-center sm:text-left">
+                        <h5 className="text-md font-bold text-white">
                             LegeaAplicata.ro
-                        </Heading>
-                        <Text fontSize="sm" pt={4}>
+                        </h5>
+                        <p className="text-sm pt-4">
                             &copy; {currentYear} Toate drepturile rezervate.
-                        </Text>
-                        <Text fontSize="sm">
+                        </p>
+                        <p className="text-sm">
                             Un proiect{' '}
-                            <ChakraLink
+                            <a
                                 href="https://www.verdictline.com"
-                                isExternal
-                                fontWeight="medium"
-                                color="blue.200"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-blue-300 hover:text-blue-200"
                             >
                                 Verdict Line
-                            </ChakraLink>.
-                        </Text>
-                    </VStack>
-                </SimpleGrid>
-
-            </Container>
+                            </a>.
+                        </p>
+                    </div>
+                </div>
+            </div>
 
             {/* Bottom Bar */}
-            <Box mt={{ base: 8, md: 12 }} py={4} bg="blackAlpha.300">
-                <Container maxW="1200px">
-                    <Flex
-                        direction={{ base: 'column', sm: 'row' }}
-                        justify="center"
-                        align="center"
-                        textAlign="center"
-                    >
-                        <Text fontSize="xs" color="gray.400">
+            <div className="mt-8 md:mt-12 py-4 bg-black/30">
+                <div className="mx-auto max-w-[1200px] px-4">
+                    <div className="flex flex-col sm:flex-row justify-center items-center text-center">
+                        <p className="text-xs text-gray-400">
                             Platformă Știri Juridice LegeaAplicata
-                        </Text>
-                    </Flex>
-                </Container>
-            </Box>
-        </Box>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </footer>
     );
 };
 

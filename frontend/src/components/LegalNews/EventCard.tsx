@@ -1,17 +1,6 @@
 import React from 'react';
-import { Link as RouterLink } from 'react-router-dom';
-import {
-    Box,
-    VStack,
-    Image,
-    Heading,
-    Text,
-    Button,
-    Tag,
-    Link as ChakraLink,
-    useColorModeValue,
-} from '@chakra-ui/react';
-import { Event } from '../../hooks/useEventsData';
+import { Link } from 'react-router-dom';
+import type { Event } from '../../hooks/useLegalNewsData';
 
 const isExternalLink = (link?: string) => link ? /^https?:\/\//.test(link) : false;
 
@@ -33,80 +22,60 @@ interface EventCardProps {
 }
 
 const EventCard: React.FC<EventCardProps> = ({ event }) => {
-    const borderColor = useColorModeValue('gray.200', 'gray.700');
-    const textColor = useColorModeValue('gray.600', 'gray.400');
-    const headingColor = useColorModeValue('gray.800', 'whiteAlpha.900');
-    const cardBg = useColorModeValue('white', 'gray.800');
-
     if (!event) return null;
 
     const formattedDate = formatEventDateTime(event.dateObject);
-    const detailLink = event.pageUrl; // From hook interface
+    const detailLink = event.pageUrl;
     const isExternal = isExternalLink(detailLink);
 
-    // In hook we didn't add bannerType etc, but reference uses it. 
-    // We'll trust the event object might have extra props if we cast or extend, 
-    // or just use bannerImageUrl if present.
     const bannerImageUrl = event.bannerImageUrl;
 
     return (
-        <Box
-            bg={cardBg}
-            borderWidth="1px"
-            borderColor={borderColor}
-            borderRadius="md"
-            boxShadow="sm"
-            overflow="hidden"
-            transition="all 0.2s ease-in-out"
-            _hover={{
-                boxShadow: 'md',
-                transform: 'translateY(-2px)',
-            }}
-        >
-            <VStack spacing={0} align="stretch">
-                <Box position="relative" minH="150px">
+        <div className="group overflow-hidden rounded-md border border-gray-200 bg-white shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
+            <div className="flex flex-col">
+                <div className="relative min-h-[150px]">
                     {bannerImageUrl ? (
-                        <Image
+                        <img
                             src={bannerImageUrl}
                             alt={`Banner pentru ${event.title}`}
-                            w="full"
-                            h="150px"
-                            objectFit="cover"
+                            className="h-[150px] w-full object-cover"
                             loading="lazy"
                         />
                     ) : (
-                        <Box bg="gray.200" minH="150px" />
+                        <div className="min-h-[150px] bg-gray-200 dark:bg-gray-700" />
                     )}
-                </Box>
+                </div>
 
-                <Box p={4}>
-                    <Heading
-                        as="h3"
-                        size="sm"
-                        color={headingColor}
-                        noOfLines={3}
-                        minHeight="3.6em"
-                        mb={2}
+                <div className="p-4">
+                    <h3
+                        className="mb-2 min-h-[3.6em] line-clamp-3 text-sm font-semibold text-gray-800 dark:text-gray-100"
                         title={event.title}
                     >
                         {event.title}
-                    </Heading>
-                    <Text fontSize="sm" color={textColor} mb={4}>
+                    </h3>
+                    <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
                         {formattedDate} {event.location && `• ${event.location}`}
-                    </Text>
-                    <Button
-                        as={isExternal ? ChakraLink : RouterLink}
-                        {...(isExternal ? { href: detailLink, isExternal: true } : { to: detailLink || '#' })}
-                        variant="outline"
-                        colorScheme="blue"
-                        size="sm"
-                        width="full"
-                    >
-                        Detalii
-                    </Button>
-                </Box>
-            </VStack>
-        </Box>
+                    </p>
+                    {isExternal ? (
+                        <a
+                            href={detailLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex w-full items-center justify-center rounded-md border border-blue-500 bg-transparent px-4 py-2 text-sm font-medium text-blue-500 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                        >
+                            Detalii
+                        </a>
+                    ) : (
+                        <Link
+                            to={detailLink || '#'}
+                            className="inline-flex w-full items-center justify-center rounded-md border border-blue-500 bg-transparent px-4 py-2 text-sm font-medium text-blue-500 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                        >
+                            Detalii
+                        </Link>
+                    )}
+                </div>
+            </div>
+        </div>
     );
 };
 

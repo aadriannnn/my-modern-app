@@ -15,16 +15,22 @@ export interface LegalNewsArticle {
     imageUrl?: string;
     tags?: string[];
     categories?: string[];
+    matchType?: string; // For search results
 }
 
 export interface LegalNewsBook {
     id: string;
     title: string;
-    author: string;
+    author?: string;
+    authors?: string[] | string;
     description?: string;
     price?: string;
     imageUrl?: string;
+    coverImageUrl?: string;
     purchaseLink?: string;
+    slug?: string;
+    publishDateObject?: Date;
+    publishDate?: string;
 }
 
 export interface LegalNewsEvent {
@@ -32,9 +38,13 @@ export interface LegalNewsEvent {
     title: string;
     description?: string;
     date: string;
+    dateObject?: Date;
     location?: string;
     imageUrl?: string;
     organizer?: string;
+    pageUrl?: string;
+    bannerImageUrl?: string;
+    detailsLink?: string;
 }
 
 export interface LegalNewsJob {
@@ -43,8 +53,10 @@ export interface LegalNewsJob {
     company: string;
     location?: string;
     datePosted: string;
+    postedDateObject?: Date;
     applyLink?: string;
     requirements?: string[];
+    companyLogoUrl?: string;
 }
 
 export interface LegalNewsSearchResultItem {
@@ -56,6 +68,20 @@ export interface LegalNewsSearchResultItem {
     authorName?: string;
     matchType: string;
     imageUrl?: string;
+}
+
+export type Article = LegalNewsArticle;
+export type Book = LegalNewsBook;
+export type Event = LegalNewsEvent;
+export type Job = LegalNewsJob;
+
+export interface Author {
+    id: string;
+    name: string;
+    imageUrl?: string;
+    bio?: string;
+    title?: string;
+    profileUrl?: string;
 }
 
 export const useLegalNewsData = () => {

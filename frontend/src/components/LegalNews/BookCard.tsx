@@ -1,7 +1,6 @@
 import React from 'react';
-import { Box, VStack, Image, Heading, Text, LinkBox, LinkOverlay, useColorModeValue } from '@chakra-ui/react';
-import { Link as RouterLink } from 'react-router-dom';
-import { Book } from '../../hooks/useLegalNewsData';
+import { Link } from 'react-router-dom';
+import type { Book } from '../../hooks/useLegalNewsData';
 
 interface BookCardProps {
     book: Book;
@@ -14,73 +13,45 @@ interface BookCardProps {
 
 const BookCard: React.FC<BookCardProps> = ({
     book,
-    headingColor,
-    textColor,
-    // linkColor,
-    // linkHoverColor,
-    subtleTextColor
 }) => {
-    const cardBg = useColorModeValue("white", "gray.700");
-    const cardBorderColor = useColorModeValue("gray.200", "gray.600");
-    const imageContainerBg = useColorModeValue("gray.100", "gray.600");
-    const defaultAuthorColor = useColorModeValue("gray.500", "gray.400");
-    const finalAuthorColor = subtleTextColor || defaultAuthorColor;
-
     let authorsDisplay = '';
     if (Array.isArray(book.authors)) {
         authorsDisplay = book.authors.join(', ');
     } else if (typeof book.authors === 'string') {
         authorsDisplay = book.authors;
+    } else if (book.author) {
+        authorsDisplay = book.author;
     }
 
     const detailLink = book.slug ? `/stiri/carte/${book.slug}` : '#';
 
     return (
-        <LinkBox
-            as="article"
-            bg={cardBg}
-            borderWidth="1px"
-            borderColor={cardBorderColor}
-            borderRadius="md"
-            overflow="hidden"
-            transition="all 0.2s ease-in-out"
-            h="full"
-            _hover={{
-                boxShadow: 'md',
-                transform: 'translateY(-3px)',
-            }}
-        >
-            <VStack spacing={3} align="stretch" h="full">
-                <Box position="relative" w="full" pt="100%" bg={imageContainerBg}>
-                    <Image
+        <div className="group relative block h-full overflow-hidden rounded-md border border-gray-200 bg-white transition-all duration-200 hover:-translate-y-1 hover:shadow-md dark:border-gray-700 dark:bg-gray-800">
+            <div className="flex h-full flex-col space-y-3">
+                <div className="relative w-full pt-[100%] bg-gray-100 dark:bg-gray-700">
+                    <img
                         src={book.coverImageUrl || 'https://via.placeholder.com/200x250.png?text=Copertă'}
                         alt={`Copertă ${book.title || 'carte'}`}
-                        position="absolute"
-                        top="0"
-                        left="0"
-                        width="full"
-                        height="full"
-                        objectFit="contain"
-                        fallbackSrc='https://via.placeholder.com/200x250.png?text=Lipsă'
-                        p={2}
+                        className="absolute top-0 left-0 h-full w-full object-contain p-2"
                     />
-                </Box>
+                </div>
 
-                <VStack spacing={1} p={4} pt={2} align="stretch" flexGrow={1}>
-                    <Heading size="sm" fontWeight="medium" lineHeight="short" noOfLines={3} minH="3.6em" color={headingColor || "inherit"}>
-                        <LinkOverlay as={RouterLink} to={detailLink}>
+                <div className="flex flex-1 flex-col p-4 pt-2">
+                    <h3 className="line-clamp-3 min-h-[3.6em] text-sm font-medium leading-tight text-gray-900 dark:text-gray-100">
+                        <Link to={detailLink}>
+                            <span className="absolute inset-0" />
                             {book.title || 'Titlu indisponibil'}
-                        </LinkOverlay>
-                    </Heading>
+                        </Link>
+                    </h3>
 
                     {authorsDisplay && (
-                        <Text fontSize="xs" color={finalAuthorColor} noOfLines={2} minH="2.4em">
+                        <p className="mt-1 line-clamp-2 min-h-[2.4em] text-xs text-gray-500 dark:text-gray-400">
                             {authorsDisplay}
-                        </Text>
+                        </p>
                     )}
-                </VStack>
-            </VStack>
-        </LinkBox>
+                </div>
+            </div>
+        </div>
     );
 };
 
