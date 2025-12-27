@@ -90,6 +90,61 @@ class NetworkFileSaver:
                 return f"\\\\{host}\\{shared_folder}\\{filename}" if filename else f"\\\\{host}\\{shared_folder}"
 
     @staticmethod
+    def get_network_path(host: str, shared_folder: str, subfolder: str = "", filename: str = "") -> str:
+        """
+        Calculează calea completă către fișier, gestionând diferențele între OS și tipul de host.
+        Această metodă centralizează logica de construcție a căii pentru a asigura consistența.
+
+        Args:
+            host: IP sau hostname
+            shared_folder: Nume folder partajat sau cale locală
+            subfolder: Subfolder opțional
+            filename: Nume fișier (opțional)
+
+        Returns:
+            str: Calea completă (locală sau UNC)
+        """
+        is_posix = os.name == 'posix'
+
+        # Normalizare host pentru verificare locală
+        # Adăugăm variante comune pentru localhost
+        local_hosts = ['localhost', '127.0.0.1', 'local', '0.0.0.0', '::1']
+        is_local_host = not host or (host.lower() in local_hosts)
+
+        # Pe Windows, totul poate fi tratat ca UNC path dacă are host, dar păstrăm logica existentă
+        # pentru consistență cu Linux unde host-ul contează mai mult (local vs remote).
+
+        # Construim calea
+        if is_posix and is_local_host:
+            # Cale locală (sau mount point) pe Linux/Mac
+            base_path = shared_folder
+            if subfolder:
+                return os.path.join(base_path, subfolder, filename) if filename else os.path.join(base_path, subfolder)
+            else:
+                return os.path.join(base_path, filename) if filename else base_path
+
+        elif not is_posix and not host:
+            # Cale locală pe Windows (fără host specificat)
+            base_path = shared_folder
+            if subfolder:
+                return os.path.join(base_path, subfolder, filename) if filename else os.path.join(base_path, subfolder)
+            else:
+                return os.path.join(base_path, filename) if filename else base_path
+
+        else:
+            # Cale UNC Windows (validă și pe Windows pentru localhost, dar pe Linux doar ca string)
+            # Dacă suntem pe Linux și host-ul nu e local, NetworkFileSaver va da eroare mai târziu,
+            # dar aici returnăm calea teoretică.
+
+            # Notă: Pe Windows, os.path.join nu gestionează corect UNC paths dacă încep cu \\
+            # Așa că folosim f-string așa cum era înainte.
+
+            if subfolder:
+                return f"\\\\{host}\\{shared_folder}\\{subfolder}\\{filename}" if filename else f"\\\\{host}\\{shared_folder}\\{subfolder}"
+            else:
+                return f"\\\\{host}\\{shared_folder}\\{filename}" if filename else f"\\\\{host}\\{shared_folder}"
+
+    @staticmethod
     def save_to_network(
         content: str,
         host: str,
