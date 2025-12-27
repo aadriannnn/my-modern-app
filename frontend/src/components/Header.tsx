@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import logo from '@/assets/icons/logo.png';
-import { Menu, PlusCircle, FolderOpen, User as UserIcon, LogOut, LogIn, Crown } from 'lucide-react';
+import { Menu, PlusCircle, FolderOpen, User as UserIcon, LogOut, LogIn, Crown, Newspaper } from 'lucide-react';
 import { useDosar } from '../context/DosarContext';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
@@ -73,9 +73,9 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
 
           <Link
             to="/stiri"
-            className="hidden sm:flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"
+            className="flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"
           >
-            <FolderOpen size={18} className="mr-2" /> {/* Reusing icon for now or use one like Newspaper if available */}
+            <Newspaper size={18} className="mr-2" />
             <span className="hidden lg:inline">Știri Juridice</span>
             <span className="lg:hidden">Știri</span>
           </Link>
