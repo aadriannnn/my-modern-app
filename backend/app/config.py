@@ -110,6 +110,20 @@ class Settings(BaseSettings):
     SUBSCRIPTION_EXPIRY_WARNING_DAYS: int = 7
     SUBSCRIPTION_PAYMENT_FAILURE_MAX_ATTEMPTS: int = 3
 
+    # Brevo (Sendinblue) Settings
+    BREVO_API_KEY: Optional[str] = None
+    DEFAULT_SENDER_EMAIL: Optional[str] = None
+    DEFAULT_SENDER_NAME: Optional[str] = None
+    SMS_SENDER_NAME: Optional[str] = None
+    BREVO_LIST_ID: Optional[int] = None
+
+    # Notification Recipients
+    EMAIL_CONTACT_RECIPIENT: Optional[str] = None
+    EMAIL_AVOCAT_RECIPIENT: Optional[str] = None
+    EMAIL_PHONE_RECIPIENT: Optional[str] = None
+    EMAIL_EXTRAS_CF_RECIPIENT: Optional[str] = None
+    AVOCAT_TARGET_EMAIL: Optional[str] = None
+
     SECURE_COOKIE: bool = False
 
     class Config:

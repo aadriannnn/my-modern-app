@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
-import { Download, X, Printer, FolderPlus, FolderCheck, ThumbsUp, ThumbsDown } from "lucide-react";
+import { Download, X, Printer, FolderPlus, FolderCheck, ThumbsUp, ThumbsDown, Gavel } from "lucide-react";
 import ShareButton from "./ShareButton";
 import { useDosar } from "../context/DosarContext";
 import { submitFeedback } from "../lib/api";
@@ -279,6 +279,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                     {caseData.titlu || "Detalii Speță"}
                   </Dialog.Title>
                   <div className="flex items-center space-x-2">
+
                     <button
                       onClick={handleDosarClick}
                       className={`p-2 rounded-full transition-colors ${isInDosar ? 'text-green-600 bg-green-50 hover:bg-green-100' : 'text-gray-500 hover:bg-gray-100'}`}
@@ -317,6 +318,15 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                         </option>
                       ))}
                     </select>
+
+                    {/* Lawyer Assistance Mobile Button */}
+                    <button
+                      onClick={() => window.open("/asistenta-avocat", "_blank")}
+                      className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors font-medium text-sm border border-purple-200"
+                    >
+                      <Gavel size={16} className="text-purple-600" />
+                      <span>Contactează Avocat</span>
+                    </button>
                   </div>
 
                   {/* Desktop and Mobile Content Layout */}
@@ -341,6 +351,17 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                           </button>
                         ))}
                       </nav>
+
+                      {/* Lawyer Assistance Button in Sidebar */}
+                      <div className="mt-4 pt-4 border-t border-gray-200 w-full">
+                        <button
+                          onClick={() => window.open("/asistenta-avocat", "_blank")}
+                          className="w-full flex items-center gap-2 px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors font-medium text-sm border border-purple-200 group"
+                        >
+                          <Gavel size={16} className="text-purple-600 group-hover:scale-110 transition-transform" />
+                          <span>Contactează Avocat</span>
+                        </button>
+                      </div>
                     </aside>
 
                     {/* Content Area */}

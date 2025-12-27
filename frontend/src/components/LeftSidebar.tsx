@@ -1,6 +1,7 @@
 import React, { useState, Fragment } from 'react';
+import { useNavigate } from 'react-router-dom';
 import type { Filters, SelectedFilters, FilterItem } from '../types';
-import { ChevronDown, X, PlusCircle, ChevronLeft, ChevronRight, Edit2, Check } from 'lucide-react';
+import { ChevronDown, X, PlusCircle, ChevronLeft, ChevronRight, Edit2, Check, Gavel } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat1 from '../assets/reclama/avocat1.jpg';
 
@@ -25,6 +26,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   isDesktopOpen = true,
   onDesktopToggle
 }) => {
+  const navigate = useNavigate();
   const { materii = [], obiecte = [], details = {}, tipSpeta = [], parte = [] } = filters ?? {};
   const availableObiecte = selectedFilters.materie ? details[selectedFilters.materie] ?? [] : obiecte;
 
@@ -197,6 +199,27 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
           </div>
         )}
 
+      </div>
+
+      {/* Lawyer Assistance Button (New) */}
+      <div className="border-t border-gray-100 pt-4 pb-2">
+        <button
+          onClick={() => {
+            navigate("/asistenta-avocat");
+          }}
+          className="w-full flex items-center justify-between p-3 rounded-lg border border-purple-100 bg-gradient-to-r from-purple-50 to-white hover:from-purple-100 hover:to-white hover:shadow-md transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-colors">
+              <Gavel size={16} />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-bold text-gray-800 group-hover:text-purple-700 transition-colors">Asistență Avocat</div>
+              <div className="text-[10px] text-gray-500">Solicită ajutor juridic</div>
+            </div>
+          </div>
+          <ChevronRight size={16} className="text-gray-400 group-hover:text-purple-500 transition-colors" />
+        </button>
       </div>
 
       <Advertisement imageSrc={avocat1} altText="Reclamă avocat" />

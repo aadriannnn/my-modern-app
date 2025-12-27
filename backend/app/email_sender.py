@@ -12,11 +12,13 @@ from datetime import datetime # Added to fix NameError
 if TYPE_CHECKING:
     from .models import ClientData # Presupunând că ClientData este în models.py
     from .routers.extras_cf_routes import SolicitareExtrasCfRequest # Presupunând calea corectă
-    from backend.app.schemas import ClientRequestResponse # Added for new functions
-    from backend.app.models import PartnerLawyerStatusEnum # For type hinting if needed, though str is used for new_status
+    from app.schemas import ClientRequestResponse # Added for new functions
+    from app.models import PartnerLawyerStatusEnum # For type hinting if needed, though str is used for new_status
 
-from backend.app.models import BUCHAREST_TZ # Added for timestamp formatting
-from backend.config import settings # Import settings for FRONTEND_BASE_URL
+from app.models import BUCHAREST_TZ # Added for timestamp formatting
+from app.config import get_settings # Import settings for FRONTEND_BASE_URL
+
+settings = get_settings()
 
 # Încarcă variabilele de mediu din fișierul .env
 # Ideal, load_dotenv() este apelat o singură dată la începutul aplicației (ex: în config.py sau main.py)
@@ -26,18 +28,35 @@ from backend.config import settings # Import settings for FRONTEND_BASE_URL
 # load_dotenv() # Comentat pentru a evita încărcări multiple dacă e deja făcut în config/main
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - [%(funcName)s:%(lineno)d] - %(message)s')
+# duplicate urllib3 patch from email_utils.py just in case
+import urllib3
+from urllib3.response import HTTPResponse
+
+if not hasattr(HTTPResponse, 'getheaders'):
+    def getheaders(self):
+        return self.headers
+    HTTPResponse.getheaders = getheaders
+
+# Ensure env vars are loaded
+load_dotenv()
+
 logger = logging.getLogger(__name__)
 
 # --- Citire valori din variabile de mediu ---
+# Folosim os.getenv direct pentru API KEY pentru a evita probleme potențiale cu pydantic-settings
+import os
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")
-DEFAULT_SENDER_EMAIL = os.getenv("DEFAULT_SENDER_EMAIL", "notificari@legeaaplicata.ro") # Exemplu
-DEFAULT_SENDER_NAME = os.getenv("DEFAULT_SENDER_NAME", "Legea Aplicata Notificari")
+if BREVO_API_KEY:
+    BREVO_API_KEY = BREVO_API_KEY.strip() # Fix potential whitespace issues
 
-EMAIL_DESTINATAR_CONTACT = os.getenv("EMAIL_CONTACT_RECIPIENT", "contact@legeaaplicata.ro")
-EMAIL_DESTINATAR_AVOCAT = os.getenv("EMAIL_AVOCAT_RECIPIENT", "avocat@legeaaplicata.ro")
-EMAIL_DESTINATAR_TELEFON = os.getenv("EMAIL_PHONE_RECIPIENT", "telefon@legeaaplicata.ro")
+DEFAULT_SENDER_EMAIL = settings.DEFAULT_SENDER_EMAIL or "notificari@legeaaplicata.ro"
+DEFAULT_SENDER_NAME = settings.DEFAULT_SENDER_NAME or "Legea Aplicata Notificari"
+
+EMAIL_DESTINATAR_CONTACT = settings.EMAIL_CONTACT_RECIPIENT or "contact@legeaaplicata.ro"
+EMAIL_DESTINATAR_AVOCAT = settings.EMAIL_AVOCAT_RECIPIENT or "avocat@legeaaplicata.ro"
+EMAIL_DESTINATAR_TELEFON = settings.EMAIL_PHONE_RECIPIENT or "telefon@legeaaplicata.ro"
 # Adăugăm o variabilă specifică pentru extras CF, cu fallback la contact
-EMAIL_DESTINATAR_EXTRAS_CF = os.getenv("EMAIL_EXTRAS_CF_RECIPIENT", EMAIL_DESTINATAR_CONTACT)
+EMAIL_DESTINATAR_EXTRAS_CF = settings.EMAIL_EXTRAS_CF_RECIPIENT or EMAIL_DESTINATAR_CONTACT
 
 
 # --- Configurare API Client Brevo (Sendinblue) ---
@@ -55,7 +74,7 @@ if BREVO_API_KEY:
         logger.error(f"Eroare la inițializarea clientului API Brevo: {e}", exc_info=True)
         transactional_emails_api = None # Asigurăm că este None dacă inițializarea eșuează
 else:
-    logger.warning("BREVO_API_KEY nu este setat. Trimiterea de email-uri va eșua.")
+    logger.warning("BREVO_API_KEY nu este setat (os.getenv). Trimiterea de email-uri va eșua.")
 
 
 def send_email(
@@ -1079,3 +1098,83 @@ async def send_subscription_cancelled_email(
 #             logger.error("Trimiterea emailului de test a eșuat.")
 #     else:
 #         logger.info("Pentru a trimite un email de test, setați variabila de mediu TEST_EMAIL_RECIPIENT.")
+
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# +++ LAWYER ASSISTANCE EMAIL                                         +++++
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+async def send_lawyer_assistance_request_email(
+    nume: str,
+    email: str,
+    telefon: str,
+    is_company: bool,
+    is_represented: bool,
+    judet: str,
+    practice_area: str,
+    message: str
+) -> bool:
+    """
+    Sends an email with the lawyer assistance request details.
+    """
+    logger.info(f"START send_lawyer_assistance_request_email for {nume}")
+
+    if not transactional_emails_api:
+        logger.error("Brevo API not configured. Cannot send lawyer assistance email.")
+        return False
+
+    recipient_email = settings.AVOCAT_TARGET_EMAIL
+    if not recipient_email:
+        # Fallback to AVOCAT recipient if specific target not set
+        recipient_email = EMAIL_AVOCAT_RECIPIENT
+        if not recipient_email:
+             logger.error("No recipient email configured for lawyer assistance (AVOCAT_TARGET_EMAIL or EMAIL_AVOCAT_RECIPIENT).")
+             return False
+
+    subject = f"Cerere Nouă Asistență Avocat: {nume}"
+
+    company_status = "Persoană Juridică" if is_company else "Persoană Fizică"
+    represented_status = "Da, are avocat" if is_represented else "Nu are avocat"
+
+    html_content = f"""
+    <h3>Cerere Nouă Asistență Juridică</h3>
+    <p>O nouă solicitare a fost primită:</p>
+    <ul>
+        <li><strong>Nume:</strong> {nume}</li>
+        <li><strong>Email:</strong> {email}</li>
+        <li><strong>Telefon:</strong> {telefon}</li>
+        <li><strong>Tip Client:</strong> {company_status}</li>
+        <li><strong>Reprezentat deja:</strong> {represented_status}</li>
+        <li><strong>Județ:</strong> {judet}</li>
+        <li><strong>Arie de practică:</strong> {practice_area}</li>
+    </ul>
+    <h4>Descriere situație:</h4>
+    <p style="background-color: #f5f5f5; padding: 15px; border-radius: 5px;">
+        {message.replace(os.linesep, '<br>')}
+    </p>
+    <hr>
+    <p><small>Trimis automat din LegeaAplicata.ro</small></p>
+    """
+
+    logger.info(f"Se încearcă trimiterea cererii de asistență avocat către {recipient_email}...")
+    try:
+        loop = asyncio.get_event_loop()
+        success = await loop.run_in_executor(
+            None,
+            send_email,
+            recipient_email,
+            "Avocat Colaborator",
+            subject,
+            html_content,
+            None, # text_content
+            DEFAULT_SENDER_EMAIL,
+            DEFAULT_SENDER_NAME,
+            {"email": email, "name": nume} # reply_to
+        )
+        if success:
+            logger.info(f"Email cerere asistență avocat trimis cu succes către {recipient_email}")
+        else:
+            logger.error(f"Eșec la trimiterea emailului către {recipient_email} (send_email a returnat False)")
+        return success
+    except Exception as e:
+        logger.exception(f"Eroare critică la trimiterea emailului de asistență avocat: {e}")
+        return False

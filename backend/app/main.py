@@ -26,7 +26,9 @@ from .routers import (
     dosar_search_router,
     billing_routes as billing_router,
     taxa_timbru_routes as taxa_timbru_router,
-    legal_news_routes
+    taxa_timbru_routes as taxa_timbru_router,
+    legal_news_routes,
+    lawyer_assistance
 )
 
 # Configure logging
@@ -135,6 +137,7 @@ api_router.include_router(dosar_search_router)
 api_router.include_router(billing_router.router)
 api_router.include_router(taxa_timbru_router.router)
 api_router.include_router(legal_news_routes)
+api_router.include_router(lawyer_assistance.router)
 
 from .routers import dev_tools
 api_router.include_router(dev_tools.router, prefix="/dev", tags=["dev"])

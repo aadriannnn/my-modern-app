@@ -8,11 +8,15 @@ from pgvector.sqlalchemy import Vector
 from datetime import datetime
 from .config import get_settings
 
+from zoneinfo import ZoneInfo
+
 settings = get_settings()
 is_postgres = settings.DATABASE_URL and "postgresql" in settings.DATABASE_URL
 db_specific_json = JSONB if is_postgres else JSON
 # Use JSON for arrays in SQLite as a fallback
 db_specific_array = ARRAY(String) if is_postgres else JSON
+
+BUCHAREST_TZ = ZoneInfo('Europe/Bucharest')
 
 
 class ClientRole(str, enum.Enum):
