@@ -8,11 +8,9 @@ import ContribuieModal from '../components/ContribuieModal';
 import Footer from '../components/Footer';
 import { search as apiSearch, searchByDosar, getFilterMappings } from '../lib/api';
 import type { Filters, SelectedFilters } from '../types';
-import { useAuth } from '../context/AuthContext';
 import { buildDynamicFilters, type FilterMappings, getOriginalValuesForCanonical } from '../lib/dynamicFilterHelpers';
 
 const SearchPage: React.FC = () => {
-    const { user } = useAuth();
     // const [filters, setFilters] = useState<Filters | null>(null); // Removed static filters state
     const [dynamicFilters, setDynamicFilters] = useState<Filters | null>(null);
     const [filterMappings, setFilterMappings] = useState<FilterMappings | null>(null);
