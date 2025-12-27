@@ -78,7 +78,7 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
         }
     };
 
-    if (!isOpen) return null;
+    if (!isOpen || !filters || !filters.materii || filters.materii.length === 0) return null;
 
     const filteredObiecte = availableObiecte.filter((item: FilterItem | string) => {
         const name = typeof item === 'string' ? item : item.name;
@@ -105,7 +105,7 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                                 </button>
                             )}
                             <h3 className="text-lg font-bold text-brand-text">
-                                {viewStep === 'materie' && 'Alege Materia'}
+                                {viewStep === 'materie' && 'Filtrează după Materie'}
                                 {viewStep === 'obiect' && 'Alege Obiectul'}
                                 {viewStep === 'detalii' && 'Filtrează Detalii'}
                             </h3>

@@ -74,12 +74,18 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
         {/* 1. MATERIE SECTION */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-          {!selectedFilters.materie ? (
+          {!filters || !filters.materii || filters.materii.length === 0 ? (
+            // STATE: No Filters Available (e.g. before search)
+            <div className="p-4 text-center text-gray-500 italic text-sm">
+              Efectuați o căutare pentru a vedea filtrele disponibile bazate pe rezultate.
+            </div>
+          ) : !selectedFilters.materie ? (
             // STATE: No Materie Selected -> Show List
             <div className="p-3">
               <h4 className="font-semibold text-brand-text mb-3 flex items-center gap-2">
                 <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-primary text-white text-xs">1</span>
-                Alege Materia
+                Filtrează după Materie
+                <span className="ml-auto text-[10px] text-gray-400 font-normal">Din rezultate</span>
               </h4>
               <div className="space-y-1">
                 {materii.map(materie => (

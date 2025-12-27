@@ -78,6 +78,22 @@ export const getFilters = async (): Promise<Filters> => {
   }
 };
 
+export const getFilterMappings = async () => {
+  try {
+    const response = await fetchWithTimeout(`${API_URL}/search/filters/mappings`, {
+      credentials: 'include'
+    });
+    if (!response.ok) {
+      console.warn('Failed to fetch filter mappings');
+      return { materii_map: {}, obiecte_map: {} };
+    }
+    return response.json();
+  } catch (error) {
+    console.error("Error fetching filter mappings:", error);
+    return { materii_map: {}, obiecte_map: {} };
+  }
+};
+
 export class ApiError extends Error {
   public readonly status: number;
 
@@ -705,7 +721,7 @@ export const updateUserRole = async (userId: string, role: string) => {
   const response = await fetchWithTimeout(`${API_URL}/auth/users/${userId}/role`, {
     method: 'PUT',
     headers: {
-        'Content-Type': 'application/json'
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({ rol: role }),
     credentials: 'include'

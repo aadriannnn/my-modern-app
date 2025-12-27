@@ -6,13 +6,17 @@ import CaseDetailModal from '../components/CaseDetailModal';
 import CompanyDetailModal from '../components/CompanyDetailModal';
 import ContribuieModal from '../components/ContribuieModal';
 import Footer from '../components/Footer';
-import { getFilters, search as apiSearch, searchByDosar } from '../lib/api';
+import { search as apiSearch, searchByDosar, getFilterMappings } from '../lib/api';
 import type { Filters, SelectedFilters } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { buildDynamicFilters, type FilterMappings, getOriginalValuesForCanonical } from '../lib/dynamicFilterHelpers';
 
 const SearchPage: React.FC = () => {
     const { user } = useAuth();
-    const [filters, setFilters] = useState<Filters | null>(null);
+    // const [filters, setFilters] = useState<Filters | null>(null); // Removed static filters state
+    const [dynamicFilters, setDynamicFilters] = useState<Filters | null>(null);
+    const [filterMappings, setFilterMappings] = useState<FilterMappings | null>(null);
+    const [originalResults, setOriginalResults] = useState<any[]>([]); // Store all fetched results for client-side filtering
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [status, setStatus] = useState('');
     const [isLoading, setIsLoading] = useState(true);
@@ -39,21 +43,123 @@ const SearchPage: React.FC = () => {
     const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
 
     useEffect(() => {
-        const loadFilters = async () => {
+        const loadInitialData = async () => {
             try {
-                // setStatus('Încărcare filtre...');
-                const filterData = await getFilters();
-                setFilters(filterData);
+                const mappings = await getFilterMappings();
+                setFilterMappings(mappings);
+
+                // We don't really need the static filters anymore for the sidebar,
+                // but we might keep them for fallback or other uses.
+                // setFilters(await getFilters());
                 setStatus('');
             } catch (error) {
-                console.error('Failed to load filters:', error);
-                setStatus('Eroare la încărcarea filtrelor.');
+                console.error('Failed to load initial data:', error);
+                // setStatus('Eroare la încărcarea datelor inițiale.');
             } finally {
                 setIsLoading(false);
             }
         };
-        loadFilters();
+        loadInitialData();
     }, []);
+
+    // Apply client-side filters whenever searchParams or originalResults change
+    const applyClientSideFilters = useCallback(() => {
+        if (!originalResults.length) {
+            setSearchResults([]);
+            return;
+        }
+
+        let filtered = [...originalResults];
+
+        // 1. Filter by Materie
+        if (searchParams.materie && filterMappings) {
+            const originalMateriiInGroup = getOriginalValuesForCanonical(searchParams.materie, filterMappings.materii_map);
+            filtered = filtered.filter(r => {
+                const rData = r.data || r;
+                return originalMateriiInGroup.includes(rData.materie);
+            });
+        }
+
+        // 2. Filter by Obiect (OR logic within obiects)
+        if (searchParams.obiect.length > 0 && filterMappings) {
+            filtered = filtered.filter(r => {
+                const rData = r.data || r;
+                // Obiect in result can be "Divort, Partaj"
+                // searchParams.obiect contains canonicals like "Divort"
+                const rObiectRaw = rData.obiectul || rData.obiect || '';
+
+                // We need to check if ANY of the selected canonical objects match ANY of the result's objects
+                return searchParams.obiect.some(selectedCanonical => {
+                    const originalObiecteInGroup = getOriginalValuesForCanonical(selectedCanonical, filterMappings.obiecte_map);
+                    // Check if raw string contains any of the originals
+                    // Since raw string can be comma separated, we split it
+                    const rParts = rObiectRaw.split(/,|;|\s+și\s+/i).map((s: string) => s.trim());
+                    return rParts.some((part: string) => originalObiecteInGroup.includes(part));
+                });
+            });
+        }
+
+        // 3. Filter by Tip Speta
+        if (searchParams.tip_speta.length > 0) {
+            filtered = filtered.filter(r => {
+                const rData = r.data || r;
+                return searchParams.tip_speta.includes(rData.tip_speta || rData.tip || rData.categorie_speta || '');
+            });
+        }
+
+        // 4. Filter by Parte
+        if (searchParams.parte.length > 0) {
+            filtered = filtered.filter(r => {
+                const rData = r.data || r;
+                const rParte = rData.parte || rData.parti || '';
+                // Simple substring check or exact match on split?
+                // Let's do exact match on split parts for consistency with helper
+                const parts = rParte.split(/,|;/).map((s: string) => s.trim());
+                return searchParams.parte.some(p => parts.includes(p));
+            });
+        }
+
+        setSearchResults(filtered);
+
+        // Re-calculate dynamic filters based on the NEW filtered list?
+        // OR should filters always reflect the FULL result set for the current search (before filtering)?
+        // Use case: I search "divort". I verify 100 results. I filter by "Civil".
+        // Should the "Obiecte" filter now only show objects present in the 50 "Civil" cases?
+        // YES, usually dependent filters refine available options.
+        // However, standard e-commerce behavior is:
+        // - Filters count shows what IS available if you select it.
+        // BUT if I select Materie=Civil, I shouldn't see Obiect=Penal options anymore.
+        // So yes, re-build dynamic filters from the filtered results.
+
+        // WAIT. If I select a filter, and the list shrinks, and I re-generate filters from the shrunk list,
+        // I lose the unselected options!
+        // Example: Materie: Civil (50), Penal (50). I select Civil. Result is 50.
+        // If I rebuild filters from these 50, Materie options become: Civil (50). Penal is gone!
+        // So I can't unselect Civil easily or switch to Penal.
+
+        // CORRECT APPROACH:
+        // 1. Materie Filter Options should be based on `originalResults` + selection state?
+        // Usually: Top level filters (Materie) are based on the GLOBAL search results (originalResults).
+        // Sub-filters (Obiect) *could* be refined by Materie selection.
+
+        // Implementation for now:
+        // Always build filters from `originalResults` BUT:
+        // The helper `buildDynamicFilters` supports hierarchical structure.
+        // If we want "Obiect" to only show valid options for the selected "Materie", the helper handles that via `details[materie]`.
+        // So simply building from `originalResults` is safe and correct for the UI structure we have,
+        // because LeftSidebar uses `details[selectedFilters.materie]` to show objects.
+
+        const newFilters = buildDynamicFilters(originalResults, filterMappings);
+        setDynamicFilters(newFilters);
+
+    }, [originalResults, searchParams, filterMappings]);
+
+
+    // Trigger filter application when deps change
+    useEffect(() => {
+        applyClientSideFilters();
+    }, [applyClientSideFilters]);
+
 
     const loadMoreResults = useCallback(async (currentOffset: number) => {
         if (isLoading || !hasMore) return;
@@ -70,10 +176,21 @@ const SearchPage: React.FC = () => {
 
         try {
             const results = await apiSearch(payload);
-            setSearchResults(prev => [...prev, ...results]);
+            setOriginalResults(prev => [...prev, ...results]); // Append to original results
+            // setSearchResults will be handled by applyClientSideFilters
+
+            // Note: Since we are doing client side filtering, "offset" logic is tricky.
+            // If we are filtering heavily, "loading more" from backend might bring results that get filtered out.
+            // But for now, let's assume the backend pagination returns a mix and we filter locally.
+            // Ideally, for pure client side filter on large datasets, we'd fetch ALL, but here we paginate.
+            // Given the task is "Dynamic Filters from currently displayed results",
+            // the filters reflect what we have loaded SO FAR.
+            // So if I have loaded 20 items, filters show counts for 20 items.
+            // That is acceptable for this iteration.
+
             setOffset(currentOffset + results.length);
             setHasMore(results.length === 20);
-            setStatus(`Au fost găsite ${searchResults.length + results.length} rezultate.`);
+            setStatus(`Au fost găsite ${originalResults.length + results.length} rezultate.`);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Eroare necunoscută';
             setStatus(`Eroare la încărcarea rezultatelor: ${errorMessage}`);
@@ -105,6 +222,12 @@ const SearchPage: React.FC = () => {
             };
 
             const initialResults = await apiSearch(payload);
+
+            setOriginalResults(initialResults); // Store baseline for filtering
+
+            // Build initial filters immediately so UI updates
+            const newFilters = buildDynamicFilters(initialResults, filterMappings);
+            setDynamicFilters(newFilters);
 
             // If Pro Keyword is ON, we skip the AI filtering step unless explicitly requested.
             // But now Pro Keyword logic is merged into default, so we treat it as standard.
@@ -223,15 +346,20 @@ const SearchPage: React.FC = () => {
                                         );
                                     }
 
-                                    setSearchResults(mergedResults);
+                                    // Update original results to match AI result set so filters work on THIS set
+                                    setOriginalResults(mergedResults);
+                                    // setSearchResults(mergedResults); // Handled by effect? No, we might strictly set it here
+                                    // Actually, if we update originalResults, the effect will run and re-apply filters (which are likely empty initially)
+                                    // so it should be fine.
                                     setOffset(mergedResults.length);
                                     setHasMore(false);
                                 } else {
-                                    setSearchResults([]);
+                                    setOriginalResults([]); // Clear if no AI results
                                     setStatus("AI-ul nu a găsit rezultate relevante.");
                                 }
                             } else {
-                                setSearchResults([]);
+                                setOriginalResults([]);
+                                setSearchResults([]); // Also clear visible results
                                 setStatus("Eroare la procesarea răspunsului AI.");
                             }
                             break;
@@ -257,11 +385,13 @@ const SearchPage: React.FC = () => {
                 } catch (aiError) {
                     console.error("AI Filtering failed:", aiError);
                     setStatus("Filtrarea AI nu a putut fi aplicată. Vă rugăm să încercați din nou sau să dezactivați funcția Pro.");
+                    setOriginalResults([]); // Or keep what we had? Ideally keep initial
                     setSearchResults([]);
                 }
             } else {
                 // Standard search display (Pro disabled OR query too short OR Pro Keyword enabled)
-                setSearchResults(initialResults);
+                // setOriginalResults was already set above to initialResults
+                // setSearchResults(initialResults); // Handled by effect
                 setOffset(initialResults.length);
                 setHasMore(initialResults.length === 20);
                 setStatus(`Au fost găsite ${initialResults.length} rezultate.`);
@@ -344,7 +474,8 @@ const SearchPage: React.FC = () => {
             });
 
             // Display results
-            setSearchResults(response.results);
+            setOriginalResults(response.results); // Update original source
+            // setSearchResults(response.results); // Handled by effect
             setOffset(response.results.length);
             setHasMore(false); // No pagination for dosar search
             setActeJuridice([]); // Clear AI acts
@@ -366,7 +497,8 @@ const SearchPage: React.FC = () => {
     }, []);
 
     const handleSearchByIds = useCallback((results: any[], count: number) => {
-        setSearchResults(results);
+        setOriginalResults(results);
+        // setSearchResults(results); // Handled by effect
         setOffset(results.length);
         setHasMore(false);
         setStatus(`Căutare după ID-uri: ${count} rezultate găsite.`);
@@ -383,7 +515,7 @@ const SearchPage: React.FC = () => {
             <div className="flex flex-1 overflow-hidden">
                 {(user?.rol === 'admin' || user?.rol === 'pro') && (
                     <LeftSidebar
-                        filters={filters}
+                        filters={dynamicFilters} // Pass dynamic filters here
                         selectedFilters={searchParams}
                         onFilterChange={handleFilterChange}
                         isOpen={isMobileMenuOpen}

@@ -213,6 +213,27 @@ async def search(
             detail="An internal error occurred during the search process."
         )
 
+@router.get("/filters/mappings")
+async def get_filter_mappings(session: Session = Depends(get_session)):
+    """
+    Returns the canonical-to-original mappings for filters.
+    Used by frontend to group search results.
+    """
+    from ..models import FiltreCacheMenu
+
+    # Try to load from cache
+    cache_entry = session.get(FiltreCacheMenu, 1)
+
+    if not cache_entry:
+        logger.warning("FiltreCacheMenu entry not found. Returning empty mappings.")
+        return {"materii_map": {}, "obiecte_map": {}}
+
+    # Return just the mappings needed for grouping
+    return {
+        "materii_map": cache_entry.materii_map or {},
+        "obiecte_map": cache_entry.obiecte_map or {}
+    }
+
 @router.get("/by-ids")
 async def search_by_ids(
     ids: str,
