@@ -134,6 +134,21 @@ def send_email(
 
 # --- Funcții specifice pentru formulare (pot fi refactorizate să folosească send_email mai direct) ---
 async def send_contact_form_email(nume: str, email: str, telefon: Optional[str], mesaj: str) -> bool:
+    logger.info(f"START send_contact_form_email from {email}")
+
+    if not transactional_emails_api:
+        logger.error("Brevo API not configured. Cannot send contact email.")
+        return False
+
+    # Determinare destinatar: Prioritate AVOCAT_TARGET_EMAIL (cerut explicit), apoi EMAIL_DESTINATAR_CONTACT
+    recipient_email = settings.AVOCAT_TARGET_EMAIL or EMAIL_DESTINATAR_CONTACT
+    if not recipient_email:
+        logger.error("No recipient email configured for contact form (AVOCAT_TARGET_EMAIL or EMAIL_DESTINATAR_CONTACT).")
+        return False
+
+    # Determinare Nume Expeditor: Prioritate SMS_SENDER_NAME (cerut explicit), apoi DEFAULT_SENDER_NAME
+    sender_name = settings.SMS_SENDER_NAME or DEFAULT_SENDER_NAME
+
     subject = f"Mesaj Nou Contact LegeaAplicata de la: {nume}"
     html_content = f"""
     <h3>Mesaj Nou Formular Contact LegeaAplicata.ro</h3>
@@ -145,9 +160,34 @@ async def send_contact_form_email(nume: str, email: str, telefon: Optional[str],
     <hr>
     <p><small>Acest email a fost trimis automat de pe platforma LegeaAplicata.ro.</small></p>
     """
+
+    logger.info(f"Se încearcă trimiterea mesajului de contact către {recipient_email} cu Sender Name: {sender_name}...")
+
     # Asigurăm că funcția sincronă send_email este apelată într-un mod non-blocant
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, send_email, EMAIL_DESTINATAR_CONTACT, "Admin LegeaAplicata", subject, html_content, reply_to={"email": email, "name": nume})
+    try:
+        success = await loop.run_in_executor(
+            None,
+            send_email,
+            recipient_email,
+            "Admin Contact", # Recipient Name
+            subject,
+            html_content,
+            None, # text_content
+            DEFAULT_SENDER_EMAIL, # sender_email (folosim default pentru adresa reala de trimitere)
+            sender_name, # sender_name (customizat)
+            {"email": email, "name": nume} # reply_to
+        )
+
+        if success:
+             logger.info(f"Email contact trimis cu succes către {recipient_email}")
+        else:
+             logger.error(f"Eșec la trimiterea emailului contact către {recipient_email} (send_email a returnat False)")
+
+        return success
+    except Exception as e:
+        logger.exception(f"Eroare critică la trimiterea emailului de contact: {e}")
+        return False
 
 async def send_avocat_form_email(nume: str, email: str, telefon: str, localitate: str, judet: str, mesaj: str) -> bool:
     subject = f"Cerere Nouă Avocat LegeaAplicata de la: {nume}"

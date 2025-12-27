@@ -19,6 +19,7 @@ import PaymentReturnPage from './pages/PaymentReturnPage';
 import PricingPage from './pages/PricingPage';
 import TaxaTimbruPage from './pages/TaxaTimbruPage';
 import LawyerAssistancePage from './pages/LawyerAssistancePage';
+import ContactPage from './pages/ContactPage';
 
 
 import LegalNewsPage from './pages/LegalNews/LegalNewsPage';
@@ -46,6 +47,7 @@ const App: React.FC = () => {
           <Route path="/abonamente" element={<PricingPage />} />
           <Route path="/taxa-timbru" element={<TaxaTimbruPage />} />
           <Route path="/asistenta-avocat" element={<LawyerAssistancePage />} />
+          <Route path="/contact" element={<ContactPage />} />
 
           {/* Legal News Routes */}
           {/* Legal News Routes */}

@@ -28,7 +28,8 @@ from .routers import (
     taxa_timbru_routes as taxa_timbru_router,
     taxa_timbru_routes as taxa_timbru_router,
     legal_news_routes,
-    lawyer_assistance
+    lawyer_assistance,
+    contact_routes
 )
 
 # Configure logging
@@ -138,6 +139,7 @@ api_router.include_router(billing_router.router)
 api_router.include_router(taxa_timbru_router.router)
 api_router.include_router(legal_news_routes)
 api_router.include_router(lawyer_assistance.router)
+api_router.include_router(contact_routes.router)
 
 from .routers import dev_tools
 api_router.include_router(dev_tools.router, prefix="/dev", tags=["dev"])

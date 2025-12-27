@@ -1,7 +1,7 @@
 import React, { useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Filters, SelectedFilters, FilterItem } from '../types';
-import { ChevronDown, X, PlusCircle, ChevronLeft, ChevronRight, Edit2, Check, Gavel } from 'lucide-react';
+import { ChevronDown, X, PlusCircle, ChevronLeft, ChevronRight, Edit2, Check, Gavel, Mail } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat1 from '../assets/reclama/avocat1.jpg';
 
@@ -219,6 +219,27 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             </div>
           </div>
           <ChevronRight size={16} className="text-gray-400 group-hover:text-purple-500 transition-colors" />
+        </button>
+      </div>
+
+      {/* Contact Button (New) */}
+      <div className="border-t border-gray-100 pt-4 pb-2">
+        <button
+          onClick={() => {
+            navigate("/contact");
+          }}
+          className="w-full flex items-center justify-between p-3 rounded-lg border border-blue-100 bg-gradient-to-r from-blue-50 to-white hover:from-blue-100 hover:to-white hover:shadow-md transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-colors">
+              <Mail size={16} />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-bold text-gray-800 group-hover:text-blue-700 transition-colors">Contact</div>
+              <div className="text-[10px] text-gray-500">Trimiteți-ne un mesaj</div>
+            </div>
+          </div>
+          <ChevronRight size={16} className="text-gray-400 group-hover:text-blue-500 transition-colors" />
         </button>
       </div>
 

@@ -19,6 +19,7 @@ interface DosarContextType {
     toggleDrawer: () => void;
     toast: ToastMessage | null;
     hideToast: () => void;
+    showToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
 const DosarContext = createContext<DosarContextType | undefined>(undefined);
@@ -101,6 +102,7 @@ export const DosarProvider: React.FC<DosarProviderProps> = ({ children }) => {
                 toggleDrawer,
                 toast,
                 hideToast,
+                showToast,
             }}
         >
             {children}
