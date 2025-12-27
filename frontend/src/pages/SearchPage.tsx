@@ -513,18 +513,16 @@ const SearchPage: React.FC = () => {
                 onContribuieClick={() => setIsContribuieModalOpen(true)}
             />
             <div className="flex flex-1 overflow-hidden">
-                {(user?.rol === 'admin' || user?.rol === 'pro') && (
-                    <LeftSidebar
-                        filters={dynamicFilters} // Pass dynamic filters here
-                        selectedFilters={searchParams}
-                        onFilterChange={handleFilterChange}
-                        isOpen={isMobileMenuOpen}
-                        onClose={() => setIsMobileMenuOpen(false)}
-                        onContribuieClick={() => setIsContribuieModalOpen(true)}
-                        isDesktopOpen={isDesktopSidebarOpen}
-                        onDesktopToggle={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
-                    />
-                )}
+                <LeftSidebar
+                    filters={dynamicFilters} // Pass dynamic filters here
+                    selectedFilters={searchParams}
+                    onFilterChange={handleFilterChange}
+                    isOpen={isMobileMenuOpen}
+                    onClose={() => setIsMobileMenuOpen(false)}
+                    onContribuieClick={() => setIsContribuieModalOpen(true)}
+                    isDesktopOpen={isDesktopSidebarOpen}
+                    onDesktopToggle={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
+                />
                 <MainContent
                     results={searchResults}
                     status={status}
