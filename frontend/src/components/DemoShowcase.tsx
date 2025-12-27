@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Play, CheckCircle2, Search, Building2, X, Maximize2 } from 'lucide-react';
 
 const DemoShowcase = () => {
