@@ -9,8 +9,19 @@ interface LongTextFieldProps {
 const LongTextField: React.FC<LongTextFieldProps> = ({ label, text, highlightTerms }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
-  if (!text || typeof text !== 'string' || text.trim().toLowerCase() === 'null') {
-    return null; // Don't render if text is not available
+  // Check if text is empty or invalid
+  const hasNoContent = !text || typeof text !== 'string' || text.trim().toLowerCase() === 'null' || text.trim() === '';
+
+  // If no content, show a helpful message instead of returning null
+  if (hasNoContent) {
+    return (
+      <div className="mb-4">
+        <h4 className="font-semibold text-brand-text mb-2">{label}</h4>
+        <div className="bg-gray-50 p-4 rounded-lg text-gray-500 italic text-base leading-relaxed border border-gray-200">
+          <p>Această informație nu este disponibilă pentru acest caz.</p>
+        </div>
+      </div>
+    );
   }
 
   // A simple heuristic to decide if the expand button is needed

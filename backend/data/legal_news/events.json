@@ -5,18 +5,8 @@
     "slug": "filtrul-investitiilor-straine-2025",
     "date": "2025-04-24T19:00:00Z",
     "location": "Dezbateri Juridice.ro",
-    "bannerType": "coloredText",
-    "bannerImageUrl": null,
-    "bannerColor": "red.600",
-    "bannerTextLines": [
-      "24 aprilie 2025 - 19:00",
-      "Filtrul investițiilor străine:",
-      "Protecție națională sau barieră",
-      "economică?"
-    ],
-    "isLive": true,
-    "detailsLink": "/stiri/evenimente/filtrul-investitiilor-straine-2025",
-    "actionButtonText": "ARHIVĂ"
+    "imageFileName": null,
+    "description": "Dezbatere juridică despre filtrul investițiilor străine și impactul acestuia asupra economiei naționale."
   },
   {
     "id": "evt-002",
@@ -24,13 +14,8 @@
     "slug": "juridice-by-night-floral-amber-2025",
     "date": "2025-04-24T18:00:00Z",
     "location": "Online",
-    "bannerType": "image",
-    "bannerImageUrl": "/data/legal_news/images/events/floral-amber-banner.jpg",
-    "bannerColor": null,
-    "bannerTextLines": [],
-    "isLive": false,
-    "detailsLink": "https://example.com/juridice-by-night",
-    "actionButtonText": "Detalii"
+    "imageFileName": "floral-amber-banner.jpg",
+    "description": "Eveniment de networking pentru profesioniști din domeniul juridic."
   },
   {
     "id": "evt-003",
@@ -38,13 +23,8 @@
     "slug": "curs-admitere-inm-magistratura-avocatura-2025",
     "date": "2025-04-26T09:00:00Z",
     "location": "26 aprilie – 23 iunie 2025",
-    "bannerType": "image",
-    "bannerImageUrl": "/data/legal_news/images/events/curs-admitere-banner.jpg",
-    "bannerColor": null,
-    "bannerTextLines": [],
-    "isLive": false,
-    "detailsLink": "/stiri/evenimente/curs-admitere-inm-magistratura-avocatura-2025",
-    "actionButtonText": "Detalii"
+    "imageFileName": "curs-admitere-banner.jpg",
+    "description": "Program intensiv de pregătire pentru admiterea la INM și în avocatură."
   },
   {
     "id": "evt-004",
@@ -52,18 +32,8 @@
     "slug": "legea-232-impact-bancar-2025",
     "date": "2025-04-28T19:00:00Z",
     "location": "Dezbateri Juridice.ro",
-    "bannerType": "coloredText",
-    "bannerImageUrl": null,
-    "bannerColor": "red.600",
-    "bannerTextLines": [
-       "28 aprilie 2025 - 19:00",
-       "Legea nr. 232/2022 – impactul",
-       "aplicării acesteia în domeniul bancar...",
-       "în lumina noilor dispoziții"
-    ],
-    "isLive": true,
-    "detailsLink": "/stiri/evenimente/legea-232-impact-bancar-2025",
-    "actionButtonText": "ARHIVĂ"
+    "imageFileName": null,
+    "description": "Analiză a impactului Legii nr. 232/2022 în domeniul bancar și accesibilitatea serviciilor."
   },
   {
     "id": "evt-005",
@@ -71,18 +41,8 @@
     "slug": "inteligenta-artificiala-regulament-ai-2025",
     "date": "2025-05-05T19:00:00Z",
     "location": "Dezbateri Juridice.ro",
-    "bannerType": "coloredText",
-    "bannerImageUrl": null,
-    "bannerColor": "red.600",
-     "bannerTextLines": [
-       "5 mai 2025 - 19:00",
-       "Inteligența Artificială sub lupă:",
-       "Regulamentul AI – de la obligații în",
-       "2025 la conformare completă în 2026"
-     ],
-    "isLive": true,
-    "detailsLink": "/stiri/evenimente/inteligenta-artificiala-regulament-ai-2025",
-    "actionButtonText": "ARHIVĂ"
+    "imageFileName": null,
+    "description": "Prezentare și discuții despre Regulamentul AI și obligațiile de conformare."
   },
   {
     "id": "evt-006",
@@ -90,12 +50,7 @@
     "slug": "conferinta-experti-achizitii-publice-2025",
     "date": "2025-05-08T10:00:00Z",
     "location": "București",
-    "bannerType": "image",
-    "bannerImageUrl": "/data/legal_news/images/events/conferinta-achizitii-banner.jpg",
-    "bannerColor": null,
-    "bannerTextLines": [],
-    "isLive": false,
-    "detailsLink": "/stiri/evenimente/conferinta-experti-achizitii-publice-2025",
-    "actionButtonText": "Detalii"
+    "imageFileName": "conferinta-achizitii-banner.jpg",
+    "description": "Conferință dedicată experților și specialiștilor în achiziții publice."
   }
 ]

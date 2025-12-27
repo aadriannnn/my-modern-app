@@ -21,6 +21,7 @@ interface CaseDetailModalProps {
   onClose: () => void;
   result: {
     id: number | string;
+    situatia_de_fapt_full?: string;  // Added field that exists at result level
     data: Record<string, any>;
   } | null;
 }
@@ -102,7 +103,9 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
           </>
         );
       case "Situația de fapt":
-        return <LongTextField label="Descriere completă" text={caseData.situatia_de_fapt_full} />;
+        // Access situatia_de_fapt_full from result level first, fallback to data level
+        const situatiaText = result.situatia_de_fapt_full || caseData.situatia_de_fapt_full || caseData.text_situatia_de_fapt || caseData.situatia_de_fapt || '';
+        return <LongTextField label="Descriere completă" text={situatiaText} />;
       case "Argumente":
         return (
           <>
