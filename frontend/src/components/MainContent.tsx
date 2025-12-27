@@ -8,6 +8,7 @@ import type { CompanyResult } from '../types';
 import { Loader2, Search, Wand2, X, Copy, Check, FileText } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
+import DemoShowcase from './DemoShowcase';
 import UserJourneyMap from './UserJourneyMap';
 import ExampleCaseButton from './ExampleCaseButton';
 import AdvancedAnalysisModal from './AdvancedAnalysisModal';
@@ -591,7 +592,7 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
         {/* Features Section & User Journey - Show when no search has been performed */}
         {results.length === 0 && !isLoading && (
           <>
-
+            <DemoShowcase />
             <UserJourneyMap />
           </>
         )}
