@@ -32,7 +32,8 @@ const ContactPage: React.FC = () => {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/contact/`, {
+            // Use relative path to avoid double-prefix issues if proxy is used
+            const response = await fetch('/api/contact/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
