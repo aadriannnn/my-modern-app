@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Search, Loader2, Sparkles, FileText, ArrowLeft } from 'lucide-react';
+import { Search, Loader2, Sparkles, FileText, ArrowLeft, Send } from 'lucide-react';
 
 interface SearchBarProps {
     variant?: 'hero' | 'compact';
@@ -39,8 +39,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         let minHeight = variant === 'hero' ? 80 : 44;
 
         if (isMobileFocused) {
-            maxHeight = 400; // Allow more height in focused mode
-            minHeight = 150;
+            // In mobile focus, we let flexbox handle height mostly, but set a max to allow scrolling if needed
+            // although usually we want it to fill available space.
+            // Resettting to simple auto-grow for now, or just 100% height of container.
+            textarea.style.height = '100%';
+            return;
         }
 
         const newHeight = Math.min(textarea.scrollHeight, maxHeight);
@@ -94,11 +97,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
     // Mobile Overlay Container Styles
     const containerClasses = isMobileFocused
-        ? 'fixed inset-0 z-[100] bg-white flex flex-col p-4 animate-in fade-in duration-200'
+        ? 'fixed inset-0 z-[100] bg-white flex flex-col pt-4 px-4 pb-2 animate-in fade-in duration-200'
         : `relative w-full transition-all duration-300 ${className}`;
 
     const innerClasses = isMobileFocused
-        ? 'flex-1 flex flex-col relative' // Full height in overlay
+        ? 'flex-1 flex flex-col relative min-h-0' // min-h-0 for flex nested scrolling
         : `relative flex flex-col transition-all duration-300 ${isHero
             ? 'p-2 bg-white rounded-3xl shadow-soft hover:shadow-lg border border-slate-100 focus-within:ring-4 focus-within:ring-brand-accent/10 focus-within:border-brand-accent/30'
             : 'bg-white rounded-xl shadow-sm border border-slate-200 focus-within:ring-2 focus-within:ring-brand-accent/20'
@@ -109,11 +112,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
             {/* Mobile Exit Header */}
             {isMobileFocused && (
-                <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-100">
-                    <button onClick={handleExitFocus} className="text-brand-text font-medium flex items-center gap-1">
-                        <ArrowLeft size={18} /> Înapoi
+                <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-100 flex-none">
+                    <button onClick={handleExitFocus} className="text-brand-text font-medium flex items-center gap-1 p-2 -ml-2">
+                        <ArrowLeft size={20} />
                     </button>
-                    <span className="text-sm font-semibold text-gray-400">Introduceți textul</span>
+                    <span className="text-sm font-semibold text-gray-500">Căutare</span>
+                    <div className="w-8"></div> {/* Spacer for alignment */}
                 </div>
             )}
 
@@ -157,14 +161,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                             w-full bg-transparent border-0 focus:ring-0 text-brand-dark placeholder-slate-400 resize-none
                             ${isHero && !isMobileFocused ? 'text-lg py-3.5 min-h-[80px]' : ''}
                             ${!isHero && !isMobileFocused ? 'text-sm py-2.5 min-h-[44px]' : ''}
-                            ${isMobileFocused ? 'text-lg h-full p-2 min-h-[50vh]' : ''}
+                            ${isMobileFocused ? 'text-lg p-2 flex-1' : ''}
                         `}
                         rows={1}
                         autoFocus={isMobileFocused}
                     />
 
                     {/* Action Button */}
-                    <div className={`${isMobileFocused ? 'w-full mt-auto pt-4' : (isHero ? 'pt-2 pr-2' : 'pt-1 pr-1')}`}>
+                    <div className={`${isMobileFocused ? 'w-full mt-2 flex-none' : (isHero ? 'pt-2 pr-2' : 'pt-1 pr-1')}`}>
                         <button
                             onClick={handleSearchAction}
                             disabled={isLoading || !value.trim()}
@@ -172,7 +176,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                                 flex items-center justify-center transition-all duration-200
                                 disabled:opacity-50 disabled:cursor-not-allowed
                                 ${isMobileFocused
-                                    ? 'w-full bg-brand-accent text-white py-3 rounded-xl shadow-lg hover:bg-brand-accent-dark text-lg font-bold'
+                                    ? 'w-full bg-brand-accent text-white py-3 rounded-xl shadow-lg hover:bg-brand-accent-dark text-lg font-bold flex items-center justify-center gap-2'
                                     : (isHero
                                         ? 'bg-brand-dark hover:bg-slate-800 text-white rounded-2xl w-12 h-12 shadow-md hover:scale-105 active:scale-95'
                                         : 'text-brand-secondary hover:text-brand-accent p-2 rounded-lg hover:bg-slate-50'
@@ -182,8 +186,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                         >
                             {isMobileFocused ? (
                                 <>
-                                    {isLoading ? <Loader2 className="animate-spin mr-2" /> : <Search className="mr-2" />}
-                                    Caută acum
+                                    {isLoading ? <Loader2 className="animate-spin" size={20} /> : <Send size={20} />}
+                                    Trimite
                                 </>
                             ) : (
                                 isHero ? <Search className="w-5 h-5" /> : <span className="text-xs font-semibold">Caută</span>
