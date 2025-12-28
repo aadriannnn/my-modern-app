@@ -68,11 +68,13 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             if (match) {
                 onDosarSearch(match[0]);
                 setIsMobileFocused(false);
+                document.body.style.overflow = '';
                 return;
             }
         }
         onSearch();
         setIsMobileFocused(false);
+        document.body.style.overflow = '';
     };
 
     const handleFocus = () => {
