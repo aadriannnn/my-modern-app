@@ -5,15 +5,11 @@ import SelectedFilters from './SelectedFilters';
 import CompanyCard from './CompanyCard';
 import type { CompanyResult } from '../types';
 
-import { Loader2, Search, Wand2, X, Copy, Check, FileText } from 'lucide-react';
+import { Loader2, Search, Wand2, X, FileText, Check, Copy } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat2 from '../assets/reclama/avocat2.jpg';
-import DemoShowcase from './DemoShowcase';
-import UserJourneyMap from './UserJourneyMap';
-import ExampleCaseButton from './ExampleCaseButton';
-import AdvancedAnalysisModal from './AdvancedAnalysisModal';
-import { searchByIds } from '../lib/api';
 import { useAuth } from '../context/AuthContext';
+import { SearchBar } from './SearchBar';
 
 interface MainContentProps {
   results: any[];
@@ -33,18 +29,12 @@ interface MainContentProps {
   situatie: string;
   onSituatieChange: (value: string) => void;
   onSearch: () => void;
-  onMinimizeSidebar?: () => void;
-
 
   acteJuridice?: string[];
-  onSearchByIds?: (results: any[], count: number) => void;
   onDosarSearch?: (numarDosar: string) => void;
   isDosarSearchLoading?: boolean;
   dosarSearchInfo?: { obiect: string; numar: string; materie?: string | null } | null;
 }
-
-// Example case text for user education
-const EXAMPLE_CASE = "Contestatorii au formulat contestație la executare silită împotriva actelor de executare pornite de un executor judecătoresc la cererea creditorului, bazate pe două contracte de împrumut. Aceștia au solicitat anularea actelor de executare, reducerea cheltuielilor de executare și anularea titlurilor executorii (contractele de împrumut), argumentând că prețurile din contracte erau neserioase, sumele împrumutate nu au fost primite integral și că actele ascundeau o operațiune de cămătărie.";
 
 const MainContent: React.FC<MainContentProps> = ({
   results,
@@ -59,18 +49,14 @@ const MainContent: React.FC<MainContentProps> = ({
   situatie,
   onSituatieChange,
   onSearch,
-  onMinimizeSidebar,
-
 
   acteJuridice = [],
-  onSearchByIds,
   onDosarSearch,
   isDosarSearchLoading = false,
   dosarSearchInfo
 }) => {
   const [activeView, setActiveView] = useState<ViewType>('situatia_de_fapt_full');
   const observer = useRef<IntersectionObserver | null>(null);
-  const searchButtonRef = useRef<HTMLButtonElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Generation state
@@ -79,8 +65,6 @@ const MainContent: React.FC<MainContentProps> = ({
   const [generatedDoc, setGeneratedDoc] = useState<any | null>(null);
   const [showDocModal, setShowDocModal] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
-  const [showAdvancedAnalysis, setShowAdvancedAnalysis] = useState(false);
-  const [idSearchInput, setIdSearchInput] = useState('');
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -317,33 +301,6 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
   };
 
 
-  // Handle example case fill with typing animation
-  const handleExampleFill = useCallback(() => {
-    const text = EXAMPLE_CASE;
-    let index = 0;
-
-    // Clear current text
-    onSituatieChange('');
-
-    // Typing animation
-    const typingInterval = setInterval(() => {
-      if (index < text.length) {
-        onSituatieChange(text.substring(0, index + 1));
-        index++;
-      } else {
-        clearInterval(typingInterval);
-        // Smooth scroll to search button after typing completes
-        setTimeout(() => {
-          searchButtonRef.current?.scrollIntoView({
-            behavior: 'smooth',
-            block: 'nearest'
-          });
-        }, 300);
-      }
-    }, 10); // Fast typing speed for better UX
-
-    return () => clearInterval(typingInterval);
-  }, [onSituatieChange]);
 
   // Auto-resize textarea based on content
   useEffect(() => {
@@ -448,157 +405,58 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
     );
   };
 
+
+  // ... MainContent component ...
+
   return (
     <main className="flex-1 p-4 md:p-6 bg-brand-light overflow-y-auto pb-20">
-      <div className="w-full mx-auto">
+      <div className="w-full mx-auto max-w-6xl"> {/* Constrain width for better reading on large screens */}
+
         {/* Dosar Search Display Info */}
         {onDosarSearch && dosarSearchInfo && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-            <p className="text-sm text-blue-900">
-              <span className="font-semibold">Dosar:</span> {dosarSearchInfo.numar}
-            </p>
-            <p className="text-sm text-blue-900 mt-1">
-              <span className="font-semibold">Obiect găsit în portal:</span> {dosarSearchInfo.obiect}
-            </p>
-            {dosarSearchInfo.materie && (
-              <p className="text-sm text-blue-900 mt-1">
-                <span className="font-semibold">Materie:</span> {dosarSearchInfo.materie}
+          <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6 flex items-start gap-3 animate-fade-in">
+            <div className="p-2 bg-blue-100 rounded-lg text-blue-600">
+              <Search size={20} />
+            </div>
+            <div>
+              <h4 className="font-bold text-blue-900 text-sm uppercase tracking-wide mb-1">Rezultate Dosar {dosarSearchInfo.numar}</h4>
+              <p className="text-sm text-blue-800">
+                <span className="font-medium">Obiect:</span> {dosarSearchInfo.obiect}
+                {dosarSearchInfo.materie && <span className="ml-3 opacity-60">| {dosarSearchInfo.materie}</span>}
               </p>
-            )}
+            </div>
           </div>
         )}
 
-        {/* Search Bar */}
-        <div className="mb-6">
-          <div className="relative group">
-            <ExampleCaseButton onExampleClick={handleExampleFill} />
-            <textarea
-              ref={textareaRef}
-              value={situatie}
-              onChange={(e) => onSituatieChange(e.target.value)}
-              placeholder="Introduceți situația de fapt, cuvinte cheie sau un număr de dosar (ex: 35893/302/2025)..."
-              className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl bg-white text-brand-text placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-accent focus:border-transparent shadow-sm transition-all duration-200 resize-none overflow-y-auto min-h-[96px]"
-              style={{ lineHeight: '24px' }}
-            />
-            <div className="absolute left-4 top-6 transform -translate-y-1/2 pointer-events-none">
-              <Search size={22} className="text-gray-400 group-focus-within:text-brand-accent transition-colors duration-200" />
-            </div>
-          </div>
-
-          {/* Pro Feature Checkbox */}
-
-
-
-
-
-          <button
-            ref={searchButtonRef}
-            onClick={() => {
-              // Regex to find dosar number
-              const dosarRegex = /(\d{1,6}\/\d{1,4}\/\d{4}(?:\/[a-zA-Z0-9\.-]+)?)/;
-              const match = situatie.match(dosarRegex);
-
-              if (match && onDosarSearch) {
-                // Found a dosar number - perform dosar search
-                onDosarSearch(match[0]);
-              } else {
-                // Standard search
-                onSearch();
-              }
-              onMinimizeSidebar?.();
-            }}
-            disabled={isLoading || isDosarSearchLoading}
-            className={`mt-3 w-full bg-brand-accent text-white px-6 py-3 rounded-xl flex items-center justify-center font-bold text-lg hover:bg-brand-accent-dark hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 shadow-md ${(isLoading || isDosarSearchLoading) ? 'opacity-75 cursor-not-allowed' : ''
-              }`}
-          >
-            {isLoading || isDosarSearchLoading ? (
-              <Loader2 className="animate-spin h-6 w-6 mr-2" />
-            ) : (
-              <Search size={24} className="mr-2" />
-            )}
-            {isLoading ? 'Se caută...' : (isDosarSearchLoading ? 'Căutare Dosar...' : 'Caută')}
-          </button>
-
-          {user?.rol === 'admin' && (
-            <button
-              onClick={() => setShowAdvancedAnalysis(true)}
-              className="mt-2 w-full bg-white text-brand-accent border-2 border-brand-accent/20 px-6 py-2.5 rounded-xl flex items-center justify-center font-bold text-sm hover:bg-brand-accent/5 transition-all duration-200"
-            >
-              <span className="mr-2">🔬</span>
-              Analiză Juridică AI (Experimental)
-            </button>
-          )}
-
-          {/* ID Search Section - Admin Only */}
-          {user?.rol === 'admin' && (
-            <div className="mt-4 p-4 bg-white rounded-xl shadow-sm border border-gray-200">
-              <label className="block text-sm font-bold text-brand-text mb-2 flex items-center">
-                <span className="w-2 h-2 bg-indigo-500 rounded-full mr-2"></span>
-                Căutare după ID-uri
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={idSearchInput}
-                  onChange={(e) => setIdSearchInput(e.target.value)}
-                  onKeyPress={async (e) => {
-                    if (e.key === 'Enter' && idSearchInput.trim() && !isLoading) {
-                      try {
-                        const results = await searchByIds(idSearchInput.trim());
-                        if (onSearchByIds) {
-                          onSearchByIds(results, results.length);
-                        }
-                      } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : 'Eroare necunoscută';
-                        alert(`Eroare la căutarea după ID-uri: ${errorMessage}`);
-                      }
-                    }
-                  }}
-                  placeholder="Exemplu: 122,1566,234"
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                />
-                <button
-                  onClick={async () => {
-                    if (idSearchInput.trim() && !isLoading) {
-                      try {
-                        const results = await searchByIds(idSearchInput.trim());
-                        if (onSearchByIds) {
-                          onSearchByIds(results, results.length);
-                        }
-                      } catch (error) {
-                        const errorMessage = error instanceof Error ? error.message : 'Eroare necunoscută';
-                        alert(`Eroare la căutarea după ID-uri: ${errorMessage}`);
-                      }
-                    }
-                  }}
-                  disabled={!idSearchInput.trim() || isLoading}
-                  className={`px-6 py-2 rounded-lg font-semibold text-white transition-all duration-200 ${!idSearchInput.trim() || isLoading
-                    ? 'bg-gray-300 cursor-not-allowed'
-                    : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-md'
-                    }`}
-                >
-                  Caută
-                </button>
-              </div>
-              <p className="text-xs text-gray-500 mt-2 italic">
-                Introduceți unul sau mai multe ID-uri separate prin virgulă.
-              </p>
-            </div>
-          )}
-
-
+        {/* Compact Stickier Search for Results View */}
+        <div className="mb-8 sticky top-0 z-20 pt-2 -mt-2 bg-brand-light/95 backdrop-blur-sm pb-4 border-b border-slate-200/50">
+          <SearchBar
+            variant="compact"
+            value={situatie}
+            onChange={onSituatieChange}
+            onSearch={onSearch}
+            onDosarSearch={onDosarSearch}
+            isLoading={isLoading || !!isDosarSearchLoading}
+            placeholder="Caută altceva..."
+          />
+          {/* Filters or secondary info could go here in a new row */}
         </div>
 
         {/* Features Section & User Journey - Show when no search has been performed */}
         {results.length === 0 && !isLoading && (
           <>
-            <DemoShowcase />
-            <UserJourneyMap />
+            {/* Note: This state should usually be handled by HomeHero in SearchPage,
+                 but if MainContent is rendered empty, we can show basics or return null */}
+            <div className="text-center py-20 text-slate-400">
+              <p>Folosește bara de căutare pentru a începe.</p>
+            </div>
           </>
         )}
 
         {/* Only show view navigation for legal case results, not company results */}
         {results.length > 0 && !results.some(r => r.type === 'company') && (
+          // ... rest of the code ...
+
           <>
             {/* Mobile View - Vertical Stack */}
             <div className="md:hidden mb-4">
@@ -1050,10 +908,6 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
         {renderContent()}
       </div>
 
-      <AdvancedAnalysisModal
-        isOpen={showAdvancedAnalysis}
-        onClose={() => setShowAdvancedAnalysis(false)}
-      />
     </main >
   );
 };

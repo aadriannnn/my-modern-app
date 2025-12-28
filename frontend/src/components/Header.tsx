@@ -5,12 +5,16 @@ import { useDosar } from '../context/DosarContext';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 
-const DosarButton: React.FC = () => {
+interface DosarButtonProps {
+  customClass?: string;
+}
+
+const DosarButton: React.FC<DosarButtonProps> = ({ customClass }) => {
   const { toggleDrawer, items } = useDosar();
   return (
     <button
       onClick={toggleDrawer}
-      className="flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200 relative group"
+      className={`flex items-center text-sm font-medium transition-colors duration-200 relative group ${customClass || 'text-gray-300 hover:text-white'}`}
     >
       <FolderOpen size={20} className="mr-2" />
       <span className="hidden sm:inline">Dosar</span>
@@ -23,23 +27,31 @@ const DosarButton: React.FC = () => {
   );
 };
 
+// ... props interface
 interface HeaderProps {
   onToggleMenu: () => void;
   onContribuieClick: () => void;
+  isHomeView?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
+const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHomeView = false }) => {
   const { user, isAuthenticated, logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
+  // Dynamic styles based on view
+  const headerBg = isHomeView ? 'bg-transparent' : 'bg-brand-dark shadow-md';
+  const textColor = isHomeView ? 'text-brand-dark' : 'text-gray-300';
+  const hoverColor = isHomeView ? 'hover:text-brand-accent' : 'hover:text-white';
+  const iconColor = isHomeView ? 'text-brand-dark/70' : 'text-gray-400';
+
   return (
-    <header className="bg-brand-dark shadow-md px-4 sm:px-6 lg:px-8">
+    <header className={`${headerBg} px-4 sm:px-6 lg:px-8 transition-colors duration-300 z-10`}>
       <div className="flex items-center justify-between h-16">
         {/* Left Section: Logo and Mobile Menu */}
         <div className="flex items-center space-x-4">
           <button
             onClick={onToggleMenu}
-            className="text-gray-400 hover:text-white md:hidden"
+            className={`${iconColor} hover:text-brand-accent md:hidden transition-colors`}
             aria-label="Toggle menu"
           >
             <Menu size={24} />
@@ -49,20 +61,24 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
           </Link>
         </div>
 
-        {/* Center Section: Motto */}
-        <div className="hidden sm:flex items-center justify-center flex-1 mx-4">
-          <h1 className="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-brand-light font-semibold text-base sm:text-sm md:text-lg lg:text-xl tracking-wide">
-            <span className="hidden md:inline">LegeaAplicată – Dreptul de a fi informat</span>
-            <span className="md:hidden">Dreptul de a fi informat</span>
-          </h1>
-        </div>
+        {/* Center Section: Motto (Hidden on very small screens, visible otherwise) */}
+        {!isHomeView && (
+          <div className="hidden sm:flex items-center justify-center flex-1 mx-4">
+            <h1 className="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-brand-light font-semibold text-base sm:text-sm md:text-lg lg:text-xl tracking-wide">
+              <span className="hidden md:inline">LegeaAplicată – Dreptul de a fi informat</span>
+              <span className="md:hidden">Dreptul de a fi informat</span>
+            </h1>
+          </div>
+        )}
+        {/* On Home View, we skip the motto in header to keep it clean */}
+        {isHomeView && <div className="flex-1" />}
 
         {/* Right Section: Actions */}
         <div className="flex items-center space-x-6">
 
           <button
             onClick={onContribuieClick}
-            className="hidden md:flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"
+            className={`hidden md:flex items-center text-sm font-medium ${textColor} ${hoverColor} transition-colors duration-200`}
           >
             <PlusCircle size={18} className="mr-2" />
             <span className="hidden lg:inline">Contribuie cu o speță</span>
@@ -71,7 +87,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
 
           <Link
             to="/stiri"
-            className="hidden md:flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"
+            className={`hidden md:flex items-center text-sm font-medium ${textColor} ${hoverColor} transition-colors duration-200`}
           >
             <Newspaper size={18} className="mr-2" />
             <span className="hidden lg:inline">Știri Juridice</span>
@@ -80,19 +96,19 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
 
           <Link
             to="/abonamente"
-            className="hidden md:flex items-center text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors duration-200"
+            className={`hidden md:flex items-center text-sm font-medium text-amber-500 hover:text-amber-600 transition-colors duration-200`}
           >
             <Crown size={18} className="mr-2" />
             <span className="hidden lg:inline">Abonamente</span>
             <span className="lg:hidden">Premium</span>
           </Link>
 
-          <DosarButton />
+          <DosarButton customClass={isHomeView ? 'text-brand-dark hover:text-brand-accent' : 'text-gray-300 hover:text-white'} />
 
           {isAuthenticated ? (
             <div className="relative">
               <button
-                className="flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200 space-x-2"
+                className={`flex items-center text-sm font-medium ${textColor} ${hoverColor} transition-colors duration-200 space-x-2`}
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
                 <UserIcon size={20} />
@@ -126,14 +142,14 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
             <div className="flex items-center space-x-4">
               <Link
                 to="/login"
-                className="text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200 flex items-center"
+                className={`text-sm font-medium ${textColor} ${hoverColor} transition-colors duration-200 flex items-center`}
               >
                 <LogIn size={18} className="mr-1" />
                 <span className="hidden sm:inline">Autentificare</span>
               </Link>
               <Link
                 to="/register"
-                className="hidden md:inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-brand-dark bg-brand-accent hover:bg-brand-light focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent transition-colors duration-200"
+                className="hidden md:inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-brand-accent hover:bg-brand-accent-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent transition-colors duration-200"
               >
                 Înregistrare
               </Link>
@@ -144,5 +160,6 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
     </header>
   );
 };
+
 
 export default Header;
