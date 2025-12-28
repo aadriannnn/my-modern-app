@@ -10,6 +10,7 @@ import logging
 from ..db_coduri import get_coduri_session
 from ..schemas import CoduriRequest, CoduriResponse
 from ..logic.coduri_matching import get_relevant_articles, get_article_by_id, get_available_code_tables
+from app.db import get_session
 
 router = APIRouter(prefix="/coduri", tags=["coduri"])
 logger = logging.getLogger(__name__)
@@ -18,7 +19,8 @@ logger = logging.getLogger(__name__)
 @router.post("/relevant", response_model=list[CoduriResponse])
 async def get_relevant_articles_for_case(
     request: CoduriRequest,
-    session: Session = Depends(get_coduri_session)
+    session: Session = Depends(get_coduri_session),
+    main_session: Session = Depends(get_session)  # Added main session for blocuri table
 ):
     """
     Returns a list of relevant legal code articles based on case metadata.
@@ -33,13 +35,57 @@ async def get_relevant_articles_for_case(
     Args:
         request: Case metadata (materie, obiect, keywords, situatia_de_fapt)
         session: Database session for coduri
+        main_session: Database session for application data (blocuri)
 
     Returns:
         List of relevant articles sorted by relevance score (highest first)
     """
-    logger.info(f"Received request for relevant articles: materie='{request.materie}', obiect='{request.obiect}'")
+    logger.info(f"Received request for relevant articles: materie='{request.materie}', obiect='{request.obiect}', speta_id='{request.speta_id}'")
 
     try:
+        # Check for pre-calculated data first if speta_id is provided
+        if request.speta_id:
+            from sqlmodel import select, text
+            try:
+                # Query directly for JSONB column
+                query = text("SELECT coduri_speta FROM blocuri WHERE id = :id")
+                result = main_session.execute(query, {'id': request.speta_id}).first()
+
+                if result and result[0]:
+                    coduri_cached = result[0]
+                    # Validate if it's a list and has items
+                    if isinstance(coduri_cached, list) and len(coduri_cached) > 0:
+                        logger.info(f"Found pre-calculated codes for case {request.speta_id}")
+
+                        response_list = []
+                        # We need to hydrate the text field which is missing from cache
+                        for c in coduri_cached:
+                            try:
+                                # Fetch full article details to get text
+                                table_name = c.get('cod_sursa')
+                                article_id = c.get('id')
+
+                                if table_name and article_id:
+                                    full_article = get_article_by_id(session, article_id, table_name)
+                                    if full_article:
+                                        # Use cached relevance score but full data
+                                        full_article['relevance_score'] = c.get('relevance_score', 0.0)
+                                        response_list.append(full_article)
+                                    else:
+                                        # Fallback uses cached data with empty text (might fail validation if not optional)
+                                        # But Schema says text is str (required). So we skip if not found.
+                                        logger.warning(f"Cached article {article_id} not found in {table_name}")
+                                        pass
+                            except Exception as e:
+                                logger.error(f"Error hydrating cached article: {e}")
+                                continue
+
+                        if response_list:
+                            return response_list
+            except Exception as e:
+                logger.warning(f"Error fetching pre-calculated articles: {e}")
+                # Continue to normal calculation on error
+
         # Convert request to dict for processing
         case_data = request.model_dump()
 

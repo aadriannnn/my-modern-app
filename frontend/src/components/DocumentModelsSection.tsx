@@ -11,9 +11,10 @@ interface DocumentModelsSectionProps {
         Rezumat_generat_de_AI_Cod?: string;
     };
     onViewModel?: (modelId: string) => void;
+    spetaId?: number;
 }
 
-const DocumentModelsSection: React.FC<DocumentModelsSectionProps> = ({ caseData, onViewModel }) => {
+const DocumentModelsSection: React.FC<DocumentModelsSectionProps> = ({ caseData, onViewModel, spetaId }) => {
     const [models, setModels] = useState<DocumentModel[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -33,7 +34,8 @@ const DocumentModelsSection: React.FC<DocumentModelsSectionProps> = ({ caseData,
                         : (typeof caseData.keywords === 'string' ? caseData.keywords.split(',').map(k => k.trim()) : []),
                     situatia_de_fapt: caseData.situatia_de_fapt_full || '',
                     rezumat_ai: caseData.Rezumat_generat_de_AI_Cod || '',
-                    limit: 10
+                    limit: 10,
+                    speta_id: spetaId
                 };
 
                 const response = await fetch('/api/modele/relevant', {

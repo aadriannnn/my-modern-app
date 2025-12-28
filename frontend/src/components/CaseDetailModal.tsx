@@ -40,6 +40,10 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
   const caseData = result.data;
   const isInDosar = isCaseInDosar(result.id);
 
+  // Calculate generic speta ID for passing to children
+  const spetaIdNum = typeof result.id === 'number' ? result.id : parseInt(result.id as string);
+  const validSpetaId = !isNaN(spetaIdNum) ? spetaIdNum : undefined;
+
   const handleDosarClick = () => {
     if (isInDosar) {
       removeFromDosar(result.id);
@@ -134,13 +138,13 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
           </>
         );
       case "Modele":
-        return <DocumentModelsSection caseData={caseData} onViewModel={handleViewModel} />;
+        return <DocumentModelsSection caseData={caseData} onViewModel={handleViewModel} spetaId={validSpetaId} />;
       case "Coduri":
-        return <LegalCodesSection caseData={caseData} />;
+        return <LegalCodesSection caseData={caseData} spetaId={validSpetaId} />;
       case "Competență":
         return <CompetenceSection caseData={caseData} />;
       case "Taxe":
-        return <TaxSection caseData={caseData} />;
+        return <TaxSection caseData={caseData} spetaId={validSpetaId} />;
       default:
         return null;
     }

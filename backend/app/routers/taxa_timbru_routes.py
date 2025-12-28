@@ -60,16 +60,39 @@ async def get_tipuri_cereri_taxa_endpoint():
         raise HTTPException(status_code=500, detail="Eroare internă server la încărcarea tipurilor de cereri.")
 
 
+from sqlmodel import Session
+from app.db import get_session
+
 @router.post("/sugereaza-incadrare-obiect-llm",
              response_model=SugestieIncadrareLLMResponse,
              tags=["Taxa Timbru"],
              summary="Sugerează încadrarea juridică pentru taxa de timbru folosind LLM local")
 async def sugereaza_incadrare_obiect_llm(
-    request_data: SugestieIncadrareLLMRequest = Body(...)
+    request_data: SugestieIncadrareLLMRequest = Body(...),
+    session: Session = Depends(get_session)
 ):
     """
     Folosește LLM-ul local pentru a sugera cel mai potrivit ID de taxare pentru o descriere dată (obiect dosar).
+    Dacă speta_id este furnizat, încearcă să returneze datele pre-calculate.
     """
+    # Check for pre-calculated data first if speta_id is provided
+    if request_data.speta_id:
+        try:
+            from sqlmodel import text
+            # Query directly for JSONB column
+            query = text("SELECT sugestie_llm_taxa FROM blocuri WHERE id = :id")
+            result = session.execute(query, {'id': request_data.speta_id}).first()
+
+            if result and result[0]:
+                suggestion = result[0]
+                # If we have a valid suggestion without error, return it
+                if isinstance(suggestion, dict) and not suggestion.get('error'):
+                    logger.info(f"Using pre-calculated tax suggestion for case {request_data.speta_id}")
+                    return suggestion
+        except Exception as e:
+            logger.warning(f"Error fetching pre-calculated tax suggestion: {e}")
+            # Continue to normal calculation
+
     case_description = request_data.obiect_dosar
     if not case_description or len(case_description.strip()) < 3:
         raise HTTPException(status_code=400, detail="Descrierea obiectului dosarului este prea scurtă.")

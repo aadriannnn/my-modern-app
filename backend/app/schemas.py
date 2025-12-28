@@ -45,6 +45,7 @@ class ModeleRequest(BaseModel):
     situatia_de_fapt: Optional[str] = None
     rezumat_ai: Optional[str] = None
     limit: Optional[int] = 10
+    speta_id: Optional[int] = None
 
 class ModeleResponse(BaseModel):
     """Response schema for a document model."""
@@ -63,6 +64,7 @@ class CoduriRequest(BaseModel):
     situatia_de_fapt: Optional[str] = None
     rezumat_ai: Optional[str] = None
     limit: Optional[int] = 10
+    speta_id: Optional[int] = None
 
 class CoduriResponse(BaseModel):
     """Response schema for a legal code article."""
@@ -264,6 +266,7 @@ class TipCerereTaxaOption(BaseModel):
 class SugestieIncadrareLLMRequest(BaseModel):
     obiect_dosar: str
     confirm_deduct_points: Optional[bool] = False
+    speta_id: Optional[int] = None
 
 class SugestieIncadrareLLMResponse(BaseModel):
     criminal_classification: Optional[str] = None

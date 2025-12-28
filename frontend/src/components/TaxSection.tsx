@@ -7,9 +7,10 @@ interface TaxSectionProps {
         taxa_timbru?: string | null;
         [key: string]: any;
     };
+    spetaId?: number;
 }
 
-const TaxSection: React.FC<TaxSectionProps> = ({ caseData }) => {
+const TaxSection: React.FC<TaxSectionProps> = ({ caseData, spetaId }) => {
     const rawValue = caseData.taxa_timbru;
 
     // Case 1: No Data (undefined or empty string)
@@ -75,7 +76,7 @@ const TaxSection: React.FC<TaxSectionProps> = ({ caseData }) => {
             </div>
 
             {/* Integrated Tax Calculator Widget */}
-            <TaxCalculatorWidget caseData={caseData} />
+            <TaxCalculatorWidget caseData={caseData} spetaId={spetaId} />
 
             {/* General Info Note */}
             <div className="flex gap-2 p-4 bg-gray-50 rounded-lg text-sm text-gray-500 border border-gray-200">

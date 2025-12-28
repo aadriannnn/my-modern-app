@@ -13,9 +13,10 @@ interface LegalCodesSectionProps {
         fragment_cod?: string;
         legea_aplicabila?: string;
     };
+    spetaId?: number;
 }
 
-const LegalCodesSection: React.FC<LegalCodesSectionProps> = ({ caseData }) => {
+const LegalCodesSection: React.FC<LegalCodesSectionProps> = ({ caseData, spetaId }) => {
     const [articles, setArticles] = useState<LegalArticle[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -37,7 +38,8 @@ const LegalCodesSection: React.FC<LegalCodesSectionProps> = ({ caseData }) => {
                         : (typeof caseData.keywords === 'string' ? caseData.keywords.split(',').map(k => k.trim()) : []),
                     situatia_de_fapt: caseData.situatia_de_fapt_full || '',
                     rezumat_ai: caseData.Rezumat_generat_de_AI_Cod || '',
-                    limit: 10
+                    limit: 10,
+                    speta_id: spetaId
                 };
 
                 const response = await fetch('/api/coduri/relevant', {

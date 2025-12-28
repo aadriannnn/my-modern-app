@@ -10,6 +10,7 @@ import logging
 from ..db_modele import get_modele_session
 from ..schemas import ModeleRequest, ModeleResponse
 from ..logic.modele_matching import get_relevant_modele, get_model_by_id
+from app.db import get_session
 
 router = APIRouter(prefix="/modele", tags=["modele"])
 logger = logging.getLogger(__name__)
@@ -18,7 +19,8 @@ logger = logging.getLogger(__name__)
 @router.post("/relevant", response_model=list[ModeleResponse])
 async def get_relevant_modele_for_case(
     request: ModeleRequest,
-    session: Session = Depends(get_modele_session)
+    session: Session = Depends(get_modele_session),
+    main_session: Session = Depends(get_session)  # Added main session for blocuri table
 ):
     """
     Returns a list of relevant document models based on case metadata.
@@ -33,13 +35,45 @@ async def get_relevant_modele_for_case(
     Args:
         request: Case metadata (materie, obiect, keywords, situatia_de_fapt)
         session: Database session for modele_documente
+        main_session: Database session for application data (blocuri)
 
     Returns:
         List of relevant models sorted by relevance score (highest first)
     """
-    logger.info(f"Received request for relevant modele: materie='{request.materie}', obiect='{request.obiect}'")
+    logger.info(f"Received request for relevant modele: materie='{request.materie}', obiect='{request.obiect}', speta_id='{request.speta_id}'")
 
     try:
+        # Check for pre-calculated data first if speta_id is provided
+        if request.speta_id:
+            from sqlmodel import select, text
+            try:
+                # Query directly for JSONB column using text to avoid importing models circular dependency if any
+                # or just use text query
+                query = text("SELECT modele_speta FROM blocuri WHERE id = :id")
+                result = main_session.execute(query, {'id': request.speta_id}).first()
+
+                if result and result[0]:
+                    modele_cached = result[0]
+                    # Validate if it's a list and has items
+                    if isinstance(modele_cached, list) and len(modele_cached) > 0:
+                        logger.info(f"Found pre-calculated models for case {request.speta_id}")
+                        # Ensure fields match ModeleResponse
+                        # Pre-calculation stores reduced fields, we might need to map them
+                        response_list = []
+                        for m in modele_cached:
+                            response_list.append({
+                                'id': m['id'],
+                                'titlu_model': m['titlu_model'],
+                                'relevance_score': m['relevance_score'],
+                                'obiect_model': m.get('obiect_model'),
+                                'materie_model': m.get('materie_model'),
+                                'sursa_model': m.get('sursa_model')
+                            })
+                        return response_list
+            except Exception as e:
+                logger.warning(f"Error fetching pre-calculated models: {e}")
+                # Continue to normal calculation on error
+
         # Convert request to dict for processing
         case_data = request.model_dump()
 

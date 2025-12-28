@@ -190,9 +190,10 @@ interface TaxCalculatorWidgetProps {
         obiect?: string;
         [key: string]: any;
     };
+    spetaId?: number;
 }
 
-const TaxCalculatorWidget: React.FC<TaxCalculatorWidgetProps> = ({ caseData }) => {
+const TaxCalculatorWidget: React.FC<TaxCalculatorWidgetProps> = ({ caseData, spetaId }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [options, setOptions] = useState<TipCerereTaxaOption[]>([]);
 
@@ -305,7 +306,10 @@ const TaxCalculatorWidget: React.FC<TaxCalculatorWidgetProps> = ({ caseData }) =
             const res = await fetch('/api/sugereaza-incadrare-obiect-llm', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ obiect_dosar: obiectDosar })
+                body: JSON.stringify({
+                    obiect_dosar: obiectDosar,
+                    speta_id: spetaId
+                })
             });
             if (!res.ok) {
                 const errData = await res.json();
