@@ -14,12 +14,12 @@ const DosarButton: React.FC<DosarButtonProps> = ({ customClass }) => {
   return (
     <button
       onClick={toggleDrawer}
-      className={`flex items-center text-sm font-medium transition-colors duration-200 relative group ${customClass || 'text-gray-300 hover:text-white'}`}
+      className={`transition-colors duration-200 relative group ${customClass || 'flex items-center text-sm font-medium text-gray-300 hover:text-white'}`}
     >
-      <FolderOpen size={20} className="mr-2" />
-      <span className="hidden sm:inline">Dosar</span>
+      <FolderOpen size={18} className="md:mr-2 mb-0.5 md:mb-0" />
+      <span>Dosar</span>
       {items.length > 0 && (
-        <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center border border-brand-dark">
+        <span className="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[16px] text-center border border-white/20">
           {items.length}
         </span>
       )}
@@ -74,7 +74,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
         {isHomeView && <div className="flex-1" />}
 
         {/* Right Section: Actions */}
-        <div className="flex items-center space-x-6">
+        <div className="flex items-center gap-1 sm:gap-2 md:space-x-4">
 
           <button
             onClick={onContribuieClick}
@@ -87,35 +87,40 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
 
           <Link
             to="/stiri"
-            className={`hidden md:flex items-center text-sm font-medium ${textColor} ${hoverColor} transition-colors duration-200`}
+            className={`flex flex-col md:flex-row items-center justify-center text-[10px] md:text-sm font-medium ${textColor} ${hoverColor} transition-colors duration-200 p-1`}
+            title="Știri Juridice"
           >
-            <Newspaper size={18} className="mr-2" />
-            <span className="hidden lg:inline">Știri Juridice</span>
-            <span className="lg:hidden">Știri</span>
+            <Newspaper size={18} className="md:mr-2 mb-0.5 md:mb-0" />
+            <span>Știri</span>
           </Link>
 
           <Link
             to="/abonamente"
-            className={`hidden md:flex items-center text-sm font-medium text-amber-500 hover:text-amber-600 transition-colors duration-200`}
+            className={`flex flex-col md:flex-row items-center justify-center text-[10px] md:text-sm font-medium text-amber-500 hover:text-amber-600 transition-colors duration-200 p-1`}
+            title="Abonamente Premium"
           >
-            <Crown size={18} className="mr-2" />
-            <span className="hidden lg:inline">Abonamente</span>
-            <span className="lg:hidden">Premium</span>
+            <Crown size={18} className="md:mr-2 mb-0.5 md:mb-0" />
+            <span>Premium</span>
           </Link>
 
-          <DosarButton customClass={isHomeView ? 'text-brand-dark hover:text-brand-accent' : 'text-gray-300 hover:text-white'} />
+          <div className="flex flex-col md:flex-row items-center justify-center">
+            <DosarButton customClass={`flex flex-col md:flex-row items-center justify-center text-[10px] md:text-sm font-medium ${isHomeView ? 'text-brand-dark hover:text-brand-accent' : 'text-gray-300 hover:text-white'} p-1`} />
+          </div>
 
           {isAuthenticated ? (
             <div className="relative">
               <button
-                className={`flex items-center text-sm font-medium ${textColor} ${hoverColor} transition-colors duration-200 space-x-2`}
+                className={`flex flex-col md:flex-row items-center text-[10px] md:text-sm font-medium ${textColor} ${hoverColor} transition-colors duration-200 gap-1 p-1`}
                 onClick={() => setShowProfileMenu(!showProfileMenu)}
               >
-                <UserIcon size={20} />
-                <span className="max-w-[100px] truncate hidden md:inline">{user?.numeComplet || user?.email}</span>
+                <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-brand-primary/10 flex items-center justify-center border border-brand-primary/20">
+                  <UserIcon size={16} className="md:w-[18px] md:h-[18px]" />
+                </div>
+                <span className="max-w-[60px] truncate md:inline hidden">{user?.numeComplet?.split(' ')[0]}</span>
+                <span className="md:hidden">Cont</span>
               </button>
               {showProfileMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 ring-1 ring-black ring-opacity-5">
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50 ring-1 ring-black ring-opacity-5 animate-in fade-in slide-in-from-top-2">
                   <div className="px-4 py-2 text-sm text-gray-700 border-b border-gray-100">
                     <div className="font-medium text-gray-900 truncate">{user?.numeComplet}</div>
                     <div className="text-gray-500 truncate">{user?.email}</div>
@@ -139,21 +144,19 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
               )}
             </div>
           ) : (
-            <div className="flex items-center space-x-4">
-              <Link
-                to="/login"
-                className={`text-sm font-medium ${textColor} ${hoverColor} transition-colors duration-200 flex items-center`}
-              >
-                <LogIn size={18} className="mr-1" />
-                <span className="hidden sm:inline">Autentificare</span>
-              </Link>
-              <Link
-                to="/register"
-                className="hidden md:inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md shadow-sm text-white bg-brand-accent hover:bg-brand-accent-dark focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-accent transition-colors duration-200"
-              >
-                Înregistrare
-              </Link>
-            </div>
+            <Link
+              to="/login"
+              className={`flex flex-col md:flex-row items-center justify-center text-[10px] md:text-sm font-medium ${textColor} ${hoverColor} transition-colors duration-200 p-1`}
+              title="Autentificare"
+            >
+              <div className="hidden md:block">
+                <LogIn size={20} className="mr-1" />
+              </div>
+              <div className="md:hidden mb-0.5">
+                <UserIcon size={18} />
+              </div>
+              <span>Cont</span>
+            </Link>
           )}
         </div>
       </div>
