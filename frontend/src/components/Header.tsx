@@ -45,7 +45,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
   const iconColor = isHomeView ? 'text-brand-dark/70' : 'text-gray-400';
 
   return (
-    <header className={`${headerBg} px-4 sm:px-6 lg:px-8 transition-colors duration-300 z-10`}>
+    <header className={`${headerBg} px-4 sm:px-6 lg:px-8 transition-colors duration-300 relative z-50`}>
       <div className="flex items-center justify-between h-16">
         {/* Left Section: Logo and Mobile Menu */}
         <div className="flex items-center space-x-4">
