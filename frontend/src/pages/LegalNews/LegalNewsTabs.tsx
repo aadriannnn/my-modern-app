@@ -20,8 +20,8 @@ const LegalNewsTabs: React.FC = () => {
     };
 
     return (
-        <div className="border-b border-gray-200 mb-8 overflow-x-auto scrollbar-hide">
-            <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+        <div className="border-b border-gray-200 mb-8 overflow-x-auto scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
+            <nav className="-mb-px flex space-x-4 md:space-x-8" aria-label="Tabs">
                 {tabs.map((tab) => {
                     const active = isActive(tab.path);
                     return (
