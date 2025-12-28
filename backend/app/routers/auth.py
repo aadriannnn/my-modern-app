@@ -20,8 +20,11 @@ from ..models import ClientDB, ClientRole
 from ..schemas import (
     LoginRequest,
     RegistrationRequest,
+    ClientDataResponse,
     ClientDataResponse
 )
+from ..email_sender import send_verification_email, send_password_reset_email
+import asyncio
 
 settings = get_settings()
 logger = logging.getLogger(__name__)
@@ -178,7 +181,7 @@ async def get_current_admin_or_settings_user(
 # Routes
 # =======================
 
-@router.post("/register", response_model=ClientDataResponse, status_code=201)
+@router.post("/register", status_code=201)
 async def register(
     data: RegistrationRequest,
     response: Response,
@@ -193,6 +196,9 @@ async def register(
     # Hash password
     hashed = get_password_hash(data.parola)
 
+    # Verification Token
+    verification_token = str(uuid.uuid4())
+
     # Create user
     new_user = ClientDB(
         email=data.email,
@@ -206,21 +212,45 @@ async def register(
         numeFacturare=data.numeFacturare,
         adresaFacturare=data.adresaFacturare,
         cuiFacturare=data.cuiFacturare,
-        user_type=data.user_type
+        user_type=data.user_type,
+        isVerified=False,
+        verificationToken=verification_token
     )
 
     db.add(new_user)
     db.commit()
     db.refresh(new_user)
 
-    # Login automatically (create token)
+    # Send verification email asynchronously
+    asyncio.create_task(send_verification_email(new_user.email, new_user.numeComplet, verification_token))
+
+    return {"message": "Registration successful. Please check your email to verify your account."}
+
+
+@router.post("/verify-email", response_model=ClientDataResponse)
+async def verify_email_token(
+    token: str,
+    response: Response,
+    db: Session = Depends(get_session)
+):
+    user = db.exec(select(ClientDB).where(ClientDB.verificationToken == token)).first()
+    if not user:
+        raise HTTPException(status_code=400, detail="Invalid or expired verification token")
+
+    user.isVerified = True
+    user.verificationToken = None # Invalidate token
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+
+    # Auto-login after verification
     expires = timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    token = create_access_token({"sub": new_user.id, "rol": new_user.rol.value}, expires_delta=expires)
+    auth_token = create_access_token({"sub": user.id, "rol": user.rol.value}, expires_delta=expires)
 
     samesite = "none" if settings.SECURE_COOKIE else "lax"
     response.set_cookie(
         key=ACCESS_TOKEN_COOKIE_NAME,
-        value=f"Bearer {token}",
+        value=f"Bearer {auth_token}",
         httponly=True,
         secure=settings.SECURE_COOKIE,
         samesite=samesite,
@@ -228,7 +258,51 @@ async def register(
         path="/"
     )
 
-    return new_user
+    return user
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+@router.post("/forgot-password")
+async def forgot_password(
+    data: ForgotPasswordRequest,
+    db: Session = Depends(get_session)
+):
+    user = db.exec(select(ClientDB).where(ClientDB.email == data.email)).first()
+    if not user:
+        # Don't reveal if user exists
+        return {"message": "If the email exists, a reset link has been sent."}
+
+    # Generate token
+    token = str(uuid.uuid4())
+    user.verificationToken = token # Reuse this field or create a new one 'resetToken'? reusing for simplicity as logic is similar
+    db.add(user)
+    db.commit()
+
+    asyncio.create_task(send_password_reset_email(user.email, user.numeComplet, token))
+
+    return {"message": "If the email exists, a reset link has been sent."}
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+@router.post("/reset-password")
+async def reset_password(
+    data: ResetPasswordRequest,
+    db: Session = Depends(get_session)
+):
+    user = db.exec(select(ClientDB).where(ClientDB.verificationToken == data.token)).first()
+    if not user:
+         raise HTTPException(status_code=400, detail="Invalid token")
+
+    user.parolaHash = get_password_hash(data.new_password)
+    user.verificationToken = None
+    db.add(user)
+    db.commit()
+
+    return {"message": "Password reset successful. You can now login."}
 
 @router.post("/login", response_model=ClientDataResponse)
 async def login(
@@ -372,6 +446,25 @@ async def google_callback(request: Request, response: Response, db: Session = De
     except Exception as e:
         logger.error(f"Google Callback Error: {e}")
         return RedirectResponse(f"{settings.FRONTEND_BASE_URL}/login-error?error=callback_failed")
+
+
+@router.delete("/delete-account")
+async def delete_account(
+    response: Response,
+    current_user: ClientDB = Depends(get_current_user),
+    db: Session = Depends(get_session)
+):
+    try:
+        # Delete user
+        db.delete(current_user)
+        db.commit()
+
+        # Clear cookies
+        response.delete_cookie(ACCESS_TOKEN_COOKIE_NAME, path="/")
+        return {"message": "Account deleted successfully"}
+    except Exception as e:
+        logger.error(f"Error deleting account: {e}")
+        raise HTTPException(status_code=500, detail="Could not delete account")
 
 # =======================
 # User Management Routes

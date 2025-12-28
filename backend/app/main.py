@@ -97,6 +97,12 @@ def on_startup():
         migrate_existing_pro_users(session)
     logger.info("Step 2: Subscription fields verified and existing users migrated.")
 
+    logger.info("Step 2.1: Ensuring user verification fields exist...")
+    with next(get_session()) as session:
+        from .lib.upgrade_user_schema import ensure_user_verification_fields
+        ensure_user_verification_fields(session)
+    logger.info("Step 2.1: User verification fields verified.")
+
     logger.info("Step 3: Loading all filter data into memory cache...")
     with next(get_session()) as session:
         load_all_filters_into_memory(session)

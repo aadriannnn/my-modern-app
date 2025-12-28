@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { loadStripe } from '@stripe/stripe-js';
-import { CheckCircle2, ChevronRight, Loader2, AlertCircle, RefreshCw, CreditCard, ShieldCheck, Shield, Calendar, ArrowLeft } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Loader2, AlertCircle, RefreshCw, CreditCard, ShieldCheck, Shield, Calendar, ArrowLeft, XCircle } from 'lucide-react';
 import {
     EmbeddedCheckoutProvider,
     EmbeddedCheckout
@@ -57,6 +57,10 @@ const SubscriptionSettings: React.FC = () => {
     // Portal loading state
     const [portalLoading, setPortalLoading] = useState(false);
 
+    // Cancellation state
+    const [cancelling, setCancelling] = useState(false);
+    const [cancelSuccess, setCancelSuccess] = useState(false);
+
     // Fetch plans only when user wants to see them (or pre-fetch)
     useEffect(() => {
         if (showPlans && plans.length === 0) {
@@ -111,6 +115,35 @@ const SubscriptionSettings: React.FC = () => {
             setError(err.message || "A apărut o eroare neașteptată.");
         } finally {
             setProcessingPlanId(null);
+        }
+    };
+
+    const handleCancelSubscription = async () => {
+        if (!window.confirm("Ești sigur că vrei să anulezi abonamentul? Vei pierde accesul la beneficiile Premium la finalul perioadei curente.")) {
+            return;
+        }
+
+        try {
+            setCancelling(true);
+            const response = await fetch('/api/billing/subscription/cancel', {
+                method: 'POST'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || "Nu s-a putut anula abonamentul.");
+            }
+
+            setCancelSuccess(true);
+            // Refresh page after short delay to show updated status
+            setTimeout(() => {
+                window.location.reload();
+            }, 2000);
+
+        } catch (err: any) {
+            setError(err.message || "A apărut o eroare la anularea abonamentului.");
+        } finally {
+            setCancelling(false);
         }
     };
 
@@ -287,6 +320,13 @@ const SubscriptionSettings: React.FC = () => {
                     </div>
                 )}
 
+                {cancelSuccess && (
+                    <div className="mb-6 bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-xl flex items-center gap-3">
+                        <CheckCircle2 className="w-5 h-5" />
+                        Abonamentul a fost anulat cu succes. Accesul rămâne activ până la expirare.
+                    </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                     {/* Status Card */}
                     <div className="bg-slate-50 rounded-xl p-6 border border-slate-200 relative overflow-hidden">
@@ -339,52 +379,83 @@ const SubscriptionSettings: React.FC = () => {
                             </p>
                         </div>
 
-                        {user.rol === 'basic' && (
-                            <button
-                                onClick={() => setShowPlans(true)}
-                                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-200 hover:-translate-y-0.5"
-                            >
-                                <UpgradeIcon className="w-5 h-5" />
-                                Vezi Planurile Premium
-                            </button>
-                        )}
+                    </div>
 
-                        {user.rol === 'admin' && (
-                            <button
-                                onClick={handleBillingPortal}
-                                disabled={portalLoading}
-                                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg hover:-translate-y-0.5"
-                            >
-                                {portalLoading ? (
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                ) : (
-                                    <RefreshCw className="w-5 h-5" />
-                                )}
-                                Portal Stripe (Admin)
-                            </button>
-                        )}
+                    {user.rol === 'basic' && (
+                        <button
+                            onClick={() => setShowPlans(true)}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg shadow-blue-200 hover:-translate-y-0.5"
+                        >
+                            <UpgradeIcon className="w-5 h-5" />
+                            Vezi Planurile Premium
+                        </button>
+                    )}
 
-                        {user.rol === 'pro' && (
+                    {user.rol === 'admin' && (
+                        <button
+                            onClick={handleBillingPortal}
+                            disabled={portalLoading}
+                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-lg hover:-translate-y-0.5"
+                        >
+                            {portalLoading ? (
+                                <Loader2 className="w-5 h-5 animate-spin" />
+                            ) : (
+                                <RefreshCw className="w-5 h-5" />
+                            )}
+                            Portal Stripe (Admin)
+                        </button>
+                    )}
+
+                    {user.rol === 'pro' && !user.subscription_cancelled_at && (
+                        <div className="space-y-3">
                             <div className="w-full py-3.5 px-4 rounded-xl border border-green-200 bg-green-50 text-green-700 font-semibold flex items-center justify-center gap-2">
                                 <CheckCircle2 className="w-5 h-5" />
                                 Abonament Activ
                             </div>
-                        )}
-                    </div>
-                </div>
+                            <button
+                                onClick={handleCancelSubscription}
+                                disabled={cancelling}
+                                className="w-full py-3 px-4 rounded-xl border border-red-200 text-red-600 hover:bg-red-50 font-medium transition-colors flex items-center justify-center gap-2 text-sm"
+                            >
+                                {cancelling ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                    <XCircle className="w-4 h-4" />
+                                )}
+                                Dezabonează-te
+                            </button>
+                            <p className="text-xs text-center text-slate-500">
+                                Poți anula oricând. Vei păstra accesul până la următoarea dată de facturare.
+                            </p>
+                        </div>
+                    )}
 
-                <div className="mt-8 flex items-center justify-center gap-6 text-slate-400 text-sm">
-                    <div className="flex items-center gap-2">
-                        <CreditCard className="w-4 h-4" />
-                        Plată Securizată Stripe
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4" />
-                        Garantie 30 zile
-                    </div>
+                    {user.rol === 'pro' && user.subscription_cancelled_at && (
+                        <div className="w-full py-3.5 px-4 rounded-xl border border-yellow-200 bg-yellow-50 text-yellow-800 font-semibold flex flex-col items-center justify-center gap-1 text-center">
+                            <div className="flex items-center gap-2">
+                                <AlertCircle className="w-5 h-5" />
+                                Anulare Programată
+                            </div>
+                            <span className="text-xs font-normal opacity-80">
+                                Acces valid până la {formatDate(user.pro_status_active_until || user.subscription_end_date)}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            <div className="mt-8 flex items-center justify-center gap-6 text-slate-400 text-sm">
+                <div className="flex items-center gap-2">
+                    <CreditCard className="w-4 h-4" />
+                    Plată Securizată Stripe
+                </div>
+                <div className="flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4" />
+                    Garantie 30 zile
                 </div>
             </div>
         </div>
+
     );
 };
 

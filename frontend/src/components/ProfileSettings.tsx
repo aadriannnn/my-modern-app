@@ -1,9 +1,44 @@
-import React from 'react';
-import { User, Mail, Shield, Calendar } from 'lucide-react';
+import { useState } from 'react';
+import { User, Mail, Shield, Calendar, Trash2, LogOut, CreditCard, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-const ProfileSettings: React.FC = () => {
+interface ProfileSettingsProps {
+    onChangeTab?: (tab: string) => void;
+}
+
+const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onChangeTab }) => {
     const { user, logout } = useAuth();
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDeleteAccount = async () => {
+        if (!window.confirm("Ești sigur că vrei să ștergi contul? Această acțiune este ireversibilă și toate datele tale vor fi pierdute.")) {
+            return;
+        }
+
+        try {
+            setIsDeleting(true);
+            const response = await fetch('/api/auth/delete-account', {
+                method: 'DELETE'
+            });
+
+            if (!response.ok) {
+                throw new Error("Nu s-a putut șterge contul.");
+            }
+
+            // Logout will handle cleanup and redirect
+            await logout();
+        } catch (error) {
+            console.error("Error deleting account:", error);
+            setIsDeleting(false);
+            alert("A apărut o eroare la ștergerea contului. Te rugăm să încerci din nou.");
+        }
+    };
+
+    const handleUnsubscribe = () => {
+        if (onChangeTab) {
+            onChangeTab('subscription');
+        }
+    };
 
     if (!user) return null;
 
@@ -86,13 +121,37 @@ const ProfileSettings: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="mt-8 border-t border-slate-100 pt-6 flex justify-end">
-                    <button
-                        onClick={logout}
-                        className="px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium text-sm flex items-center gap-2"
-                    >
-                        Deconectare
-                    </button>
+                <div className="mt-8 border-t border-slate-100 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                        <button
+                            onClick={handleDeleteAccount}
+                            disabled={isDeleting}
+                            className="w-full sm:w-auto px-4 py-2 border border-red-200 text-red-600 hover:bg-red-50 rounded-lg transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                        >
+                            {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                            Șterge Contul
+                        </button>
+                    </div>
+
+                    <div className="flex items-center gap-3 w-full sm:w-auto">
+                        {user.rol === 'pro' && (
+                            <button
+                                onClick={handleUnsubscribe}
+                                className="w-full sm:w-auto px-4 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                            >
+                                <CreditCard className="w-4 h-4" />
+                                Dezabonează-te
+                            </button>
+                        )}
+                        <button
+                            onClick={logout}
+                            disabled={isDeleting}
+                            className="w-full sm:w-auto px-6 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium text-sm flex items-center justify-center gap-2"
+                        >
+                            <LogOut className="w-4 h-4" />
+                            Deconectare
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

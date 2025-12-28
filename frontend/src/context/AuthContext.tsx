@@ -9,6 +9,9 @@ interface User {
   esteContGoogle: boolean;
   needs_profile_completion?: boolean;
   dataCreare?: string;
+  subscription_cancelled_at?: string;
+  pro_status_active_until?: string;
+  subscription_end_date?: string;
 }
 
 interface AuthContextType {

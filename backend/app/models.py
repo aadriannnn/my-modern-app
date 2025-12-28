@@ -65,6 +65,10 @@ class ClientDB(SQLModel, table=True):
     subscription_auto_renew: bool = Field(default=True)  # Auto-renewal status
     subscription_cancelled_at: Optional[datetime] = Field(default=None)  # When cancelled (if applicable)
 
+    # Email Verification Fields
+    verificationToken: Optional[str] = Field(default=None, index=True)
+    isVerified: bool = Field(default=False)
+
 
 class Blocuri(SQLModel, table=True):
 

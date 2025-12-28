@@ -437,7 +437,7 @@ const SettingsPage: React.FC = () => {
 
     // Build tabs based on role
     const tabs = [
-        { id: 'profile', label: 'Profil', icon: User, component: <ProfileSettings /> },
+        { id: 'profile', label: 'Profil', icon: User, component: <ProfileSettings onChangeTab={setActiveTab} /> },
         { id: 'subscription', label: 'Abonament & Plăți', icon: CreditCard, component: <SubscriptionSettings /> },
     ];
 

@@ -645,6 +645,81 @@ async def send_partner_lawyer_status_update_email(
         return False
 
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+# +++ AUTH EMAIL NOTIFICATIONS                                        +++++
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+async def send_verification_email(email: str, name: str, token: str) -> bool:
+    """
+    Trimite email de verificare a contului.
+    """
+    if not transactional_emails_api:
+        logger.error("API-ul Brevo nu este configurat. Emailul de verificare nu poate fi trimis.")
+        return False
+
+    verify_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/verify-email?token={token}"
+    subject = "Activează contul LegeaAplicata.ro"
+
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #1e40af;">Bun venit pe LegeaAplicata.ro!</h2>
+        <p>Salut {name or 'Utilizator'},</p>
+        <p>Îți mulțumim că te-ai înregistrat. Pentru a finaliza crearea contului și a avea acces la platformă, te rugăm să confirmi adresa de email.</p>
+        <div style="margin: 30px 0; text-align: center;">
+            <a href="{verify_url}" style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Confirmă Adresa de Email</a>
+        </div>
+        <p style="color: #666; font-size: 14px;">Link-ul este valabil 24 de ore.</p>
+        <p style="color: #666; font-size: 14px;">Dacă nu ai solicitat crearea acestui cont, te rugăm să ignori acest email.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="font-size: 12px; color: #999;">Acest email a fost trimis automat.</p>
+    </div>
+    """
+
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        send_email,
+        email,
+        name,
+        subject,
+        html_content
+    )
+
+async def send_password_reset_email(email: str, name: str, token: str) -> bool:
+    """
+    Trimite email pentru resetarea parolei.
+    """
+    if not transactional_emails_api:
+        logger.error("API-ul Brevo nu este configurat. Emailul de resetare parolă nu poate fi trimis.")
+        return False
+
+    reset_url = f"{settings.FRONTEND_BASE_URL.rstrip('/')}/reset-password?token={token}"
+    subject = "Resetare Parolă - LegeaAplicata.ro"
+
+    html_content = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2 style="color: #1e40af;">Resetare Parolă</h2>
+        <p>Salut {name or 'Utilizator'},</p>
+        <p>Am primit o solicitare de resetare a parolei pentru contul tău LegeaAplicata.ro.</p>
+        <div style="margin: 30px 0; text-align: center;">
+            <a href="{reset_url}" style="background-color: #ef4444; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Resetează Parola</a>
+        </div>
+        <p style="color: #666; font-size: 14px;">Dacă nu ai solicitat acest lucru, poți ignora acest email în siguranță; parola ta nu va fi modificată.</p>
+        <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+        <p style="font-size: 12px; color: #999;">Acest email a fost trimis automat.</p>
+    </div>
+    """
+
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(
+        None,
+        send_email,
+        email,
+        name,
+        subject,
+        html_content
+    )
+
+# ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # +++ SUBSCRIPTION EMAIL NOTIFICATIONS                                +++++
 # ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
