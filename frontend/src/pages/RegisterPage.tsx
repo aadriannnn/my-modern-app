@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
-import { Mail, Lock, User, Loader2, AlertCircle, Eye, EyeOff, Phone, Briefcase, Building, FileText, Check } from 'lucide-react';
+import { Mail, Lock, User, Loader2, AlertCircle, Eye, EyeOff, Phone, Briefcase, Check } from 'lucide-react';
 
 const PROFESSIONAL_ROLES = [
     "Judecător", "Procuror", "Grefier", "Avocat", "Mediator",
@@ -296,7 +295,7 @@ const RegisterPage = () => {
 
                         {/* Billing Data - Optional */}
                         <div className="pt-2">
-                             <div className="text-sm font-medium text-blue-600 mb-3 block">
+                            <div className="text-sm font-medium text-blue-600 mb-3 block">
                                 Date facturare (Opțional)
                             </div>
                             <div className="space-y-4 pl-2 border-l-2 border-gray-200 dark:border-gray-700">
