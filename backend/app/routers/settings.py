@@ -549,127 +549,22 @@ async def analyze_llm_data(
                 }
 
             # ===== CONTINUARE CU TRIMITEREA CĂTRE LLM (DOAR DACĂ REȚEA E OFF) =====
-            logger.info("[AI FILTERING] Salvarea în rețea este DEZACTIVATĂ, se continuă cu LLM local")
+            # MODIFICARE: Dacă Network Saving este OFF, NU mai facem fallback automat la Local LLM.
+            # Utilizatorul dorește doar căutare simplă + afișare rezultate.
+            # Dacă se dorește Local LLM, trebuie activat explicit (dar momentan 'retea_enabled' e master switch).
 
-            # Get LLM URL from settings
-            llm_url = settings_manager.get_value('setari_llm', 'llm_url')
+            logger.info("[AI FILTERING] Salvarea în rețea este DEZACTIVATĂ. Se oprește analiza AI (fără fallback Local).")
 
-            # If not set (or empty string from default), use env or safe fallback
-            if not llm_url:
-                env_settings = get_env_settings()
-                if env_settings.OLLAMA_URL:
-                    llm_url = f"{env_settings.OLLAMA_URL}/api/generate"
-                else:
-                    llm_url = 'http://192.168.1.30:11434/api/generate'
-
-            logger.info(f"Sending request to LLM at {llm_url}...")
-
-            # --- CONFIGURARE MODEL QWEN ---
-            SKIP_LLM = False
-
-            # Initialize variables to avoid UnboundLocalError in case of exceptions
             ai_selected_ids = []
             acte_juridice = []
-            llm_response_text = ""
-            result = {}     # Initialize result dict to avoid UnboundLocalError
+            llm_response_text = "AI Analysis Skipped (Network Saving is OFF)."
+            result = {"skipped": True, "reason": "network_disabled"}
 
-            if not SKIP_LLM:
-                llm_payload = {
-                    "model": "verdict-line",
-                    "prompt": payload['prompt'],
-                    "format": "json",
-                    "stream": False,
-                    "keep_alive": "5m",       # Unload model after 5 minutes
-                    "options": {
-                        "num_ctx": 8192,         # STRICT LIMIT 8k for VRAM Stability
-                        "temperature": 0.1,
-                        "top_p": 0.9,
-                        "top_k": 40,
-                        "repeat_penalty": 1.1
-                    }
-                }
-                # ------------------------------
-
-                try:
-                    async with httpx.AsyncClient(timeout=180.0) as client:
-                        logger.info(f"[AI FILTERING - Local] Sending request with timeout=180s...")
-                        response = await client.post(llm_url, json=llm_payload)
-                        response.raise_for_status()
-                        result = response.json()
-
-                    logger.info("Received response from LLM")
-                    llm_response_text = result.get('response', '')
-
-                    # LOG RAW RESPONSE for debugging
-                    logger.info(f"[AI FILTERING - Local] RAW LLM RESPONSE: {llm_response_text}")
-
-                    # Use robust JSON parsing logic
-                    import json
-                    import re
-
-                    try:
-                        # 1. Direct JSON parse
-                        try:
-                            data = json.loads(llm_response_text)
-                            logger.info("[AI FILTERING - Local] Parsare directă JSON reușită")
-                        except json.JSONDecodeError:
-                            # 2. Extract JSON block
-                            start_idx = llm_response_text.find('{')
-                            end_idx = llm_response_text.rfind('}')
-
-                            if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
-                                json_str = llm_response_text[start_idx:end_idx+1]
-                                data = json.loads(json_str)
-                                logger.info("[AI FILTERING - Local] Parsare bloc JSON extras reușită")
-                            else:
-                                raise ValueError("Nu s-a găsit un bloc JSON valid")
-
-                        # Extract data
-                        if "numar_speta" in data:
-                            if isinstance(data["numar_speta"], list):
-                                ai_selected_ids = [int(x) for x in data["numar_speta"] if str(x).isdigit()]
-                            elif isinstance(data["numar_speta"], (str, int)):
-                                    ai_selected_ids = [int(data["numar_speta"])]
-
-                        if "acte_juridice" in data and isinstance(data["acte_juridice"], list):
-                            acte_juridice = [str(x) for x in data["acte_juridice"]]
-
-                    except Exception as e:
-                        logger.error(f"[AI FILTERING - Local] ❌ Eroare la parsarea JSON: {e}")
-                        # Fallback to regex
-                        logger.warning("[AI FILTERING - Local] ⚠️ Fallback la extragerea simplă de numere...")
-                        id_matches = re.findall(r'\d+', llm_response_text)
-                        ai_selected_ids = [int(id_str) for id_str in id_matches]
-
-                    logger.info(f"LLM selected IDs: {ai_selected_ids}")
-
-                except httpx.HTTPStatusError as e:
-                    error_body = e.response.text
-                    logger.error(f"[AI FILTERING - Local] ❌ EROARE HTTP {e.response.status_code}: {error_body}")
-                    llm_response_text = f"Eroare HTTP: {error_body}"
-                    ai_selected_ids = []
-
-                except httpx.TimeoutException:
-                    logger.error(f"[AI FILTERING - Local] ⏳ TIMEOUT (180s) - LLM nu a răspuns la timp.")
-                    llm_response_text = "Eroare: Timeout LLM (180s)"
-                    ai_selected_ids = []
-                except Exception as e:
-                    logger.error(f"[AI FILTERING - Local] ❌ EROARE LLM: {str(e)}")
-                    llm_response_text = f"Eroare LLM: {str(e)}"
-                    ai_selected_ids = []
-
-            else:
-                # SKIP MODE
-                logger.info("[AI FILTERING - Local] ⏭️ LLM skipped by configuration. Returning all candidates.")
-                ai_selected_ids = []
-                acte_juridice = []
-                llm_response_text = "LLM Skipped - All candidates returned."
-                result = {"skipped": True}
-
-            # ===== FALLBACK: afișare TOATE dacă nu avem rezultate =====
+            # ===== FALLBACK: afișare TOATE candidatele =====
+            # Deoarece nu avem filtru AI, afișăm tot ce a găsit căutarea semantică (top K).
+            # Frontend-ul va primi lista și o va afișa.
             if not ai_selected_ids:
-                logger.warning("[AI FILTERING - Local] ⚠️ 0 rezultate de la LLM sau Timeout. Afișăm TOATE candidatele (Embeddings).")
-                ai_selected_ids = [c['id'] for c in payload.get('all_candidates', [])]
+                 ai_selected_ids = [c['id'] for c in payload.get('all_candidates', [])]
 
             return {
                 'success': True,
@@ -678,7 +573,7 @@ async def analyze_llm_data(
                 'acte_juridice': acte_juridice,
                 'all_candidates': payload.get('all_candidates', []),
                 'full_response': result,
-                'exclusive_display': True  # Flag to tell UI to show ONLY these results
+                'exclusive_display': False  # Important: Nu ascunde restul rezultatelor pentru ca nu e filtru "exclusiv"
             }
 
         # Add to queue and get job_id immediately

@@ -864,11 +864,30 @@ def detect_company_query(query: str) -> tuple:
         return (True, True)
 
     # Check for company keywords (case-insensitive)
-    company_keywords = ['SC', 'S.C.', 'SA', 'S.A.', 'SRL', 'S.R.L.', 'PF', 'P.F.', 'II']
+    # Use lists of distinct types for better control
+    # 1. Standard abbreviations (letters only) - require strict word boundaries
+    company_keywords_std = ['SC', 'SA', 'SRL', 'PF', 'II']
+
+    # 2. Punctuation abbreviations - check using robust boundaries
+    company_keywords_punct = ['S.C.', 'S.A.', 'S.R.L.', 'P.F.']
+
     query_upper = query_clean.upper()
 
-    for keyword in company_keywords:
-        if keyword in query_upper:
+    # Check standard keywords with \b
+    for keyword in company_keywords_std:
+        # \b matches word boundary (position between \w and \W or anchors)
+        if re.search(r'\b' + re.escape(keyword) + r'\b', query_clean, re.IGNORECASE):
+            return (True, False)
+
+    # Check punctuation keywords
+    # For "S.C.", \b at the end checks boundary between '.' (non-word) and next char
+    # We want to ensure it's not part of a larger token if that ever happens,
+    # but mostly we want to allow "S.C." followed by space/comma/etc.
+    for keyword in company_keywords_punct:
+        # (?<!\w) = Not preceded by a word char
+        # (?!\w) = Not followed by a word char
+        pattern = r'(?<!\w)' + re.escape(keyword) + r'(?!\w)'
+        if re.search(pattern, query_clean, re.IGNORECASE):
             return (True, False)
 
     return (False, False)

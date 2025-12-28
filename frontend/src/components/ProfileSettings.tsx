@@ -58,9 +58,12 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onChangeTab }) => {
                         </div>
                         <h3 className="text-lg font-bold text-slate-900">{user.numeComplet || 'Utilizator'}</h3>
                         <p className="text-slate-500">{user.email}</p>
-                        <span className={`mt-3 px-3 py-1 rounded-full text-xs font-semibold ${user.rol === 'admin' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'
+                        <span className={`mt-3 px-3 py-1 rounded-full text-xs font-semibold ${user.rol === 'admin' ? 'bg-purple-100 text-purple-700' :
+                                user.rol === 'pro' ? 'bg-indigo-100 text-indigo-700' :
+                                    'bg-blue-100 text-blue-700'
                             }`}>
-                            {user.rol === 'admin' ? 'Administrator' : 'Utilizator Standard'}
+                            {user.rol === 'admin' ? 'Administrator' :
+                                user.rol === 'pro' ? 'Utilizator Pro' : 'Utilizator Basic'}
                         </span>
                     </div>
 
@@ -77,7 +80,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onChangeTab }) => {
                         <div className="p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-200 transition-colors">
                             <div className="flex items-center gap-3 mb-1">
                                 <Shield className="w-4 h-4 text-slate-400" />
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Tip Cont</span>
+                                <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Metodă Autentificare</span>
                             </div>
                             <div className="font-medium text-slate-900 ml-7 flex items-center gap-2">
                                 {user.esteContGoogle ? (
@@ -103,7 +106,7 @@ const ProfileSettings: React.FC<ProfileSettingsProps> = ({ onChangeTab }) => {
                                         Conectat cu Google
                                     </>
                                 ) : (
-                                    'Cont Standard (Email/Parolă)'
+                                    'Email și Parolă'
                                 )}
                             </div>
                         </div>

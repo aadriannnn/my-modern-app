@@ -10,8 +10,10 @@ import { HomeHero } from '../components/HomeHero';
 import { search as apiSearch, searchByDosar, getFilterMappings } from '../lib/api';
 import type { Filters, SelectedFilters } from '../types';
 import { buildDynamicFilters, type FilterMappings, getOriginalValuesForCanonical } from '../lib/dynamicFilterHelpers';
+import { useAuth } from '../context/AuthContext';
 
 const SearchPage: React.FC = () => {
+    const { user } = useAuth();
     // const [filters, setFilters] = useState<Filters | null>(null); // Removed static filters state
     const [dynamicFilters, setDynamicFilters] = useState<Filters | null>(null);
     const [filterMappings, setFilterMappings] = useState<FilterMappings | null>(null);
@@ -298,8 +300,44 @@ const SearchPage: React.FC = () => {
                 }
             } else {
                 setOffset(initialResults.length);
-                setHasMore(initialResults.length === 20);
-                setStatus(`Au fost găsite ${initialResults.length} rezultate.`);
+                setHasMore(initialResults.length === 20); // This logic might be slightly off with limits but keeps paging working
+
+                // Normalize role
+                let userRole = 'guest';
+                if (user) {
+                    userRole = (user.rol || 'basic').toLowerCase();
+                }
+
+                // Determine strict role limit
+                let limit = 10;
+                if (userRole === 'admin') limit = 100000;
+                else if (userRole === 'pro') limit = 50;
+                else if (userRole === 'basic') limit = 20;
+                else limit = 10; // guest
+
+                // Check if we hit the limit
+                // If we received exactly the limit, we assume we hit it.
+                // Or if we have accumulated >= limit
+                const totalLoaded = initialResults.length;
+                let limitHit = totalLoaded >= limit;
+
+                // Stop pagination if we hit role limit
+                if (limitHit && userRole !== 'admin') {
+                    setHasMore(false);
+                } else {
+                    setHasMore(initialResults.length === 20); // Standard pagination check
+                }
+
+                // Set offset correctly
+                setOffset(initialResults.length);
+
+                let statusMsg = `Au fost găsite ${initialResults.length} rezultate.`;
+
+                // Only show upgrade message for guest and basic users if limit is reached
+                if (limitHit && (userRole === 'guest' || userRole === 'basic')) {
+                    statusMsg += ` (Limitat la ${limit} pentru ${userRole || 'neînregistrat'}. Upgrade pentru mai multe.)`;
+                }
+                setStatus(statusMsg);
             }
 
         } catch (error) {

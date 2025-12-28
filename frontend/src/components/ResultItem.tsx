@@ -116,7 +116,36 @@ const ResultItem: React.FC<ResultItemProps> = ({ result, onViewCase, activeView,
           <div className="hidden sm:flex flex-col items-end gap-1 text-xs text-slate-500 font-medium">
             {(result.data?.data || result.data_speta) && (
               <span className="bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
-                {new Date(result.data?.data || result.data_speta).toLocaleDateString('ro-RO')}
+                {(() => {
+                  const dateStr = result.data?.data || result.data_speta;
+                  if (!dateStr || typeof dateStr !== 'string') return '';
+
+                  try {
+                    // Handle "DD-MMM-YYYY" format with Romanian months
+                    const roMonths: { [key: string]: string } = {
+                      'ian': 'Jan', 'feb': 'Feb', 'mar': 'Mar', 'apr': 'Apr', 'mai': 'May', 'iun': 'Jun',
+                      'iul': 'Jul', 'aug': 'Aug', 'sep': 'Sep', 'oct': 'Oct', 'noi': 'Nov', 'dec': 'Dec'
+                    };
+
+                    let parseableDate = dateStr;
+                    // Check if it matches DD-MMM-YYYY
+                    const parts = dateStr.split('-');
+                    if (parts.length === 3) {
+                      const monthIndex = 1;
+                      const mon = parts[monthIndex].toLowerCase();
+                      if (roMonths[mon]) {
+                        parseableDate = dateStr.replace(parts[monthIndex], roMonths[mon]);
+                      }
+                    }
+
+                    const d = new Date(parseableDate);
+                    if (isNaN(d.getTime())) return dateStr; // Fallback to original string if invalid
+
+                    return d.toLocaleDateString('ro-RO');
+                  } catch (e) {
+                    return dateStr;
+                  }
+                })()}
               </span>
             )}
             <span className="uppercase tracking-wide text-[10px] text-slate-400">

@@ -397,8 +397,36 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
           </div>
         )}
         {!hasMore && results.length > 0 && (
-          <div className="text-center py-6">
-            <p className="text-brand-text-secondary text-sm">Ați ajuns la sfârșitul listei.</p>
+          <div className="text-center py-8 px-4">
+            {(() => {
+              const userRole = (user?.rol || 'guest').toLowerCase();
+              let limit = 10;
+              if (userRole === 'admin') limit = 100000;
+              else if (userRole === 'pro') limit = 50;
+              else if (userRole === 'basic') limit = 20;
+              else limit = 10; // guest
+
+              if (userRole !== 'admin' && results.length >= limit) {
+                return (
+                  <div className="bg-gradient-to-r from-orange-50 to-orange-100 border border-orange-200 rounded-xl p-6 max-w-2xl mx-auto shadow-sm">
+                    <h3 className="text-lg font-bold text-orange-800 mb-2">
+                      Ai atins limita de {limit} rezultate pentru contul {userRole === 'guest' ? 'neînregistrat' : userRole}.
+                    </h3>
+                    <p className="text-orange-700 mb-4 text-sm">
+                      Pentru a accesa mai multe spețe și funcționalități avansate, te invităm să alegi un pachet superior.
+                    </p>
+                    <button
+                      onClick={() => navigate('/abonamente')}
+                      className="px-6 py-2.5 bg-orange-600 hover:bg-orange-700 text-white font-semibold rounded-lg transition-colors shadow-md hover:shadow-lg text-sm"
+                    >
+                      Vezi Abonamentele
+                    </button>
+                  </div>
+                );
+              }
+
+              return <p className="text-brand-text-secondary text-sm">Ați ajuns la sfârșitul listei.</p>;
+            })()}
           </div>
         )}
       </div>

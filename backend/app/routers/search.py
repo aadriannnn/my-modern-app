@@ -4,8 +4,12 @@ from ..db import get_session
 from ..schemas import SearchRequest
 from ..logic.search_logic import search_cases
 from ..logic.queue_manager import queue_manager
+from ..models import ClientDB
+from .auth import get_current_user_optional
+from typing import Optional
 import logging
 import uuid
+from ..settings_manager import settings_manager
 
 router = APIRouter(prefix="/search", tags=["search"])
 logger = logging.getLogger(__name__)
@@ -13,7 +17,8 @@ logger = logging.getLogger(__name__)
 @router.post("/")
 async def search(
     request: SearchRequest,
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: Optional[ClientDB] = Depends(get_current_user_optional)
 ):
     """
     Performs a consolidated search for legal cases based on a text query
@@ -25,6 +30,42 @@ async def search(
     logger.info(f"Received search request with situation: '{request.situatie[:50]}...' and filters: {request.dict(exclude={'situatie'})}")
 
     try:
+        # --- NEW LOGIC MOVED UP: NETWORK FLOW & ROLE LIMITS ---
+
+        # 1. Check Network Prompt Saving Flow
+        retea_enabled = settings_manager.get_value('setari_retea', 'retea_enabled', False)
+        if retea_enabled:
+            logger.info("Network Prompt Saving is ON. Returning empty results to force LLM wait.")
+            return []
+
+        # 2. Determine Role-Based Limit
+        limit = 10  # Default for unregistered / anonymous
+
+        if current_user:
+            try:
+                role_val = current_user.rol
+                if hasattr(role_val, 'value'):
+                    role_val = role_val.value
+
+                role_val = str(role_val).lower().strip()
+
+                if role_val == "admin":
+                    limit = 100000
+                elif role_val == "pro":
+                    limit = 50
+                elif role_val == "basic":
+                    limit = 20
+
+            except Exception as e:
+                logger.warning(f"Error determining user role limit: {e}")
+                limit = 10
+
+        # OVERRIDE request limit with role-based limit to ensure search_logic fetches enough
+        # We generally want to fetch exactly the limit, or maybe slightly more?
+        # For now, strict limit is fine as pagination comes via request.offset
+        request.limit = limit
+        logger.info(f"Applying search result limit: {limit} (User: {current_user.email if current_user else 'Guest'})")
+
         # Define the processor function that will be called by queue worker
         async def process_search(payload: dict):
             """Process the actual search when queue worker calls it."""
@@ -58,38 +99,30 @@ async def search(
         request_id = str(uuid.uuid4())
 
         # Add to queue and wait for result
-        # Pass all 4 required arguments: request_id, job_type, payload, processor
         await queue_manager.add_to_queue(request_id, "search", payload, process_search)
 
         logger.info(f"Search request queued with ID: {request_id}")
 
-        # Wait for queue to process and return result
-        # We need to wait for the future that was created inside add_to_queue
-        # queue_manager.items[request_id] holds the item with the future
         item = queue_manager.items.get(request_id)
         if not item:
              raise RuntimeError("Failed to retrieve queue item immediately after adding.")
 
         result = await item.future
 
-        # Save result IDs for LLM export
+        # Save result IDs for LLM export (logic remains same)
         try:
             from ..models import UltimaInterogare
             from datetime import datetime
-            from ..settings_manager import settings_manager
+            # settings_manager is already imported globally
 
-            # Get max results to save (allow more for network export)
             max_save_count = settings_manager.get_value('setari_generale', 'top_k_results', 50)
-
-            # Save all available results up to the limit
             speta_ids = [r.get('id') for r in result[:max_save_count] if r.get('id') is not None]
 
-            # Use a separate session for saving
             with next(get_session()) as save_session:
                 existing = save_session.get(UltimaInterogare, 1)
                 if existing:
                     existing.speta_ids = speta_ids
-                    existing.query_text = request.situatie[:10000]  # Limit query text length
+                    existing.query_text = request.situatie[:10000]
                     existing.created_at = datetime.utcnow()
                 else:
                     nueva = UltimaInterogare(
@@ -99,12 +132,10 @@ async def search(
                     )
                     save_session.add(nueva)
                 save_session.commit()
-                logger.info(f"Saved {len(speta_ids)} speta IDs for LLM export from query: '{request.situatie[:50]}'")
         except Exception as save_error:
-            # Don't fail the search if saving for LLM export fails
             logger.error(f"Failed to save search results for LLM export: {save_error}")
 
-        # Track obiect (case object) statistics from top 5 results
+        # Track obiect statistics (logic remains same)
         try:
             from ..models import MaterieStatistics
             from datetime import datetime
@@ -113,90 +144,51 @@ async def search(
             import unicodedata
 
             def normalize_text(text: str) -> str:
-                """
-                Normalize Romanian text for statistics aggregation.
-                1. Remove diacritics (în -> in, ș -> s, etc.)
-                2. Basic stemming (Lipsirea -> Lipsire)
-                3. Title case
-                """
-                if not text:
-                    return ""
-
-                # 1. Remove diacritics
-                # Normalize unicode characters to decomposed form (NFD)
+                if not text: return ""
                 normalized = unicodedata.normalize('NFD', text)
-                # Filter out non-spacing mark characters (diacritics)
                 text_no_diacritics = "".join([c for c in normalized if unicodedata.category(c) != 'Mn'])
-
-                # 2. Split into words for processing
                 words = text_no_diacritics.split()
                 processed_words = []
-
                 for word in words:
                     word_lower = word.lower()
-                    # Basic Romanian stemming for articulation
-                    # "Lipsirea" -> "Lipsire", "Violarea" -> "Violare"
                     if word_lower.endswith("ea") and len(word_lower) > 3:
-                        # Check if it's likely an articulated noun
-                        # This is a heuristic, but works well for legal terms
-                        word_stem = word[:-1] # Remove 'a' -> Lipsire
+                        word_stem = word[:-1]
                     elif word_lower.endswith("ii") and len(word_lower) > 3:
-                        # "Copiii" -> "Copii" (simplified)
                         word_stem = word[:-1]
                     else:
                         word_stem = word
-
                     processed_words.append(word_stem)
+                return " ".join(processed_words).title()
 
-                # Rejoin and Title Case
-                final_text = " ".join(processed_words)
-                return final_text.title()
-
-            # Get top 5 results (or fewer if less than 5 results)
             top_results = result[:5]
-
-            # Extract and normalize obiecte (case objects) from top results
             obiecte_normalizate = []
             for r in top_results:
                 raw_obiect = r.get('obiect') or r.get('data', {}).get('obiect')
-
                 if raw_obiect and raw_obiect != "—" and raw_obiect.strip():
-                    # Split by comma, ' și ' (with diacritics) and ' si ' (without diacritics)
                     parts = re.split(r',|\s+și\s+|\s+si\s+', raw_obiect, flags=re.IGNORECASE)
-
                     for part in parts:
                         cleaned = part.strip()
                         if cleaned:
-                            # Apply advanced normalization
                             normalized = normalize_text(cleaned)
                             if normalized:
                                 obiecte_normalizate.append(normalized)
 
-            # Count occurrences of each normalized obiect
             obiect_counts = Counter(obiecte_normalizate)
-
             if obiect_counts:
-                # Use a separate session for tracking
                 with next(get_session()) as track_session:
                     for obiect, count in obiect_counts.items():
-                        # Check if exists
                         existing = track_session.get(MaterieStatistics, obiect)
                         if existing:
                             existing.display_count += count
                             existing.last_updated = datetime.utcnow()
                         else:
-                            new_stat = MaterieStatistics(
-                                materie=obiect,  # Using 'materie' field to store obiect
-                                display_count=count,
-                                last_updated=datetime.utcnow()
-                            )
+                            new_stat = MaterieStatistics(materie=obiect, display_count=count, last_updated=datetime.utcnow())
                             track_session.add(new_stat)
                     track_session.commit()
-                    logger.info(f"Tracked normalized obiect statistics: {dict(obiect_counts)}")
         except Exception as track_error:
-            # Don't fail the search if obiect tracking fails
             logger.error(f"Failed to track obiect statistics: {track_error}")
 
+        # Result is already limited by search_cases using request.limit
         return result
 
     except RuntimeError as e:

@@ -5,7 +5,7 @@ interface AIResultBadgeProps {
     score?: number;
 }
 
-const AIResultBadge: React.FC<AIResultBadgeProps> = ({ className = '', score }) => {
+const AIResultBadge: React.FC<AIResultBadgeProps> = ({ className = '' }) => {
     return (
         <div className={`ai-result-badge ${className}`}>
             <svg
@@ -21,7 +21,7 @@ const AIResultBadge: React.FC<AIResultBadgeProps> = ({ className = '', score }) 
                     fill="currentColor"
                 />
             </svg>
-            <span className="ai-badge-text">Rezultat AI {score ? `${Math.round(score)}%` : ''}</span>
+            <span className="ai-badge-text">Rezultat AI</span>
         </div>
     );
 };
