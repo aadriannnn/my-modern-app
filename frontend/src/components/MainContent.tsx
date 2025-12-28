@@ -401,7 +401,7 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
             {(() => {
               const userRole = (user?.rol || 'guest').toLowerCase();
               let limit = 10;
-              if (userRole === 'admin') limit = 100000;
+              if (userRole === 'admin') limit = 100;
               else if (userRole === 'pro') limit = 50;
               else if (userRole === 'basic') limit = 20;
               else limit = 10; // guest

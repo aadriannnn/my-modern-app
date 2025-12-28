@@ -50,7 +50,7 @@ async def search(
                 role_val = str(role_val).lower().strip()
 
                 if role_val == "admin":
-                    limit = 100000
+                    limit = 100
                 elif role_val == "pro":
                     limit = 50
                 elif role_val == "basic":
