@@ -2,6 +2,7 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Loader2, Sparkles, FileText, ArrowLeft, Send } from 'lucide-react';
+import ValidationModal from './ValidationModal';
 
 interface SearchBarProps {
     variant?: 'hero' | 'compact';
@@ -30,6 +31,9 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     const mobileInputRef = useRef<HTMLTextAreaElement>(null);
     const [isDosar, setIsDosar] = useState(false);
     const [isMobileFocused, setIsMobileFocused] = useState(false);
+
+    // Validation State
+    const [showValidationModal, setShowValidationModal] = useState(false);
 
     // Auto-resize textarea (Desktop/Standard)
     useEffect(() => {
@@ -62,16 +66,53 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     const handleSearchAction = () => {
         if (isLoading) return;
 
-        if (isDosar && onDosarSearch) {
-            const dosarRegex = /(\d{1,6}\/\d{1,4}\/\d{4}(?:\/[a-zA-Z0-9\.-]+)?)/;
-            const match = value.match(dosarRegex);
-            if (match) {
-                onDosarSearch(match[0]);
-                setIsMobileFocused(false);
-                document.body.style.overflow = '';
-                return;
+        const trimmedValue = value.trim();
+        if (!trimmedValue) return;
+
+        // 1. Dosar Identity Check (Existing)
+        const dosarRegex = /(\d{1,6}\/\d{1,4}\/\d{4}(?:\/[a-zA-Z0-9\.-]+)?)/;
+        if (dosarRegex.test(trimmedValue)) {
+            // It's a Dosar -> Valid
+            if (onDosarSearch) {
+                const match = trimmedValue.match(dosarRegex);
+                if (match) {
+                    onDosarSearch(match[0]);
+                    setIsMobileFocused(false);
+                    document.body.style.overflow = '';
+                    return;
+                }
             }
+            // Fallback if no onDosarSearch prop (shouldn't happen in main search)
+            onSearch();
+            setIsMobileFocused(false);
+            document.body.style.overflow = '';
+            return;
         }
+
+        // 2. Company Identity Check
+        // CUI: 2-10 digits, optional RO prefix
+        // Terms: SRL, SA, S.R.L., S.A., etc.
+        const cuiRegex = /\b(ro)?\s*\d{2,10}\b/i;
+        const companyTypeRegex = /\b(s\.?r\.?l\.?|s\.?a\.?|i\.?i\.?|p\.?f\.?a\.?|c\.?n\.?|regia autonoma)\b/i;
+
+        const isCompany = cuiRegex.test(trimmedValue) || companyTypeRegex.test(trimmedValue);
+
+        if (isCompany) {
+            // It's a Company -> Valid
+            onSearch();
+            setIsMobileFocused(false);
+            document.body.style.overflow = '';
+            return;
+        }
+
+        // 3. Speta (Natural Language) Check
+        // Must be >= 200 chars
+        if (trimmedValue.length < 200) {
+            setShowValidationModal(true);
+            return;
+        }
+
+        // 4. Valid Speta -> Proceed
         onSearch();
         setIsMobileFocused(false);
         document.body.style.overflow = '';
@@ -103,7 +144,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
     return (
         <>
-            <div className={`relative w-full transition-all duration-300 ${className} `}>
+            <div className={`relative w-full transition-all duration-300 ${className} ${showValidationModal ? 'opacity-0 invisible pointer-events-none' : ''}`}>
                 <div className={`
                     relative flex flex-col transition-all duration-300
                     ${isHero
@@ -136,19 +177,31 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                             )}
                         </div>
 
-                        <textarea
-                            ref={textareaRef}
-                            value={value}
-                            onChange={(e) => onChange(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            onFocus={handleFocus}
-                            placeholder={placeholder}
-                            className={`
-                                w-full bg-transparent border-0 focus:ring-0 text-brand-dark placeholder-slate-400 resize-none
-                                ${isHero ? 'text-lg py-3.5 min-h-[80px]' : 'text-sm py-2.5 min-h-[44px]'}
-                            `}
-                            rows={1}
-                        />
+
+
+                        <div className="flex-1">
+                            {/* Important Warning */}
+                            {!isDosar && (
+                                <div className="px-1 pb-1 pt-1 flex items-center gap-1.5 text-xs text-amber-600 font-medium animate-in fade-in slide-in-from-top-1">
+                                    <span className="bg-amber-100 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide text-amber-700 border border-amber-200">Important</span>
+                                    <span>Textul trebuie introdus în <span className="underline decoration-amber-300 decoration-2 underline-offset-2">limba română</span>.</span>
+                                </div>
+                            )}
+
+                            <textarea
+                                ref={textareaRef}
+                                value={value}
+                                onChange={(e) => onChange(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                onFocus={handleFocus}
+                                placeholder={placeholder}
+                                className={`
+                                    w-full bg-transparent border-0 focus:ring-0 text-brand-dark placeholder-slate-400 resize-none px-0
+                                    ${isHero ? 'text-lg pb-3.5 pt-1 min-h-[80px]' : 'text-sm pb-2.5 pt-1 min-h-[44px]'}
+                                `}
+                                rows={1}
+                            />
+                        </div>
 
                         {/* Action Button (Desktop/Initial View) */}
                         <div className={`${isHero ? 'pt-2 pr-2' : 'pt-1 pr-1'}`}>
@@ -225,6 +278,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                     document.body
                 )
             }
+            {/* Validation Modal */}
+            <ValidationModal
+                isOpen={showValidationModal}
+                onClose={() => setShowValidationModal(false)}
+                currentInputLength={value.trim().length}
+            />
         </>
     );
 };
