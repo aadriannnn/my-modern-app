@@ -132,7 +132,7 @@ const SearchPage: React.FC = () => {
 
         const typingInterval = setInterval(() => {
             if (index < text.length) {
-                setSituatie(current => text.substring(0, index + 1));
+                setSituatie(() => text.substring(0, index + 1));
                 index++;
             } else {
                 clearInterval(typingInterval);
