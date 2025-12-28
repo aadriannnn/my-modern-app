@@ -1,7 +1,7 @@
 import React, { useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Filters, SelectedFilters, FilterItem } from '../types';
-import { ChevronDown, X, PlusCircle, ChevronLeft, ChevronRight, Edit2, Check, Gavel, Mail } from 'lucide-react';
+import { ChevronDown, X, PlusCircle, ChevronLeft, ChevronRight, Edit2, Check, Gavel, Mail, Home, Newspaper, Crown } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat1 from '../assets/reclama/avocat1.jpg';
 
@@ -73,6 +73,53 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
       </div>
 
       <div className="flex-grow overflow-y-auto custom-scrollbar space-y-4">
+
+        {/* MOBILE NAVIGATION - ONLY VISIBLE ON MOBILE */}
+        <div className="md:hidden space-y-1 mb-4 pb-4 border-b border-gray-100">
+          <button
+            onClick={() => {
+              navigate('/');
+              onClose();
+            }}
+            className="w-full flex items-center px-3 py-2 text-brand-text font-medium hover:bg-gray-50 rounded-lg transition-colors"
+          >
+            <Home size={18} className="mr-3 text-brand-primary" />
+            Acasă
+          </button>
+
+          <button
+            onClick={() => {
+              navigate('/stiri');
+              onClose();
+            }}
+            className="w-full flex items-center px-3 py-2 text-brand-text font-medium hover:bg-gray-50 rounded-lg transition-colors"
+          >
+            <Newspaper size={18} className="mr-3 text-brand-primary" />
+            Știri Juridice
+          </button>
+
+          <button
+            onClick={() => {
+              navigate('/abonamente');
+              onClose();
+            }}
+            className="w-full flex items-center px-3 py-2 text-brand-text font-medium hover:bg-gray-50 rounded-lg transition-colors"
+          >
+            <Crown size={18} className="mr-3 text-amber-500" />
+            Premium
+          </button>
+
+          <button
+            onClick={() => {
+              onContribuieClick();
+              onClose();
+            }}
+            className="w-full flex items-center px-3 py-2 text-brand-text font-medium hover:bg-gray-50 rounded-lg transition-colors"
+          >
+            <PlusCircle size={18} className="mr-3 text-brand-primary" />
+            Contribuie cu o speță
+          </button>
+        </div>
 
         {/* 1. MATERIE SECTION */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
@@ -245,18 +292,6 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
       <Advertisement imageSrc={avocat1} altText="Reclamă avocat" />
 
-      <div className="md:hidden border-t border-gray-200 pt-4">
-        <button
-          onClick={() => {
-            onContribuieClick();
-            onClose();
-          }}
-          className="w-full flex items-center justify-center text-sm font-semibold text-brand-primary hover:opacity-80 transition-opacity p-2 rounded-lg bg-gray-200"
-        >
-          <PlusCircle size={18} className="mr-1.5" />
-          Contribuie
-        </button>
-      </div>
     </div>
   );
 

@@ -37,15 +37,13 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
       <div className="flex items-center justify-between h-16">
         {/* Left Section: Logo and Mobile Menu */}
         <div className="flex items-center space-x-4">
-          {(user?.rol === 'admin' || user?.rol === 'pro') && (
-            <button
-              onClick={onToggleMenu}
-              className="text-gray-400 hover:text-white md:hidden"
-              aria-label="Toggle menu"
-            >
-              <Menu size={24} />
-            </button>
-          )}
+          <button
+            onClick={onToggleMenu}
+            className="text-gray-400 hover:text-white md:hidden"
+            aria-label="Toggle menu"
+          >
+            <Menu size={24} />
+          </button>
           <Link to="/">
             <img src={logo} alt="Logo" className="h-8 w-auto" />
           </Link>
@@ -64,7 +62,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
 
           <button
             onClick={onContribuieClick}
-            className="hidden sm:flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"
+            className="hidden md:flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"
           >
             <PlusCircle size={18} className="mr-2" />
             <span className="hidden lg:inline">Contribuie cu o speță</span>
@@ -73,7 +71,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
 
           <Link
             to="/stiri"
-            className="flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"
+            className="hidden md:flex items-center text-sm font-medium text-gray-300 hover:text-white transition-colors duration-200"
           >
             <Newspaper size={18} className="mr-2" />
             <span className="hidden lg:inline">Știri Juridice</span>
@@ -82,7 +80,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick }) => {
 
           <Link
             to="/abonamente"
-            className="flex items-center text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors duration-200"
+            className="hidden md:flex items-center text-sm font-medium text-amber-400 hover:text-amber-300 transition-colors duration-200"
           >
             <Crown size={18} className="mr-2" />
             <span className="hidden lg:inline">Abonamente</span>
