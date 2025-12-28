@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Header from '../components/Header';
 import LeftSidebar from '../components/LeftSidebar';
 import MainContent from '../components/MainContent';
@@ -125,9 +125,6 @@ const SearchPage: React.FC = () => {
 
     const handleExampleFill = useCallback(() => {
         setHasSearched(true); // Switch to results/input view technically, but usually stays on Hero until search
-        // Wait, current logic switches view on 'hasSearched'. If I fill example, I stay on Hero until I click search?
-        // Ideally yes. But `setSituatie` updates input.
-        // Let's just update `situatie`.
 
         const text = EXAMPLE_CASE;
         let index = 0;
@@ -135,7 +132,7 @@ const SearchPage: React.FC = () => {
 
         const typingInterval = setInterval(() => {
             if (index < text.length) {
-                setSituatie(prev => text.substring(0, index + 1));
+                setSituatie(current => text.substring(0, index + 1));
                 index++;
             } else {
                 clearInterval(typingInterval);
@@ -353,16 +350,6 @@ const SearchPage: React.FC = () => {
         }
     }, []);
 
-    const handleSearchByIds = useCallback((results: any[], count: number) => {
-        setHasSearched(true);
-        setOriginalResults(results);
-        setOffset(results.length);
-        setHasMore(false);
-        setStatus(`Căutare după ID-uri: ${count} rezultate găsite.`);
-        setActeJuridice([]);
-        setDosarSearchInfo(null);
-    }, []);
-
     const handleFilterChange = useCallback((filterType: keyof SelectedFilters, value: any) => {
         setSearchParams(prevParams => {
             const newParams = { ...prevParams, [filterType]: value };
@@ -420,6 +407,18 @@ const SearchPage: React.FC = () => {
             />
 
             <div className="flex flex-1 overflow-hidden relative">
+                <LeftSidebar
+                    filters={dynamicFilters}
+                    selectedFilters={searchParams}
+                    onFilterChange={handleFilterChange}
+                    isOpen={isMobileMenuOpen}
+                    onClose={() => setIsMobileMenuOpen(false)}
+                    onContribuieClick={() => setIsContribuieModalOpen(true)}
+                    isDesktopOpen={isDesktopSidebarOpen}
+                    onDesktopToggle={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
+                    hideOnDesktop={isHomeView}
+                />
+
                 {isHomeView ? (
                     <HomeHero
                         situacie={situatie}
@@ -430,37 +429,25 @@ const SearchPage: React.FC = () => {
                         onExampleClick={handleExampleFill}
                     />
                 ) : (
-                    <>
-                        <LeftSidebar
-                            filters={dynamicFilters}
-                            selectedFilters={searchParams}
-                            onFilterChange={handleFilterChange}
-                            isOpen={isMobileMenuOpen}
-                            onClose={() => setIsMobileMenuOpen(false)}
-                            onContribuieClick={() => setIsContribuieModalOpen(true)}
-                            isDesktopOpen={isDesktopSidebarOpen}
-                            onDesktopToggle={() => setIsDesktopSidebarOpen(!isDesktopSidebarOpen)}
-                        />
-                        <MainContent
-                            results={searchResults}
-                            status={status}
-                            isLoading={isLoading}
-                            onViewCase={handleViewCase}
-                            searchParams={searchParams}
-                            onRemoveFilter={handleRemoveFilter}
-                            onClearFilters={handleClearFilters}
-                            onLoadMore={() => loadMoreResults(offset)}
-                            hasMore={hasMore}
-                            situatie={situatie}
-                            onSituatieChange={setSituatie}
-                            onSearch={handleSearch}
+                    <MainContent
+                        results={searchResults}
+                        status={status}
+                        isLoading={isLoading}
+                        onViewCase={handleViewCase}
+                        searchParams={searchParams}
+                        onRemoveFilter={handleRemoveFilter}
+                        onClearFilters={handleClearFilters}
+                        onLoadMore={() => loadMoreResults(offset)}
+                        hasMore={hasMore}
+                        situatie={situatie}
+                        onSituatieChange={setSituatie}
+                        onSearch={handleSearch}
 
-                            acteJuridice={acteJuridice}
-                            onDosarSearch={handleDosarSearch}
-                            isDosarSearchLoading={isDosarSearchLoading}
-                            dosarSearchInfo={dosarSearchInfo}
-                        />
-                    </>
+                        acteJuridice={acteJuridice}
+                        onDosarSearch={handleDosarSearch}
+                        isDosarSearchLoading={isDosarSearchLoading}
+                        dosarSearchInfo={dosarSearchInfo}
+                    />
                 )}
             </div>
 

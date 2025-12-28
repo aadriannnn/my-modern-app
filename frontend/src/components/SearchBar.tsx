@@ -49,7 +49,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     }, [value]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter' && !e.shiftKey) {
+        // Allow Enter to create new line. Submit only on Ctrl + Enter.
+        if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
             e.preventDefault();
             handleSearchAction();
         }

@@ -1,7 +1,7 @@
 import React from 'react';
 import { generatePdf } from '@/lib/pdf';
 import type { PdfSablonData } from '@/lib/pdf';
-import { Printer, Eye, FolderPlus, Scale, Calendar, FolderCheck, Share2 } from 'lucide-react';
+import { Printer, Eye, FolderPlus, Scale, FolderCheck, Share2 } from 'lucide-react';
 import AIResultBadge from './AIResultBadge';
 import { useDosar } from '../context/DosarContext';
 

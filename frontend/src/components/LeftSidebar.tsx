@@ -14,6 +14,7 @@ interface LeftSidebarProps {
   onContribuieClick: () => void;
   isDesktopOpen?: boolean;
   onDesktopToggle?: () => void;
+  hideOnDesktop?: boolean;
 }
 
 const LeftSidebar: React.FC<LeftSidebarProps> = ({
@@ -24,7 +25,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onClose,
   onContribuieClick,
   isDesktopOpen = true,
-  onDesktopToggle
+  onDesktopToggle,
+  hideOnDesktop = false
 }) => {
   const navigate = useNavigate();
   const { materii = [], obiecte = [], details = {}, tipSpeta = [], parte = [] } = filters ?? {};
@@ -310,27 +312,29 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         {sidebarContent}
       </aside>
 
-      {/* Desktop view */}
-      <div className="hidden md:flex relative h-full">
-        <aside
-          className={`bg-white border-r border-gray-200 h-full transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${isDesktopOpen ? 'w-80 opacity-100' : 'w-0 opacity-0'
-            }`}
-        >
-          <div className="h-full w-80">
-            {sidebarContent}
-          </div>
-        </aside>
+      {/* Desktop view - Conditionally rendered */}
+      {!hideOnDesktop && (
+        <div className="hidden md:flex relative h-full">
+          <aside
+            className={`bg-white border-r border-gray-200 h-full transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] overflow-hidden ${isDesktopOpen ? 'w-80 opacity-100' : 'w-0 opacity-0'
+              }`}
+          >
+            <div className="h-full w-80">
+              {sidebarContent}
+            </div>
+          </aside>
 
-        {/* Toggle Button (Vertical Bar) - Fixed positioning for constant visibility */}
-        <button
-          onClick={onDesktopToggle}
-          className={`fixed top-20 transform -translate-y-1/2 bg-white border border-gray-200 shadow-lg rounded-full p-1.5 z-50 hover:bg-gray-50 hover:scale-110 transition-all duration-300 focus:outline-none text-brand-primary ${isDesktopOpen ? 'left-[308px]' : 'left-[12px]'
-            }`}
-          title={isDesktopOpen ? "Ascunde filtre" : "Arată filtre"}
-        >
-          {isDesktopOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
-        </button>
-      </div>
+          {/* Toggle Button (Vertical Bar) - Fixed positioning for constant visibility */}
+          <button
+            onClick={onDesktopToggle}
+            className={`fixed top-20 transform -translate-y-1/2 bg-white border border-gray-200 shadow-lg rounded-full p-1.5 z-50 hover:bg-gray-50 hover:scale-110 transition-all duration-300 focus:outline-none text-brand-primary ${isDesktopOpen ? 'left-[308px]' : 'left-[12px]'
+              }`}
+            title={isDesktopOpen ? "Ascunde filtre" : "Arată filtre"}
+          >
+            {isDesktopOpen ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+          </button>
+        </div>
+      )}
     </Fragment>
   );
 };
