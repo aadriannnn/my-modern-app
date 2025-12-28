@@ -23,7 +23,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   onFilterChange,
   isOpen,
   onClose,
-  onContribuieClick,
+
   isDesktopOpen = true,
   onDesktopToggle,
   hideOnDesktop = false
