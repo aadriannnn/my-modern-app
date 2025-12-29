@@ -8,7 +8,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
 from .db import init_db, get_session
-from .cache import load_all_filters_into_memory
+
 from .routers import (
     search as main_router,
     equivalents,
@@ -103,10 +103,7 @@ def on_startup():
         ensure_user_verification_fields(session)
     logger.info("Step 2.1: User verification fields verified.")
 
-    logger.info("Step 3: Loading all filter data into memory cache...")
-    with next(get_session()) as session:
-        load_all_filters_into_memory(session)
-    logger.info("Step 3: In-memory cache loaded successfully.")
+
 
     logger.info("Step 4: Starting queue manager worker...")
     from .logic.queue_manager import queue_manager

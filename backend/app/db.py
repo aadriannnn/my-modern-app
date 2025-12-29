@@ -14,8 +14,9 @@ settings = get_settings()
 # Determine which database URL to use
 db_url = settings.DATABASE_URL_INTERNAL if settings.DATABASE_URL_INTERNAL else settings.DATABASE_URL
 
-# Log the database URL to verify it's correct
-logger.info(f"Using database URL: {db_url}")
+# Log the database URL (sanitized) to verify it's correct
+sanitized_db_url = db_url.split("@")[-1] if "@" in db_url else "sqlite_or_other"
+logger.info(f"Using database host: {sanitized_db_url}")
 
 engine = create_engine(db_url, echo=False)
 

@@ -1,7 +1,7 @@
 import React, { useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Filters, SelectedFilters, FilterItem } from '../types';
-import { ChevronDown, X, ChevronLeft, ChevronRight, Edit2, Check, Gavel, Mail } from 'lucide-react';
+import { ChevronDown, X, ChevronLeft, ChevronRight, Check, Gavel, Mail, Edit2 } from 'lucide-react';
 import Advertisement from './Advertisement';
 import avocat1 from '../assets/reclama/avocat1.jpg';
 
@@ -56,18 +56,28 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     }
   };
 
-  const resetToMaterie = () => {
-    onFilterChange('materie', '');
-    onFilterChange('obiect', []);
-    onFilterChange('tip_speta', []);
-    onFilterChange('parte', []);
-  };
+
 
   const sidebarContent = (
     <div className={`p-4 space-y-4 flex flex-col h-full transition-opacity duration-200 ${!isDesktopOpen ? 'md:opacity-0 md:pointer-events-none' : 'opacity-100'}`}>
       <div>
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-brand-text">Filtre</h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-brand-text">Filtre</h3>
+            {(selectedFilters.materie || selectedFilters.obiect.length > 0) && (
+              <button
+                onClick={() => {
+                  onFilterChange('materie', '');
+                  onFilterChange('obiect', []);
+                  onFilterChange('tip_speta', []);
+                  onFilterChange('parte', []);
+                }}
+                className="text-xs text-brand-primary hover:text-brand-accent hover:underline transition-colors ml-2"
+              >
+                Șterge tot
+              </button>
+            )}
+          </div>
           <button onClick={onClose} className="md:hidden text-brand-text-secondary hover:text-brand-text">
             <X size={24} />
           </button>
@@ -80,49 +90,49 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
         {/* 1. MATERIE SECTION */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 overflow-hidden">
-          {!filters || !filters.materii || filters.materii.length === 0 ? (
+          {(!filters || !filters.materii || filters.materii.length === 0) ? (
             // STATE: No Filters Available (e.g. before search)
             <div className="p-4 text-center text-gray-500 italic text-sm">
               Efectuați o căutare pentru a vedea filtrele disponibile bazate pe rezultate.
             </div>
-          ) : !selectedFilters.materie ? (
-            // STATE: No Materie Selected -> Show List
-            <div className="p-3">
-              <h4 className="font-semibold text-brand-text mb-3 flex items-center gap-2">
-                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-primary text-white text-xs">1</span>
-                Filtrează după Materie
-                <span className="ml-auto text-[10px] text-gray-400 font-normal">Din rezultate</span>
-              </h4>
-              <div className="space-y-1">
-                {materii.map(materie => (
-                  <button
-                    key={materie.name}
-                    onClick={() => handleMaterieChange(materie.name)}
-                    className="w-full flex justify-between items-center text-left px-3 py-2.5 rounded-lg text-sm transition-colors hover:bg-gray-50 text-brand-text group"
-                  >
-                    <span className="font-medium group-hover:text-brand-primary transition-colors">{materie.name}</span>
-                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full group-hover:bg-brand-primary/10 group-hover:text-brand-primary transition-colors">
-                      {materie.count}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
           ) : (
-            // STATE: Materie Selected -> Show Summary Header
-            <div className="p-3 bg-brand-primary/5 border-l-4 border-brand-primary">
-              <div className="flex justify-between items-center">
-                <div>
-                  <div className="text-xs text-brand-primary font-semibold uppercase tracking-wider mb-0.5">Materie</div>
-                  <div className="font-bold text-brand-text text-lg">{selectedFilters.materie}</div>
-                </div>
-                <button
-                  onClick={resetToMaterie}
-                  className="p-1.5 text-brand-text-secondary hover:text-brand-primary hover:bg-white rounded-full transition-all"
-                  title="Modifică materia"
-                >
-                  <Edit2 size={16} />
-                </button>
+            // STATE: Always Show List with Selection State
+            <div className="p-3">
+              <div className="flex justify-between items-end mb-3">
+                <h4 className="font-semibold text-brand-text flex items-center gap-2">
+                  <span className="flex items-center justify-center w-6 h-6 rounded-full bg-brand-primary text-white text-xs">1</span>
+                  Filtrează după Materie
+                </h4>
+                <span className="text-[10px] text-gray-400 font-normal pb-0.5">Din rezultate</span>
+              </div>
+
+              <div className="space-y-1">
+                {materii.map(materie => {
+                  const isSelected = selectedFilters.materie === materie.name;
+                  return (
+                    <button
+                      key={materie.name}
+                      onClick={() => handleMaterieChange(materie.name)}
+                      className={`w-full flex justify-between items-center text-left px-3 py-2.5 rounded-lg text-sm transition-all duration-200 group
+                        ${isSelected
+                          ? 'bg-brand-primary text-white shadow-md shadow-brand-primary/20 transform scale-[1.02]'
+                          : 'text-brand-text hover:bg-gray-50'
+                        }`}
+                    >
+                      <span className={`font-medium transition-colors ${!isSelected && 'group-hover:text-brand-primary'}`}>
+                        {materie.name}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full transition-colors
+                        ${isSelected
+                          ? 'bg-white/20 text-white'
+                          : 'text-gray-400 bg-gray-100 group-hover:bg-brand-primary/10 group-hover:text-brand-primary'
+                        }`}>
+                        {materie.count}
+                      </span>
+                      {isSelected && <X size={14} className="ml-2 opacity-70 hover:opacity-100" />}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           )}

@@ -7,7 +7,6 @@ from typing import List, Dict, Any, Tuple
 
 from ..config import get_settings
 from ..schemas import SearchRequest
-from ..cache import get_cached_filters
 from ..settings_manager import settings_manager
 
 settings = get_settings()
@@ -60,50 +59,53 @@ def _build_common_where_clause(req: SearchRequest, dialect: str) -> Tuple[str, D
         else:  # sqlite
             return f"json_extract(b.obj, '$.{field}')"
 
-    cached_filters = get_cached_filters()
-    materii_map = cached_filters.get("materii_map", {})
-    obiecte_map = cached_filters.get("obiecte_map", {})
+    # DIRECT FILTERING (No Mapping)
+    # Since frontend now filters based on actual displayed values, we can trust the input terms.
+    # However, to be safe/broad, we can still use ILIKE logic for each term.
 
-    def get_original_terms(canonical_terms: List[str], term_map: Dict[str, List[str]]) -> List[str]:
-        original_terms = set(canonical_terms)
-        for term in canonical_terms:
-            original_terms.update(term_map.get(term, []))
-        return list(original_terms)
-
-    # Each filter now uses the json_accessor helper
+    # 1. Materie Filter
     if req.materie:
-        materii_to_check = get_original_terms(req.materie, materii_map)
         conditions = []
-        for i, term in enumerate(materii_to_check):
+        for i, term in enumerate(req.materie):
             param_name = f"materie_{i}"
+            # Use ILIKE for case-insensitive exact matching logic if needed, or simple equality.
+            # Given the messiness of data, ILIKE %term% is safer to catch variations
+            # BUT if we want exact filtering based on the 'normalized' frontend value, maybe just ILIKE.
+            # Let's keep the existing loop structure but without expansion.
             conditions.append(f"{json_accessor('materie')} ILIKE :{param_name}")
             params[param_name] = f"%{term}%"
-        where_clauses.append(f"({' OR '.join(conditions)})")
+        if conditions:
+            where_clauses.append(f"({' OR '.join(conditions)})")
 
+    # 2. Obiect Filter
     if req.obiect:
-        obiecte_to_check = get_original_terms(req.obiect, obiecte_map)
         conditions = []
-        for i, term in enumerate(obiecte_to_check):
+        for i, term in enumerate(req.obiect):
             param_name = f"obiect_{i}"
             conditions.append(f"{json_accessor('obiect')} ILIKE :{param_name}")
             params[param_name] = f"%{term}%"
-        where_clauses.append(f"({' OR '.join(conditions)})")
+        if conditions:
+            where_clauses.append(f"({' OR '.join(conditions)})")
 
+    # 3. Tip Speta
     if req.tip_speta:
         conditions = []
         for i, term in enumerate(req.tip_speta):
             param_name = f"tip_speta_{i}"
             conditions.append(f"{json_accessor('tip_speta')} ILIKE :{param_name}")
             params[param_name] = f"%{term}%"
-        where_clauses.append(f"({' OR '.join(conditions)})")
+        if conditions:
+            where_clauses.append(f"({' OR '.join(conditions)})")
 
+    # 4. Parte
     if req.parte:
         conditions = []
         for i, term in enumerate(req.parte):
             param_name = f"parte_{i}"
             conditions.append(f"{json_accessor('parte')} ILIKE :{param_name}")
             params[param_name] = f"%{term}%"
-        where_clauses.append(f"({' OR '.join(conditions)})")
+        if conditions:
+            where_clauses.append(f"({' OR '.join(conditions)})")
 
     return " AND ".join(where_clauses), params
 

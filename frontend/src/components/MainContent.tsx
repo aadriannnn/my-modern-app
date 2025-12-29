@@ -474,10 +474,7 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
         {results.length === 0 && !isLoading && (
           <>
             {/* Note: This state should usually be handled by HomeHero in SearchPage,
-                 but if MainContent is rendered empty, we can show basics or return null */}
-            <div className="text-center py-20 text-slate-400">
-              <p>Folosește bara de căutare pentru a începe.</p>
-            </div>
+                  but if MainContent is rendered empty, we can show basics or return null */}
           </>
         )}
 

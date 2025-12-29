@@ -29,15 +29,11 @@ def ensure_user_verification_fields(session: Session) -> None:
     """
     Ensure user verification fields exist in the clienti table with correct casing.
     """
-    logger.info("=" * 80)
-    logger.info("Starting user verification fields migration check (Smart Fix)...")
-    logger.info("=" * 80)
+    logger.info("Starting user verification fields migration check...")
 
     table_name = "clienti"
     inspector = inspect(session.bind)
     existing_columns = {col['name'] for col in inspector.get_columns(table_name)}
-
-    logger.info(f"Existing columns in {table_name}: {existing_columns}")
 
     for field_config in NEW_USER_FIELDS:
         target_name = field_config["name"] # e.g., verificationToken

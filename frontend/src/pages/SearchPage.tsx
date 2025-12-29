@@ -7,20 +7,19 @@ import CompanyDetailModal from '../components/CompanyDetailModal';
 import ContribuieModal from '../components/ContribuieModal';
 import Footer from '../components/Footer';
 import { HomeHero } from '../components/HomeHero';
-import { search as apiSearch, searchByDosar, getFilterMappings } from '../lib/api';
+import { search as apiSearch, searchByDosar } from '../lib/api';
 import type { Filters, SelectedFilters } from '../types';
-import { buildDynamicFilters, type FilterMappings, getOriginalValuesForCanonical } from '../lib/dynamicFilterHelpers';
+import { normalizeSearchResults, buildDynamicFilters, isObiectMatching } from '@/lib/dynamicFilterHelpers';
 import { useAuth } from '../context/AuthContext';
 
 const SearchPage: React.FC = () => {
     const { user } = useAuth();
     // const [filters, setFilters] = useState<Filters | null>(null); // Removed static filters state
     const [dynamicFilters, setDynamicFilters] = useState<Filters | null>(null);
-    const [filterMappings, setFilterMappings] = useState<FilterMappings | null>(null);
     const [originalResults, setOriginalResults] = useState<any[]>([]); // Store all fetched results for client-side filtering
     const [searchResults, setSearchResults] = useState<any[]>([]);
     const [status, setStatus] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const [offset, setOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
     const [situatie, setSituatie] = useState('');
@@ -45,21 +44,6 @@ const SearchPage: React.FC = () => {
     // Track if a search has been initiated to determine Home vs Results view
     const [hasSearched, setHasSearched] = useState(false);
 
-    useEffect(() => {
-        const loadInitialData = async () => {
-            try {
-                const mappings = await getFilterMappings();
-                setFilterMappings(mappings);
-                setStatus('');
-            } catch (error) {
-                console.error('Failed to load initial data:', error);
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        loadInitialData();
-    }, []);
-
     // Apply client-side filters whenever searchParams or originalResults change
     const applyClientSideFilters = useCallback(() => {
         if (!originalResults.length) {
@@ -70,24 +54,25 @@ const SearchPage: React.FC = () => {
         let filtered = [...originalResults];
 
         // 1. Filter by Materie
-        if (searchParams.materie && filterMappings) {
-            const originalMateriiInGroup = getOriginalValuesForCanonical(searchParams.materie, filterMappings.materii_map);
+        if (searchParams.materie) {
             filtered = filtered.filter(r => {
                 const rData = r.data || r;
-                return originalMateriiInGroup.includes(rData.materie);
+                return rData.materie === searchParams.materie;
             });
         }
 
         // 2. Filter by Obiect (OR logic within obiects)
-        if (searchParams.obiect.length > 0 && filterMappings) {
+        if (searchParams.obiect.length > 0) {
             filtered = filtered.filter(r => {
                 const rData = r.data || r;
                 const rObiectRaw = rData.obiectul || rData.obiect || '';
-                return searchParams.obiect.some(selectedCanonical => {
-                    const originalObiecteInGroup = getOriginalValuesForCanonical(selectedCanonical, filterMappings.obiecte_map);
-                    const rParts = rObiectRaw.split(/,|;|\s+și\s+/i).map((s: string) => s.trim());
-                    return rParts.some((part: string) => originalObiecteInGroup.includes(part));
-                });
+                const rParts = rObiectRaw.split(/,|;|\s+și\s+/i).map((s: string) => s.trim()).filter(Boolean);
+
+                // Use fuzzy matching for filtering too
+                // Check if ANY selected filter matches ANY part of the item's object
+                return searchParams.obiect.some(selected =>
+                    rParts.some((part: string) => isObiectMatching(selected, part))
+                );
             });
         }
 
@@ -111,10 +96,15 @@ const SearchPage: React.FC = () => {
 
         setSearchResults(filtered);
 
-        const newFilters = buildDynamicFilters(originalResults, filterMappings);
+        const newFilters = buildDynamicFilters(originalResults, {
+            materie: searchParams.materie,
+            obiect: searchParams.obiect,
+            tip_speta: searchParams.tip_speta,
+            parte: searchParams.parte
+        });
         setDynamicFilters(newFilters);
 
-    }, [originalResults, searchParams, filterMappings]);
+    }, [originalResults, searchParams]);
 
 
     // Trigger filter application when deps change
@@ -157,7 +147,8 @@ const SearchPage: React.FC = () => {
         };
 
         try {
-            const results = await apiSearch(payload);
+            const resultsRaw = await apiSearch(payload);
+            const results = normalizeSearchResults(resultsRaw);
             setOriginalResults(prev => [...prev, ...results]);
             setOffset(currentOffset + results.length);
             setHasMore(results.length === 20);
@@ -190,9 +181,16 @@ const SearchPage: React.FC = () => {
                 offset: 0,
             };
 
-            const initialResults = await apiSearch(payload);
+            const initialResultsRaw = await apiSearch(payload);
+            const initialResults = normalizeSearchResults(initialResultsRaw);
+
             setOriginalResults(initialResults);
-            const newFilters = buildDynamicFilters(initialResults, filterMappings);
+            const newFilters = buildDynamicFilters(initialResults, {
+                materie: searchParams.materie,
+                obiect: searchParams.obiect,
+                tip_speta: searchParams.tip_speta,
+                parte: searchParams.parte
+            });
             setDynamicFilters(newFilters);
 
             if (isProEnabled && situatie.trim().split(/\s+/).length > 3) {
@@ -346,7 +344,7 @@ const SearchPage: React.FC = () => {
         } finally {
             setIsLoading(false);
         }
-    }, [situatie, searchParams, isProEnabled, filterMappings]);
+    }, [situatie, searchParams, isProEnabled]);
 
     const handleDosarSearch = useCallback(async (numarDosar: string) => {
         setHasSearched(true);
@@ -368,8 +366,9 @@ const SearchPage: React.FC = () => {
                 numar: response.numar_dosar
             });
 
-            setOriginalResults(response.results);
-            setOffset(response.results.length);
+            const normalizedResults = normalizeSearchResults(response.results);
+            setOriginalResults(normalizedResults);
+            setOffset(normalizedResults.length);
             setHasMore(false);
             setActeJuridice([]);
 

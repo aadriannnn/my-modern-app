@@ -117,9 +117,7 @@ def ensure_subscription_fields(session: Session) -> None:
     Ensure all subscription fields exist in the clienti table.
     This is safe to run multiple times - it only adds missing columns.
     """
-    logger.info("=" * 80)
     logger.info("Starting subscription fields migration check...")
-    logger.info("=" * 80)
 
     table_name = "clienti"
     added_count = 0
@@ -132,9 +130,9 @@ def ensure_subscription_fields(session: Session) -> None:
         else:
             skipped_count += 1
 
-    logger.info("=" * 80)
-    logger.info(f"Migration check complete: {added_count} columns added, {skipped_count} already existed")
-    logger.info("=" * 80)
+    if added_count > 0:
+        logger.info(f"Migration check complete: {added_count} columns added.")
+    # Else simple check pass, no log spam
 
     # Add indexes for performance (if they don't exist)
     try:

@@ -180,13 +180,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
 
                         <div className="flex-1">
-                            {/* Important Warning */}
-                            {!isDosar && (
-                                <div className="px-1 pb-1 pt-1 flex items-center gap-1.5 text-xs text-amber-600 font-medium animate-in fade-in slide-in-from-top-1">
-                                    <span className="bg-amber-100 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide text-amber-700 border border-amber-200">Important</span>
-                                    <span>Textul trebuie introdus în <span className="underline decoration-amber-300 decoration-2 underline-offset-2">limba română</span>.</span>
-                                </div>
-                            )}
+                            {/* Important Warning specific to language removed */}
 
                             <textarea
                                 ref={textareaRef}
