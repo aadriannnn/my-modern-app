@@ -532,11 +532,11 @@ class QueueManager:
 
                     # Schedule delayed cleanup for completed/failed jobs (keep results for 24 hours)
                     if item.future.done():
-                        logger.info(f"Scheduling delayed cleanup for job {item.request_id} in 24 hours")
+                        logger.info(f"Scheduling delayed cleanup for job {item.request_id} in 5 minutes")
 
                         async def delayed_cleanup():
-                            # 24 hours = 86400 seconds
-                            await asyncio.sleep(86400)
+                            # 5 minutes = 300 seconds (reduced from 24h as per user request)
+                            await asyncio.sleep(300)
                             if item.request_id in self.items:
                                 del self.items[item.request_id]
                                 logger.info(f"Cleaned up completed job {item.request_id}")
