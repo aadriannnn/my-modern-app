@@ -156,7 +156,7 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                                         <div className={`font-bold text-lg ${selectedFilters.materie === materie.name ? 'text-brand-primary' : 'text-brand-text'}`}>
                                             {String(materie.name)}
                                         </div>
-                                        <div className="text-sm text-gray-500">{String(materie.count)} spețe</div>
+
                                     </div>
                                     {selectedFilters.materie === materie.name && (
                                         <div className="absolute top-4 right-4 text-brand-primary">
@@ -216,11 +216,7 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                                             <span className={`flex-1 font-medium ${isSelected ? 'text-brand-primary' : 'text-brand-text'}`}>
                                                 {String(obiect.name)}
                                             </span>
-                                            {obiect.count !== null && obiect.count !== undefined && (
-                                                <span className="text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full">
-                                                    {String(obiect.count)}
-                                                </span>
-                                            )}
+
                                         </label>
                                     );
                                 })}

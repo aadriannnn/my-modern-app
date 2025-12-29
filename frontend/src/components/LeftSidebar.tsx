@@ -122,13 +122,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
                       <span className={`font-medium transition-colors ${!isSelected && 'group-hover:text-brand-primary'}`}>
                         {materie.name}
                       </span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full transition-colors
-                        ${isSelected
-                          ? 'bg-white/20 text-white'
-                          : 'text-gray-400 bg-gray-100 group-hover:bg-brand-primary/10 group-hover:text-brand-primary'
-                        }`}>
-                        {materie.count}
-                      </span>
+
                       {isSelected && <X size={14} className="ml-2 opacity-70 hover:opacity-100" />}
                     </button>
                   );
@@ -378,11 +372,7 @@ const FilterGroup: React.FC<FilterGroupProps> = ({ title, items, selected, onCha
                     {item.name}
                   </span>
                 </div>
-                {item.count !== null && (
-                  <span className="text-xs text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">
-                    {item.count}
-                  </span>
-                )}
+
               </label>
             ))}
             {filteredItems.length === 0 && (

@@ -825,39 +825,67 @@ def detect_company_query(query: str) -> tuple:
     """
     Detect if query is for company search.
 
+    Implements a 3-Layer Guard System:
+    1. Length Guard: > 200 chars -> Case Search.
+    2. Narrative Guard: Contains storytelling words -> Case Search.
+    3. Ambiguity Guard: 'SA', 'SC', 'II' must be at start/end.
+
     Returns:
         (is_company_query, is_cui)
     """
     query_clean = query.strip()
 
-    # Check if numeric and > 10000 (CUI pattern)
+    # --- LAYER 1: Length Guard ---
+    # User requested limit < 200. Max valid company found was 200.
+    # We set strict limit: anything > 200 is definitely a case description.
+    if len(query_clean) > 200:
+        return (False, False)
+
+    # Check if numeric and > 10000 (CUI pattern) - unaffected by layers
     if query_clean.isdigit() and int(query_clean) > 10000:
         return (True, True)
 
-    # Check for company keywords (case-insensitive)
-    # Use lists of distinct types for better control
-    # 1. Standard abbreviations (letters only) - require strict word boundaries
-    company_keywords_std = ['SC', 'SA', 'SRL', 'PF', 'II']
+    # --- LAYER 2: Narrative Guard ---
+    # Words that indicate a story/legal case description
+    # "andreea a FOST atacata", "VREA sa depuna", "ROG sa ma ajutati"
+    narrative_keywords = [
+        'vrea', 'vreau', 'fost', 'sunt', 'era', 'avut', 'rog',
+        'intamplat', 'intample', 'speta', 'buna', 'ziua', 'seara',
+        'depuna', 'plangere', 'politie', 'furat', 'atacata', 'lovit'
+    ]
 
-    # 2. Punctuation abbreviations - check using robust boundaries
-    company_keywords_punct = ['S.C.', 'S.A.', 'S.R.L.', 'P.F.']
+    query_lower = query_clean.lower()
+    # Check if any narrative keyword exists as a whole word
+    for kw in narrative_keywords:
+        if re.search(r'\b' + re.escape(kw) + r'\b', query_lower):
+            return (False, False)
 
-    query_upper = query_clean.upper()
+    # --- LAYER 3: Ambiguity Guard (Keywords) ---
 
-    # Check standard keywords with \\b
-    for keyword in company_keywords_std:
-        # \\b matches word boundary (position between \\w and \\W or anchors)
-        if re.search(r'\\b' + re.escape(keyword) + r'\\b', query_clean, re.IGNORECASE):
+    # List A: SAFE Keywords - Can appear anywhere
+    # These are distinct enough to likely be companies usually
+    safe_keywords = [
+        'SRL', 'S.R.L.', 'S.A.', 'S.C.', 'P.F.A.', 'PFA',
+        'I.I.', 'I.F.', 'LLC', 'GMBH', 'KFT', 'S.N.C.', 'S.C.S.'
+    ]
+
+    # List B: AMBIGUOUS Keywords - Only valid at START or END
+    # "SA" (to), "II" (him/them), "SC" (abbrev?), "PF"
+    ambiguous_keywords = [
+        'SC', 'SA', 'II', 'IF', 'PF', 'RA'
+    ]
+
+    # 1. Check SAFE keywords (Anywhere)
+    for kw in safe_keywords:
+        # \b ensures we don't match substrings like "S.R.L.A"
+        if re.search(r'\b' + re.escape(kw) + r'\b', query_clean, re.IGNORECASE):
             return (True, False)
 
-    # Check punctuation keywords
-    # For "S.C.", \\b at the end checks boundary between '.' (non-word) and next char
-    # We want to ensure it's not part of a larger token if that ever happens,
-    # but mostly we want to allow "S.C." followed by space/comma/etc.
-    for keyword in company_keywords_punct:
-        # (?<!\\w) = Not preceded by a word char
-        # (?!\\w) = Not followed by a word char
-        pattern = r'(?<!\\w)' + re.escape(keyword) + r'(?!\\w)'
+    # 2. Check AMBIGUOUS keywords (Start or End only)
+    # ^kw\b -> Start of string
+    # \bkw$ -> End of string
+    for kw in ambiguous_keywords:
+        pattern = r'(?:^' + re.escape(kw) + r'\b)|(?:\b' + re.escape(kw) + r'$)'
         if re.search(pattern, query_clean, re.IGNORECASE):
             return (True, False)
 
