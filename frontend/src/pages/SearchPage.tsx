@@ -97,7 +97,7 @@ const SearchPage: React.FC = () => {
                 const parts = rParte.split(/,|;/).map((s: string) => s.trim());
 
                 return searchParams.parte.some(p =>
-                    parts.some(part => removeDiacritics(part).toLowerCase() === removeDiacritics(p).toLowerCase())
+                    parts.some((part: string) => removeDiacritics(part).toLowerCase() === removeDiacritics(p).toLowerCase())
                 );
             });
         }
