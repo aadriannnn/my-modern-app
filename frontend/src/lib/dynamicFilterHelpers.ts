@@ -217,7 +217,7 @@ export const buildDynamicFilters = (
     if (selectedFilters?.obiect && selectedFilters.obiect.length > 0) {
       const rawObiect = data.obiectul || data.obiect || '';
       const parts = rawObiect.split(/,|;|\s+și\s+/i).map((s: string) => s.trim()).filter(Boolean);
-      const match = selectedFilters.obiect.some(sel => parts.some(p => isObiectMatching(sel, p)));
+      const match = selectedFilters.obiect.some((sel: string) => parts.some((p: string) => isObiectMatching(sel, p)));
       if (!match) return;
     }
 
@@ -225,7 +225,7 @@ export const buildDynamicFilters = (
     if (selectedFilters?.parte && selectedFilters.parte.length > 0) {
       const rawParte = data.parte || data.parti || '';
       const parts = rawParte.split(/,|;/).map((s: string) => s.trim()).filter(Boolean);
-      const match = selectedFilters.parte.some(p => parts.includes(p));
+      const match = selectedFilters.parte.some((p: string) => parts.includes(p));
       if (!match) return;
     }
 
@@ -247,7 +247,7 @@ export const buildDynamicFilters = (
     if (selectedFilters?.obiect && selectedFilters.obiect.length > 0) {
       const rawObiect = data.obiectul || data.obiect || '';
       const parts = rawObiect.split(/,|;|\s+și\s+/i).map((s: string) => s.trim()).filter(Boolean);
-      const match = selectedFilters.obiect.some(sel => parts.some(p => isObiectMatching(sel, p)));
+      const match = selectedFilters.obiect.some((sel: string) => parts.some((p: string) => isObiectMatching(sel, p)));
       if (!match) return;
     }
 
