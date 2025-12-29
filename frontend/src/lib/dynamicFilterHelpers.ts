@@ -36,7 +36,7 @@ const levenshteinDistance = (a: string, b: string): number => {
   return matrix[b.length][a.length];
 };
 
-const removeDiacritics = (str: string): string => {
+export const removeDiacritics = (str: string): string => {
   return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 };
 
@@ -166,15 +166,17 @@ export const buildDynamicFilters = (
     let canonicalMaterie = rawMaterie || 'Necunoscut';
 
     if (canonicalMaterie !== 'Necunoscut') {
-      const normalized = String(canonicalMaterie).replace(/[^a-zA-Z]/g, '').toLowerCase();
+      // FIX: Use proper diacritic removal before regex
+      const normalized = removeDiacritics(String(canonicalMaterie)).replace(/[^a-zA-Z]/g, '').toLowerCase();
+
       if (normalized.includes("cod") && normalized.includes("civila")) {
-        if (normalized.includes("procedura") || normalized.includes("procedur")) {
+        if (normalized.includes("procedua") || normalized.includes("procedura") || normalized.includes("procedur")) {
           canonicalMaterie = "Codul de Procedura Civila";
         } else {
           canonicalMaterie = "Codul Civil";
         }
       } else if (normalized.includes("cod") && normalized.includes("penal")) {
-        if (normalized.includes("procedura") || normalized.includes("procedur")) {
+        if (normalized.includes("procedua") || normalized.includes("procedura") || normalized.includes("procedur")) {
           canonicalMaterie = "Codul de Procedura Penala";
         } else {
           canonicalMaterie = "Codul Penal";
@@ -211,7 +213,10 @@ export const buildDynamicFilters = (
   // Filter: Materie + Obiect + Parte (everything EXCEPT Tip Speta)
   resultsWithCanonical.forEach(({ data, canonicalMaterie }) => {
     // Check Materie Match
-    if (selectedFilters?.materie && selectedFilters.materie !== canonicalMaterie) return;
+    if (selectedFilters?.materie) {
+      // Robust comparison
+      if (removeDiacritics(selectedFilters.materie) !== removeDiacritics(canonicalMaterie)) return;
+    }
 
     // Check Obiect Match
     if (selectedFilters?.obiect && selectedFilters.obiect.length > 0) {
@@ -241,7 +246,9 @@ export const buildDynamicFilters = (
   // Filter: Materie + Obiect + Tip Speta (everything EXCEPT Parte)
   resultsWithCanonical.forEach(({ data, canonicalMaterie }) => {
     // Check Materie Match
-    if (selectedFilters?.materie && selectedFilters.materie !== canonicalMaterie) return;
+    if (selectedFilters?.materie) {
+      if (removeDiacritics(selectedFilters.materie) !== removeDiacritics(canonicalMaterie)) return;
+    }
 
     // Check Obiect Match
     if (selectedFilters?.obiect && selectedFilters.obiect.length > 0) {
@@ -354,20 +361,21 @@ export const normalizeSearchResults = (results: any[]): any[] => {
     // Materie Normalization
     if (data.materie) {
       const originalMaterie = data.materie;
-      const normalized = String(originalMaterie).replace(/[^a-zA-Z]/g, '').toLowerCase();
+      // FIX: Use removeDiacritics first
+      const normalized = removeDiacritics(String(originalMaterie)).replace(/[^a-zA-Z]/g, '').toLowerCase();
 
       // console.log(`[NORM] Original: '${originalMaterie}' -> Normalized: '${normalized}'`);
 
       let match = false;
       if (normalized.includes("cod") && normalized.includes("civila")) {
-        if (normalized.includes("procedura") || normalized.includes("procedur")) {
+        if (normalized.includes("procedua") || normalized.includes("procedura") || normalized.includes("procedur")) {
           data.materie = "Codul de Procedura Civila";
           match = true;
         } else {
           data.materie = "Codul Civil";
         }
       } else if (normalized.includes("cod") && normalized.includes("penal")) {
-        if (normalized.includes("procedura") || normalized.includes("procedur")) {
+        if (normalized.includes("procedua") || normalized.includes("procedura") || normalized.includes("procedur")) {
           data.materie = "Codul de Procedura Penala";
           match = true;
         } else {

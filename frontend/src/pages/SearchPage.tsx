@@ -9,7 +9,7 @@ import Footer from '../components/Footer';
 import { HomeHero } from '../components/HomeHero';
 import { search as apiSearch, searchByDosar } from '../lib/api';
 import type { Filters, SelectedFilters } from '../types';
-import { normalizeSearchResults, buildDynamicFilters, isObiectMatching } from '@/lib/dynamicFilterHelpers';
+import { normalizeSearchResults, buildDynamicFilters, isObiectMatching, removeDiacritics } from '@/lib/dynamicFilterHelpers';
 import { useAuth } from '../context/AuthContext';
 
 const SearchPage: React.FC = () => {
@@ -57,7 +57,9 @@ const SearchPage: React.FC = () => {
         if (searchParams.materie) {
             filtered = filtered.filter(r => {
                 const rData = r.data || r;
-                return rData.materie === searchParams.materie;
+                // Robust comparison: normalize strings to handle diacritics or casing differences
+                if (!rData.materie) return false;
+                return removeDiacritics(rData.materie).toLowerCase() === removeDiacritics(searchParams.materie).toLowerCase();
             });
         }
 
@@ -80,7 +82,10 @@ const SearchPage: React.FC = () => {
         if (searchParams.tip_speta.length > 0) {
             filtered = filtered.filter(r => {
                 const rData = r.data || r;
-                return searchParams.tip_speta.includes(rData.tip_speta || rData.tip || rData.categorie_speta || '');
+                const rTip = rData.tip_speta || rData.tip || rData.categorie_speta || '';
+                return searchParams.tip_speta.some(selected =>
+                    removeDiacritics(selected).toLowerCase() === removeDiacritics(rTip).toLowerCase()
+                );
             });
         }
 
@@ -90,7 +95,10 @@ const SearchPage: React.FC = () => {
                 const rData = r.data || r;
                 const rParte = rData.parte || rData.parti || '';
                 const parts = rParte.split(/,|;/).map((s: string) => s.trim());
-                return searchParams.parte.some(p => parts.includes(p));
+
+                return searchParams.parte.some(p =>
+                    parts.some(part => removeDiacritics(part).toLowerCase() === removeDiacritics(p).toLowerCase())
+                );
             });
         }
 
