@@ -222,6 +222,10 @@ const PricingSection: React.FC = () => {
                                         </li>
                                         <li className="flex items-start gap-2">
                                             <span className="text-green-600 mt-0.5">•</span>
+                                            <span>Max 10 rezultate per interogare</span>
+                                        </li>
+                                        <li className="flex items-start gap-2">
+                                            <span className="text-green-600 mt-0.5">•</span>
                                             <span>Consultare planuri de abonament</span>
                                         </li>
                                         <li className="flex items-start gap-2">
@@ -238,10 +242,7 @@ const PricingSection: React.FC = () => {
                                         Fără acces la
                                     </h4>
                                     <ul className="space-y-2 text-sm text-gray-700">
-                                        <li className="flex items-start gap-2">
-                                            <span className="text-red-600 mt-0.5">✗</span>
-                                            <span>Căutare în baza de jurisprudență</span>
-                                        </li>
+
                                         <li className="flex items-start gap-2">
                                             <span className="text-red-600 mt-0.5">✗</span>
                                             <span>Vizualizare spețe și hotărâri</span>

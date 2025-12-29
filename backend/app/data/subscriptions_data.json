@@ -18,7 +18,7 @@
         },
         {
           "name": "Vizualizări limitate",
-          "details": "20 afișări spețe"
+          "details": "Max 20 rezultate per interogare"
         },
         {
           "name": "Profil personalizat",
@@ -55,11 +55,7 @@
         },
         {
           "name": "Acces nelimitat",
-          "details": "Vizualizări nelimitate"
-        },
-        {
-          "name": "Filtre avansate",
-          "details": "Căutare după materie și obiect"
+          "details": "Max 50 rezultate per interogare"
         },
         {
           "name": "Teste Grilă",
@@ -70,20 +66,8 @@
           "details": "Calcul automat cu asistent AI"
         },
         {
-          "name": "Căutare complexă",
-          "details": "După număr dosar și AI"
-        },
-        {
-          "name": "Analiză AI",
-          "details": "Filtrare inteligentă jurisprudență"
-        },
-        {
-          "name": "Generare acte juridice",
-          "details": "Redactare automată cu AI"
-        },
-        {
-          "name": "6 perspective analitice",
-          "details": "Vizualizare completă spețe"
+          "name": "Indicatori & Concluzii Financiare",
+          "details": "Analiză automată contabilă"
         },
         {
           "name": "Suport prioritar",
@@ -112,11 +96,7 @@
         },
         {
           "name": "Acces nelimitat",
-          "details": "Vizualizări nelimitate"
-        },
-        {
-          "name": "Filtre avansate",
-          "details": "Căutare după materie și obiect"
+          "details": "Max 50 rezultate per interogare"
         },
         {
           "name": "Teste Grilă",
@@ -127,24 +107,8 @@
           "details": "Calcul automat cu asistent AI"
         },
         {
-          "name": "Căutare complexă",
-          "details": "După număr dosar și AI"
-        },
-        {
-          "name": "Analiză AI",
-          "details": "Filtrare inteligentă jurisprudență"
-        },
-        {
-          "name": "Generare acte juridice",
-          "details": "Redactare automată cu AI"
-        },
-        {
           "name": "Indicatori & Concluzii Financiare",
           "details": "Analiză automată contabilă"
-        },
-        {
-          "name": "6 perspective analitice",
-          "details": "Vizualizare completă spețe"
         },
         {
           "name": "Suport prioritar",
@@ -173,11 +137,7 @@
         },
         {
           "name": "Acces nelimitat",
-          "details": "Vizualizări nelimitate"
-        },
-        {
-          "name": "Filtre avansate",
-          "details": "Căutare după materie și obiect"
+          "details": "Max 50 rezultate per interogare"
         },
         {
           "name": "Teste Grilă",
@@ -188,24 +148,8 @@
           "details": "Calcul automat cu asistent AI"
         },
         {
-          "name": "Căutare complexă",
-          "details": "După număr dosar și AI"
-        },
-        {
-          "name": "Analiză AI",
-          "details": "Filtrare inteligentă jurisprudență"
-        },
-        {
-          "name": "Generare acte juridice",
-          "details": "Redactare automată cu AI"
-        },
-        {
           "name": "Indicatori & Concluzii Financiare",
           "details": "Analiză automată contabilă"
-        },
-        {
-          "name": "6 perspective analitice",
-          "details": "Vizualizare completă spețe"
         },
         {
           "name": "Suport prioritar",
