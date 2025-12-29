@@ -734,3 +734,36 @@ export const updateUserRole = async (userId: string, role: string) => {
 
   return response.json();
 };
+
+// Index Maintenance API
+export const getIndexStatus = async () => {
+  const response = await fetchWithTimeout(`${API_URL}/settings/index-status`, {
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    throw new Error('Failed to get index status');
+  }
+  return response.json();
+};
+
+export const startIndexRepair = async () => {
+  const response = await fetchWithTimeout(`${API_URL}/settings/index-repair`, {
+    method: 'POST',
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    throw new Error('Failed to start index repair');
+  }
+  return response.json();
+};
+
+export const stopIndexRepair = async () => {
+  const response = await fetchWithTimeout(`${API_URL}/settings/index-repair/stop`, {
+    method: 'POST',
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    throw new Error('Failed to stop index repair');
+  }
+  return response.json();
+};

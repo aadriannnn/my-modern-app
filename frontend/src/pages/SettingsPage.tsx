@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getSettings, updateSettings, resetSettings, refreshFilters, precalculateModelsCodes, getPrecalculateStatus, stopPrecalculate, precalculateTax, getPrecalculateTaxStatus, stopPrecalculateTax, getFeedbackStats, type FeedbackStats } from '../lib/api';
-import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square, ThumbsUp, ThumbsDown, BarChart3, Users, User, CreditCard, ArrowLeft } from 'lucide-react';
+import { getSettings, updateSettings, resetSettings, refreshFilters, precalculateModelsCodes, getPrecalculateStatus, stopPrecalculate, precalculateTax, getPrecalculateTaxStatus, stopPrecalculateTax, getFeedbackStats, type FeedbackStats, getIndexStatus, startIndexRepair, stopIndexRepair } from '../lib/api';
+import { Save, RotateCcw, RefreshCw, Info, AlertCircle, CheckCircle2, Play, Square, ThumbsUp, ThumbsDown, BarChart3, Users, User, CreditCard, ArrowLeft, Database } from 'lucide-react';
 import { Switch } from '@headlessui/react';
 import SEOHead from '../components/SEOHead';
 import { useAuth } from '../context/AuthContext';
@@ -202,6 +202,52 @@ const SettingsPage: React.FC = () => {
         return () => clearInterval(interval);
     }, [taxPrecalculating]);
 
+    // Index Repair State
+    const [indexRepairing, setIndexRepairing] = useState(false);
+    const [indexStatus, setIndexStatus] = useState<any>(null);
+
+    // Initial load of index stats
+    useEffect(() => {
+        if (isAuthenticated && user?.rol === 'admin' && activeTab === 'setari_algoritmi') {
+            loadIndexStatus();
+        }
+    }, [isAuthenticated, user, activeTab]);
+
+    const loadIndexStatus = async () => {
+        try {
+            const status = await getIndexStatus();
+            setIndexStatus(status);
+            if (status.is_running) {
+                setIndexRepairing(true);
+            }
+        } catch (err) {
+            console.error('Error loading index status:', err);
+        }
+    };
+
+    // Poll for index repair status
+    useEffect(() => {
+        if (!indexRepairing) return;
+        const pollIndexStatus = async () => {
+            try {
+                const status = await getIndexStatus();
+                setIndexStatus(status);
+                if (!status.is_running) {
+                    setIndexRepairing(false);
+                    if (status.last_run) {
+                        setSuccess(`Reparare index finalizată! Procesate: ${status.last_run.processed}`);
+                        setTimeout(() => setSuccess(null), 5000);
+                    }
+                }
+            } catch (err) {
+                console.error("Error polling index status:", err);
+            }
+        };
+        pollIndexStatus();
+        const interval = setInterval(pollIndexStatus, 3000);
+        return () => clearInterval(interval);
+    }, [indexRepairing]);
+
     const handlePrecalculate = async () => {
         try {
             const status = await getPrecalculateStatus();
@@ -263,6 +309,29 @@ const SettingsPage: React.FC = () => {
     const handleStopPrecalculateTax = async () => {
         try {
             await stopPrecalculateTax();
+        } catch (err: any) {
+            setError(err.message || 'Eroare la oprirea procesului.');
+            setTimeout(() => setError(null), 5000);
+        }
+    };
+
+    const handleStartIndexRepair = async () => {
+        try {
+            await startIndexRepair();
+            setIndexRepairing(true);
+            setSuccess('Verificarea și repararea indexului a început.');
+            setTimeout(() => setSuccess(null), 3000);
+        } catch (err: any) {
+            setError(err.message || 'Eroare la pornirea reparării indexului.');
+            setTimeout(() => setError(null), 5000);
+        }
+    };
+
+    const handleStopIndexRepair = async () => {
+        try {
+            await stopIndexRepair();
+            setSuccess('Comanda de oprire a fost trimisă.');
+            setTimeout(() => setSuccess(null), 3000);
         } catch (err: any) {
             setError(err.message || 'Eroare la oprirea procesului.');
             setTimeout(() => setError(null), 5000);
@@ -770,6 +839,76 @@ const SettingsPage: React.FC = () => {
                                             <Info className="w-3 h-3" />
                                             Sistemul face pauze periodice pentru re-inițializarea modelului AI.
                                         </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Index Maintenance Banner */}
+                        <div className="mb-8 bg-gradient-to-br from-emerald-50 to-teal-50 border border-emerald-200 rounded-2xl p-6 shadow-sm">
+                            <div className="flex items-start justify-between mb-4">
+                                <div>
+                                    <h3 className="text-lg font-bold text-slate-900 mb-2 flex items-center gap-2">
+                                        <Database className="w-5 h-5 text-emerald-600" />
+                                        Verificare și Indexare Vectorială
+                                    </h3>
+                                    <p className="text-sm text-slate-600 leading-relaxed max-w-3xl">
+                                        Verifică integritatea indexului vectorial. Identifică spețele noi care nu au fost încă procesate pentru căutare semantică și le indexează automat.
+                                    </p>
+                                </div>
+                                {indexStatus && (
+                                    <div className={`px-4 py-2 rounded-lg text-sm font-bold border ${indexStatus.missing_count > 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : 'bg-emerald-100 text-emerald-800 border-emerald-200'}`}>
+                                        {indexStatus.missing_count > 0 ? `⚠️ ${indexStatus.missing_count} spețe neindexate` : '✅ Index complet'}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-4">
+                                <div className="flex items-center gap-3">
+                                    {indexRepairing ? (
+                                        <button
+                                            onClick={handleStopIndexRepair}
+                                            className="flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-red-600 to-orange-600 text-white rounded-xl hover:from-red-700 hover:to-orange-700 transition-all font-medium shadow-lg shadow-red-200"
+                                        >
+                                            <Square className="w-5 h-5" />
+                                            Oprește Procesul
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={handleStartIndexRepair}
+                                            disabled={saving || refreshing}
+                                            className={`flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all font-medium shadow-lg shadow-emerald-200 ${(saving || refreshing) ? 'opacity-75 cursor-not-allowed' : ''}`}
+                                        >
+                                            <RotateCcw className="w-5 h-5" />
+                                            Verifică și Repară Indexarea
+                                        </button>
+                                    )}
+                                </div>
+
+                                {indexRepairing && indexStatus?.progress && (
+                                    <div className="bg-white/60 rounded-xl px-5 py-4 border border-emerald-100">
+                                        <div className="mb-3">
+                                            <div className="flex justify-between text-sm mb-1">
+                                                <span className="text-slate-600 font-medium">Progres Reparare</span>
+                                                <span className="text-slate-900 font-bold">
+                                                    {indexStatus.progress.processed?.toLocaleString()} procesate
+                                                </span>
+                                            </div>
+                                            {indexStatus.progress.total_missing > 0 && (
+                                                <div className="w-full h-3 bg-slate-200 rounded-full overflow-hidden">
+                                                    <div
+                                                        className="h-full bg-gradient-to-r from-emerald-600 to-teal-600 transition-all duration-500 ease-out rounded-full"
+                                                        style={{
+                                                            width: `${(indexStatus.progress.processed / indexStatus.progress.total_missing * 100)}%`
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="flex justify-between text-xs text-slate-500">
+                                            <span>Start: {indexStatus.missing_count} lipsă</span>
+                                            {indexStatus.progress.errors > 0 && <span className="text-red-600 font-bold">{indexStatus.progress.errors} erori</span>}
+                                        </div>
                                     </div>
                                 )}
                             </div>

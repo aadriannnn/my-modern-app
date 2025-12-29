@@ -8,6 +8,9 @@ from ..routers.auth import get_current_user, create_access_token, SETTINGS_TOKEN
 from ..db import get_session
 from ..config import get_settings as get_env_settings
 from ..lib.network_file_saver import NetworkFileSaver
+from ..logic.index_maintenance import get_index_stats, run_index_repair, stop_index_repair
+import asyncio
+import threading
 
 router = APIRouter(
     prefix="/settings",
@@ -742,6 +745,68 @@ ELEMENTE DE INDIVIDUALIZARE: {text_individualizare}
     )
 
     return spete_export, optimized_prompt
+
+
+@router.get("/index-status", response_model=Dict[str, Any])
+async def get_index_maintenance_status(
+    session: Session = Depends(get_session)
+):
+    """
+    Get statistics about the vector index integrity.
+    """
+    return get_index_stats(session)
+
+
+@router.post("/index-repair", response_model=Dict[str, Any])
+async def start_index_repair_job(
+    session: Session = Depends(get_session)
+):
+    """
+    Trigger the background job to repair missing vector embeddings.
+    """
+    # Create a new session for the background thread to avoid binding issues with the request session
+    from ..db import engine
+
+    def background_repair():
+        with Session(engine) as bg_session:
+            import asyncio
+            # We need to run the async function in a new event loop or use run()
+            # But wait, run_index_repair is async because it calls embedding_batch which uses httpx async client.
+            # Running async code from a sync thread is tricky.
+            # Better approach: Use FastAPI's BackgroundTasks?
+            # But we want long-running global job.
+
+            # Since we are in a thread, we can use asyncio.run()
+            try:
+                asyncio.run(run_index_repair(bg_session))
+            except Exception as e:
+                from ..logic.index_maintenance import logger
+                logger.error(f"Background repair failed: {e}")
+
+    # Check if already running first (the logic in run_index_repair will handle lock, but we check here too for fast response)
+    stats = get_index_stats(session)
+    if stats.get('is_running'):
+         return {
+            'success': False,
+            'message': 'Repair process is already running.'
+         }
+
+    # Start thread
+    thread = threading.Thread(target=background_repair, daemon=True)
+    thread.start()
+
+    return {
+        'success': True,
+        'message': 'Index repair started in background.'
+    }
+
+
+@router.post("/index-repair/stop", response_model=Dict[str, Any])
+async def stop_index_repair_job():
+    """
+    Stop the index repair background job.
+    """
+    return stop_index_repair()
 
 
 @router.get("/materie-statistics", response_model=Dict[str, Any])
