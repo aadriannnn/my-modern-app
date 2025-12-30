@@ -104,20 +104,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
               </Link>
             )}
 
-            {isAuthenticated ? (
-              <button
-                onClick={() => setShowProfileMenu(!showProfileMenu)}
-                className="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors relative"
-              >
-                <UserIcon size={18} strokeWidth={1.5} />
-                <span className="text-[9px] font-medium">Cont</span>
-              </button>
-            ) : (
-              <Link to="/login" className="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors">
-                <UserIcon size={18} strokeWidth={1.5} />
-                <span className="text-[9px] font-medium">Cont</span>
-              </Link>
-            )}
+
           </div>
         </div>
 

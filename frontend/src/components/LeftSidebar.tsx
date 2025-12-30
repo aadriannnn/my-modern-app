@@ -260,12 +260,12 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
     <Fragment>
       {/* Mobile view */}
       <div
-        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-40 md:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        className={`fixed inset-0 bg-black/60 backdrop-blur-sm z-[90] md:hidden transition-opacity duration-300 ${isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         onClick={onClose}
       />
       <aside
-        className={`fixed top-0 left-0 h-full bg-brand-light w-full shadow-2xl z-50 transform transition-transform duration-300 ease-out md:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 left-0 h-full bg-brand-light w-full shadow-2xl z-[100] transform transition-transform duration-300 ease-out md:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'
           } overflow-y-auto`}
       >
         {sidebarContent}
