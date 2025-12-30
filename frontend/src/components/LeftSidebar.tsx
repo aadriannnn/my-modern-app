@@ -17,6 +17,7 @@ interface LeftSidebarProps {
   hideOnDesktop?: boolean;
 }
 
+// LeftSidebar Component - Redesigned mobile UX with sticky footer
 const LeftSidebar: React.FC<LeftSidebarProps> = ({
   filters,
   selectedFilters,
@@ -31,6 +32,15 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
   const navigate = useNavigate();
   const { materii = [], obiecte = [], details = {}, tipSpeta = [], parte = [] } = filters ?? {};
   const availableObiecte = selectedFilters.materie ? details[selectedFilters.materie] ?? [] : obiecte;
+
+  // Count active filters for mobile footer badge
+  const activeFilterCount = (
+    (selectedFilters.materie ? 1 : 0) +
+    selectedFilters.obiect.length +
+    selectedFilters.tip_speta.length +
+    selectedFilters.parte.length
+  );
+  const hasActiveFilters = activeFilterCount > 0;
 
   const handleCheckboxChange = (filterType: 'obiect' | 'tip_speta' | 'parte', value: string) => {
     const currentValues = selectedFilters[filterType] as string[];
@@ -59,7 +69,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
 
   const sidebarContent = (
-    <div className={`p-4 space-y-4 flex flex-col h-full transition-opacity duration-200 ${!isDesktopOpen ? 'md:opacity-0 md:pointer-events-none' : 'opacity-100'}`}>
+    <div className={`p-4 pt-4 space-y-4 flex flex-col transition-opacity duration-200 ${!isDesktopOpen ? 'md:opacity-0 md:pointer-events-none' : 'opacity-100'}`}>
+      {/* Header - Without X button on mobile */}
       <div>
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center gap-2">
@@ -78,7 +89,8 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
               </button>
             )}
           </div>
-          <button onClick={onClose} className="md:hidden text-brand-text-secondary hover:text-brand-text">
+          {/* X button only on desktop */}
+          <button onClick={onClose} className="hidden md:block text-brand-text-secondary hover:text-brand-text">
             <X size={24} />
           </button>
         </div>
@@ -265,10 +277,44 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         onClick={onClose}
       />
       <aside
-        className={`fixed top-0 left-0 h-full bg-brand-light w-full shadow-2xl z-[100] transform transition-transform duration-300 ease-out md:hidden ${isOpen ? 'translate-x-0' : '-translate-x-full'
-          } overflow-y-auto`}
+        className={`fixed top-0 left-0 h-full bg-brand-light w-full shadow-2xl z-[100] transform transition-transform duration-300 ease-out md:hidden flex flex-col ${isOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
       >
-        {sidebarContent}
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-y-auto">
+          {sidebarContent}
+        </div>
+
+        {/* Footer fixed at bottom of flex container */}
+        <div className="flex-shrink-0 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_12px_-2px_rgba(0,0,0,0.12)] safe-area-pb">
+          {hasActiveFilters ? (
+            <div className="flex gap-3">
+              <button
+                onClick={onClose}
+                className="flex-[0.4] border-2 border-gray-300 text-gray-700 font-semibold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-gray-50"
+              >
+                <X size={18} strokeWidth={2.5} />
+                <span>Anulează</span>
+              </button>
+              <button
+                onClick={onClose}
+                className="flex-[0.6] bg-brand-primary text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-primary/30 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-brand-primary-dark"
+              >
+                <Check size={20} strokeWidth={2.5} />
+                <span>Aplică Filtre</span>
+                <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs font-bold">({activeFilterCount})</span>
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onClose}
+              className="w-full border-2 border-gray-300 text-gray-700 font-semibold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-gray-50"
+            >
+              <X size={18} strokeWidth={2.5} />
+              <span>Închide</span>
+            </button>
+          )}
+        </div>
       </aside>
 
       {/* Desktop view - Conditionally rendered */}

@@ -40,6 +40,16 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
 
     const availableObiecte = selectedFilters.materie ? details[selectedFilters.materie] ?? [] : obiecte;
 
+    // Count active filters for badge display
+    const activeFilterCount = (
+        (selectedFilters.materie ? 1 : 0) +
+        selectedFilters.obiect.length +
+        selectedFilters.tip_speta.length +
+        selectedFilters.parte.length
+    );
+
+    const hasActiveFilters = activeFilterCount > 0;
+
     const handleCheckboxChange = (filterType: 'obiect' | 'tip_speta' | 'parte', value: string) => {
         const currentValues = selectedFilters[filterType] as string[];
         const newValues = currentValues.includes(value)
@@ -97,26 +107,18 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
             <aside className="fixed top-0 left-0 h-full bg-gray-50 w-full shadow-2xl z-50 flex flex-col animate-in slide-in-from-bottom duration-300">
                 {/* Header */}
                 <div className="bg-white border-b border-gray-200 p-4 shadow-sm z-10">
-                    <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-3">
-                            {viewStep !== 'materie' && (
-                                <button onClick={handleBack} className="p-1 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full">
-                                    <ChevronLeft size={24} />
-                                </button>
-                            )}
-                            <h3 className="text-lg font-bold text-brand-text">
-                                {viewStep === 'materie' && 'Filtrează după Materie'}
-                                {viewStep === 'obiect' && 'Alege Obiectul'}
-                                {viewStep === 'detalii' && 'Filtrează Detalii'}
-                            </h3>
-                        </div>
-                        <button onClick={onClose} className="p-2 bg-gray-100 rounded-full text-gray-600 hover:bg-gray-200">
-                            <X size={20} />
-                        </button>
+                    <div className="flex items-center gap-3">
+                        {viewStep !== 'materie' && (
+                            <button onClick={handleBack} className="p-1 -ml-2 text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                                <ChevronLeft size={24} />
+                            </button>
+                        )}
+                        <h3 className="text-lg font-bold text-brand-text">
+                            {viewStep === 'materie' && 'Filtrează după Materie'}
+                            {viewStep === 'obiect' && 'Alege Obiectul'}
+                            {viewStep === 'detalii' && 'Filtrează Detalii'}
+                        </h3>
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                        Apasă X pentru a închide meniul și a salva filtrele selectate
-                    </p>
                 </div>
 
                 {/* Progress Bar */}
@@ -309,35 +311,50 @@ const ProgressiveFiltersMobile: React.FC<ProgressiveFiltersMobileProps> = ({
                     )}
                 </div>
 
-                {/* Footer Actions */}
-                <div className="bg-white border-t border-gray-200 p-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-20">
-                    <div className="flex gap-3">
-                        {viewStep === 'obiect' && (
+                {/* Sticky Footer Actions - Always Visible */}
+                <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 shadow-[0_-4px_12px_-2px_rgba(0,0,0,0.12)] z-20 safe-area-pb">
+                    {hasActiveFilters ? (
+                        // State: Filters selected - Show Cancel + Apply
+                        <div className="flex gap-3">
                             <button
-                                onClick={handleNext}
-                                className="flex-1 bg-brand-primary text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-primary/30 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                onClick={onClose}
+                                className="flex-[0.4] border-2 border-gray-300 text-gray-700 font-semibold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-gray-50"
                             >
-                                Continuă la Detalii
-                                <ChevronRight size={20} />
+                                <X size={18} strokeWidth={2.5} />
+                                <span>Anulează</span>
                             </button>
-                        )}
-
-                        {(viewStep === 'detalii' || (viewStep === 'obiect' && selectedFilters.obiect.length > 0)) && (
                             <button
                                 onClick={onApply}
-                                className="flex-1 bg-brand-text text-white font-bold py-3.5 rounded-xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2"
+                                className="flex-[0.6] bg-brand-primary text-white font-bold py-3.5 rounded-xl shadow-lg shadow-brand-primary/30 active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-brand-primary-dark"
                             >
-                                Afișează Rezultate
-                                <Check size={20} />
+                                <Check size={20} strokeWidth={2.5} />
+                                <span>Aplică Filtre</span>
+                                <span className="ml-1 px-2 py-0.5 bg-white/20 rounded-full text-xs font-bold">({activeFilterCount})</span>
                             </button>
-                        )}
+                        </div>
+                    ) : (
+                        // State: No filters - Show simple Close
+                        <button
+                            onClick={onClose}
+                            className="w-full border-2 border-gray-300 text-gray-700 font-semibold py-3.5 rounded-xl active:scale-95 transition-all flex items-center justify-center gap-2 hover:bg-gray-50"
+                        >
+                            <X size={18} strokeWidth={2.5} />
+                            <span>Închide</span>
+                        </button>
+                    )}
 
-                        {viewStep === 'materie' && !selectedFilters.materie && (
-                            <div className="w-full text-center text-gray-400 text-sm py-2">
-                                Selectează o materie pentru a începe
-                            </div>
-                        )}
-                    </div>
+                    {/* Navigation hint for stepped flow */}
+                    {viewStep === 'obiect' && selectedFilters.obiect.length > 0 && (
+                        <div className="mt-3 text-center">
+                            <button
+                                onClick={handleNext}
+                                className="text-sm text-brand-primary font-medium hover:underline flex items-center justify-center gap-1 mx-auto"
+                            >
+                                sau continuă la detalii
+                                <ChevronRight size={16} />
+                            </button>
+                        </div>
+                    )}
                 </div>
             </aside>
         </>
