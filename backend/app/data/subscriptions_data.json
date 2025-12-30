@@ -45,7 +45,7 @@
       "id": "premium_monthly",
       "name": "Premium - Lunar",
       "points_granted": 10000,
-      "price": 70,
+      "price": 25,
       "currency": "RON",
       "interval": "Lună",
       "features": [
@@ -77,7 +77,7 @@
       "is_popular": false,
       "discount_percentage": null,
       "is_customizable": false,
-      "stripe_price_id": "price_1Sgp2S2NYfTY9eAfucCEKmai",
+      "stripe_price_id": "price_1SjzGg2NYfTY9eAfM0QFb1EY",
       "cta_text": "Abonează-te Acum",
       "cta_link": null,
       "is_free": false
@@ -86,7 +86,7 @@
       "id": "premium_semiannual",
       "name": "Premium - 6 Luni",
       "points_granted": 60000,
-      "price": 360,
+      "price": 130,
       "currency": "RON",
       "interval": "6 Luni",
       "features": [
@@ -127,7 +127,7 @@
       "id": "premium_annual",
       "name": "Premium - Anual",
       "points_granted": 120000,
-      "price": 600,
+      "price": 250,
       "currency": "RON",
       "interval": "An",
       "features": [
