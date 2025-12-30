@@ -23,11 +23,6 @@ export default defineConfig(({ mode }) => {
           timeout: 1200000,
           proxyTimeout: 1200000,
         },
-        '/data': {
-          target: 'http://127.0.0.1:8000',
-          changeOrigin: true,
-          secure: false,
-        },
       },
     },
     resolve: {
