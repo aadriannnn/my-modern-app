@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Scale } from 'lucide-react';
+import { Scale } from 'lucide-react';
 
 interface Article {
     title: string;
