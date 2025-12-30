@@ -69,10 +69,17 @@ const ArticlesSection: React.FC = () => {
                     {/* Partners Widget */}
                     <div className="bg-white rounded-[10px] shadow-sm border border-gray-100 p-6 flex flex-col items-center justify-center text-center">
                         <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Parteneri</h4>
-                        <div className="w-full aspect-square bg-slate-50 rounded-lg flex flex-col items-center justify-center text-slate-300 group hover:bg-slate-100 transition-colors cursor-pointer border border-slate-100 border-dashed">
-                            <div className="text-center px-4">
-                                <p className="text-xs font-medium text-slate-400 mb-1">Spațiu Disponibil</p>
-                                <p className="text-[10px] text-slate-300">Contactează-ne</p>
+                        <div className="w-full bg-white rounded-lg flex flex-col items-center justify-center group hover:bg-slate-50 transition-colors cursor-pointer border border-transparent">
+                            <div className="text-center">
+                                <img
+                                    src="/data/legal_news/images/ICI.jpg"
+                                    alt="ICI București"
+                                    className="w-full h-auto object-contain mb-4 rounded-md"
+                                />
+                                <h5 className="text-xs font-bold text-slate-700 mb-2">ICI București</h5>
+                                <p className="text-[10px] text-slate-400 leading-relaxed text-justify">
+                                    Institutul Național de Cercetare-Dezvoltare în Informatică este cea mai importantă unitate de cercetare și inovare în domeniul Tehnologiilor Informației și Comunicărilor (TIC) din România. Fondat în 1970, institutul funcționează sub coordonarea Guvernului României.
+                                </p>
                             </div>
                         </div>
                     </div>
