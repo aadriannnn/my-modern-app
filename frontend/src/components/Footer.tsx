@@ -16,7 +16,8 @@ const Footer: React.FC = () => {
                             <span className="block text-xs text-brand-gold mt-1 uppercase tracking-widest">Legal Intelligence</span>
                         </Link>
                         <p className="text-gray-400 text-sm leading-relaxed mb-6">
-                            Platformă avansată de cercetare juridică și analiză de spețe, dedicată profesioniștilor din domeniul legal.
+                            VERDICT LINE S.R.L. - Soluții avansate de cercetare juridică și analiză de spețe.
+                            CUI 50104199.
                         </p>
                         <div className="flex gap-4">
                             <a href="#" className="text-gray-400 hover:text-brand-gold transition-colors"><Facebook className="w-5 h-5" /></a>
@@ -39,13 +40,13 @@ const Footer: React.FC = () => {
 
                     {/* Legal Resources */}
                     <div>
-                        <h4 className="text-lg font-bold mb-6 font-headings">Resurse</h4>
+                        <h4 className="text-lg font-bold mb-6 font-headings">Legal & Suport</h4>
                         <ul className="space-y-3 text-sm text-gray-400">
-                            <li><Link to="/termeni" className="hover:text-brand-gold transition-colors">Termeni și Condiții</Link></li>
-                            <li><Link to="/confidentialitate" className="hover:text-brand-gold transition-colors">Politica de Confidențialitate</Link></li>
+                            <li><Link to="/terms" className="hover:text-brand-gold transition-colors">Termeni și Condiții</Link></li>
+                            <li><Link to="/privacy-policy" className="hover:text-brand-gold transition-colors">Politica de Confidențialitate</Link></li>
                             <li><Link to="/cookies" className="hover:text-brand-gold transition-colors">Politica Cookies</Link></li>
                             <li><Link to="/gdpr" className="hover:text-brand-gold transition-colors">GDPR</Link></li>
-                            <li><Link to="/ajutor" className="hover:text-brand-gold transition-colors">Centru de Ajutor</Link></li>
+                            <li><Link to="/help-center" className="hover:text-brand-gold transition-colors">Centru de Ajutor</Link></li>
                         </ul>
                     </div>
 
@@ -55,15 +56,15 @@ const Footer: React.FC = () => {
                         <ul className="space-y-4 text-sm text-gray-400">
                             <li className="flex items-start gap-3">
                                 <MapPin className="w-5 h-5 text-brand-gold shrink-0" />
-                                <span>Strada Justiției nr. 1, București, România</span>
+                                <span>Str. DRM. DÂRVARI, Nr. 34A, Sector 5, București</span>
                             </li>
                             <li className="flex items-center gap-3">
                                 <Phone className="w-5 h-5 text-brand-gold shrink-0" />
-                                <span>+40 722 123 456</span>
+                                <span>0751 661 066</span>
                             </li>
                             <li className="flex items-center gap-3">
                                 <Mail className="w-5 h-5 text-brand-gold shrink-0" />
-                                <span>contact@legeaaplicata.ro</span>
+                                <span>contact@verdictline.com</span>
                             </li>
                         </ul>
                     </div>

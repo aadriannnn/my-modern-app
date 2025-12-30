@@ -4,6 +4,9 @@ import SearchPage from './pages/SearchPage';
 import SettingsPage from './pages/SettingsPage';
 import TermsPage from './pages/TermsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import CookiePolicyPage from './pages/CookiePolicyPage';
+import HelpCenterPage from './pages/HelpCenterPage';
+import GDPRPage from './pages/GDPRPage';
 import LandingPage from './pages/LandingPage';
 import { DosarProvider } from './context/DosarContext';
 import DosarDrawer from './components/DosarDrawer';
@@ -27,6 +30,7 @@ import ContactPage from './pages/ContactPage';
 
 import LegalNewsPage from './pages/LegalNews/LegalNewsPage';
 import ArticleDetailPage from './pages/LegalNews/ArticleDetailPage';
+import CookieConsent from './components/CookieConsent';
 
 const App: React.FC = () => {
   return (
@@ -34,6 +38,7 @@ const App: React.FC = () => {
       <DosarProvider>
         <DosarDrawer />
         <DosarToast />
+        <CookieConsent />
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
@@ -46,8 +51,14 @@ const App: React.FC = () => {
           <Route path="/" element={<SearchPage />} />
           <Route path="/grid-tests" element={<GridTestsPage />} />
           <Route path="/setari" element={<SettingsPage />} />
+
+          {/* Legal & Support Routes */}
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+          <Route path="/cookies" element={<CookiePolicyPage />} />
+          <Route path="/gdpr" element={<GDPRPage />} />
+          <Route path="/help-center" element={<HelpCenterPage />} />
+
           <Route path="/test-analysis" element={<TestAnalysisPage />} />
           <Route path="/payment-return" element={<PaymentReturnPage />} />
           <Route path="/abonamente" element={<PricingPage />} />

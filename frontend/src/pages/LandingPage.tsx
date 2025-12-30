@@ -95,7 +95,7 @@ const LandingPage: React.FC = () => {
                             </p>
                             <div className="hero-cta animate-slide-up" style={{ animationDelay: '0.4s' }}>
                                 <Link to="/" className="btn btn-primary btn-large">
-                                    Încearcă Demo-ul Web (Fără Cookie-uri)
+                                    Încearcă Demo-ul Web
                                 </Link>
                                 <p className="disclaimer">
                                     Sesiune efemeră — toate datele sunt șterse automat la refresh
@@ -148,7 +148,7 @@ const LandingPage: React.FC = () => {
                             </div>
                             <h3 className="pillar-title">Zero Amprentă Digitală</h3>
                             <p className="pillar-text">
-                                Fără cookie-uri, fără logging, fără tracking. Anonimat complet.
+                                Confidențialitate maximă cu procesare locală.
                             </p>
                         </div>
                     </div>
@@ -266,11 +266,7 @@ const LandingPage: React.FC = () => {
                 </div>
             </section>
 
-            {/* Anti-Cookie Badge */}
-            <div className="cookie-badge">
-                <Lock className="w-6 h-6" />
-                <span>0% Cookie-uri — 100% Confidențialitate</span>
-            </div>
+
 
             {/* Footer */}
             <footer className="landing-footer" id="contact">
@@ -302,7 +298,7 @@ const LandingPage: React.FC = () => {
                     <div className="footer-bottom">
                         <p className="footer-disclaimer">
                             © 2025 Juridic AI – Local. Toate drepturile rezervate.<br />
-                            Nicio urmărire, nicio colectare de date utilizator, niciun cookie stocat.
+                            Confidențialitate și performanță pentru profesioniști.
                         </p>
                     </div>
                 </div>

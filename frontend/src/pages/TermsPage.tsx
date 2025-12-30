@@ -134,6 +134,17 @@ const TermsPage: React.FC = () => {
 
                             <section>
                                 <h2 className="text-2xl font-semibold text-brand-dark mt-8 mb-4">
+                                    Disclaimer Important
+                                </h2>
+                                <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+                                    <p className="text-sm text-yellow-800 leading-relaxed font-semibold">
+                                        Informațiile afișate în cadrul site-ului LegeaAplicata.ro si VerdictLine.com au scop pur informativ și nu pot fi folosite ca documente oficiale. Atât Verdict Line S.R.L., cât și oricare dintre angajații săi nu oferă niciun fel de garanție și nu are nicio răspundere, implicită sau expresă, referitoare la orice informații accesate prin intermediul site-ului.
+                                    </p>
+                                </div>
+                            </section>
+
+                            <section>
+                                <h2 className="text-2xl font-semibold text-brand-dark mt-8 mb-4">
                                     7. Legea Aplicabilă
                                 </h2>
                                 <p className="leading-relaxed">

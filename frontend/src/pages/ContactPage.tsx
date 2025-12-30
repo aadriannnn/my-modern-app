@@ -74,32 +74,33 @@ const ContactPage: React.FC = () => {
 
                             <div className="space-y-6">
                                 <div className="flex items-start space-x-4">
-                                    <div className="bg-blue-50 p-3 rounded-lg text-brand-blue">
+                                    <div className="bg-brand-gold p-3 rounded-lg text-white">
                                         <MapPin className="w-6 h-6" />
                                     </div>
                                     <div>
                                         <p className="font-medium text-gray-900">Adresă</p>
-                                        <p className="text-gray-600">Strada Exemplu Nr. 10, Bucuresti, 010101, Romania</p>
+                                        <p className="text-gray-600">Str. DRM. DÂRVARI, Nr. 34A, Sector 5, București</p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start space-x-4">
-                                    <div className="bg-blue-50 p-3 rounded-lg text-brand-blue">
+                                    <div className="bg-brand-gold p-3 rounded-lg text-white">
                                         <Phone className="w-6 h-6" />
                                     </div>
                                     <div>
                                         <p className="font-medium text-gray-900">Telefon</p>
-                                        <p className="text-gray-600">+40 751 661 066</p>
+                                        <p className="text-gray-600">0751 661 066</p>
                                     </div>
                                 </div>
 
                                 <div className="flex items-start space-x-4">
-                                    <div className="bg-blue-50 p-3 rounded-lg text-brand-blue">
+                                    <div className="bg-brand-gold p-3 rounded-lg text-white">
                                         <Mail className="w-6 h-6" />
                                     </div>
                                     <div>
                                         <p className="font-medium text-gray-900">Email</p>
-                                        <p className="text-gray-600">adrian@legeaaplicata.ro</p>
+                                        <p className="text-gray-600">contact@legeaaplicata.ro</p>
+                                        <p className="text-gray-500 text-sm">contact@verdictline.com</p>
                                     </div>
                                 </div>
                             </div>

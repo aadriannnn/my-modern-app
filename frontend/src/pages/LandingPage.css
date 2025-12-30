@@ -444,25 +444,7 @@
   color: #5A6472;
 }
 
-/* ===== COOKIE BADGE ===== */
-.cookie-badge {
-  position: fixed;
-  bottom: 2rem;
-  right: 2rem;
-  background: linear-gradient(135deg, #1B3A6B, #162E56);
-  color: white;
-  padding: 1rem 1.5rem;
-  border-radius: 3rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-weight: 700;
-  font-size: 0.875rem;
-  box-shadow: 0 10px 30px rgba(27, 58, 107, 0.4);
-  z-index: 50;
-  animation: fadeIn 1s ease-out 2s forwards;
-  opacity: 0;
-}
+
 
 /* ===== FOOTER ===== */
 .landing-footer {
@@ -630,6 +612,7 @@
   from {
     opacity: 0;
   }
+
   to {
     opacity: 1;
   }
@@ -640,6 +623,7 @@
     transform: translateY(30px);
     opacity: 0;
   }
+
   to {
     transform: translateY(0);
     opacity: 1;
@@ -651,6 +635,7 @@
     transform: translateX(-30px);
     opacity: 0;
   }
+
   to {
     transform: translateX(0);
     opacity: 1;
@@ -658,9 +643,12 @@
 }
 
 @keyframes float {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0);
   }
+
   50% {
     transform: translateY(-10px);
   }
