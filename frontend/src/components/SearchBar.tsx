@@ -1,7 +1,7 @@
 
 import React, { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Search, Loader2, Sparkles, FileText, ArrowLeft, Send } from 'lucide-react';
+import { Search, Loader2, Sparkles, FileText, ArrowLeft, Send, Building2, CheckCircle2 } from 'lucide-react';
 import ValidationModal from './ValidationModal';
 
 interface SearchBarProps {
@@ -30,6 +30,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const mobileInputRef = useRef<HTMLTextAreaElement>(null);
     const [isDosar, setIsDosar] = useState(false);
+    const [isCompany, setIsCompany] = useState(false);
     const [isMobileFocused, setIsMobileFocused] = useState(false);
 
     // Validation State
@@ -76,10 +77,18 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         textarea.style.height = `${Math.max(newHeight, minHeight)}px`;
     }, [value, variant]);
 
-    // Detect Dosar Number
+    // Detect Dosar Number and Company
     useEffect(() => {
+        const trimmedValue = value.trim();
+
+        // Dosar check
         const dosarRegex = /(\d{1,6}\/\d{1,4}\/\d{4}(?:\/[a-zA-Z0-9\.-]+)?)/;
-        setIsDosar(dosarRegex.test(value));
+        setIsDosar(dosarRegex.test(trimmedValue));
+
+        // Company check
+        const cuiRegex = /\b(ro)?\s*\d{2,10}\b/i;
+        const companyTypeRegex = /\b(s\.?r\.?l\.?|s\.?a\.?|i\.?i\.?|p\.?f\.?a\.?|c\.?n\.?|regia autonoma)\b/i;
+        setIsCompany(cuiRegex.test(trimmedValue) || companyTypeRegex.test(trimmedValue));
     }, [value]);
 
     const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -99,7 +108,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         // 1. Dosar Identity Check (Existing)
         const dosarRegex = /(\d{1,6}\/\d{1,4}\/\d{4}(?:\/[a-zA-Z0-9\.-]+)?)/;
         if (dosarRegex.test(trimmedValue)) {
-            // It's a Dosar -> Valid
             if (onDosarSearch) {
                 const match = trimmedValue.match(dosarRegex);
                 if (match) {
@@ -109,7 +117,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                     return;
                 }
             }
-            // Fallback if no onDosarSearch prop (shouldn't happen in main search)
             onSearch();
             setIsMobileFocused(false);
             document.body.style.overflow = '';
@@ -117,15 +124,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         }
 
         // 2. Company Identity Check
-        // CUI: 2-10 digits, optional RO prefix
-        // Terms: SRL, SA, S.R.L., S.A., etc.
         const cuiRegex = /\b(ro)?\s*\d{2,10}\b/i;
         const companyTypeRegex = /\b(s\.?r\.?l\.?|s\.?a\.?|i\.?i\.?|p\.?f\.?a\.?|c\.?n\.?|regia autonoma)\b/i;
+        const isComp = cuiRegex.test(trimmedValue) || companyTypeRegex.test(trimmedValue);
 
-        const isCompany = cuiRegex.test(trimmedValue) || companyTypeRegex.test(trimmedValue);
-
-        if (isCompany) {
-            // It's a Company -> Valid
+        if (isComp) {
             onSearch();
             setIsMobileFocused(false);
             document.body.style.overflow = '';
@@ -168,6 +171,54 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     };
 
     const isHero = variant === 'hero';
+    const currentLength = value.trim().length;
+    const showCounter = !isDosar && !isCompany && currentLength > 0;
+    const isMinLengthMet = currentLength >= 200;
+
+    const CharacterCounter = ({ isMobile = false }) => {
+        if (!showCounter) return null;
+
+        return (
+            <div className={`
+                flex items-center justify-between gap-4 text-xs font-medium transition-all duration-300 animate-in fade-in slide-in-from-bottom-2
+                ${isMobile ? 'mb-3 px-1' : 'pt-3 border-t border-slate-100 mt-2'}
+                ${isMinLengthMet ? 'text-green-600' : 'text-amber-600'}
+            `}>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 whitespace-nowrap">
+                        {isMinLengthMet ? (
+                            <CheckCircle2 className="w-4 h-4 text-green-500" />
+                        ) : (
+                            <div className="relative flex items-center justify-center w-4 h-4">
+                                <div className="absolute w-full h-full rounded-full border-2 border-red-100"></div>
+                                <div
+                                    className="absolute w-full h-full rounded-full border-2 border-red-500 transition-all duration-500"
+                                    style={{
+                                        clipPath: `inset(${Math.max(0, 100 - (currentLength / 200) * 100)}% 0 0 0)`
+                                    }}
+                                ></div>
+                            </div>
+                        )}
+                        <span>
+                            {isMinLengthMet
+                                ? "Lungime adecvată"
+                                : `${200 - currentLength} caractere necesare`
+                            }
+                        </span>
+                    </div>
+
+                    {!isMinLengthMet && (
+                        <span className="text-slate-400 hidden sm:inline border-l border-slate-300 pl-2">
+                            necesar pentru situații juridice
+                        </span>
+                    )}
+                </div>
+
+                {/* Desktop Only: Examples Label */}
+
+            </div>
+        );
+    };
 
     return (
         <>
@@ -175,10 +226,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                 <div className={`
                     relative flex flex-col transition-all duration-300
                     ${isHero
-                        ? 'p-2 bg-white rounded-3xl shadow-soft hover:shadow-lg border border-slate-100 focus-within:ring-4 focus-within:ring-brand-accent/10 focus-within:border-brand-accent/30'
+                        ? 'p-4 bg-white rounded-3xl shadow-soft hover:shadow-lg border border-slate-100 focus-within:ring-4 focus-within:ring-brand-accent/10 focus-within:border-brand-accent/30'
                         : 'bg-white rounded-xl shadow-sm border border-slate-200 focus-within:ring-2 focus-within:ring-brand-accent/20'
                     }
-`}>
+                `}>
 
                     {/* Header / Examples for Hero */}
                     {isHero && onExampleClick && (
@@ -199,16 +250,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                                 <Loader2 className={`animate-spin text-brand-accent ${isHero ? 'w-6 h-6' : 'w-5 h-5'} `} />
                             ) : isDosar ? (
                                 <FileText className={`text-blue-500 ${isHero ? 'w-6 h-6' : 'w-5 h-5'} `} />
+                            ) : isCompany ? (
+                                <Building2 className={`text-purple-500 ${isHero ? 'w-6 h-6' : 'w-5 h-5'} `} />
                             ) : (
                                 <Search className={`text-slate-400 ${isHero ? 'w-6 h-6' : 'w-5 h-5'} `} />
                             )}
                         </div>
 
-
-
                         <div className="flex-1">
-                            {/* Important Warning specific to language removed */}
-
                             <textarea
                                 ref={textareaRef}
                                 value={value}
@@ -236,7 +285,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                                         ? 'bg-brand-dark hover:bg-slate-800 text-white rounded-2xl w-12 h-12 shadow-md hover:scale-105 active:scale-95'
                                         : 'text-brand-secondary hover:text-brand-accent p-2 rounded-lg hover:bg-slate-50'
                                     }
-                            `}
+                                `}
                             >
                                 {isHero ? (
                                     <Search className="w-5 h-5" />
@@ -254,6 +303,17 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                             Număr dosar detectat
                         </div>
                     )}
+
+                    {/* Helper text for Company */}
+                    {isHero && isCompany && (
+                        <div className="absolute -bottom-7 left-4 text-xs font-medium text-purple-600 flex items-center gap-1 animate-fade-in">
+                            <span className="w-1.5 h-1.5 rounded-full bg-purple-500 animate-pulse"></span>
+                            Companie identificată
+                        </div>
+                    )}
+
+                    {/* Character Counter (Desktop) */}
+                    {isHero && <CharacterCounter />}
                 </div>
             </div >
 
@@ -274,7 +334,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                                 <ArrowLeft size={20} />
                             </button>
                             <span className="text-sm font-semibold text-gray-500">
-                                {isDosar ? 'Căutare Dosar' : 'Descrie Speța'}
+                                {isDosar ? 'Căutare Dosar' : isCompany ? 'Căutare Firmă' : 'Descrie Speța'}
                             </span>
                             <div className="w-8"></div>
                         </div>
@@ -287,11 +347,12 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                                 onKeyDown={handleKeyDown}
                                 placeholder={placeholder}
                                 className="w-full h-full p-2 text-lg bg-transparent border-0 focus:ring-0 text-brand-dark placeholder-slate-400 resize-none flex-1"
-                                style={{ minHeight: '150px' }} // Ensure usability
+                                style={{ minHeight: '100px' }}
                             />
 
-                            {/* Mobile Send Button */}
-                            <div className="w-full mt-2 flex-none pb-safe">
+                            {/* Mobile Footer: Counter + Send Button */}
+                            <div className="flex-none pb-4 pt-2 bg-white sticky bottom-0">
+                                <CharacterCounter isMobile={true} />
                                 <button
                                     onClick={handleSearchAction}
                                     disabled={isLoading || !value.trim()}
