@@ -8,6 +8,7 @@ import BooksSection from './BooksSection';
 import JobsSection from './JobsSection';
 import ProfessionalsSection from './ProfessionalsSection';
 import ArticleDetailPage from './ArticleDetailPage';
+import Footer from '../../components/Footer';
 
 const LegalNewsPage: React.FC = () => {
     const location = useLocation();
@@ -59,11 +60,7 @@ const LegalNewsPage: React.FC = () => {
                 </div>
             </main>
 
-            <footer className="bg-white border-t border-gray-200 mt-auto py-8">
-                <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
-                    &copy; {new Date().getFullYear()} LegeaAplicată. Toate drepturile rezervate.
-                </div>
-            </footer>
+            <Footer />
         </div>
     );
 };

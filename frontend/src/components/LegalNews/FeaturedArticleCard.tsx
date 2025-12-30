@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Tag, ArrowRight } from 'lucide-react';
+import { Calendar, Tag, ArrowRight, Scale } from 'lucide-react';
 
 interface Article {
     title: string;
@@ -11,6 +11,7 @@ interface Article {
     publishDate?: string | Date;
     categories?: string[];
     tags?: string[];
+    readTime?: string;
 }
 
 interface FeaturedArticleCardProps {
@@ -39,56 +40,65 @@ const FeaturedArticleCard: React.FC<FeaturedArticleCardProps> = ({ article }) =>
     };
 
     return (
-        <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow duration-300 border border-slate-100 mb-8">
-            <div className="flex flex-col md:flex-row items-stretch">
-                {/* Image Column */}
+        <div className="group bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-500 border border-gray-100 mb-12">
+            <div className="flex flex-col md:flex-row items-stretch p-2 md:p-4 gap-6">
+                {/* Image Column - Adjusted Ratio & Context */}
                 {imageUrl && (
-                    <div className="w-full md:w-[45%] lg:w-[40%] flex-shrink-0 relative overflow-hidden group">
-                        <Link to={articleUrl} className="block h-full min-h-[250px]">
+                    <div className="w-full md:w-[45%] relative overflow-hidden bg-gray-50 flex items-center justify-center shrink-0 min-h-[280px] rounded-lg">
+                        {/* Decorative Background Icon (Smart Fill) */}
+                        <div className="absolute inset-0 flex items-center justify-center opacity-40 pointer-events-none">
+                            <Scale className="w-48 h-48 text-gray-200 transform -rotate-12" />
+                        </div>
+
+                        <Link to={articleUrl} className="relative block w-full z-10 h-full">
                             <img
                                 src={imageUrl}
                                 alt={title}
-                                className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
+                                className="w-full h-full object-contain object-center shadow-sm rounded-lg"
                             />
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                            {/* Overlay for hover effect */}
+                            <div className="absolute inset-0 bg-brand-dark/5 opacity-0 group-hover:opacity-10 transition-opacity duration-300 rounded-lg" />
                         </Link>
                     </div>
                 )}
 
                 {/* Content Column */}
-                <div className="flex-1 p-6 md:p-8 flex flex-col items-start justify-center">
-                    <div className="flex flex-wrap gap-4 text-xs font-medium text-slate-500 mb-4 items-center">
+                <div className="flex-1 py-4 pr-4 md:py-6 flex flex-col justify-center bg-white relative">
+
+                    <div className="flex flex-wrap gap-4 text-xs font-semibold tracking-wide text-slate-500 mb-4 items-center uppercase">
                         {categories && categories.length > 0 && (
-                            <div className="flex items-center gap-1.5 text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full">
-                                <Tag className="w-3.5 h-3.5" />
-                                <span className="uppercase tracking-wide">{categories[0]}</span>
+                            <div className="flex items-center gap-2 text-brand-gold/80 bg-brand-gold/5 px-2 py-0.5 rounded">
+                                <Tag className="w-3 h-3" />
+                                <span>{categories[0]}</span>
                             </div>
                         )}
                         {publishDate && (
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-2 text-slate-400">
                                 <Calendar className="w-3.5 h-3.5" />
                                 <span>{formatDate(publishDate)}</span>
                             </div>
                         )}
                     </div>
 
-                    <h2 className="text-2xl md:text-3xl font-bold text-slate-900 leading-tight mb-4 font-headings">
-                        <Link to={articleUrl} className="hover:text-blue-700 transition-colors">
+                    <h2 className="text-2xl md:text-3xl font-serif font-semibold text-brand-dark leading-relaxed mb-4 line-clamp-2">
+                        <Link to={articleUrl} className="hover:text-brand-primary transition-colors">
                             {title}
                         </Link>
                     </h2>
 
-                    <p className="text-slate-600 mb-6 line-clamp-3 leading-relaxed flex-grow">
+                    <p className="text-slate-600 text-[15px] leading-relaxed mb-6 line-clamp-2 font-light">
                         {displaySummary}
                     </p>
 
-                    <Link
-                        to={articleUrl}
-                        className="inline-flex items-center gap-2 px-5 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors group"
-                    >
-                        Citește tot
-                        <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </Link>
+                    <div className="mt-auto pt-2">
+                        <Link
+                            to={articleUrl}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-dark text-white text-sm font-medium rounded-lg hover:bg-brand-primary transition-colors duration-300 shadow-sm"
+                        >
+                            Citește analiza
+                            <ArrowRight className="w-4 h-4" />
+                        </Link>
+                    </div>
                 </div>
             </div>
         </div>

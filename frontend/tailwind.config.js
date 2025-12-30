@@ -1,4 +1,3 @@
-/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
     "./index.html",
@@ -7,34 +6,32 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        'sans': ['Inter', 'Source Sans 3', 'system-ui', 'sans-serif'],
+        'sans': ['Inter', 'system-ui', 'sans-serif'],
+        'serif': ['"Source Serif 4"', 'Georgia', 'serif'], // Added accessible serif font
       },
       colors: {
-        'brand-dark': '#0F172A', // Slate 900 - Darker, more premium
-        'brand-primary': '#1E293B', // Slate 800
-        'brand-secondary': '#475569', // Slate 600
-        'brand-accent': '#0F766E', // Teal 700 - Slightly deeper teal for trust
-        'brand-accent-light': '#14B8A6', // Teal 500
-        'brand-light': '#F8FAFC', // Slate 50 - Very clean background
+        // Legal Premium Palette
+        'brand-dark': '#0B1120', // Deepest Navy
+        'brand-primary': '#162032', // Rich Navy
+        'brand-secondary': '#334155', // Slate 700
+
+        // Accents
+        'brand-gold': '#C5A059', // Muted Gold - for highlights (sobru)
+        'brand-gold-light': '#E5C985',
+        'brand-accent': '#0F766E', // Keep teal for specific actions if needed, or replace
+        'brand-accent-light': '#14B8A6',
+
+        'brand-light': '#F8FAFC', // Slate 50
         'brand-text': '#0F172A', // Slate 900
         'brand-text-secondary': '#64748B', // Slate 500
 
-        // Premium Grays (Slate-based for modern feel)
-        'slate': {
-          50: '#F8FAFC',
-          100: '#F1F5F9',
-          200: '#E2E8F0',
-          300: '#CBD5E1',
-          400: '#94A3B8',
-          500: '#64748B',
-          600: '#475569',
-          700: '#334155',
-          800: '#1E293B',
-          900: '#0F172A',
-        },
+        // Extended Grays for Backgrounds
+        'legal-bg': '#F9FAFB', // Cool gray 50
+        'legal-border': '#E2E8F0', // Slate 200
       },
       spacing: {
         '18': '4.5rem',
+        '22': '5.5rem',
       },
       borderRadius: {
         'xl': '0.75rem',
@@ -42,17 +39,16 @@ module.exports = {
         '3xl': '1.5rem',
       },
       boxShadow: {
-        'subtle': '0 2px 4px 0 rgba(0, 0, 0, 0.02)',
-        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)', // New soft premium shadow
-        'glow': '0 0 20px rgba(20, 184, 166, 0.2)', // Updated glow color
-        'glow-strong': '0 0 30px rgba(20, 184, 166, 0.4)',
+        'subtle': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        'card': '0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03)', // Clean card shadow
+        'card-hover': '0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04)',
+        'premium': '0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02)', // Soft, deep shadow
       },
       animation: {
         'fade-in': 'fadeIn 0.6s ease-out forwards',
         'slide-up': 'slideUp 0.6s ease-out forwards',
         'slide-in': 'slideIn 0.6s ease-out forwards',
-        'float': 'float 6s ease-in-out infinite',
-        'pulse-subtle': 'pulseSubtle 3s infinite',
+        'pulse-slow': 'pulse 4s cubic-bezier(0.4, 0, 0.6, 1) infinite',
       },
       keyframes: {
         fadeIn: {
@@ -60,20 +56,12 @@ module.exports = {
           'to': { opacity: '1' },
         },
         slideUp: {
-          'from': { transform: 'translateY(20px)', opacity: '0' },
+          'from': { transform: 'translateY(10px)', opacity: '0' },
           'to': { transform: 'translateY(0)', opacity: '1' },
         },
         slideIn: {
-          'from': { transform: 'translateX(-20px)', opacity: '0' },
+          'from': { transform: 'translateX(-10px)', opacity: '0' },
           'to': { transform: 'translateX(0)', opacity: '1' },
-        },
-        float: {
-          '0%, 100%': { transform: 'translateY(0)' },
-          '50%': { transform: 'translateY(-10px)' },
-        },
-        pulseSubtle: {
-          '0%, 100%': { opacity: '1' },
-          '50%': { opacity: '0.8' },
         },
       },
     },

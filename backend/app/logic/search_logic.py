@@ -877,8 +877,18 @@ def detect_company_query(query: str) -> tuple:
 
     # 1. Check SAFE keywords (Anywhere)
     for kw in safe_keywords:
-        # \b ensures we don't match substrings like "S.R.L.A"
-        if re.search(r'\b' + re.escape(kw) + r'\b', query_clean, re.IGNORECASE):
+        escaped_kw = re.escape(kw)
+
+        # Determine regex boundary based on the last character of the keyword
+        # If keyword ends in a letter/number, we use strict \b boundary
+        # If keyword ends in a symbol (e.g. '.'), \b fails if followed by more symbols.
+        # So we use (?!\w) to ensure it's not followed by a letter/number (e.g. S.R.L.A)
+        if kw[-1].isalnum():
+            pattern = r'\b' + escaped_kw + r'\b'
+        else:
+            pattern = r'\b' + escaped_kw + r'(?!\w)'
+
+        if re.search(pattern, query_clean, re.IGNORECASE):
             return (True, False)
 
     # 2. Check AMBIGUOUS keywords (Start or End only)

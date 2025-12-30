@@ -363,7 +363,7 @@ const NewsBlock: React.FC<NewsBlockProps> = ({
                 </h3>
             )}
 
-            <div className="flex flex-col">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {items.filter(item => !!item).map((item, index) => (
                     <NewsItemComponent
                         key={`${blockType}-${item.id || item.slug || 'no-id-slug'}-${index}`}

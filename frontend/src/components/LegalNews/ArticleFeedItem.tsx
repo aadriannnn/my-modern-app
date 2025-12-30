@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Calendar, Tag } from 'lucide-react';
+import { Calendar, Scale } from 'lucide-react';
 
 interface Article {
     title: string;
@@ -34,42 +34,46 @@ const ArticleFeedItem: React.FC<ArticleFeedItemProps> = ({ article }) => {
     };
 
     return (
-        <div className="flex flex-row items-start gap-4 py-5 border-b border-slate-100 last:border-0 group">
+        <div className="group bg-white rounded-[10px] shadow-sm hover:shadow-md border border-gray-100 transition-all duration-300 h-full flex flex-col md:flex-row overflow-hidden">
             {/* Image Column */}
-            <div className="flex-shrink-0 w-[80px] sm:w-[110px] h-[60px] sm:h-[80px] rounded-lg overflow-hidden bg-slate-100">
+            <div className="md:w-[28%] relative overflow-hidden bg-gray-50 shrink-0 flex items-center justify-center min-h-[160px]">
+                {/* Decorative Background Icon */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-40 pointer-events-none">
+                    <Scale className="w-24 h-24 text-gray-200 transform -rotate-12" />
+                </div>
+
                 {imageUrl ? (
-                    <Link to={articleUrl} className="block w-full h-full">
+                    <Link to={articleUrl} className="relative block w-full h-full z-10">
                         <img
                             src={imageUrl}
                             alt={title}
-                            className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
+                            className="w-full h-full object-contain p-2"
                         />
+                        <div className="absolute inset-0 bg-brand-dark/0 group-hover:bg-brand-dark/10 transition-colors duration-300" />
                     </Link>
                 ) : (
-                    <div className="w-full h-full bg-slate-200 flex items-center justify-center text-slate-400">
-                        <Tag className="w-6 h-6" />
+                    <div className="w-full h-full flex items-center justify-center text-brand-gold/20 z-10">
+                        <Scale className="w-12 h-12" />
                     </div>
                 )}
             </div>
 
             {/* Content Column */}
-            <div className="flex-1 min-w-0">
-                <div className="flex flex-wrap gap-3 text-xs text-slate-500 mb-1.5 items-center">
+            <div className="p-5 flex-1 flex flex-col justify-center">
+                <div className="flex flex-wrap gap-3 mb-3 items-center">
                     {categories && categories.length > 0 && (
-                        <div className="flex items-center gap-1 text-blue-600 font-medium">
-                            <Tag className="w-3 h-3" />
-                            <span>{categories[0]}</span>
-                        </div>
+                        <span className="bg-slate-100 text-slate-600 text-[10px] font-semibold px-2 py-0.5 rounded capitalize">
+                            {categories[0].toLowerCase()}
+                        </span>
                     )}
                     {publishDate && (
-                        <div className="flex items-center gap-1">
-                            <Calendar className="w-3 h-3" />
-                            <span>{formatDate(publishDate)}</span>
-                        </div>
+                        <span className="text-xs text-slate-400">
+                            {formatDate(publishDate)}
+                        </span>
                     )}
                 </div>
 
-                <h3 className="text-base font-semibold text-slate-900 leading-snug group-hover:text-blue-700 transition-colors line-clamp-2">
+                <h3 className="text-xl font-serif font-bold text-slate-900 leading-snug group-hover:text-brand-primary transition-colors line-clamp-3 mb-2">
                     <Link to={articleUrl}>
                         {title}
                     </Link>

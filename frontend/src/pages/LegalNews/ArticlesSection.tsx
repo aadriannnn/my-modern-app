@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { NewsApi } from '../../lib/api-news';
 import { type LegalNewsArticle } from '../../types/news';
@@ -43,16 +44,16 @@ const ArticlesSection: React.FC = () => {
 
             <SearchFilterBar />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Main Content Column */}
-                <div className="lg:col-span-2">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Main Content Column - Wider (9 cols) */}
+                <div className="lg:col-span-9">
                     {/* Featured Article */}
                     {featuredArticle && (
                         <FeaturedArticleCard article={featuredArticle} />
                     )}
 
                     {/* Articles Feed */}
-                    <div className="flex flex-col">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {feedArticles.map((article) => (
                             <ArticleFeedItem key={article.id} article={article} />
                         ))}
@@ -63,20 +64,27 @@ const ArticlesSection: React.FC = () => {
                     )}
                 </div>
 
-                {/* Sidebar Column */}
-                <div className="hidden lg:block space-y-8">
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 min-h-[300px] flex flex-col items-center justify-center text-center">
-                        <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-4">Publicitate</h4>
-                        <div className="w-full h-full bg-slate-200 rounded flex items-center justify-center text-slate-400 text-sm p-4 border border-dashed border-slate-300">
-                            Reclama ta aici
+                {/* Sidebar Column - Narrower (3 cols) */}
+                <div className="hidden lg:block lg:col-span-3 space-y-6 sticky top-24 h-fit">
+                    {/* Partners Widget */}
+                    <div className="bg-white rounded-[10px] shadow-sm border border-gray-100 p-6 flex flex-col items-center justify-center text-center">
+                        <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Parteneri</h4>
+                        <div className="w-full aspect-square bg-slate-50 rounded-lg flex flex-col items-center justify-center text-slate-300 group hover:bg-slate-100 transition-colors cursor-pointer border border-slate-100 border-dashed">
+                            <div className="text-center px-4">
+                                <p className="text-xs font-medium text-slate-400 mb-1">Spațiu Disponibil</p>
+                                <p className="text-[10px] text-slate-300">Contactează-ne</p>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 min-h-[300px] flex flex-col items-center justify-center text-center">
-                        <h4 className="text-sm font-semibold text-slate-400 uppercase tracking-widest mb-4">Publicitate</h4>
-                        <div className="w-full h-full bg-slate-200 rounded flex items-center justify-center text-slate-400 text-sm p-4 border border-dashed border-slate-300">
-                            Reclama ta aici
-                        </div>
+                    {/* Premium Widget - Sober Look */}
+                    <div className="bg-brand-dark text-white rounded-[10px] shadow-md p-6 relative overflow-hidden">
+                        <div className="absolute -right-4 -top-4 w-20 h-20 bg-brand-gold/10 rounded-full blur-xl"></div>
+                        <h4 className="text-base font-serif font-semibold mb-2 relative z-10 text-brand-gold">Premium Access</h4>
+                        <p className="text-xs text-gray-300 mb-5 relative z-10 leading-relaxed">Acces complet la analize ample, jurisprudență și instrumente AI.</p>
+                        <Link to="/abonamente" className="block w-full text-center py-2 bg-white/10 text-white border border-white/20 font-medium text-xs rounded hover:bg-white/20 transition-colors relative z-10">
+                            Vezi abonamente
+                        </Link>
                     </div>
                 </div>
             </div>
