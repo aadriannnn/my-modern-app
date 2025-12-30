@@ -307,21 +307,25 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                 <div className="flex flex-col flex-1 overflow-hidden">
                   {/* Mobile Navigation Dropdown - Only visible on mobile */}
                   <div className="md:hidden border-b border-gray-200 bg-white px-4 py-3">
-                    <label htmlFor="mobile-nav-select" className="text-xs font-medium text-gray-500 block mb-1.5">
-                      Secțiune
-                    </label>
-                    <select
-                      id="mobile-nav-select"
-                      value={activeTab}
-                      onChange={(e) => setActiveTab(e.target.value)}
-                      className="w-full px-3 py-2.5 text-sm font-medium text-gray-900 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-brand-accent focus:border-brand-accent transition-all"
-                    >
-                      {navTabs.map((tab) => (
-                        <option key={tab} value={tab}>
-                          {tab}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="mb-3 overflow-x-auto custom-scrollbar -mx-4 px-4 pb-1">
+                      <div className="flex gap-2 min-w-max">
+                        {navTabs.map((tab) => (
+                          <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            className={`
+                              whitespace-nowrap px-4 py-2 rounded-full text-sm font-semibold transition-all duration-200 border
+                              ${activeTab === tab
+                                ? "bg-brand-accent text-white border-brand-accent shadow-md transform scale-[1.02]"
+                                : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300"
+                              }
+                            `}
+                          >
+                            {tab}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
 
                     {/* Lawyer Assistance Mobile Button */}
                     <button
