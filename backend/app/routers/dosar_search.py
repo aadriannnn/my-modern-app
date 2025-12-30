@@ -44,24 +44,43 @@ async def search_by_dosar_number(
 
     try:
         # Step 1: Fetch case object from portal
-        rejust_client = get_rejust_client()
-        portal_result = rejust_client.fetch_case_by_number(numar_dosar)
+        # SIMULATION for specific demo case
+        import asyncio
+        if numar_dosar.strip() == "36895/302/2025":
+            logger.info("Simulating search for demo dosar 36895/302/2025 with 30s delay")
+            await asyncio.sleep(30)
 
-        if not portal_result["success"]:
-            logger.warning(f"Portal fetch failed: {portal_result['error']}")
-            return DosarSearchResponse(
-                success=False,
-                obiect_from_portal=None,
-                materie_from_portal=None,
-                numar_dosar=numar_dosar,
-                results=[],
-                match_count=0,
-                error=portal_result["error"]
-            )
+            # Hardcoded values as requested
+            obiect_from_portal = "succesiune"
+            materie_from_portal = "Civil"
+            portal_result = {
+                "success": True,
+                "obiect": obiect_from_portal,
+                "materie": materie_from_portal,
+                "categorie_caz": "Civil",  # Simulated
+                "stadiu_procesual": "Fond"  # Simulated
+            }
+            logger.info(f"Simulated portal fetch: obiect='{obiect_from_portal}', materie='{materie_from_portal}'")
+        else:
+            # Normal flow
+            rejust_client = get_rejust_client()
+            portal_result = rejust_client.fetch_case_by_number(numar_dosar)
 
-        obiect_from_portal = portal_result["obiect"]
-        materie_from_portal = portal_result.get("materie")
-        logger.info(f"Fetched from portal: obiect='{obiect_from_portal[:100]}...', materie='{materie_from_portal}'")
+            if not portal_result["success"]:
+                logger.warning(f"Portal fetch failed: {portal_result['error']}")
+                return DosarSearchResponse(
+                    success=False,
+                    obiect_from_portal=None,
+                    materie_from_portal=None,
+                    numar_dosar=numar_dosar,
+                    results=[],
+                    match_count=0,
+                    error=portal_result["error"]
+                )
+
+            obiect_from_portal = portal_result["obiect"]
+            materie_from_portal = portal_result.get("materie")
+            logger.info(f"Fetched from portal: obiect='{obiect_from_portal[:100]}...', materie='{materie_from_portal}'")
 
         # Step 2: Query ALL cases from database (unfiltered)
         # We need to get all cases with their 'obiect' and 'materie' fields for comparison

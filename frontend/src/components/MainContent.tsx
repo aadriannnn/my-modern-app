@@ -350,7 +350,7 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
   ];
 
   const renderContent = () => {
-    if (isLoading && results.length === 0) {
+    if ((isLoading || isDosarSearchLoading) && results.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center text-center py-20">
           <Loader2 className="animate-spin h-12 w-12 text-brand-accent" />
