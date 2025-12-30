@@ -34,6 +34,33 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
     // Validation State
     const [showValidationModal, setShowValidationModal] = useState(false);
+    const [viewportHeight, setViewportHeight] = useState('100%');
+
+    // Handle Mobile Viewport Resize (Keyboard Show/Hide)
+    useEffect(() => {
+        if (!isMobileFocused) return;
+
+        const handleResize = () => {
+            if (window.visualViewport) {
+                setViewportHeight(`${window.visualViewport.height}px`);
+                // Scroll to top to ensure we see the start
+                window.scrollTo(0, 0);
+            }
+        };
+
+        if (window.visualViewport) {
+            handleResize();
+            window.visualViewport.addEventListener('resize', handleResize);
+            window.visualViewport.addEventListener('scroll', handleResize);
+        }
+
+        return () => {
+            if (window.visualViewport) {
+                window.visualViewport.removeEventListener('resize', handleResize);
+                window.visualViewport.removeEventListener('scroll', handleResize);
+            }
+        };
+    }, [isMobileFocused]);
 
     // Auto-resize textarea (Desktop/Standard)
     useEffect(() => {
@@ -233,7 +260,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             {/* Mobile Focus Overlay Portal */}
             {
                 isMobileFocused && createPortal(
-                    <div className="fixed inset-0 z-[9999] bg-white flex flex-col pt-4 px-4 pb-2 animate-in fade-in duration-200">
+                    <div
+                        className="fixed left-0 right-0 z-[9999] bg-white flex flex-col pt-4 px-4 pb-2 animate-in fade-in duration-200 shadow-2xl"
+                        style={{
+                            top: 0,
+                            height: viewportHeight,
+                            overscrollBehavior: 'none'
+                        }}
+                    >
                         {/* Mobile Exit Header */}
                         <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-100 flex-none bg-white">
                             <button onClick={handleExitFocus} className="text-brand-text font-medium flex items-center gap-1 p-2 -ml-2">
