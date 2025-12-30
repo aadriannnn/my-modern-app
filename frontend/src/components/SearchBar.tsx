@@ -1,8 +1,12 @@
 
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useImperativeHandle, forwardRef } from 'react';
 import { createPortal } from 'react-dom';
 import { Search, Loader2, Sparkles, FileText, ArrowLeft, Send, Building2, CheckCircle2 } from 'lucide-react';
 import ValidationModal from './ValidationModal';
+
+export interface SearchBarHandle {
+    focus: () => void;
+}
 
 interface SearchBarProps {
     variant?: 'hero' | 'compact';
@@ -16,7 +20,7 @@ interface SearchBarProps {
     className?: string;
 }
 
-export const SearchBar: React.FC<SearchBarProps> = ({
+export const SearchBar = forwardRef<SearchBarHandle, SearchBarProps>(({
     variant = 'hero',
     value,
     onChange,
@@ -26,7 +30,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     onExampleClick,
     placeholder = "Descrie situația ta juridică sau introdu un număr de dosar...",
     className = ''
-}) => {
+}, ref) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const mobileInputRef = useRef<HTMLTextAreaElement>(null);
     const [isDosar, setIsDosar] = useState(false);
@@ -35,31 +39,35 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 
     // Validation State
     const [showValidationModal, setShowValidationModal] = useState(false);
-    const [viewportHeight, setViewportHeight] = useState('100%');
 
-    // Handle Mobile Viewport Resize (Keyboard Show/Hide)
-    useEffect(() => {
-        if (!isMobileFocused) return;
-
-        const handleResize = () => {
-            if (window.visualViewport) {
-                setViewportHeight(`${window.visualViewport.height}px`);
-                // Scroll to top to ensure we see the start
-                window.scrollTo(0, 0);
+    // Expose focus method to parent
+    useImperativeHandle(ref, () => ({
+        focus: () => {
+            // Trigger mobile focus logic if on mobile
+            if (window.innerWidth < 768) {
+                // Determine which input to focus based on current state
+                // If we are already in mobile mode, focus that one.
+                // But usually this calls implies we want to ENTER that mode.
+                handleFocus();
+            } else {
+                // Desktop: just focus the main textarea
+                textareaRef.current?.focus();
             }
-        };
+        }
+    }));
 
-        if (window.visualViewport) {
-            handleResize();
-            window.visualViewport.addEventListener('resize', handleResize);
-            window.visualViewport.addEventListener('scroll', handleResize);
+
+
+    // Handle Body Scroll Lock on Mobile Focus
+    useEffect(() => {
+        if (isMobileFocused) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
         }
 
         return () => {
-            if (window.visualViewport) {
-                window.visualViewport.removeEventListener('resize', handleResize);
-                window.visualViewport.removeEventListener('scroll', handleResize);
-            }
+            document.body.style.overflow = '';
         };
     }, [isMobileFocused]);
 
@@ -152,6 +160,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         // Trigger only on mobile screens
         if (window.innerWidth < 768) {
             setIsMobileFocused(true);
+
             // Small delay to allow portal to mount before focusing
             setTimeout(() => {
                 if (mobileInputRef.current) {
@@ -321,10 +330,8 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             {
                 isMobileFocused && createPortal(
                     <div
-                        className="fixed left-0 right-0 z-[9999] bg-white flex flex-col pt-4 px-4 pb-2 animate-in fade-in duration-200 shadow-2xl"
+                        className="fixed inset-0 z-[9999] bg-white flex flex-col pt-4 px-4 pb-2 animate-in fade-in duration-200 shadow-2xl"
                         style={{
-                            top: 0,
-                            height: viewportHeight,
                             overscrollBehavior: 'none'
                         }}
                     >
@@ -375,4 +382,4 @@ export const SearchBar: React.FC<SearchBarProps> = ({
             />
         </>
     );
-};
+});
