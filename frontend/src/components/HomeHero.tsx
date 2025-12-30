@@ -1,6 +1,5 @@
-import React, { useRef } from 'react';
+import React from 'react';
 import { SearchBar } from './SearchBar';
-import type { SearchBarHandle } from './SearchBar';
 import { Scale, Shield, Zap, Sparkles } from 'lucide-react';
 
 interface HomeHeroProps {
@@ -20,21 +19,6 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
     isLoading,
     onExampleClick
 }) => {
-    const searchBarRef = useRef<SearchBarHandle>(null);
-
-    const handleExampleClick = (val: string) => {
-        onSituatieChange(val);
-        // Trigger focus which handles mobile view logic
-        searchBarRef.current?.focus();
-    };
-
-    const handleSituatieExampleClick = () => {
-        onExampleClick();
-        // Trigger focus which handles mobile view logic
-        searchBarRef.current?.focus();
-    };
-
-
     return (
         <div className="flex flex-col items-center justify-center min-h-[80vh] w-full max-w-5xl mx-auto px-4 sm:px-6 relative overflow-visible">
 
@@ -54,7 +38,6 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
             {/* Main Search Area */}
             <div className="w-full max-w-3xl mb-16 relative z-10 animate-slide-up">
                 <SearchBar
-                    ref={searchBarRef}
                     variant="hero"
                     placeholder="Descrie situația, număr dosar sau CUI/Societate..."
                     value={situacie}
@@ -71,7 +54,7 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
 
                         {/* Verificare Societate */}
                         <button
-                            onClick={() => handleExampleClick("VERDICT LINE S.R.L.")}
+                            onClick={() => onSituatieChange("VERDICT LINE S.R.L.")}
                             className="group relative flex flex-col items-start text-left p-5 h-full rounded-2xl bg-white/50 hover:bg-white border border-slate-200/60 hover:border-blue-200 transition-all shadow-sm hover:shadow-lg hover:-translate-y-0.5 overflow-hidden"
                         >
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -98,7 +81,7 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
 
                         {/* Consultare Dosar */}
                         <button
-                            onClick={() => handleExampleClick("36895/302/2025")}
+                            onClick={() => onSituatieChange("36895/302/2025")}
                             className="group relative flex flex-col items-start text-left p-5 h-full rounded-2xl bg-white/50 hover:bg-white border border-slate-200/60 hover:border-purple-200 transition-all shadow-sm hover:shadow-lg hover:-translate-y-0.5 overflow-hidden"
                         >
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
@@ -125,7 +108,7 @@ export const HomeHero: React.FC<HomeHeroProps> = ({
 
                         {/* Situație */}
                         <button
-                            onClick={handleSituatieExampleClick}
+                            onClick={onExampleClick}
                             className="group relative flex flex-col items-start text-left p-5 h-full rounded-2xl bg-white/50 hover:bg-white border border-slate-200/60 hover:border-emerald-200 transition-all shadow-sm hover:shadow-lg hover:-translate-y-0.5 overflow-hidden"
                         >
                             <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
