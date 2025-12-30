@@ -220,10 +220,11 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
           ) : (
             <Link
               to="/login"
-              className="ml-2 flex items-center gap-2 px-5 py-2.5 bg-brand-dark text-white text-sm font-medium rounded-lg hover:bg-brand-primary shadow-lg shadow-brand-dark/20 transition-all hover:-translate-y-0.5"
+              className="flex flex-col md:flex-row items-center gap-1 md:gap-2 text-gray-500 md:text-white text-[9px] md:text-sm font-medium md:ml-2 md:px-5 md:py-2.5 md:bg-brand-dark md:rounded-lg hover:text-brand-gold md:hover:text-white md:hover:bg-brand-primary md:shadow-lg md:shadow-brand-dark/20 transition-all md:hover:-translate-y-0.5"
             >
               <LogIn size={18} strokeWidth={1.5} />
-              <span>Intră în cont</span>
+              <span className="md:hidden">Cont</span>
+              <span className="hidden md:inline">Intră în cont</span>
             </Link>
           )}
         </div>
