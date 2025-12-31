@@ -30,9 +30,9 @@ const ArticlesSection: React.FC = () => {
             setLoading(true);
             try {
                 // Pass search query and selected category to the backend
-                const { articles: data, total } = await NewsApi.getArticles(currentPage, ITEMS_PER_PAGE, searchQuery, selectedCategory || undefined);
-                setArticles(data);
-                setTotalArticles(total);
+                const result = await NewsApi.getArticles(currentPage, ITEMS_PER_PAGE, searchQuery, selectedCategory || undefined);
+                setArticles(result.articles);
+                setTotalArticles(result.total);
             } catch (err) {
                 console.error("Failed to load articles", err);
                 setError("Nu am putut încărca știrile.");
