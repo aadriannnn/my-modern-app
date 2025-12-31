@@ -115,7 +115,7 @@ const ArticleDetailPage: React.FC = () => {
 
                         {/* Content */}
                         <article
-                            className="prose prose-lg md:prose-xl max-w-none text-gray-700 prose-headings:font-bold prose-headings:text-gray-900 prose-a:text-brand-accent prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-md"
+                            className="article-content prose prose-lg md:prose-xl max-w-none text-gray-700 prose-headings:font-bold prose-headings:text-gray-900 prose-a:text-brand-accent prose-a:no-underline hover:prose-a:underline prose-img:rounded-xl prose-img:shadow-md text-justify"
                             dangerouslySetInnerHTML={{ __html: article.content }}
                         />
 

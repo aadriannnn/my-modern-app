@@ -6,7 +6,8 @@
 
 body {
   @apply bg-legal-bg font-sans text-brand-text antialiased;
-  background-image: none; /* Remove radial gradient for cleaner look */
+  background-image: none;
+  /* Remove radial gradient for cleaner look */
 }
 
 /* Glassmorphism Utilities */
@@ -20,12 +21,15 @@ body {
 
 /* Hide scrollbar for horizontal tabs on mobile */
 .scrollbar-hide {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
 
 .scrollbar-hide::-webkit-scrollbar {
-  display: none; /* Chrome, Safari and Opera */
+  display: none;
+  /* Chrome, Safari and Opera */
 }
 
 /* Smooth Scrolling */
@@ -36,4 +40,12 @@ html {
 /* Custom Selection Color */
 ::selection {
   @apply bg-brand-accent/20 text-brand-accent;
+}
+
+
+/* Article Formatting */
+.article-content p {
+  text-indent: 2rem !important;
+  margin-bottom: 1rem;
+  text-align: justify;
 }
