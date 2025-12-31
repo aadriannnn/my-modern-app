@@ -18,12 +18,12 @@ const ProfessionalsSection: React.FC = () => {
         const loadData = async () => {
             try {
                 // Fetch authors and articles in parallel
-                const [authorsData, articlesData] = await Promise.all([
+                const [authorsData, articlesResult] = await Promise.all([
                     NewsApi.getAuthors(),
-                    NewsApi.getArticles(10) // Limit to 10 for the feed
+                    NewsApi.getArticles(1, 10) // Limit to 10 for the feed
                 ]);
                 setAuthors(authorsData);
-                setArticles(articlesData);
+                setArticles(articlesResult.articles);
             } catch (err) {
                 console.error("Failed to load professionals data", err);
                 setError("Nu am putut încărca datele secțiunii profesioniști.");
