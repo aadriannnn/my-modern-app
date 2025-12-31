@@ -801,3 +801,4 @@ export const removeDosarItem = async (caseId: string | number) => {
   if (!response.ok) throw new Error('Failed to remove item from dosar');
   return response.json();
 };
+// Force refresh

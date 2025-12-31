@@ -24,42 +24,15 @@ const ArticlesSection: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-    // Fetch data when page changes
+    // Fetch data when page, search, or category changes
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
             try {
-                // If we implemented search/filter on backend efficiently we would pass them here.
-                // Currently backend pagination is simple skip/limit on ALL articles.
-                // For client-side filtering + server-side pagination to work correctly,
-                // we'd need backend filtering.
-                // HOWEVER, the user asked to "reduce to 20 per page".
-                // If I paginate on backend, client-side filtering (search/category) will only search current page.
-                // This is a common pitfall.
-                // Given the constraint "make Google index them", server-side pagination is preferred for the main list.
-                // Search might need to either be client-side on fetched data (bad if mostly paginated) OR backend search.
-                // `LegalNewsRoutes` has a `/search` endpoint separately.
-                // `ArticlesSection` seems to combine browsing and local filtering?
-                // The current implementation does client-side filtering on ALL articles fetched (it used to fetch ALL).
-
-                // DECISION:
-                // 1. Fetch paginated data for the main list view (no search query).
-                // 2. If search/category is active, we might need to handle it differently.
-                // BUT `NewsApi.getArticles` now supports pagination.
-
-                const { articles: data, total } = await NewsApi.getArticles(currentPage, ITEMS_PER_PAGE);
+                // Pass search query and selected category to the backend
+                const { articles: data, total } = await NewsApi.getArticles(currentPage, ITEMS_PER_PAGE, searchQuery, selectedCategory || undefined);
                 setArticles(data);
                 setTotalArticles(total);
-
-                // If user filters client-side, it will only filter the visible 20.
-                // Ideally we should move filtering to backend or fetch all for filtering if not too huge.
-                // But 1700+ items is getting big for client-side potentially.
-                // For now, let's implement server pagination for the *default* view (latest news).
-                // If search is used, we might rely on the existing `/search` endpoint or just warn limitation.
-                // Actually the `ArticlesSection` used `NewsApi.getArticles()` (all) then filtered.
-                // With 1700 items, maybe fetching all is still okay? 1700 * ~2KB = 3.4MB. A bit heavy.
-                // The user specifically asked to "reduce to 20 per page".
-
             } catch (err) {
                 console.error("Failed to load articles", err);
                 setError("Nu am putut încărca știrile.");
@@ -68,44 +41,49 @@ const ArticlesSection: React.FC = () => {
             }
         };
 
-        loadData();
+        // Debounce search slightly to avoid too many requests while typing if desired,
+        // but for now relying on strict effect dependency.
+        const timeoutId = setTimeout(() => {
+            loadData();
+        }, 300); // Simple debounce
 
-        // Scroll to top on page change
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }, [currentPage]);
+        return () => clearTimeout(timeoutId);
+    }, [currentPage, searchQuery, selectedCategory]);
 
-    // Categories are derived from articles. If we only fetch 20, we won't see all categories.
-    // Ideally we should have a `getCategories` endpoint.
-    // For now, we'll try to keep existing behavior for `categories` logic?
-    // No, `categories` will now only show categories from the current page 20 articles.
-    // This is a compromise unless I add a `getCategories` endpoint.
-    // Let's stick to standard behavior: derived from data.
+    // Categories are derived from articles on the current page.
+    // Ideally we should have a `getCategories` endpoint to show all available categories even if not on page 1.
+    // For now, let's just stick to the 10 known broad categories we implemented server-side.
+    // Since we know the categories are fixed, we can hardcode them or just fetch them once.
+    // But since the current code derives them, let's keep it but note it only shows categories present in current view.
+    // Actually, user wants the dropdown to work. If we filter by 'Drept Penal', the dropdown works.
+    // But if we want to populate the dropdown initially, we need all categories.
+    // The previous implementation derived from loaded articles, which was fine when it loaded ALL.
+    // Now it loads 20. So the filter list might be empty or partial.
+    // FIX: Hardcode the known taxonomy for the filter dropdown to ensure all are selectable.
+    const KNOWN_CATEGORIES = [
+        "Dreptul Familiei și Violență Domestică",
+        "Drept Penal: Criminalitate Organizată și Trafic",
+        "Drept Penal: Corupție și Infracțiuni de Serviciu",
+        "Drept Penal: Infracțiuni Rutiere",
+        "Drept Penal: Infracțiuni contra Persoanei",
+        "Drept Penal: Infracțiuni contra Patrimoniului",
+        "Drept Penal: Infracțiuni Economice și Fals",
+        "Drept Civil și Administrativ",
+        "Drept Penal (General)",
+        "Jurisprudență (General)"
+    ].sort();
 
     const categories = useMemo(() => {
-        const cats = new Set<string>();
+        // Use known categories plus any others found (if any mismatch exists)
+        const cats = new Set<string>(KNOWN_CATEGORIES);
         articles.forEach(article => {
             article.categories?.forEach(c => cats.add(c));
-            article.tags?.forEach(t => cats.add(t));
         });
         return Array.from(cats).sort();
     }, [articles]);
 
-    const filteredArticles = useMemo(() => {
-        return articles.filter(article => {
-            const query = searchQuery.toLowerCase();
-            const matchesSearch = !query ||
-                article.title.toLowerCase().includes(query) ||
-                article.summary?.toLowerCase().includes(query) ||
-                article.description?.toLowerCase().includes(query) ||
-                (article.content && article.content.toLowerCase().includes(query)); // content might be truncated in list view? Model has it.
-
-            const matchesCategory = !selectedCategory ||
-                article.categories?.includes(selectedCategory) ||
-                article.tags?.includes(selectedCategory);
-
-            return matchesSearch && matchesCategory;
-        });
-    }, [articles, searchQuery, selectedCategory]);
+    // No more client-side filtering
+    const filteredArticles = articles;
 
     // Handlers
     const handlePageChange = (page: number) => {

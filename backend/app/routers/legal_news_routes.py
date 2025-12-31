@@ -47,14 +47,37 @@ def get_articles(
     response: Response,
     skip: int = 0,
     limit: int = 10,
+    q: Optional[str] = None,
+    category: Optional[str] = None,
     session: Session = Depends(get_session)
 ):
-    # Total count
-    total_statement = select(func.count(col(LegalNewsArticle.id)))
-    total = session.exec(total_statement).one()
+    query = select(LegalNewsArticle)
+
+    if q:
+        query = query.where(
+            or_(
+                col(LegalNewsArticle.title).ilike(f"%{q}%"),
+                col(LegalNewsArticle.summary).ilike(f"%{q}%"),
+                col(LegalNewsArticle.content).ilike(f"%{q}%")
+            )
+        )
+
+    if category:
+        # Cast to string to search within JSON array (works for both SQLite and Postgres in basic cases)
+        from sqlalchemy import String, cast
+        query = query.where(cast(col(LegalNewsArticle.categories), String).ilike(f"%{category}%"))
+
+    # Total count for pagination headers (must reflect filters)
+    # create a count query based on the filtered query
+    count_query = select(func.count()).select_from(query.subquery())
+    total = session.exec(count_query).one()
+    # If using SQLite simple count on subquery might be enough,
+    # but strictly speaking `select(func.count()).select_from(subquery)` is safer in general.
+
     response.headers["X-Total-Count"] = str(total)
 
-    statement = select(LegalNewsArticle).order_by(col(LegalNewsArticle.publishDate).desc()).offset(skip).limit(limit)
+    # Apply sort and pagination
+    statement = query.order_by(col(LegalNewsArticle.publishDate).desc()).offset(skip).limit(limit)
     return session.exec(statement).all()
 
 @router.get("/articles/{slug_or_id}", response_model=LegalNewsArticle)
