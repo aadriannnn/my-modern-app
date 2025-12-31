@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { NewsApi } from '../../lib/api-news';
 import { type LegalNewsArticle } from '../../types/news';
@@ -10,7 +10,7 @@ import Pagination from '../../components/ui/Pagination';
 
 const ArticlesSection: React.FC = () => {
     const [searchParams, setSearchParams] = useSearchParams();
-    const navigate = useNavigate();
+
 
     // Pagination State
     const pageParam = searchParams.get('page');
