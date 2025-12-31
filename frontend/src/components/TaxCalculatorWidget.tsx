@@ -188,6 +188,12 @@ const CapatCerereCard: React.FC<CapatCerereCardProps> = ({
 interface TaxCalculatorWidgetProps {
     caseData?: {
         obiect?: string;
+        sugestie_llm_taxa?: {
+            sugested_id_intern: string;
+            sugested_nume_standard: string;
+            error_message?: string;
+            [key: string]: any;
+        };
         [key: string]: any;
     };
     spetaId?: number;
@@ -197,10 +203,31 @@ const TaxCalculatorWidget: React.FC<TaxCalculatorWidgetProps> = ({ caseData, spe
     const [isExpanded, setIsExpanded] = useState(false);
     const [options, setOptions] = useState<TipCerereTaxaOption[]>([]);
 
+    // State Initializers
+    const getInitialCapete = (): CapatCerereInput[] => {
+        const initial: CapatCerereInput = { uniqueId: Date.now(), id_intern: null };
+        if (caseData?.sugestie_llm_taxa?.sugested_id_intern) {
+            initial.id_intern = caseData.sugestie_llm_taxa.sugested_id_intern;
+        }
+        return [initial];
+    };
+
+    const getInitialLlmSuggestion = (): LLMSuggestionInfo | null => {
+        if (caseData?.sugestie_llm_taxa) {
+            const suggestion = caseData.sugestie_llm_taxa;
+            return {
+                sugested_id_intern: suggestion.sugested_id_intern,
+                sugested_nume_standard: suggestion.sugested_nume_standard,
+                original_input_obiect: "Analiză automată (Pre-calculat)",
+                llm_raw_suggestion: JSON.stringify(suggestion),
+                error_message: suggestion.error_message
+            };
+        }
+        return null;
+    };
+
     // Form State
-    const [capeteCerere, setCapeteCerere] = useState<CapatCerereInput[]>([
-        { uniqueId: Date.now(), id_intern: null }
-    ]);
+    const [capeteCerere, setCapeteCerere] = useState<CapatCerereInput[]>(getInitialCapete);
     const [dateGenerale, setDateGenerale] = useState<DateGeneraleInput>({
         Filtru_Proces_Vechi: false,
         Aplica_Scutire: false
@@ -211,10 +238,10 @@ const TaxCalculatorWidget: React.FC<TaxCalculatorWidgetProps> = ({ caseData, spe
     const [taxaResult, setTaxaResult] = useState<TaxaResult | null>(null);
     const [error, setError] = useState<string | null>(null);
 
-    // LLM State - Initialize with case object if available
+    // LLM State
     const [obiectDosar, setObiectDosar] = useState(caseData?.obiect || "");
     const [isAnalyzingLLM, setIsAnalyzingLLM] = useState(false);
-    const [llmSuggestion, setLlmSuggestion] = useState<LLMSuggestionInfo | null>(null);
+    const [llmSuggestion, setLlmSuggestion] = useState<LLMSuggestionInfo | null>(getInitialLlmSuggestion);
 
     // Load options from API
     useEffect(() => {
@@ -231,19 +258,27 @@ const TaxCalculatorWidget: React.FC<TaxCalculatorWidgetProps> = ({ caseData, spe
         fetchOptions();
     }, []);
 
-    // Load pre-calculated suggestion if available
+    // Update state when caseData changes (for subsequent navigations)
     useEffect(() => {
         if (caseData?.sugestie_llm_taxa) {
             const suggestion = caseData.sugestie_llm_taxa;
-            // Map backend fields to frontend interface
             setLlmSuggestion({
-                sugested_id_intern: suggestion.id_intern,
-                sugested_nume_standard: suggestion.nume_standard,
+                sugested_id_intern: suggestion.sugested_id_intern,
+                sugested_nume_standard: suggestion.sugested_nume_standard,
                 original_input_obiect: "Analiză automată (Pre-calculat)",
                 llm_raw_suggestion: JSON.stringify(suggestion),
                 error_message: suggestion.error_message
             });
-            // Auto-populate input for visibility
+
+            // Update capete if singular and empty
+            setCapeteCerere(prev => {
+                const newCapete = [...prev];
+                if (newCapete.length === 1 && !newCapete[0].id_intern && !newCapete[0].llmSuggestionUserOverride) {
+                    newCapete[0] = { ...newCapete[0], id_intern: suggestion.sugested_id_intern };
+                }
+                return newCapete;
+            });
+
             if (!obiectDosar && caseData.obiect) {
                 setObiectDosar(caseData.obiect);
             }
@@ -357,14 +392,14 @@ const TaxCalculatorWidget: React.FC<TaxCalculatorWidgetProps> = ({ caseData, spe
             >
                 <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
 
-                    {/* AI Assistant Section */}
-                    <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-4 border border-indigo-100">
-                        <h3 className="text-sm font-bold text-indigo-900 uppercase tracking-wide mb-3 flex items-center">
-                            <Sparkles size={16} className="mr-2 text-indigo-600" />
-                            Asistent AI pentru Încadrare
-                        </h3>
-                        {/* Logic conditional: Ascunde input dacă avem sugestie pre-calculată */}
-                        {!caseData?.sugestie_llm_taxa ? (
+                    {/* AI Assistant Section - ONLY show if NO pre-calculated suggestion */}
+                    {!caseData?.sugestie_llm_taxa && (
+                        <div className="bg-gradient-to-r from-indigo-50 to-blue-50 rounded-xl p-4 border border-indigo-100">
+                            <h3 className="text-sm font-bold text-indigo-900 uppercase tracking-wide mb-3 flex items-center">
+                                <Sparkles size={16} className="mr-2 text-indigo-600" />
+                                Asistent AI pentru Încadrare
+                            </h3>
+
                             <div className="flex gap-2 mb-3">
                                 <input
                                     type="text"
@@ -384,32 +419,27 @@ const TaxCalculatorWidget: React.FC<TaxCalculatorWidgetProps> = ({ caseData, spe
                                     {isAnalyzingLLM ? 'Analizez...' : 'Sugerează Încadrarea'}
                                 </button>
                             </div>
-                        ) : (
-                            <div className="mb-3 text-sm text-indigo-700 bg-indigo-50 p-3 rounded-lg border border-indigo-100 flex items-center gap-2 animate-in fade-in slide-in-from-top-1">
-                                <Sparkles className="w-5 h-5 text-indigo-500 fill-indigo-100 flex-shrink-0" />
-                                <span className="font-medium">Această speță are o încadrare sugerată automat de AI (Pre-calculată).</span>
-                            </div>
-                        )}
 
-                        {llmSuggestion && (
-                            <div className={`mt-3 p-3 rounded-lg text-sm flex items-start gap-3 ${llmSuggestion.error_message ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-green-50 text-green-800 border border-green-100'}`}>
-                                {llmSuggestion.error_message ? (
-                                    <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
-                                ) : (
-                                    <CheckCircle size={18} className="mt-0.5 flex-shrink-0" />
-                                )}
-                                <div>
-                                    {llmSuggestion.error_message ? llmSuggestion.error_message : (
-                                        <>
-                                            <span className="font-semibold block mb-1">Sugestie acceptată:</span>
-                                            Sistemul sugerează categoria: <strong>{llmSuggestion.sugested_nume_standard || llmSuggestion.sugested_id_intern}</strong> based on "{llmSuggestion.original_input_obiect}".
-                                            <p className="text-xs text-green-600 mt-1">Această opțiune a fost aplicată automat la primul capăt de cerere (dacă nu era deja setat).</p>
-                                        </>
+                            {llmSuggestion && (
+                                <div className={`mt-3 p-3 rounded-lg text-sm flex items-start gap-3 ${llmSuggestion.error_message ? 'bg-red-50 text-red-700 border border-red-100' : 'bg-green-50 text-green-800 border border-green-100'}`}>
+                                    {llmSuggestion.error_message ? (
+                                        <AlertCircle size={18} className="mt-0.5 flex-shrink-0" />
+                                    ) : (
+                                        <CheckCircle size={18} className="mt-0.5 flex-shrink-0" />
                                     )}
+                                    <div>
+                                        {llmSuggestion.error_message ? llmSuggestion.error_message : (
+                                            <>
+                                                <span className="font-semibold block mb-1">Sugestie acceptată:</span>
+                                                Sistemul sugerează categoria: <strong>{llmSuggestion.sugested_nume_standard || llmSuggestion.sugested_id_intern}</strong> based on "{llmSuggestion.original_input_obiect}".
+                                                <p className="text-xs text-green-600 mt-1">Această opțiune a fost aplicată automat la primul capăt de cerere (dacă nu era deja setat).</p>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    )}
 
                     {/* Capete de Cerere */}
                     <div className="space-y-3">

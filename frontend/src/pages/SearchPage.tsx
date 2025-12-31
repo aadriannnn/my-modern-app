@@ -250,7 +250,8 @@ const SearchPage: React.FC = () => {
                                                 text_individualizare: candidate.text_individualizare || 'Nu există date',
                                                 text_doctrina: candidate.text_doctrina || 'Nu există date',
                                                 text_ce_invatam: candidate.text_ce_invatam || 'Nu există date',
-                                                Rezumat_generat_de_AI_Cod: candidate.Rezumat_generat_de_AI_Cod || 'Nu există date'
+                                                Rezumat_generat_de_AI_Cod: candidate.Rezumat_generat_de_AI_Cod || 'Nu există date',
+                                                sugestie_llm_taxa: candidate.sugestie_llm_taxa // Preserve tax suggestion
                                             };
                                         }
                                         return initialResults.find((item: any) => item.id === id);

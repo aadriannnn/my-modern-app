@@ -166,7 +166,13 @@ def _process_results(rows: List[Dict], score_metric: str = "semantic_distance") 
             "tip_act_juridic": obj.get('tip_act_juridic') or "",
             "tip_solutie": obj.get('tip_solutie') or "",
             "cereri_accesorii": obj.get('cereri_accesorii') or "",
+            "sugestie_llm_taxa": row.get('sugestie_llm_taxa'),
         }
+        if len(results) == 0 and row.get('sugestie_llm_taxa'):
+             logger.info(f"[DEBUG] Found sugestie_llm_taxa for case {row['id']}: {row.get('sugestie_llm_taxa')}")
+
+        if len(results) == 0:
+             logger.info(f"[DEBUG] constructed data keys: {list(data.keys())}")
         data['situatia_de_fapt_full'] = data.get('situatia_de_fapt', '')
         results.append({
             "id": row['id'],
@@ -183,6 +189,7 @@ def _process_results(rows: List[Dict], score_metric: str = "semantic_distance") 
             "materie": data['materie'],
             "cereri_accesorii": data['cereri_accesorii'],
             "score": score if not math.isnan(score) else 0.0,
+            "sugestie_llm_taxa": data.get('sugestie_llm_taxa'),
             "data": data
         })
     return results
@@ -245,6 +252,7 @@ def _search_postgres(session: Session, req: SearchRequest, embedding: List[float
         SELECT
             b.id,
             b.obj,
+            b.sugestie_llm_taxa,
             c.vector_distance,
             similarity({metadata_text_expr}, :q) AS metadata_similarity,
             (
@@ -346,6 +354,7 @@ def _search_by_keywords_postgres(session: Session, req: SearchRequest) -> List[D
         SELECT
             b.id,
             b.obj,
+            b.sugestie_llm_taxa,
             (
                 (CASE WHEN {obiect_expr} ~* :q_regex THEN {W_EXACT_OBIECT} ELSE 0 END) +
                 (CASE WHEN {materie_expr} ~* :q_regex THEN {W_MATERIE} ELSE 0 END) +
@@ -385,7 +394,7 @@ def _search_by_keywords_sqlite(session: Session, req: SearchRequest) -> List[Dic
     params["offset"] = offset
 
     query_str = f"""
-        SELECT id, obj
+        SELECT id, obj, sugestie_llm_taxa
         FROM blocuri b
         {where_sql}
         LIMIT :limit OFFSET :offset;
@@ -424,7 +433,7 @@ def _search_sqlite(session: Session, req: SearchRequest) -> List[Dict]:
     # In SQLite, ILIKE is case-insensitive by default for ASCII
     # We replace it for compatibility, though the behavior is the same.
     query_str = f"""
-        SELECT id, obj
+        SELECT id, obj, sugestie_llm_taxa
         FROM blocuri b
         {where_sql}
         LIMIT :limit OFFSET :offset;
@@ -470,7 +479,7 @@ def search_cases(session: Session, search_request: SearchRequest) -> List[Dict]:
 
         where_sql = f"WHERE {filter_clause}" if filter_clause else ""
         query_str = f"""
-            SELECT id, obj
+            SELECT id, obj, sugestie_llm_taxa
             FROM blocuri b
             {where_sql}
             LIMIT :limit OFFSET :offset;
@@ -773,6 +782,7 @@ def _search_pro_keyword(session: Session, req: SearchRequest) -> List[Dict]:
         SELECT
             b.id,
             b.obj,
+            b.sugestie_llm_taxa,
             ({components['total_occurrences']}) as relevance_score
         FROM blocuri b
         {where_sql}
@@ -808,7 +818,7 @@ def get_case_by_id(session: Session, case_id: int) -> Dict[str, Any] | None:
     # Adjustment: user code had obj->>'id' but schema used to be obj. Assuming obj is the column name.
     # User's pasted code: "SELECT id, obj FROM blocuri WHERE (obj->>'id')::int = :case_id"
     # I will stick to USER'S CODE EXACTLY to avoid schema mismatch guess.
-    query = text("SELECT id, obj FROM blocuri WHERE (obj->>'id')::int = :case_id")
+    query = text("SELECT id, obj, sugestie_llm_taxa FROM blocuri WHERE (obj->>'id')::int = :case_id")
     result = session.execute(query, {"case_id": case_id}).mappings().first()
 
     if not result:

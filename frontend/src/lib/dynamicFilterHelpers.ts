@@ -389,6 +389,10 @@ export const normalizeSearchResults = (results: any[]): any[] => {
     }
 
     if (newItem.data) {
+      // Ensure sugestie_llm_taxa is passed down from top level if not present in data
+      if (!data.sugestie_llm_taxa && newItem.sugestie_llm_taxa) {
+        data.sugestie_llm_taxa = newItem.sugestie_llm_taxa;
+      }
       newItem.data = data;
     } else {
       newItem = data;

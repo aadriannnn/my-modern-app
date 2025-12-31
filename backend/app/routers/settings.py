@@ -647,7 +647,7 @@ def _generate_llm_data(session: Session, ultima: Any, candidate_count: int = Non
 
     # Construim query-ul doar pentru cele 5 ID-uri
     placeholders = ', '.join([f':id_{i}' for i in range(len(speta_ids_to_process))])
-    query = text(f"SELECT id, obj FROM blocuri WHERE id IN ({placeholders})")
+    query = text(f"SELECT id, obj, sugestie_llm_taxa FROM blocuri WHERE id IN ({placeholders})")
 
     params = {f'id_{i}': speta_id for i, speta_id in enumerate(speta_ids_to_process)}
 
@@ -707,7 +707,8 @@ def _generate_llm_data(session: Session, ultima: Any, candidate_count: int = Non
             'obiect': obiect,
             'tip_act_juridic': tip_act_juridic,
             'materie': materie, # Added for smart filtering
-            'data': obj  # Include original obj as 'data' property
+            'data': obj,  # Include original obj as 'data' property
+            'sugestie_llm_taxa': row['sugestie_llm_taxa'] # Include explicit tax suggestion from column
         })
         spete_export.append(speta_item)
 

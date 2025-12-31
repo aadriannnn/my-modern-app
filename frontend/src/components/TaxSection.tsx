@@ -76,7 +76,11 @@ const TaxSection: React.FC<TaxSectionProps> = ({ caseData, spetaId }) => {
             </div>
 
             {/* Integrated Tax Calculator Widget */}
-            <TaxCalculatorWidget caseData={caseData} spetaId={spetaId} />
+            <TaxCalculatorWidget
+                key={`${caseData?.id || 'new'}-${caseData?.sugestie_llm_taxa?.sugested_id_intern || 'no-tax'}`}
+                caseData={caseData}
+                spetaId={spetaId}
+            />
 
             {/* General Info Note */}
             <div className="flex gap-2 p-4 bg-gray-50 rounded-lg text-sm text-gray-500 border border-gray-200">

@@ -124,7 +124,8 @@ export const search = async (payload: SearchParams) => {
     throw new ApiError(detail, response.status);
   }
 
-  return response.json();
+  const data = await response.json();
+  return data;
 };
 
 export const searchByIdsPaginated = async (
