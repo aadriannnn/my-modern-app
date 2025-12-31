@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { NewsApi } from '../../lib/api-news';
@@ -11,6 +11,8 @@ const ArticlesSection: React.FC = () => {
     const [articles, setArticles] = useState<LegalNewsArticle[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
     useEffect(() => {
         const loadData = async () => {
@@ -27,6 +29,33 @@ const ArticlesSection: React.FC = () => {
         loadData();
     }, []);
 
+    const categories = useMemo(() => {
+        const cats = new Set<string>();
+        articles.forEach(article => {
+            article.categories?.forEach(c => cats.add(c));
+            // Include tags as well if strictly needed, but let's stick to categories
+            article.tags?.forEach(t => cats.add(t));
+        });
+        return Array.from(cats).sort();
+    }, [articles]);
+
+    const filteredArticles = useMemo(() => {
+        return articles.filter(article => {
+            const query = searchQuery.toLowerCase();
+            const matchesSearch = !query ||
+                article.title.toLowerCase().includes(query) ||
+                article.summary?.toLowerCase().includes(query) ||
+                article.description?.toLowerCase().includes(query) ||
+                article.content.toLowerCase().includes(query);
+
+            const matchesCategory = !selectedCategory ||
+                article.categories?.includes(selectedCategory) ||
+                article.tags?.includes(selectedCategory);
+
+            return matchesSearch && matchesCategory;
+        });
+    }, [articles, searchQuery, selectedCategory]);
+
     if (loading) {
         return <div className="flex justify-center p-12"><Loader2 className="animate-spin text-brand-accent w-8 h-8" /></div>;
     }
@@ -35,14 +64,20 @@ const ArticlesSection: React.FC = () => {
         return <div className="text-center text-red-500 p-8">{error}</div>;
     }
 
-    const featuredArticle = articles.length > 0 ? articles[0] : null;
-    const feedArticles = articles.length > 1 ? articles.slice(1) : [];
+    const featuredArticle = filteredArticles.length > 0 ? filteredArticles[0] : null;
+    const feedArticles = filteredArticles.length > 1 ? filteredArticles.slice(1) : [];
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-8 font-headings uppercase">Toate Articolele</h1>
 
-            <SearchFilterBar />
+            <SearchFilterBar
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+                categories={categories}
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Main Content Column - Wider (9 cols) */}
@@ -59,8 +94,8 @@ const ArticlesSection: React.FC = () => {
                         ))}
                     </div>
 
-                    {articles.length === 0 && (
-                        <p className="text-center text-slate-500 py-10">Nu există articole de afișat.</p>
+                    {filteredArticles.length === 0 && (
+                        <p className="text-center text-slate-500 py-10">Nu există articole de afișat conform filtrelor selectate.</p>
                     )}
                 </div>
 
