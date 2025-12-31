@@ -330,10 +330,22 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                     {/* Lawyer Assistance Mobile Button */}
                     <button
                       onClick={() => window.open("/asistenta-avocat", "_blank")}
-                      className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors font-medium text-sm border border-purple-200"
+                      className="mt-4 w-full relative overflow-hidden group"
                     >
-                      <Gavel size={16} className="text-purple-600" />
-                      <span>Contactează Avocat</span>
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 opacity-90 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      <div className="relative flex items-center justify-center gap-3 px-6 py-3.5">
+                        <div className="p-1.5 bg-white/20 rounded-lg backdrop-blur-sm group-hover:scale-110 transition-transform duration-300">
+                          <Gavel size={18} className="text-white" strokeWidth={2.5} />
+                        </div>
+                        <div className="flex flex-col items-start">
+                          <span className="text-white font-bold text-sm tracking-wide">Contactează Avocat</span>
+                          <span className="text-white/90 text-xs font-medium">Asistență juridică specializată</span>
+                        </div>
+                        <svg className="ml-auto w-4 h-4 text-white/80 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </div>
+                      <div className="absolute inset-0 rounded-xl shadow-lg group-hover:shadow-xl transition-shadow duration-300"></div>
                     </button>
                   </div>
 
@@ -361,13 +373,29 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                       </nav>
 
                       {/* Lawyer Assistance Button in Sidebar */}
-                      <div className="mt-4 pt-4 border-t border-gray-200 w-full">
+                      <div className="mt-6 pt-6 border-t border-gray-200 w-full">
                         <button
                           onClick={() => window.open("/asistenta-avocat", "_blank")}
-                          className="w-full flex items-center gap-2 px-4 py-3 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition-colors font-medium text-sm border border-purple-200 group"
+                          className="w-full relative overflow-hidden group rounded-xl"
                         >
-                          <Gavel size={16} className="text-purple-600 group-hover:scale-110 transition-transform" />
-                          <span>Contactează Avocat</span>
+                          <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 opacity-90 group-hover:opacity-100 transition-opacity duration-300"></div>
+                          <div className="relative flex flex-col items-center gap-3 px-4 py-5">
+                            <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
+                              <Gavel size={24} className="text-white" strokeWidth={2.5} />
+                            </div>
+                            <div className="flex flex-col items-center gap-1">
+                              <span className="text-white font-bold text-base tracking-wide">Contactează Avocat</span>
+                              <span className="text-white/90 text-xs font-medium text-center leading-tight">Asistență juridică<br />specializată</span>
+                            </div>
+                            <div className="w-full h-px bg-white/20 my-1"></div>
+                            <div className="flex items-center gap-1.5 text-white/90 text-xs font-semibold group-hover:gap-2.5 transition-all duration-300">
+                              <span>Vezi detalii</span>
+                              <svg className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </div>
+                          </div>
+                          <div className="absolute inset-0 rounded-xl shadow-lg group-hover:shadow-2xl transition-shadow duration-300"></div>
                         </button>
                       </div>
                     </aside>

@@ -156,10 +156,10 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
 
               <button
                 onClick={onContribuieClick}
-                className={`hidden lg:flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg border border-gray-200 text-brand-dark hover:border-brand-gold hover:text-brand-gold transition-all`}
+                className="hidden lg:flex items-center gap-2 text-sm font-semibold px-5 py-2.5 rounded-lg border border-slate-900 text-slate-900 bg-transparent hover:bg-slate-50 hover:shadow-sm transition-all cursor-pointer"
               >
                 <PlusCircle size={18} strokeWidth={1.5} />
-                <span>Contribuie</span>
+                <span>Adaugă speță</span>
               </button>
             </>
           ) : (

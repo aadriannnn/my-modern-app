@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import type { Filters, SelectedFilters, FilterItem } from '../types';
 import { ChevronDown, X, ChevronLeft, ChevronRight, Check, Gavel, Mail, Edit2 } from 'lucide-react';
 import Advertisement from './Advertisement';
-import avocat1 from '../assets/reclama/avocat1.jpg';
 
 interface LeftSidebarProps {
   filters: Filters | null;
@@ -263,7 +262,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
         </button>
       </div>
 
-      <Advertisement imageSrc={avocat1} altText="Reclamă avocat" />
+      <Advertisement imageSrc="/data/legal_news/images/ICI.jpg" altText="ICI București - Institutul Național de Cercetare-Dezvoltare în Informatică" link="https://www.ici.ro/ro/" />
 
     </div>
   );

@@ -15,6 +15,11 @@ const Footer: React.FC = () => {
                             <span className="text-2xl font-serif font-bold text-white">LegeaAplicata</span>
                             <span className="block text-xs text-brand-gold mt-1 uppercase tracking-widest">Legal Intelligence</span>
                         </Link>
+                        <div className="mb-6">
+                            <Link to="/despre-noi" className="text-sm font-bold text-gray-300 hover:text-brand-gold transition-colors flex items-center gap-2">
+                                Despre Noi
+                            </Link>
+                        </div>
                         <p className="text-gray-400 text-sm leading-relaxed mb-6">
                             VERDICT LINE S.R.L. - Soluții avansate de cercetare juridică și analiză de spețe.
                             CUI 50104199.
@@ -47,6 +52,7 @@ const Footer: React.FC = () => {
                             <li><Link to="/cookies" className="hover:text-brand-gold transition-colors">Politica Cookies</Link></li>
                             <li><Link to="/gdpr" className="hover:text-brand-gold transition-colors">GDPR</Link></li>
                             <li><Link to="/help-center" className="hover:text-brand-gold transition-colors">Centru de Ajutor</Link></li>
+                            <li><Link to="/harta-site" className="hover:text-brand-gold transition-colors">Harta Site</Link></li>
                         </ul>
                     </div>
 

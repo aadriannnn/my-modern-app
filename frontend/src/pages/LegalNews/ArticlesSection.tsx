@@ -70,12 +70,22 @@ const ArticlesSection: React.FC = () => {
                     <div className="bg-white rounded-[10px] shadow-sm border border-gray-100 p-6 flex flex-col items-center justify-center text-center">
                         <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Parteneri</h4>
                         <div className="w-full bg-white rounded-lg flex flex-col items-center justify-center group hover:bg-slate-50 transition-colors cursor-pointer border border-transparent">
-                            <div className="text-center">
-                                <img
-                                    src="/data/legal_news/images/ICI.jpg"
-                                    alt="ICI București"
-                                    className="w-full h-auto object-contain mb-4 rounded-md"
-                                />
+                            <div className="text-center w-full">
+                                <div className="w-full max-w-[280px] mx-auto mb-4">
+                                    <a
+                                        href="https://www.ici.ro/ro/"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block hover:opacity-80 transition-opacity"
+                                    >
+                                        <img
+                                            src="/data/legal_news/images/ICI.jpg"
+                                            alt="ICI București"
+                                            className="w-full h-auto object-contain rounded-md"
+                                            style={{ aspectRatio: '4/3' }}
+                                        />
+                                    </a>
+                                </div>
                                 <h5 className="text-xs font-bold text-slate-700 mb-2">ICI București</h5>
                                 <p className="text-[10px] text-slate-400 leading-relaxed text-justify">
                                     Institutul Național de Cercetare-Dezvoltare în Informatică este cea mai importantă unitate de cercetare și inovare în domeniul Tehnologiilor Informației și Comunicărilor (TIC) din România. Fondat în 1970, institutul funcționează sub coordonarea Guvernului României.

@@ -18,6 +18,7 @@ import CompleteProfilePage from './pages/CompleteProfilePage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import VerifyEmailPage from './pages/VerifyEmailPage';
+import AboutPage from './pages/AboutPage';
 
 import { AuthProvider } from './context/AuthContext';
 import GridTestsPage from './pages/GridTestsPage';
@@ -26,6 +27,7 @@ import PricingPage from './pages/PricingPage';
 import TaxaTimbruPage from './pages/TaxaTimbruPage';
 import LawyerAssistancePage from './pages/LawyerAssistancePage';
 import ContactPage from './pages/ContactPage';
+import Sitemap from './pages/Sitemap';
 
 
 import LegalNewsPage from './pages/LegalNews/LegalNewsPage';
@@ -65,6 +67,8 @@ const App: React.FC = () => {
           <Route path="/taxa-timbru" element={<TaxaTimbruPage />} />
           <Route path="/asistenta-avocat" element={<LawyerAssistancePage />} />
           <Route path="/contact" element={<ContactPage />} />
+          <Route path="/despre-noi" element={<AboutPage />} />
+          <Route path="/harta-site" element={<Sitemap />} />
 
           {/* Legal News Routes */}
           {/* Legal News Routes */}
