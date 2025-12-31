@@ -1,296 +1,310 @@
-import React, { useState } from 'react';
-import { Mail, Phone, MapPin, Facebook, Linkedin, Twitter, Loader2, ArrowLeft } from 'lucide-react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { useDosar } from '../context/DosarContext';
+import { Shield, Lock, Cpu, Scale, FileText, Calculator, Search, Download, CheckCircle } from 'lucide-react';
 import SEOHead from '../components/SEOHead';
+import './LandingPage.css';
 
-const ContactPage: React.FC = () => {
-    const { showToast } = useDosar();
-    const [isLoading, setIsLoading] = useState(false);
-    const [formData, setFormData] = useState({
-        name: '',
-        email: '',
-        message: ''
-    });
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!formData.name || !formData.email || !formData.message) {
-            showToast('Vă rugăm să completați toate câmpurile obligatorii.', 'error');
-            return;
-        }
-
-        if (formData.message.length < 10) {
-            showToast('Mesajul trebuie să conțină cel puțin 10 caractere.', 'error');
-            return;
-        }
-
-        setIsLoading(true);
-
-        try {
-            // Use relative path to avoid double-prefix issues if proxy is used
-            const response = await fetch('/api/contact/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData),
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                showToast('Mesajul a fost trimis cu succes!', 'success');
-                setFormData({ name: '', email: '', message: '' });
-            } else {
-                showToast(data.detail || 'A apărut o eroare la trimiterea mesajului.', 'error');
-            }
-        } catch (error) {
-            console.error('Error sending contact message:', error);
-            showToast('A apărut o eroare de conexiune. Vă rugăm să încercați din nou.', 'error');
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Structured data for contact page
-    const contactPageStructuredData = [
-        {
-            "@context": "https://schema.org",
-            "@type": "ContactPage",
-            "@id": "https://chat.legeaaplicata.ro/contact#contactpage",
-            "url": "https://chat.legeaaplicata.ro/contact",
-            "name": "Contact - LegeaAplicata",
-            "description": "Contactați echipa LegeaAplicata pentru întrebări, asistență sau parteneriate. Suntem aici să vă ajutăm."
-        },
-        {
-            "@context": "https://schema.org",
-            "@type": "LocalBusiness",
-            "@id": "https://chat.legeaaplicata.ro/#localbusiness",
-            "name": "LegeaAplicata",
-            "description": "Platformă profesională de cercetare juridică cu inteligență artificială",
-            "url": "https://chat.legeaaplicata.ro",
-            "telephone": "+40-751-661-066",
-            "email": "contact@legeaaplicata.ro",
-            "address": {
-                "@type": "PostalAddress",
-                "streetAddress": "Str. DRM. DÂRVARI, Nr. 34A",
-                "addressLocality": "București",
-                "addressRegion": "Sector 5",
-                "addressCountry": "RO"
+const LandingPage: React.FC = () => {
+    // SEO Structured Data for Landing Page
+    const structuredData = {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Juridic AI – Local",
+        "applicationCategory": "LegalService",
+        "operatingSystem": "Windows, macOS, Linux",
+        "description": "Inteligență artificială juridică 100% offline și confidențială. Analizează cazuri și calculează taxe juridice direct pe propriul hardware, fără cloud sau procesare externă.",
+        "offers": [
+            {
+                "@type": "Offer",
+                "name": "Demo Web",
+                "price": "0",
+                "priceCurrency": "RON",
+                "description": "Versiune demo gratuită care rulează în browser, cu sesiune efemeră fără salvare de date."
             },
-            "geo": {
-                "@type": "GeoCoordinates",
-                "latitude": "44.436353",
-                "longitude": "26.096303"
+            {
+                "@type": "Offer",
+                "name": "Versiune Desktop Offline",
+                "priceCurrency": "RON",
+                "description": "Versiune completă 100% offline cu procesare locală, stocare criptată și bază de date completă.",
+                "availability": "https://schema.org/PreOrder"
             },
-            "openingHoursSpecification": {
-                "@type": "OpeningHoursSpecification",
-                "dayOfWeek": [
-                    "Monday",
-                    "Tuesday",
-                    "Wednesday",
-                    "Thursday",
-                    "Friday"
-                ],
-                "opens": "09:00",
-                "closes": "18:00"
+            {
+                "@type": "Offer",
+                "name": "Ediție Enterprise",
+                "priceCurrency": "RON",
+                "description": "Versiune premium cu dataset extins, LLM avansat și personalizare pentru cabinete și instituții.",
+                "availability": "https://schema.org/PreOrder"
             }
-        }
-    ];
+        ],
+        "featureList": [
+            "Procesare 100% offline, fără internet",
+            "Model AI proprietar, datele nu antrenează modelul",
+            "Zero amprentă digitală - fără cookie-uri, logging sau tracking",
+            "Căutare cazuri similare în jurisprudență română",
+            "Detectare automată prevederi legale",
+            "Generare documente juridice",
+            "Calcul automat taxe judiciare"
+        ],
+        "softwareVersion": "2.0",
+        "inLanguage": "ro",
+        "releaseNotes": "Versiune offline cu confidențialitate maximă pentru profesioniști în drept",
+        "screenshot": "https://chat.legeaaplicata.ro/src/assets/icons/logo.png"
+    };
 
     return (
-        <div className="min-h-screen bg-gray-50 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+        <div className="landing-page">
             <SEOHead
-                title="Contact"
-                description="Contactați echipa LegeaAplicata pentru întrebări, asistență sau parteneriate. Telefon: 0751 661 066, Email: contact@legeaaplicata.ro. Sediu: București, Sector 5."
-                keywords="contact LegeaAplicata, suport clienți juridic, asistență platiformă legală, contact avocat România, legal tech support"
-                canonicalUrl="https://chat.legeaaplicata.ro/contact"
-                structuredData={contactPageStructuredData}
+                title="Juridic AI Local - Inteligență Artificială Juridică 100% Offline și Confidențială"
+                description="Inteligență artificială juridică 100% offline pentru avocați și jurisconsulți. Analizează cazuri, calculează taxe juridice, generează documente - totul pe propriul tău hardware, fără cloud. Zero tracking, confidențialitate maximă."
+                keywords="AI juridic offline, inteligență artificială juridică, cercetare juridică offline, confidențialitate juridică maximă, legal AI local, asistent juridic AI offline, jurisprudență offline, fără cloud legal, GDPR compliant legal AI"
+                ogTitle="Juridic AI Local - AI Juridic 100% Offline și Confidențial"
+                ogDescription="Prima platformă de inteligență artificială juridică 100% offline. Procesare locală, zero cloud, confidențialitate totală pentru profesioniști în drept."
+                ogImage="https://chat.legeaaplicata.ro/src/assets/icons/logo.png"
+                ogUrl="https://chat.legeaaplicata.ro/landing"
+                canonicalUrl="https://chat.legeaaplicata.ro/landing"
+                structuredData={structuredData}
             />
-            <div className="max-w-7xl mx-auto">
-                <div className="mb-8">
-                    <Link
-                        to="/"
-                        className="inline-flex items-center gap-2 text-gray-500 hover:text-brand-blue transition-colors px-4 py-2 rounded-lg hover:bg-white/50 backdrop-blur-sm"
-                    >
-                        <ArrowLeft className="w-5 h-5" />
-                        <span className="font-medium">Înapoi la prima pagină</span>
-                    </Link>
-                </div>
-                <div className="text-center mb-12">
-                    <p className="mt-2 text-lg text-gray-600">
-                        Aveți întrebări sau aveți nevoie de asistență? Contactați echipa Legea Aplicata.
-                    </p>
-                </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Contact Information Column */}
-                    <div className="bg-white rounded-2xl shadow-xl overflow-hidden p-8 flex flex-col justify-between">
-                        <div>
-                            <h2 className="text-3xl font-bold text-gray-900 mb-8">Informații Contact</h2>
-
-                            <div className="space-y-6">
-                                <div className="flex items-start space-x-4">
-                                    <div className="bg-brand-gold p-3 rounded-lg text-white">
-                                        <MapPin className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <p className="font-medium text-gray-900">Adresă</p>
-                                        <p className="text-gray-600">Str. DRM. DÂRVARI, Nr. 34A, Sector 5, București</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-start space-x-4">
-                                    <div className="bg-brand-gold p-3 rounded-lg text-white">
-                                        <Phone className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <p className="font-medium text-gray-900">Telefon</p>
-                                        <p className="text-gray-600">0751 661 066</p>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-start space-x-4">
-                                    <div className="bg-brand-gold p-3 rounded-lg text-white">
-                                        <Mail className="w-6 h-6" />
-                                    </div>
-                                    <div>
-                                        <p className="font-medium text-gray-900">Email</p>
-                                        <p className="text-gray-600">contact@legeaaplicata.ro</p>
-                                        <p className="text-gray-500 text-sm">contact@verdictline.com</p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="mt-12">
-                                <h3 className="text-xl font-bold text-gray-900 mb-6">Urmăriți-ne</h3>
-                                <div className="flex space-x-6">
-                                    <a href="#" className="text-gray-400 hover:text-brand-blue transition-colors">
-                                        <Facebook className="w-8 h-8" />
-                                    </a>
-                                    <a href="#" className="text-gray-400 hover:text-brand-blue transition-colors">
-                                        <Linkedin className="w-8 h-8" />
-                                    </a>
-                                    <a href="#" className="text-gray-400 hover:text-brand-blue transition-colors">
-                                        <Twitter className="w-8 h-8" />
-                                    </a>
-                                </div>
-                            </div>
+            {/* Header */}
+            <header className="landing-header">
+                <div className="container">
+                    <div className="flex justify-between items-center">
+                        <div className="logo">
+                            <Shield className="w-8 h-8 text-emerald-500" />
+                            <span className="logo-text">Juridic AI – Local</span>
                         </div>
-
-                        {/* Map Placeholder */}
-                        <div className="mt-8 h-64 bg-gray-100 rounded-xl overflow-hidden relative group">
-                            <iframe
-                                src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2848.846142749712!2d26.09630327663456!3d44.43635310167576!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x40b1ff442e946a49%3A0xe549cd97b973562e!2sPia%C8%9Ba%20Universit%C4%83%C8%9Bii!5e0!3m2!1sen!2sro!4v1709825638575!5m2!1sen!2sro"
-                                width="100%"
-                                height="100%"
-                                style={{ border: 0 }}
-                                allowFullScreen
-                                loading="lazy"
-                                referrerPolicy="no-referrer-when-downgrade"
-                            ></iframe>
-                            <div className="absolute inset-x-0 bottom-4 text-center pointer-events-none">
-                                <span className="bg-white/90 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-medium text-gray-700 shadow-sm">
-                                    Afișați harta mărită
-                                </span>
-                            </div>
-                        </div>
+                        <a href="#contact" className="btn btn-secondary">
+                            Contact / Versiune Offline
+                        </a>
                     </div>
+                </div>
+            </header>
 
-                    {/* Contact Form Column */}
-                    <div className="bg-white rounded-2xl shadow-xl p-8">
-                        <div className="mb-8">
-                            <h2 className="text-3xl font-bold text-gray-900">Trimiteți-ne un mesaj</h2>
-                        </div>
-
-                        <form onSubmit={handleSubmit} className="space-y-6">
-                            <div>
-                                <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Nume <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="text"
-                                    id="name"
-                                    name="name"
-                                    required
-                                    value={formData.name}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-shadow outline-none"
-                                    placeholder="Numele dvs. complet"
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Email <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="email"
-                                    id="email"
-                                    name="email"
-                                    required
-                                    value={formData.email}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-shadow outline-none"
-                                    placeholder="adresa.dvs@email.com"
-                                />
-                            </div>
-
-                            <div>
-                                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
-                                    Mesaj <span className="text-red-500">*</span>
-                                </label>
-                                <textarea
-                                    id="message"
-                                    name="message"
-                                    required
-                                    rows={6}
-                                    value={formData.message}
-                                    onChange={handleChange}
-                                    className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-shadow outline-none resize-none"
-                                    placeholder="Mesajul dvs."
-                                ></textarea>
-                            </div>
-
-                            <button
-                                type="submit"
-                                disabled={isLoading}
-                                className="w-full bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 font-semibold py-4 px-6 rounded-lg transition-all duration-200 flex items-center justify-center space-x-2 shadow-sm"
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 className="w-5 h-5 animate-spin" />
-                                        <span>Se trimite...</span>
-                                    </>
-                                ) : (
-                                    <span>Trimite Mesaj</span>
-                                )}
-                            </button>
-
-                            <p className="text-xs text-gray-500 text-center mt-4">
-                                Acest site este protejat de reCAPTCHA și se aplică{' '}
-                                <a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer" className="text-brand-blue hover:underline">
-                                    Politica de confidențialitate
-                                </a>{' '}
-                                și{' '}
-                                <a href="https://policies.google.com/terms" target="_blank" rel="noopener noreferrer" className="text-brand-blue hover:underline">
-                                    Termenii și condițiile
-                                </a>{' '}
-                                Google.
+            {/* Hero Section */}
+            <section className="hero">
+                <div className="container">
+                    <div className="hero-content">
+                        <div className="hero-text">
+                            <h1 className="hero-title animate-slide-up">
+                                Inteligență Artificială Juridică.<br />
+                                100% Offline. 100% Confidențial.
+                            </h1>
+                            <p className="hero-subtitle animate-slide-up" style={{ animationDelay: '0.2s' }}>
+                                Analizează cazuri și calculează taxe juridice direct pe propriul tău hardware.
+                                Fără cloud. Fără scurgeri de date. Fără procesare externă.
                             </p>
-                        </form>
+                            <div className="hero-cta animate-slide-up" style={{ animationDelay: '0.4s' }}>
+                                <Link to="/" className="btn btn-primary btn-large">
+                                    Încearcă Demo-ul Web
+                                </Link>
+                                <p className="disclaimer">
+                                    Sesiune efemeră — toate datele sunt șterse automat la refresh
+                                </p>
+                            </div>
+                        </div>
+                        <div className="hero-visual animate-fade-in" style={{ animationDelay: '0.3s' }}>
+                            <div className="security-illustration">
+                                <div className="shield-wrapper animate-float">
+                                    <Shield className="shield-icon" />
+                                    <Lock className="lock-icon" />
+                                </div>
+                                <div className="particles">
+                                    <span className="particle"></span>
+                                    <span className="particle"></span>
+                                    <span className="particle"></span>
+                                    <span className="particle"></span>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </section>
+
+            {/* Security Pillars */}
+            <section className="pillars">
+                <div className="container">
+                    <div className="pillars-grid">
+                        <div className="pillar animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                            <div className="pillar-icon">
+                                <Cpu className="w-12 h-12" />
+                            </div>
+                            <h3 className="pillar-title">Procesare Locală</h3>
+                            <p className="pillar-text">
+                                Rulează în totalitate pe dispozitivul tău. Internet nu este necesar.
+                            </p>
+                        </div>
+                        <div className="pillar animate-slide-up" style={{ animationDelay: '0.2s' }}>
+                            <div className="pillar-icon pillar-icon-navy">
+                                <Shield className="w-12 h-12" />
+                            </div>
+                            <h3 className="pillar-title">Model AI Proprietar</h3>
+                            <p className="pillar-text">
+                                Nu se bazează pe LLM-uri publice. Datele tale nu antrenează niciodată modelul nostru.
+                            </p>
+                        </div>
+                        <div className="pillar animate-slide-up" style={{ animationDelay: '0.3s' }}>
+                            <div className="pillar-icon">
+                                <Lock className="w-12 h-12" />
+                            </div>
+                            <h3 className="pillar-title">Zero Amprentă Digitală</h3>
+                            <p className="pillar-text">
+                                Confidențialitate maximă cu procesare locală.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Comparison Section */}
+            <section className="comparison">
+                <div className="container">
+                    <h2 className="section-title">Alege Versiunea Potrivită</h2>
+                    <div className="comparison-grid">
+                        {/* Web Demo */}
+                        <div className="comparison-card">
+                            <div className="card-header">
+                                <h3 className="card-title">Demo Web</h3>
+                                <span className="badge badge-free">Gratuit</span>
+                            </div>
+                            <ul className="feature-list">
+                                <li><CheckCircle className="w-5 h-5" /> Rulează în browser</li>
+                                <li><CheckCircle className="w-5 h-5" /> Necesită internet</li>
+                                <li><CheckCircle className="w-5 h-5" /> Nicio dată salvată (totul șters la refresh)</li>
+                                <li><CheckCircle className="w-5 h-5" /> Motor AI ușor</li>
+                                <li><CheckCircle className="w-5 h-5" /> Pur pentru testare</li>
+                            </ul>
+                            <Link to="/" className="btn btn-outline">Încearcă Acum</Link>
+                        </div>
+
+                        {/* Desktop Full */}
+                        <div className="comparison-card comparison-card-featured">
+                            <div className="featured-badge">Recomandat</div>
+                            <div className="card-header">
+                                <h3 className="card-title">Versiune Desktop Completă</h3>
+                                <span className="badge badge-pro">Offline</span>
+                            </div>
+                            <ul className="feature-list">
+                                <li><CheckCircle className="w-5 h-5" /> 100% offline, air-gapped</li>
+                                <li><CheckCircle className="w-5 h-5" /> Stocare locală criptată</li>
+                                <li><CheckCircle className="w-5 h-5" /> Putere maximă de procesare</li>
+                                <li><CheckCircle className="w-5 h-5" /> Bază de date completă de cazuri juridice</li>
+                                <li><CheckCircle className="w-5 h-5" /> Flux de lucru instantaneu</li>
+                                <li><CheckCircle className="w-5 h-5" /> Livrat doar la cerere</li>
+                                <li><CheckCircle className="w-5 h-5" /> Include actualizări și mentenanță</li>
+                            </ul>
+                            <a href="#contact" className="btn btn-primary">Solicită Ofertă & Pachet Instalare</a>
+                        </div>
+
+                        {/* Enterprise */}
+                        <div className="comparison-card">
+                            <div className="card-header">
+                                <h3 className="card-title">Ediție Enterprise</h3>
+                                <span className="badge badge-enterprise">Premium</span>
+                            </div>
+                            <ul className="feature-list">
+                                <li><CheckCircle className="w-5 h-5" /> Tot din versiunea Desktop +</li>
+                                <li><CheckCircle className="w-5 h-5" /> Dataset jurisprudență mult mai amplu</li>
+                                <li><CheckCircle className="w-5 h-5" /> Bibliotecă de cazuri actualizată periodic</li>
+                                <li><CheckCircle className="w-5 h-5" /> LLM avansat de ultima generație pentru juridic</li>
+                                <li><CheckCircle className="w-5 h-5" /> Personalizare opțională pentru cabinete</li>
+                                <li><CheckCircle className="w-5 h-5" /> Scalabil pentru instituții</li>
+                            </ul>
+                            <a href="#contact" className="btn btn-outline">Contactează-ne</a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Features Grid */}
+            <section className="features">
+                <div className="container">
+                    <h2 className="section-title">Capabilități Avansate</h2>
+                    <div className="features-grid">
+                        <div className="feature-card animate-slide-up">
+                            <Scale className="feature-icon" />
+                            <h3 className="feature-title">Căutare Cazuri Similare</h3>
+                            <p className="feature-text">
+                                Găsește rapid jurisprudență relevantă cu AI antrenat pe legislația română.
+                            </p>
+                        </div>
+                        <div className="feature-card animate-slide-up" style={{ animationDelay: '0.1s' }}>
+                            <FileText className="feature-icon" />
+                            <h3 className="feature-title">Detecție Prevederi Legale</h3>
+                            <p className="feature-text">
+                                Identifică automat articolele și normele legale aplicabile cazului tău.
+                            </p>
+                        </div>
+                        <div className="feature-card animate-slide-up" style={{ animationDelay: '0.2s' }}>
+                            <Download className="feature-icon" />
+                            <h3 className="feature-title">Documente Juridice Auto-generate</h3>
+                            <p className="feature-text">
+                                Generează cereri, memorii și alte acte juridice instant pe baza cazului.
+                            </p>
+                        </div>
+                        <div className="feature-card animate-slide-up" style={{ animationDelay: '0.3s' }}>
+                            <Calculator className="feature-icon" />
+                            <h3 className="feature-title">Calcul Automat Taxe Judiciare</h3>
+                            <p className="feature-text">
+                                Calculează precis toate taxele și cheltuielile de judecată aplicabile.
+                            </p>
+                        </div>
+                        <div className="feature-card animate-slide-up" style={{ animationDelay: '0.4s' }}>
+                            <Search className="feature-icon" />
+                            <h3 className="feature-title">Motor de Căutare Local Avansat</h3>
+                            <p className="feature-text">
+                                Caută instant în întreaga bază de date locală fără latență de rețea.
+                            </p>
+                        </div>
+                        <div className="feature-card animate-slide-up" style={{ animationDelay: '0.5s' }}>
+                            <Shield className="feature-icon" />
+                            <h3 className="feature-title">Confidențialitate Totală</h3>
+                            <p className="feature-text">
+                                Toate documentele rămân exclusiv pe sistemul tău. Zero risc de expunere.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+
+
+            {/* Footer */}
+            <footer className="landing-footer" id="contact">
+                <div className="container">
+                    <div className="footer-content">
+                        <div className="footer-column">
+                            <h4 className="footer-title">Juridic AI – Local</h4>
+                            <p className="footer-text">
+                                Inteligența artificială pentru profesioniști în drept.<br />
+                                Securitate maximă. Performanță maximă.
+                            </p>
+                        </div>
+                        <div className="footer-column">
+                            <h4 className="footer-title">Contact</h4>
+                            <p className="footer-text">
+                                Pentru versiunea Desktop sau Enterprise,<br />
+                                contactează-ne la: <a href="mailto:contact@juridicai.ro" className="footer-link">contact@juridicai.ro</a>
+                            </p>
+                        </div>
+                        <div className="footer-column">
+                            <h4 className="footer-title">Link-uri Rapide</h4>
+                            <ul className="footer-links">
+                                <li><Link to="/terms">Termeni și Condiții</Link></li>
+                                <li><Link to="/privacy-policy">Politica de Confidențialitate</Link></li>
+                                <li><Link to="/">Demo Web</Link></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div className="footer-bottom">
+                        <p className="footer-disclaimer">
+                            © 2025 Juridic AI – Local. Toate drepturile rezervate.<br />
+                            Confidențialitate și performanță pentru profesioniști.
+                        </p>
+                    </div>
+                </div>
+            </footer>
         </div>
     );
 };
 
-export default ContactPage;
+export default LandingPage;

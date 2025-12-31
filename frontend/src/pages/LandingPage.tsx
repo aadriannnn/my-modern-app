@@ -56,7 +56,7 @@ const LandingPage: React.FC = () => {
             <SEOHead
                 title="Juridic AI Local - Inteligență Artificială Juridică 100% Offline și Confidențială"
                 description="Inteligență artificială juridică 100% offline pentru avocați și jurisconsulți. Analizează cazuri, calculează taxe juridice, generează documente - totul pe propriul tău hardware, fără cloud. Zero tracking, confidențialitate maximă."
-                keywords="AI juridic offline, inteligență artificială juridică, cercetare juridică offline, confidențialitate juridică maximă, legal AI local, avocat AI offline, jurisprudență offline, fără cloud legal, GDPR compliant legal AI"
+                keywords="AI juridic offline, inteligență artificială juridică, cercetare juridică offline, confidențialitate juridică maximă, legal AI local, asistent juridic AI offline, jurisprudență offline, fără cloud legal, GDPR compliant legal AI"
                 ogTitle="Juridic AI Local - AI Juridic 100% Offline și Confidențial"
                 ogDescription="Prima platformă de inteligență artificială juridică 100% offline. Procesare locală, zero cloud, confidențialitate totală pentru profesioniști în drept."
                 ogImage="https://chat.legeaaplicata.ro/src/assets/icons/logo.png"

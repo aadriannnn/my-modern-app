@@ -338,7 +338,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                           <Gavel size={18} className="text-white" strokeWidth={2.5} />
                         </div>
                         <div className="flex flex-col items-start">
-                          <span className="text-white font-bold text-sm tracking-wide">Contactează Avocat</span>
+                          <span className="text-white font-bold text-sm tracking-wide">Asistență Juridică</span>
                           <span className="text-white/90 text-xs font-medium">Asistență juridică specializată</span>
                         </div>
                         <svg className="ml-auto w-4 h-4 text-white/80 group-hover:translate-x-1 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -384,7 +384,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                               <Gavel size={24} className="text-white" strokeWidth={2.5} />
                             </div>
                             <div className="flex flex-col items-center gap-1">
-                              <span className="text-white font-bold text-base tracking-wide">Contactează Avocat</span>
+                              <span className="text-white font-bold text-base tracking-wide">Asistență Juridică</span>
                               <span className="text-white/90 text-xs font-medium text-center leading-tight">Asistență juridică<br />specializată</span>
                             </div>
                             <div className="w-full h-px bg-white/20 my-1"></div>

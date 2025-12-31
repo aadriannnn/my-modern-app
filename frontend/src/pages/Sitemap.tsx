@@ -162,7 +162,7 @@ const Sitemap: React.FC = () => {
                             </h4>
                             <ul className="space-y-3">
                                 <li><Link to="/abonamente" className="text-gray-600 hover:text-brand-primary hover:translate-x-1 transition-all inline-block">Planuri și Prețuri</Link></li>
-                                <li><Link to="/asistenta-avocat" className="text-gray-600 hover:text-brand-primary hover:translate-x-1 transition-all inline-block">Asistență Avocat</Link></li>
+                                <li><Link to="/asistenta-avocat" className="text-gray-600 hover:text-brand-primary hover:translate-x-1 transition-all inline-block">Asistență Juridică</Link></li>
                                 <li><Link to="/taxa-timbru" className="text-gray-600 hover:text-brand-primary hover:translate-x-1 transition-all inline-block">Calculator Taxă Timbru</Link></li>
                                 <li><Link to="/grid-tests" className="text-gray-600 hover:text-brand-primary hover:translate-x-1 transition-all inline-block">Teste Grilă</Link></li>
                                 <li><Link to="/test-analysis" className="text-gray-600 hover:text-brand-primary hover:translate-x-1 transition-all inline-block">Analiză Teste</Link></li>

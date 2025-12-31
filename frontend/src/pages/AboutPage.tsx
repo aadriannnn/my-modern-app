@@ -19,7 +19,7 @@ const AboutPage: React.FC = () => {
             "@type": "Person",
             "name": "Adrian Nicolau",
             "jobTitle": "Fondator & Dezvoltator LegeaAplicata",
-            "description": "Avocat și specialist IT specializat în soluții juridice cu inteligență artificială. Combină expertiza juridică cu competențe avansate în inginerie software pentru transformarea accesării justiției prin tehnologie.",
+            "description": "Jurist și specialist IT specializat în soluții juridice cu inteligență artificială. Combină expertiza juridică cu competențe avansate în inginerie software pentru transformarea accesării justiției prin tehnologie.",
             "telephone": "+40-751-661-066",
             "email": "adrian@legeaaplicata.ro",
             "url": "https://chat.legeaaplicata.ro/despre-noi",
@@ -33,7 +33,7 @@ const AboutPage: React.FC = () => {
             ],
             "hasOccupation": {
                 "@type": "Occupation",
-                "name": "Avocat și Dezvoltator Software",
+                "name": "Jurist și Dezvoltator Software",
                 "occupationLocation": {
                     "@type": "Country",
                     "name": "România"
@@ -53,7 +53,7 @@ const AboutPage: React.FC = () => {
             "@id": "https://chat.legeaaplicata.ro/despre-noi#webpage",
             "url": "https://chat.legeaaplicata.ro/despre-noi",
             "name": "Despre Noi - LegeaAplicata",
-            "description": "Cunoaște-l pe Adrian Nicolau, fondatorul LegeaAplicata, avocat și specialist IT specializat în soluții juridice cu inteligență artificială",
+            "description": "Cunoaște-l pe Adrian Nicolau, fondatorul LegeaAplicata, jurist și specialist IT specializat în soluții juridice cu inteligență artificială",
             "about": {
                 "@type": "Person",
                 "name": "Adrian Nicolau"
@@ -65,8 +65,8 @@ const AboutPage: React.FC = () => {
         <div className="min-h-screen bg-brand-dark text-white font-sans selection:bg-brand-gold selection:text-brand-dark">
             <SEOHead
                 title="Despre Noi - Adrian Nicolau"
-                description="Cunoaște-l pe Adrian Nicolau, fondatorul LegeaAplicata.ro. Avocat și specialist IT specializat în soluții juridice cu inteligență artificială. Combină expertiza juridică cu competențe avansate în inginerie software pentru a transforma accesul la justiție prin tehnologie."
-                keywords="Adrian Nicolau, avocat România, specialist IT juridic, AI juridic România, dezvoltator software juridic, LegeaAplicata fondator, inteligență artificială drept, legal tech România"
+                description="Cunoaște-l pe Adrian Nicolau, fondatorul LegeaAplicata.ro. Jurist și specialist IT specializat în soluții juridice cu inteligență artificială. Combină expertiza juridică cu competențe avansate în inginerie software pentru a transforma accesul la justiție prin tehnologie."
+                keywords="Adrian Nicolau, jurist România, specialist IT juridic, AI juridic România, dezvoltator software juridic, LegeaAplicata fondator, inteligență artificială drept, legal tech România"
                 canonicalUrl="https://chat.legeaaplicata.ro/despre-noi"
                 ogImage="https://chat.legeaaplicata.ro/data/legal_news/images/adriannicolau.jpg"
                 structuredData={aboutPageStructuredData}

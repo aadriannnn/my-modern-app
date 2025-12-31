@@ -233,7 +233,7 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
               <Gavel size={16} />
             </div>
             <div className="text-left">
-              <div className="text-sm font-bold text-gray-800 group-hover:text-purple-700 transition-colors">Asistență Avocat</div>
+              <div className="text-sm font-bold text-gray-800 group-hover:text-purple-700 transition-colors">Asistență Juridică</div>
               <div className="text-[10px] text-gray-500">Solicită ajutor juridic</div>
             </div>
           </div>

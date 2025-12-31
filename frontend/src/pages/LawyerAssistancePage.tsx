@@ -183,7 +183,7 @@ const LawyerAssistancePage: React.FC = () => {
                         </div>
                         <h2 className="text-3xl font-bold text-slate-900 mb-4">Cerere Trimisă!</h2>
                         <p className="text-slate-600 mb-8 text-lg">
-                            Am primit detaliile dumneavoastră. Un avocat partener va analiza solicitarea și vă va contacta în cel mai scurt timp posibil.
+                            Am primit detaliile dumneavoastră. Un specialist va analiza solicitarea și vă va contacta în cel mai scurt timp posibil.
                         </p>
                         <button
                             onClick={() => {
@@ -216,7 +216,7 @@ const LawyerAssistancePage: React.FC = () => {
         <div className="min-h-screen bg-brand-light flex flex-col font-sans">
             <SEOHead
                 title="Solicită Asistență Juridică | LegeaAplicata"
-                description="Conectați-vă cu un avocat profesionist pentru situația dumneavoastră juridică."
+                description="Conectați-vă cu un specialist juridic pentru situația dumneavoastră."
             />
             <Header onToggleMenu={() => { }} onContribuieClick={() => { }} />
 
@@ -230,7 +230,7 @@ const LawyerAssistancePage: React.FC = () => {
                         </h1>
                         <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
                             Completați formularul de mai jos pentru a ne oferi detalii despre situația dvs.
-                            Un avocat vă va contacta în cel mai scurt timp posibil.
+                            Un specialist vă va contacta în cel mai scurt timp posibil.
                         </p>
                     </div>
 
@@ -419,7 +419,7 @@ const LawyerAssistancePage: React.FC = () => {
                                         {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
                                         <p className="text-xs text-slate-400 flex items-start gap-1">
                                             <FileText className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                                            <span>Oferiți cât mai multe detalii pentru a permite avocaților să înțeleagă contextul și să vă ofere o primă evaluare corectă.</span>
+                                            <span>Oferiți cât mai multe detalii pentru a permite specialiștilor să înțeleagă contextul și să vă ofere o primă evaluare corectă.</span>
                                         </p>
                                     </div>
                                 </div>
