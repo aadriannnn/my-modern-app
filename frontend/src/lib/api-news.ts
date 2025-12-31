@@ -16,10 +16,23 @@ async function fetchJson<T>(endpoint: string): Promise<T> {
     return response.json();
 }
 
-export const NewsApi = {
-    getArticles: async (page = 1, limit = 20): Promise<{ articles: LegalNewsArticle[], total: number }> => {
+interface NewsApiInterface {
+    getArticles: (page?: number, limit?: number, searchQuery?: string, category?: string) => Promise<{ articles: LegalNewsArticle[], total: number }>;
+    getArticle: (slugOrId: string) => Promise<LegalNewsArticle>;
+    getAuthors: (limit?: number) => Promise<LegalNewsAuthor[]>;
+    getEvents: (limit?: number) => Promise<LegalNewsEvent[]>;
+    getBooks: (limit?: number) => Promise<LegalNewsBook[]>;
+    getJobs: (limit?: number) => Promise<LegalNewsJob[]>;
+}
+
+export const NewsApi: NewsApiInterface = {
+    getArticles: async (page = 1, limit = 20, searchQuery?: string, category?: string): Promise<{ articles: LegalNewsArticle[], total: number }> => {
         const skip = (page - 1) * limit;
-        const response = await fetch(`${API_BASE}/articles?skip=${skip}&limit=${limit}`);
+        let url = `${API_BASE}/articles?skip=${skip}&limit=${limit}`;
+        if (searchQuery) url += `&q=${encodeURIComponent(searchQuery)}`;
+        if (category) url += `&category=${encodeURIComponent(category)}`;
+
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`Failed to fetch articles: ${response.statusText}`);
         }
