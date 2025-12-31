@@ -2,8 +2,8 @@
 
 import logging
 from typing import List, Optional
-from fastapi import APIRouter, HTTPException, Query, Depends
-from sqlmodel import Session, select, col, or_
+from fastapi import APIRouter, HTTPException, Query, Depends, Response
+from sqlmodel import Session, select, col, or_, func
 from pydantic import BaseModel
 
 from ..db import get_session
@@ -44,10 +44,16 @@ class LegalNewsSearchResponse(BaseModel):
 
 @router.get("/articles", response_model=List[LegalNewsArticle])
 def get_articles(
+    response: Response,
     skip: int = 0,
     limit: int = 10,
     session: Session = Depends(get_session)
 ):
+    # Total count
+    total_statement = select(func.count(col(LegalNewsArticle.id)))
+    total = session.exec(total_statement).one()
+    response.headers["X-Total-Count"] = str(total)
+
     statement = select(LegalNewsArticle).order_by(col(LegalNewsArticle.publishDate).desc()).offset(skip).limit(limit)
     return session.exec(statement).all()
 
