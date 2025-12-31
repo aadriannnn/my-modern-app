@@ -7,6 +7,7 @@ import CompanyDetailModal from '../components/CompanyDetailModal';
 import ContribuieModal from '../components/ContribuieModal';
 import Footer from '../components/Footer';
 import { HomeHero } from '../components/HomeHero';
+import SEOHead from '../components/SEOHead';
 import { search as apiSearch, searchByDosar } from '../lib/api';
 import type { Filters, SelectedFilters } from '../types';
 import { normalizeSearchResults, buildDynamicFilters, isObiectMatching, removeDiacritics } from '@/lib/dynamicFilterHelpers';
@@ -466,8 +467,50 @@ const SearchPage: React.FC = () => {
     // Determine view state
     const isHomeView = !hasSearched && originalResults.length === 0 && !isLoading && !dosarSearchInfo && status === '';
 
+    // Structured data for SEO
+    const searchPageStructuredData = [
+        {
+            "@context": "https://schema.org",
+            "@type": "WebPage",
+            "@id": "https://chat.legeaaplicata.ro/#webpage",
+            "url": "https://chat.legeaaplicata.ro/",
+            "name": "Analiză Juridică AI - Cercetare Jurisprudență",
+            "description": "Platformă de cercetare juridică cu AI pentru căutare avansată în jurisprudență română, hotărâri ICCJ, CEDO și legislație actualizată",
+            "isPartOf": {
+                "@id": "https://chat.legeaaplicata.ro/#website"
+            },
+            "about": {
+                "@type": "Thing",
+                "name": "Cercetare Juridică"
+            },
+            "primaryImageOfPage": {
+                "@type": "ImageObject",
+                "url": "https://chat.legeaaplicata.ro/src/assets/icons/logo.png"
+            }
+        },
+        {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {
+                    "@type": "ListItem",
+                    "position": 1,
+                    "name": "Acasă",
+                    "item": "https://chat.legeaaplicata.ro/"
+                }
+            ]
+        }
+    ];
+
     return (
         <div className="flex flex-col min-h-screen bg-brand-light">
+            <SEOHead
+                title="Analiză Juridică AI - Cercetare Jurisprudență România"
+                description="Căutare avansată în jurisprudență română cu inteligență artificială. Accesați hotărâri ICCJ, CEDO, legislație actualizată, analiză comparativă spețe, monitoring dosare și verificare bonitate. Versiune offline 100% confidențială pentru avocați și jurisconsulți."
+                keywords="cercetare juridică AI, jurisprudență România, hotărâri ICCJ, hotărâri CEDO, analiză comparativă spețe, monitoring dosare instanță, legislație actualizată, cod civil, cod penal, avocat online, jurisconsult, practică judiciară, decizie instanță"
+                canonicalUrl="https://chat.legeaaplicata.ro/"
+                structuredData={searchPageStructuredData}
+            />
             <Header
                 onToggleMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 onContribuieClick={() => setIsContribuieModalOpen(true)}

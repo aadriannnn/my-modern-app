@@ -1,12 +1,45 @@
+# Robots.txt for LegeaAplicata.ro
+# Allow all search engines to crawl and index public pages
+
 User-agent: *
 Allow: /
 Allow: /landing
+Allow: /stiri
+Allow: /stiri/articol/
+Allow: /evenimente
+Allow: /editura
+Allow: /cariere
+Allow: /profesionisti
+Allow: /despre-noi
+Allow: /contact
+Allow: /abonamente
+Allow: /taxa-timbru
+Allow: /asistenta-avocat
+Allow: /harta-site
+Allow: /grid-tests
 Allow: /terms
 Allow: /privacy-policy
-Disallow: /setari
+Allow: /cookies
+Allow: /gdpr
+Allow: /help-center
 
-# Sitemap
+# Disallow private/settings pages
+Disallow: /setari
+Disallow: /login
+Disallow: /register
+Disallow: /complete-profile
+Disallow: /forgot-password
+Disallow: /reset-password
+Disallow: /verify-email
+
+# Sitemap location
 Sitemap: https://chat.legeaaplicata.ro/sitemap.xml
 
-# Crawl-delay for respectful crawling
+# Crawl settings for respectful crawling
+Crawl-delay: 1
+
+# Specific directives for Googlebot
+User-agent: Googlebot
+Allow: /
+Disallow: /setari
 Crawl-delay: 1

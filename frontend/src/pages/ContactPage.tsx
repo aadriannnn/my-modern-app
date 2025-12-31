@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Phone, MapPin, Facebook, Linkedin, Twitter, Loader2, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useDosar } from '../context/DosarContext';
+import SEOHead from '../components/SEOHead';
 
 const ContactPage: React.FC = () => {
     const { showToast } = useDosar();
@@ -58,8 +59,61 @@ const ContactPage: React.FC = () => {
         }
     };
 
+    // Structured data for contact page
+    const contactPageStructuredData = [
+        {
+            "@context": "https://schema.org",
+            "@type": "ContactPage",
+            "@id": "https://chat.legeaaplicata.ro/contact#contactpage",
+            "url": "https://chat.legeaaplicata.ro/contact",
+            "name": "Contact - LegeaAplicata",
+            "description": "Contactați echipa LegeaAplicata pentru întrebări, asistență sau parteneriate. Suntem aici să vă ajutăm."
+        },
+        {
+            "@context": "https://schema.org",
+            "@type": "LocalBusiness",
+            "@id": "https://chat.legeaaplicata.ro/#localbusiness",
+            "name": "LegeaAplicata",
+            "description": "Platformă profesională de cercetare juridică cu inteligență artificială",
+            "url": "https://chat.legeaaplicata.ro",
+            "telephone": "+40-751-661-066",
+            "email": "contact@legeaaplicata.ro",
+            "address": {
+                "@type": "PostalAddress",
+                "streetAddress": "Str. DRM. DÂRVARI, Nr. 34A",
+                "addressLocality": "București",
+                "addressRegion": "Sector 5",
+                "addressCountry": "RO"
+            },
+            "geo": {
+                "@type": "GeoCoordinates",
+                "latitude": "44.436353",
+                "longitude": "26.096303"
+            },
+            "openingHoursSpecification": {
+                "@type": "OpeningHoursSpecification",
+                "dayOfWeek": [
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday"
+                ],
+                "opens": "09:00",
+                "closes": "18:00"
+            }
+        }
+    ];
+
     return (
         <div className="min-h-screen bg-gray-50 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
+            <SEOHead
+                title="Contact"
+                description="Contactați echipa LegeaAplicata pentru întrebări, asistență sau parteneriate. Telefon: 0751 661 066, Email: contact@legeaaplicata.ro. Sediu: București, Sector 5."
+                keywords="contact LegeaAplicata, suport clienți juridic, asistență platiformă legală, contact avocat România, legal tech support"
+                canonicalUrl="https://chat.legeaaplicata.ro/contact"
+                structuredData={contactPageStructuredData}
+            />
             <div className="max-w-7xl mx-auto">
                 <div className="mb-8">
                     <Link

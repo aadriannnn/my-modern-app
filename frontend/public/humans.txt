@@ -1,0 +1,35 @@
+/* TEAM */
+Fondator & Dezvoltator: Adrian Nicolau
+Contact: adrian@legeaaplicata.ro
+Telefon: +40-751-661-066
+Locație: România
+
+/* SITE */
+Ultima actualizare: 2025-12-31
+Limbaj: Română (ro-RO)
+Doctype: HTML5
+IDE: Visual Studio Code
+
+/* TEHNOLOGII */
+Frontend: React, TypeScript, Vite
+Styling: Tailwind CSS, Vanilla CSS
+Backend: Python, FastAPI
+Database: PostgreSQL, ChromaDB
+AI/ML: OpenAI, Anthropic, Custom AI Models
+Deployment: Docker, Nginx
+
+/* DESPRE */
+LegeaAplicata este o platformă profesională de cercetare juridică
+cu inteligență artificială, creată pentru avocați, jurisconsulți și
+studenți din România. Oferim căutare avansată în jurisprudență,
+analiză comparativă, monitoring dosare și multe altele.
+
+/* VALORI */
+- Confidențialitate 100%
+- Acuratețe juridică
+- Inovație continuă
+- Suport pentru profesioniști
+
+/* MULȚUMIRI */
+Tuturor profesioniștilor în drept care ne-au oferit feedback
+Comunității open-source pentru instrumentele excelente
