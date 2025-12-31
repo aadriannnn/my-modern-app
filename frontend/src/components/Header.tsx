@@ -17,7 +17,8 @@ const DosarButton: React.FC<DosarButtonProps> = ({ customClass }) => {
       className={`relative group flex items-center gap-2 text-sm font-medium transition-all duration-300 ${customClass || 'text-brand-text-secondary hover:text-brand-gold'}`}
     >
       <FolderOpen size={20} strokeWidth={1.5} />
-      <span className="hidden md:inline">Dosar</span>
+      {/* If customClass contains flex-col, we assume it's mobile style and text should be visible but styled differently */}
+      <span className={customClass?.includes('flex-col') ? "text-[9px] font-medium" : "hidden md:inline"}>Dosar</span>
       {items.length > 0 && (
         <span className="absolute -top-2 -right-2 bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center shadow-sm">
           {items.length}
@@ -31,9 +32,10 @@ interface HeaderProps {
   onToggleMenu: () => void;
   onContribuieClick: () => void;
   isHomeView?: boolean;
+  onReset?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHomeView = false }) => {
+const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHomeView = false, onReset }) => {
   const { user, isAuthenticated, logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
@@ -57,7 +59,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center justify-between">
 
         <div className="flex items-center gap-4 md:gap-6">
-          <Link to="/" className="flex items-center gap-3 group shrink-0">
+          <Link to="/" onClick={onReset} className="flex items-center gap-3 group shrink-0">
             <img src={logo} alt="LegeaAplicată" className="h-10 w-auto md:h-12 transition-transform duration-300 group-hover:scale-105" />
             {!isHomeView && (
               <div className="hidden lg:flex flex-col">
@@ -93,23 +95,24 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
             </Link>
 
             {isHomeView ? (
-              <button onClick={() => window.location.href = '/dosare'} className="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors">
-                <FolderOpen size={18} strokeWidth={1.5} />
-                <span className="text-[9px] font-medium">Dosar</span>
-              </button>
+              <DosarButton customClass="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors" />
             ) : (
-              <Link to="/" className="flex flex-col items-center gap-1 text-brand-dark hover:text-brand-gold transition-colors">
-                <Scale size={18} strokeWidth={1.5} />
-                <span className="text-[9px] font-medium">Analiză</span>
-              </Link>
+              <>
+                <button onClick={onReset} className="flex flex-col items-center gap-1 text-brand-dark hover:text-brand-gold transition-colors">
+                  <Scale size={18} strokeWidth={1.5} />
+                  <span className="text-[9px] font-medium">Analiză</span>
+                </button>
+                {/* Always show Dosar in inner pages too on mobile */}
+                <DosarButton customClass="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors md:hidden" />
+              </>
             )}
 
 
           </div>
         </div>
 
-        {/* Center: Global Search (Desktop) */}
-        {!isHomeView && (
+        {/* Center: Global Search (Desktop) - Only visible on News/Stiri pages */}
+        {!isHomeView && window.location.pathname.includes('/stiri') && (
           <div className="hidden md:flex flex-1 max-w-2xl mx-12">
             <div className="relative w-full group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -118,7 +121,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
               <input
                 type="text"
                 className="block w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg leading-5 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-brand-gold focus:border-brand-gold sm:text-sm transition-all shadow-sm group-hover:shadow-md"
-                placeholder="Caută jurisprudență, articole, doctrine..."
+                placeholder="Caută știri, articole..."
               />
               <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
                 <span className="text-gray-400 text-xs border border-gray-200 rounded px-1.5 py-0.5">/</span>
@@ -160,13 +163,19 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
               </button>
             </>
           ) : (
-            <Link
-              to="/"
-              className={`hidden md:flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg bg-brand-dark text-white hover:bg-brand-primary transition-all shadow-md ml-2`}
-            >
-              <Scale size={18} strokeWidth={1.5} />
-              <span>Analiză Juridică</span>
-            </Link>
+            <>
+              <div className="h-6 w-px bg-gray-200 hidden md:block"></div>
+              <DosarButton customClass={`hidden md:flex items-center gap-2 ${mutedColor} ${hoverColor}`} />
+
+              <Link
+                to="/"
+                onClick={onReset}
+                className={`hidden md:flex items-center gap-2 text-sm font-medium px-4 py-2 rounded-lg bg-gray-200 text-gray-900 hover:bg-gray-300 transition-all ml-2`}
+              >
+                <Scale size={18} strokeWidth={1.5} />
+                <span>Analiză Juridică</span>
+              </Link>
+            </>
           )}
 
           {/* User Profile */}
@@ -220,7 +229,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
           ) : (
             <Link
               to="/login"
-              className="flex flex-col md:flex-row items-center gap-1 md:gap-2 text-gray-500 md:text-white text-[9px] md:text-sm font-medium md:ml-2 md:px-5 md:py-2.5 md:bg-brand-dark md:rounded-lg hover:text-brand-gold md:hover:text-white md:hover:bg-brand-primary md:shadow-lg md:shadow-brand-dark/20 transition-all md:hover:-translate-y-0.5"
+              className="flex flex-col md:flex-row items-center gap-1 md:gap-2 text-gray-500 md:text-blue-700 text-[9px] md:text-sm font-medium md:ml-2 md:px-5 md:py-2.5 md:bg-blue-50 md:rounded-lg hover:text-brand-gold md:hover:text-blue-800 md:hover:bg-blue-100 transition-all md:hover:-translate-y-0.5"
             >
               <LogIn size={18} strokeWidth={1.5} />
               <span className="md:hidden">Cont</span>

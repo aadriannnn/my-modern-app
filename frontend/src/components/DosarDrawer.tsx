@@ -3,15 +3,19 @@ import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { X, Trash2, Eye, AlertTriangle } from 'lucide-react';
 import { useDosar } from '../context/DosarContext';
+import { useAuth } from '../context/AuthContext';
 import type { CaseData } from '../context/DosarContext';
 import CaseDetailModal from './CaseDetailModal';
 
 const DosarDrawer: React.FC = () => {
     const { isDrawerOpen, toggleDrawer, items, removeFromDosar } = useDosar();
+    const { isAuthenticated } = useAuth();
     const [selectedCase, setSelectedCase] = useState<CaseData | null>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
 
     const handleViewCase = (item: CaseData) => {
+        // Toggle drawer closed when viewing details
+        if (isDrawerOpen) toggleDrawer();
         setSelectedCase(item);
         setIsDetailOpen(true);
     };
@@ -24,7 +28,7 @@ const DosarDrawer: React.FC = () => {
     return (
         <>
             <Transition.Root show={isDrawerOpen} as={Fragment}>
-                <Dialog as="div" className="relative z-40" onClose={toggleDrawer}>
+                <Dialog as="div" className="relative z-[110]" onClose={toggleDrawer}>
                     <Transition.Child
                         as={Fragment}
                         enter="ease-in-out duration-500"
@@ -67,10 +71,12 @@ const DosarDrawer: React.FC = () => {
                                                         </button>
                                                     </div>
                                                 </div>
-                                                <div className="mt-2 flex items-center text-sm text-yellow-300 bg-yellow-900/30 p-2 rounded border border-yellow-600/50">
-                                                    <AlertTriangle size={16} className="mr-2 flex-shrink-0" />
-                                                    <p>Atenție: Dosarul se golește la părăsirea paginii.</p>
-                                                </div>
+                                                {!isAuthenticated && (
+                                                    <div className="mt-2 flex items-center text-sm text-yellow-300 bg-yellow-900/30 p-2 rounded border border-yellow-600/50">
+                                                        <AlertTriangle size={16} className="mr-2 flex-shrink-0" />
+                                                        <p>Atenție: Dosarul se golește la părăsirea paginii.</p>
+                                                    </div>
+                                                )}
                                             </div>
                                             <div className="relative mt-6 flex-1 px-4 sm:px-6">
                                                 {items.length === 0 ? (

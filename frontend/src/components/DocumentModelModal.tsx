@@ -3,6 +3,8 @@ import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { X, Download } from 'lucide-react';
 
+import { generatePdf } from '../lib/pdf';
+
 interface DocumentModelModalProps {
     isOpen: boolean;
     onClose: () => void;
@@ -42,22 +44,27 @@ const DocumentModelModal: React.FC<DocumentModelModalProps> = ({ isOpen, onClose
         fetchModelDetails();
     }, [modelId, isOpen]);
 
-    const handleDownload = () => {
+
+
+    // ...
+
+    const handleDownload = async () => {
         if (!modelData || !modelId) return;
 
         try {
-            // Use the backend endpoint for PDF download
-            const downloadUrl = `/api/modele/${modelId}/download`;
-
-            // Create a temporary link to trigger download
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.setAttribute('download', `${modelData.titlu_model}.pdf`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            await generatePdf({
+                titlu: modelData.titlu_model,
+                materie: modelData.materie_model || "",
+                obiect: modelData.obiect_model || "",
+                instanta: modelData.sursa_model || "",
+                parte_introductiva: "",
+                considerente_speta: "",
+                dispozitiv_speta: "",
+                generic_content: modelData.text_model || ""
+            });
         } catch (err) {
-            console.error('Error downloading model:', err);
+            console.error('Error generating PDF:', err);
+            alert('Eroare la generarea PDF-ului');
         }
     };
 

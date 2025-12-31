@@ -175,3 +175,14 @@ class BlocuriFirme(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     obj: dict = Field(sa_column=Column(db_specific_json))
+
+
+class DosarItem(SQLModel, table=True):
+    """Stores saved cases (Dosar) for users."""
+    __tablename__ = 'dosar_items'
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: str = Field(index=True, foreign_key="clienti.id")
+    case_id: str = Field(index=True)  # Can be int or str depending on source
+    case_data: dict = Field(sa_column=Column(db_specific_json)) # Snapshot of the case data
+    created_at: datetime = Field(default_factory=datetime.utcnow, nullable=False)

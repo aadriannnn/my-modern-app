@@ -767,3 +767,36 @@ export const stopIndexRepair = async () => {
   }
   return response.json();
 };
+
+// Dosar Persistence API
+export const getDosarItems = async () => {
+  const response = await fetchWithTimeout(`${API_URL}/dosar/`, {
+    method: 'GET',
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error('Failed to fetch dosar items');
+  return response.json();
+};
+
+export const addDosarItem = async (item: any) => {
+  const response = await fetchWithTimeout(`${API_URL}/dosar/`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(item),
+    credentials: 'include'
+  });
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(errorData.detail || 'Failed to add item to dosar');
+  }
+  return response.json();
+};
+
+export const removeDosarItem = async (caseId: string | number) => {
+  const response = await fetchWithTimeout(`${API_URL}/dosar/${caseId}`, {
+    method: 'DELETE',
+    credentials: 'include'
+  });
+  if (!response.ok) throw new Error('Failed to remove item from dosar');
+  return response.json();
+};

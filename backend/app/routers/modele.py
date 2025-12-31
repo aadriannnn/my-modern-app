@@ -11,6 +11,7 @@ from ..db_modele import get_modele_session
 from ..schemas import ModeleRequest, ModeleResponse
 from ..logic.modele_matching import get_relevant_modele, get_model_by_id
 from app.db import get_session
+from urllib.parse import quote
 
 router = APIRouter(prefix="/modele", tags=["modele"])
 logger = logging.getLogger(__name__)
@@ -194,12 +195,19 @@ async def download_model_pdf(
         pdf_content = generate_pdf_content(model)
 
         # Create filename
-        filename = f"{model['titlu_model'][:50].replace(' ', '_')}.pdf"
+        # Ensure we handle unicode characters correctly for headers
+        titlu = model['titlu_model'] or "model"
+        # Basic sanitization for the base name
+        safe_name = titlu[:50].replace(' ', '_')
+        filename = f"{safe_name}.pdf"
+
+        # URL encode the filename to ensure it's ASCII-safe for the header
+        encoded_filename = quote(filename)
 
         return Response(
             content=pdf_content,
             media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
+            headers={"Content-Disposition": f"attachment; filename*=utf-8''{encoded_filename}"}
         )
 
     except HTTPException:

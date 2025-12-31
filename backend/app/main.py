@@ -26,10 +26,10 @@ from .routers import (
     dosar_search_router,
     billing_routes as billing_router,
     taxa_timbru_routes as taxa_timbru_router,
-    taxa_timbru_routes as taxa_timbru_router,
     legal_news_routes,
     lawyer_assistance,
-    contact_routes
+    contact_routes,
+    dosar as dosar_router
 )
 
 # Configure logging
@@ -104,7 +104,6 @@ def on_startup():
     logger.info("Step 2.1: User verification fields verified.")
 
 
-
     logger.info("Step 4: Starting queue manager worker...")
     from .logic.queue_manager import queue_manager
     queue_manager.start_worker()
@@ -143,6 +142,7 @@ api_router.include_router(taxa_timbru_router.router)
 api_router.include_router(legal_news_routes)
 api_router.include_router(lawyer_assistance.router)
 api_router.include_router(contact_routes.router)
+api_router.include_router(dosar_router.router)
 
 from .routers import dev_tools
 api_router.include_router(dev_tools.router, prefix="/dev", tags=["dev"])
@@ -153,6 +153,3 @@ app.include_router(api_router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-# FORCE RELOAD 5

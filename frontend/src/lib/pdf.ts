@@ -18,6 +18,7 @@ export type PdfSablonData = {
   dispozitiv_speta: string;
 
   numarDosar?: string;
+  generic_content?: string; // For generic documents like models
 };
 
 export type PdfOptions = {
@@ -195,9 +196,13 @@ export const generatePdf = async (data: PdfSablonData, opts: PdfOptions = {}): P
   drawMetaInfo(doc, ctx, data);
   drawTitle(doc, ctx, data);
 
-  drawParteaIntro(doc, ctx, data.parte_introductiva);
-  drawConsiderente(doc, ctx, data.considerente_speta);
-  drawDispozitiv(doc, ctx, data.dispozitiv_speta);
+  if (data.generic_content) {
+    drawParagraphJustified(doc, ctx, data.generic_content);
+  } else {
+    drawParteaIntro(doc, ctx, data.parte_introductiva);
+    drawConsiderente(doc, ctx, data.considerente_speta);
+    drawDispozitiv(doc, ctx, data.dispozitiv_speta);
+  }
 
   drawFooterAllPages(doc, ctx);
 

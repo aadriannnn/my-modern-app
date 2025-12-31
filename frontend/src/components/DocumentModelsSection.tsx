@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, FileText, Download, Eye } from 'lucide-react';
 import type { DocumentModel } from '../types';
+import { generatePdf } from '../lib/pdf';
 
 interface DocumentModelsSectionProps {
     caseData: {
@@ -64,18 +65,26 @@ const DocumentModelsSection: React.FC<DocumentModelsSectionProps> = ({ caseData,
         fetchRelevantModels();
     }, [caseData]);
 
-    const handleDownloadPdf = (model: DocumentModel) => {
+    const handleDownloadPdf = async (e: React.MouseEvent, model: DocumentModel) => {
+        e.stopPropagation();
         try {
-            // Use the backend endpoint for PDF download
-            const downloadUrl = `/api/modele/${model.id}/download`;
+            // Fetch full model details to get the text content
+            const response = await fetch(`/api/modele/${model.id}`);
+            if (!response.ok) throw new Error('Nu s-au putut obține detaliile modelului');
 
-            // Create a temporary link to trigger download
-            const link = document.createElement('a');
-            link.href = downloadUrl;
-            link.setAttribute('download', `${model.titlu_model}.pdf`); // Optional, backend sets filename too
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            const fullModel = await response.json();
+
+            // Generate PDF client-side
+            await generatePdf({
+                titlu: fullModel.titlu_model,
+                materie: fullModel.materie_model || "",
+                obiect: fullModel.obiect_model || "",
+                instanta: fullModel.sursa_model || "",
+                parte_introductiva: "",
+                considerente_speta: "",
+                dispozitiv_speta: "",
+                generic_content: fullModel.text_model || ""
+            });
         } catch (err) {
             console.error('Error downloading model:', err);
             alert('Eroare la descărcarea modelului');
@@ -133,7 +142,8 @@ const DocumentModelsSection: React.FC<DocumentModelsSectionProps> = ({ caseData,
                 {models.map((model) => (
                     <div
                         key={model.id}
-                        className="bg-white border border-gray-200 rounded-lg p-4 hover:border-brand-accent hover:shadow-md transition-all duration-200"
+                        onClick={() => handleViewModel(model.id)}
+                        className="bg-white border border-gray-200 rounded-lg p-4 hover:border-brand-accent hover:shadow-md transition-all duration-200 cursor-pointer"
                     >
                         <div className="flex items-start justify-between">
                             <div className="flex-1">
@@ -157,22 +167,17 @@ const DocumentModelsSection: React.FC<DocumentModelsSectionProps> = ({ caseData,
                                         </span>
                                     )}
                                 </div>
-                                <div className="flex items-center text-sm text-gray-500">
-                                    <span className="font-medium text-brand-accent">
-                                        Relevanță: {(model.relevance_score * 100).toFixed(0)}%
-                                    </span>
-                                </div>
                             </div>
                             <div className="flex flex-col gap-2 ml-4">
                                 <button
-                                    onClick={() => handleViewModel(model.id)}
+                                    onClick={(e) => { e.stopPropagation(); handleViewModel(model.id); }}
                                     className="p-2 text-brand-accent hover:bg-brand-accent hover:bg-opacity-10 rounded-lg transition-colors"
                                     title="Vizualizează"
                                 >
                                     <Eye size={18} />
                                 </button>
                                 <button
-                                    onClick={() => handleDownloadPdf(model)}
+                                    onClick={(e) => handleDownloadPdf(e, model)}
                                     className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                                     title="Descarcă"
                                 >

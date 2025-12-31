@@ -180,6 +180,8 @@ const SearchPage: React.FC = () => {
         setOffset(0);
         setHasMore(true);
         setIsLoading(true);
+        setStatus(''); // Clear previous status immediately
+
 
         try {
             const payload = {
@@ -264,13 +266,13 @@ const SearchPage: React.FC = () => {
 
                                     if (exclusiveDisplay) {
                                         mergedResults = aiSelectedResults.map((r: any) => ({ ...r, isAISelected: true }));
-                                        setStatus(`${aiSelectedResults.length} rezultate relevante identificate de AI.`);
+                                        // Status update removed as per user request
                                     } else {
                                         mergedResults = [
                                             ...aiSelectedResults.map((r: any) => ({ ...r, isAISelected: true })),
                                             ...remainingCandidates.map((r: any) => ({ ...r, isCandidateCase: true }))
                                         ];
-                                        setStatus(`${aiSelectedResults.length} selectate de AI, ${remainingCandidates.length} analizate.`);
+                                        // Status update removed as per user request
                                     }
                                     setOriginalResults(mergedResults);
                                     setOffset(mergedResults.length);
@@ -440,6 +442,26 @@ const SearchPage: React.FC = () => {
         });
     }, []);
 
+    const handleReset = useCallback(() => {
+        setHasSearched(false);
+        setSearchResults([]);
+        setOriginalResults([]);
+        setStatus('');
+        setSituatie('');
+        setSearchParams({
+            materie: '',
+            obiect: [],
+            tip_speta: [],
+            parte: [],
+        });
+        setDosarSearchInfo(null);
+        setActeJuridice([]);
+        setIsLoading(false);
+        setOffset(0);
+        setHasMore(true);
+        // Ensure reset happens even if already on home but with leftover state
+    }, []);
+
     // Determine view state
     const isHomeView = !hasSearched && originalResults.length === 0 && !isLoading && !dosarSearchInfo && status === '';
 
@@ -449,6 +471,7 @@ const SearchPage: React.FC = () => {
                 onToggleMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 onContribuieClick={() => setIsContribuieModalOpen(true)}
                 isHomeView={isHomeView}
+                onReset={handleReset}
             />
 
             <div className="flex flex-1 overflow-hidden relative">
