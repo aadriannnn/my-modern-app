@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import Header from '../../components/Header';
+import SEOHead from '../../components/SEOHead';
 import LegalNewsTabs from './LegalNewsTabs';
 import ArticlesSection from './ArticlesSection';
 import EventsSection from './EventsSection';
