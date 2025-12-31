@@ -47,8 +47,8 @@ async def search_by_dosar_number(
         # SIMULATION for specific demo case
         import asyncio
         if numar_dosar.strip() == "36895/302/2025":
-            logger.info("Simulating search for demo dosar 36895/302/2025 with 30s delay")
-            await asyncio.sleep(30)
+            logger.info("Simulating search for demo dosar 36895/302/2025 with 5s delay")
+            await asyncio.sleep(5)
 
             # Hardcoded values as requested
             obiect_from_portal = "succesiune"
