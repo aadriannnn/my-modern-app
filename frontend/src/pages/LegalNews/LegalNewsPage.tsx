@@ -39,7 +39,7 @@ const LegalNewsPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-brand-light flex flex-col font-sans">
-            <Header onToggleMenu={toggleMenu} onContribuieClick={handleContribuieClick} />
+            <Header onToggleMenu={toggleMenu} onContribuieClick={handleContribuieClick} hideMobileMenu={true} />
 
             <div className="bg-white border-b border-gray-200 py-12">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">

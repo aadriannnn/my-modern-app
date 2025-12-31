@@ -14,6 +14,7 @@ const PricingPage: React.FC = () => {
             <Header
                 onToggleMenu={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                 onContribuieClick={() => setIsContribuieModalOpen(true)}
+                hideMobileMenu={true}
             />
 
             <main className="flex-grow pt-8 bg-slate-50">

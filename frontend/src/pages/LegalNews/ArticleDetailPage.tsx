@@ -37,7 +37,7 @@ const ArticleDetailPage: React.FC = () => {
     if (loading) {
         return (
             <div className="min-h-screen bg-brand-light flex flex-col">
-                <Header onToggleMenu={toggleMenu} onContribuieClick={handleContribuieClick} />
+                <Header onToggleMenu={toggleMenu} onContribuieClick={handleContribuieClick} hideMobileMenu={true} />
                 <div className="flex-grow flex justify-center items-center">
                     <Loader2 className="animate-spin h-10 w-10 text-brand-accent" />
                 </div>
@@ -48,7 +48,7 @@ const ArticleDetailPage: React.FC = () => {
     if (error || !article) {
         return (
             <div className="min-h-screen bg-brand-light flex flex-col">
-                <Header onToggleMenu={toggleMenu} onContribuieClick={handleContribuieClick} />
+                <Header onToggleMenu={toggleMenu} onContribuieClick={handleContribuieClick} hideMobileMenu={true} />
                 <div className="flex-grow flex flex-col justify-center items-center p-4 text-center">
                     <h2 className="text-2xl font-bold text-gray-800 mb-4">Ooops!</h2>
                     <p className="text-gray-600 mb-8">{error || "Articolul căutat nu există."}</p>
@@ -68,7 +68,7 @@ const ArticleDetailPage: React.FC = () => {
                 <meta name="description" content={article.description || article.summary} />
             </Helmet> */}
 
-            <Header onToggleMenu={toggleMenu} onContribuieClick={handleContribuieClick} />
+            <Header onToggleMenu={toggleMenu} onContribuieClick={handleContribuieClick} hideMobileMenu={true} />
 
             <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
                 <div className="max-w-4xl mx-auto bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

@@ -33,9 +33,10 @@ interface HeaderProps {
   onContribuieClick: () => void;
   isHomeView?: boolean;
   onReset?: () => void;
+  hideMobileMenu?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHomeView = false, onReset }) => {
+const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHomeView = false, onReset, hideMobileMenu = false }) => {
   const { user, isAuthenticated, logout } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
@@ -76,13 +77,15 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
           {/* Mobile Navigation - Left Side (Next to Logo) */}
           <div className="flex md:hidden items-center gap-3 sm:gap-5 ml-2">
             {/* Hamburger Menu - Sidebars/Filters */}
-            <button
-              onClick={onToggleMenu}
-              className="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors"
-            >
-              <Menu size={18} strokeWidth={1.5} />
-              <span className="text-[9px] font-medium">Meniu</span>
-            </button>
+            {!hideMobileMenu && (
+              <button
+                onClick={onToggleMenu}
+                className="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors"
+              >
+                <Menu size={18} strokeWidth={1.5} />
+                <span className="text-[9px] font-medium">Meniu</span>
+              </button>
+            )}
 
             <Link to="/stiri" className="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors">
               <Newspaper size={18} strokeWidth={1.5} />
@@ -98,10 +101,10 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
               <DosarButton customClass="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors" />
             ) : (
               <>
-                <button onClick={onReset} className="flex flex-col items-center gap-1 text-brand-dark hover:text-brand-gold transition-colors">
+                <Link to="/" onClick={onReset} className="flex flex-col items-center gap-1 text-brand-dark hover:text-brand-gold transition-colors">
                   <Scale size={18} strokeWidth={1.5} />
                   <span className="text-[9px] font-medium">Analiză</span>
-                </button>
+                </Link>
                 {/* Always show Dosar in inner pages too on mobile */}
                 <DosarButton customClass="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors md:hidden" />
               </>
