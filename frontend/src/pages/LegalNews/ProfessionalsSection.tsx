@@ -12,6 +12,8 @@ const ProfessionalsSection: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
+    const [searchTerm, setSearchTerm] = useState('');
+
     useEffect(() => {
         const loadData = async () => {
             try {
@@ -40,6 +42,12 @@ const ProfessionalsSection: React.FC = () => {
         return <div className="text-center text-red-500 p-8">{error}</div>;
     }
 
+    // Filter authors based on search
+    const filteredAuthors = authors.filter(author => {
+        return author.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            (author.title && author.title.toLowerCase().includes(searchTerm.toLowerCase()));
+    });
+
     // Helper to find author for an article
     const getAuthorForArticle = (article: LegalNewsArticle): LegalNewsAuthor => {
         // Safe check for authorId matching, or fallback to authorName/dummy
@@ -54,7 +62,10 @@ const ProfessionalsSection: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <h1 className="text-3xl font-bold text-slate-900 mb-8 font-headings uppercase">Profesioniști</h1>
 
-            <ProfessionalsSearch />
+            <ProfessionalsSearch
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+            />
 
             {/* Authors Grid */}
             <div className="mb-16">
@@ -62,7 +73,7 @@ const ProfessionalsSection: React.FC = () => {
                     Autori Articole
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-8">
-                    {authors.map(author => (
+                    {filteredAuthors.map(author => (
                         <ProfessionalAvatar key={author.id} author={author} />
                     ))}
                 </div>

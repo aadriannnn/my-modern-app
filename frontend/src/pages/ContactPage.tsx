@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Mail, Phone, MapPin, Facebook, Linkedin, Twitter, Loader2 } from 'lucide-react';
+import { Mail, Phone, MapPin, Facebook, Linkedin, Twitter, Loader2, ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useDosar } from '../context/DosarContext';
 
 const ContactPage: React.FC = () => {
@@ -60,6 +61,15 @@ const ContactPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 pt-24 pb-12 px-4 sm:px-6 lg:px-8">
             <div className="max-w-7xl mx-auto">
+                <div className="mb-8">
+                    <Link
+                        to="/"
+                        className="inline-flex items-center gap-2 text-gray-500 hover:text-brand-blue transition-colors px-4 py-2 rounded-lg hover:bg-white/50 backdrop-blur-sm"
+                    >
+                        <ArrowLeft className="w-5 h-5" />
+                        <span className="font-medium">Înapoi la prima pagină</span>
+                    </Link>
+                </div>
                 <div className="text-center mb-12">
                     <p className="mt-2 text-lg text-gray-600">
                         Aveți întrebări sau aveți nevoie de asistență? Contactați echipa Legea Aplicata.
