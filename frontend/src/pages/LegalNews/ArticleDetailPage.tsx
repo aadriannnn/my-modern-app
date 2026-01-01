@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import Header from '../../components/Header';
 import { type LegalNewsArticle } from '../../types/news';
 import { Loader2, ArrowLeft, Calendar, User, Tag } from 'lucide-react';
-// import { Helmet } from 'react-helmet-async'; // Not installed currently
+import { Helmet } from 'react-helmet-async';
 
 const ArticleDetailPage: React.FC = () => {
     const { slug } = useParams<{ slug: string }>();
@@ -15,6 +15,7 @@ const ArticleDetailPage: React.FC = () => {
         const fetchArticle = async () => {
             if (!slug) return;
             try {
+                // If the slug is 'undefined' or empty, don't fetch
                 const response = await fetch(`/api/legal-news/articles/${slug}`);
                 if (!response.ok) throw new Error('Article not found');
                 const data = await response.json();
@@ -60,34 +61,68 @@ const ArticleDetailPage: React.FC = () => {
         );
     }
 
+    // Prepare SEO data
+    // While the backend now provides an 'seo' object, we fallback gracefully if it's missing for any reason
+    const seoTitle = article.seo?.metaTitle || article.title;
+    const seoDescription = article.seo?.metaDescription || article.description || article.summary || "";
+    const seoKeywords = article.seo?.metaKeywords || "";
+    const seoCanonical = article.seo?.canonicalUrl || `https://legeaaplicata.ro/stiri/${article.slug}`;
+    const ogImage = article.seo?.ogImage || (article.imageUrl ? article.imageUrl : 'https://legeaaplicata.ro/og-default.jpg');
+
+    // JSON-LD
+    const jsonLd = {
+        "@context": "https://schema.org",
+        "@type": "NewsArticle",
+        "headline": seoTitle,
+        "description": seoDescription,
+        "image": ogImage ? [ogImage] : [],
+        "datePublished": article.publishDate,
+        "dateModified": article.lastModifiedDate || article.publishDate,
+        "author": [{
+            "@type": "Person",
+            "name": article.authorName || "Adrian Nicolau",
+            "url": "https://legeaaplicata.ro/stiri/autor/author-01"
+        }],
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": seoCanonical
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "LegeaAplicată",
+            "logo": {
+                "@type": "ImageObject",
+                "url": "https://legeaaplicata.ro/logo.png"
+            }
+        }
+    };
+
     return (
         <div className="min-h-screen bg-brand-light flex flex-col">
-            {/* SEO Meta Tags (if Helmet is available, else ignored safely) */}
-            {/* <Helmet>
-                <title>{article.title} | LegeaAplicată</title>
-                <meta name="description" content={article.description || article.summary} />
-            </Helmet> */}
+            <Helmet>
+                <title>{seoTitle} | LegeaAplicată</title>
+                <meta name="description" content={seoDescription} />
+                {seoKeywords && <meta name="keywords" content={seoKeywords} />}
+                <link rel="canonical" href={seoCanonical} />
 
-            {/* JSON-LD Structured Data for Google SEO */}
-            {/* JSON-LD Structured Data for Google SEO */}
-            <script
-                type="application/ld+json"
-                dangerouslySetInnerHTML={{
-                    __html: JSON.stringify({
-                        "@context": "https://schema.org",
-                        "@type": "NewsArticle",
-                        "headline": article.title,
-                        "image": article.imageUrl ? [article.imageUrl] : [],
-                        "datePublished": article.publishDate,
-                        "dateModified": article.lastModifiedDate || article.publishDate,
-                        "author": [{
-                            "@type": "Person",
-                            "name": "Adrian Nicolau",
-                            "url": "https://legeaaplicata.ro/stiri/autor/author-01"
-                        }]
-                    })
-                }}
-            />
+                {/* Open Graph / Facebook */}
+                <meta property="og:type" content="article" />
+                <meta property="og:url" content={seoCanonical} />
+                <meta property="og:title" content={seoTitle} />
+                <meta property="og:description" content={seoDescription} />
+                {ogImage && <meta property="og:image" content={ogImage} />}
+
+                {/* Twitter */}
+                <meta property="twitter:card" content="summary_large_image" />
+                <meta property="twitter:url" content={seoCanonical} />
+                <meta property="twitter:title" content={seoTitle} />
+                <meta property="twitter:description" content={seoDescription} />
+                {ogImage && <meta property="twitter:image" content={ogImage} />}
+
+                <script type="application/ld+json">
+                    {JSON.stringify(jsonLd)}
+                </script>
+            </Helmet>
 
             <Header onToggleMenu={toggleMenu} onContribuieClick={handleContribuieClick} hideMobileMenu={true} />
 
@@ -126,12 +161,12 @@ const ArticleDetailPage: React.FC = () => {
                                     {new Date(article.publishDate).toLocaleDateString('ro-RO', { year: 'numeric', month: 'long', day: 'numeric' })}
                                 </span>
                             </div>
-                            {article.authorName && (
+                            {article.authorName &&
                                 <div className="flex items-center">
                                     <User size={18} className="mr-2 text-brand-accent" />
                                     <span className="font-medium text-gray-700">{article.authorName}</span>
                                 </div>
-                            )}
+                            }
                         </div>
 
                         {/* Content */}

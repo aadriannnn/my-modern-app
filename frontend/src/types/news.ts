@@ -7,6 +7,16 @@ export interface LegalNewsAuthor {
   profileUrl?: string;
 }
 
+export interface SEOData {
+  metaTitle?: string;
+  metaDescription?: string;
+  metaKeywords?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  canonicalUrl?: string;
+}
+
 export interface LegalNewsArticle {
   id: string;
   slug: string;
@@ -21,6 +31,7 @@ export interface LegalNewsArticle {
   imageUrl?: string;
   tags?: string[];
   categories?: string[];
+  seo?: SEOData;
 }
 
 export interface LegalNewsEvent {
