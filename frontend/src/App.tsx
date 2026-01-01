@@ -54,6 +54,17 @@ const App: React.FC = () => {
           <Route path="/grid-tests" element={<GridTestsPage />} />
           <Route path="/setari" element={<SettingsPage />} />
 
+
+          {/* Legislation SEO Routes */}
+          <Route path="/codul-civil" element={<SearchPage initialSituatie="Codul Civil" pageTitle="Codul Civil Actualizat - Legea Aplicata" />} />
+          <Route path="/codul-de-procedura-civila" element={<SearchPage initialSituatie="Codul de Procedură Civilă" pageTitle="Codul de Procedură Civilă - Legea Aplicata" />} />
+          <Route path="/codul-penal" element={<SearchPage initialSituatie="Codul Penal" pageTitle="Codul Penal Actualizat - Legea Aplicata" />} />
+          <Route path="/codul-de-procedura-penala" element={<SearchPage initialSituatie="Codul de Procedură Penală" pageTitle="Codul de Procedură Penală - Legea Aplicata" />} />
+          <Route path="/codul-muncii" element={<SearchPage initialSituatie="Codul Muncii" pageTitle="Codul Muncii Actualizat - Legea Aplicata" />} />
+          <Route path="/codul-administrativ" element={<SearchPage initialSituatie="Codul Administrativ" pageTitle="Codul Administrativ - Legea Aplicata" />} />
+          <Route path="/codul-fiscal" element={<SearchPage initialSituatie="Codul Fiscal" pageTitle="Codul Fiscal - Legea Aplicata" />} />
+          <Route path="/codul-de-procedura-fiscala" element={<SearchPage initialSituatie="Codul de Procedură Fiscală" pageTitle="Codul de Procedură Fiscală - Legea Aplicata" />} />
+
           {/* Legal & Support Routes */}
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
@@ -72,6 +83,18 @@ const App: React.FC = () => {
 
           {/* Legal News Routes */}
           {/* Legal News Routes */}
+          {/* Legal News Category Routes */}
+          <Route path="/stiri/drept-civil-si-administrativ" element={<LegalNewsPage initialCategory="Drept Civil și Administrativ" pageTitle="Știri Drept Civil și Administrativ" />} />
+          <Route path="/stiri/drept-penal" element={<LegalNewsPage initialCategory="Drept Penal (General)" pageTitle="Știri Drept Penal" />} />
+          <Route path="/stiri/dreptul-familiei" element={<LegalNewsPage initialCategory="Dreptul Familiei și Violență Domestică" pageTitle="Știri Dreptul Familiei" />} />
+          <Route path="/stiri/criminalitate-organizata" element={<LegalNewsPage initialCategory="Drept Penal: Criminalitate Organizată și Trafic" pageTitle="Știri Criminalitate Organizată" />} />
+          <Route path="/stiri/coruptie-si-serviciu" element={<LegalNewsPage initialCategory="Drept Penal: Corupție și Infracțiuni de Serviciu" pageTitle="Știri Corupție și Serviciu" />} />
+          <Route path="/stiri/infractiuni-rutiere" element={<LegalNewsPage initialCategory="Drept Penal: Infracțiuni Rutiere" pageTitle="Știri Infracțiuni Rutiere" />} />
+          <Route path="/stiri/infractiuni-contra-persoanei" element={<LegalNewsPage initialCategory="Drept Penal: Infracțiuni contra Persoanei" pageTitle="Știri Infracțiuni contra Persoanei" />} />
+          <Route path="/stiri/infractiuni-contra-patrimoniului" element={<LegalNewsPage initialCategory="Drept Penal: Infracțiuni contra Patrimoniului" pageTitle="Știri Infracțiuni contra Patrimoniului" />} />
+          <Route path="/stiri/infractiuni-economice" element={<LegalNewsPage initialCategory="Drept Penal: Infracțiuni Economice și Fals" pageTitle="Știri Infracțiuni Economice" />} />
+          <Route path="/stiri/jurisprudenta" element={<LegalNewsPage initialCategory="Jurisprudență (General)" pageTitle="Noutăți Jurisprudență" />} />
+
           <Route path="/stiri" element={<LegalNewsPage />} />
           <Route path="/stiri/articol/:slug" element={<ArticleDetailPage />} />
           <Route path="/evenimente" element={<LegalNewsPage />} />

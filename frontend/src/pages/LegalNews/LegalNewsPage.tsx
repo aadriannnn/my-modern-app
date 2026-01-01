@@ -11,7 +11,12 @@ import ProfessionalsSection from './ProfessionalsSection';
 import ArticleDetailPage from './ArticleDetailPage';
 import Footer from '../../components/Footer';
 
-const LegalNewsPage: React.FC = () => {
+interface LegalNewsPageProps {
+    initialCategory?: string;
+    pageTitle?: string;
+}
+
+const LegalNewsPage: React.FC<LegalNewsPageProps> = ({ initialCategory, pageTitle }) => {
     const location = useLocation();
 
     const toggleMenu = () => {
@@ -30,19 +35,19 @@ const LegalNewsPage: React.FC = () => {
     }
 
     const renderContent = () => {
-        if (path === '/stiri' || path === '/stiri/') return <ArticlesSection />;
+        if (path === '/stiri' || path === '/stiri/') return <ArticlesSection initialCategory={initialCategory} />;
         if (path.startsWith('/evenimente')) return <EventsSection />;
         if (path.startsWith('/editura')) return <BooksSection />;
         if (path.startsWith('/cariere')) return <JobsSection />;
         if (path.startsWith('/profesionisti') || path.startsWith('/stiri/autor')) return <ProfessionalsSection />;
-        return <ArticlesSection />;
+        return <ArticlesSection initialCategory={initialCategory} />;
     };
 
     // Generate SEO based on current section
     const getSEOData = () => {
         if (path === '/stiri' || path === '/stiri/') {
             return {
-                title: "Știri Juridice",
+                title: pageTitle || "Știri Juridice",
                 description: "Ultimele știri și articole juridice din România. Rămâi la curent cu legislația actualizată, hotărâri importante și analiză de specialitate.",
                 keywords: "știri juridice România, articole juridice, legislație nouă, modificări legislative, analiză juridică, hotărâri importante",
                 url: "https://chat.legeaaplicata.ro/stiri"

@@ -8,7 +8,11 @@ import ArticleFeedItem from '../../components/LegalNews/ArticleFeedItem';
 import SearchFilterBar from '../../components/LegalNews/SearchFilterBar';
 import Pagination from '../../components/ui/Pagination';
 
-const ArticlesSection: React.FC = () => {
+interface ArticlesSectionProps {
+    initialCategory?: string;
+}
+
+const ArticlesSection: React.FC<ArticlesSectionProps> = ({ initialCategory }) => {
     const [searchParams, setSearchParams] = useSearchParams();
 
 
@@ -22,7 +26,7 @@ const ArticlesSection: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+    const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory || null);
 
     // Fetch data when page, search, or category changes
     useEffect(() => {

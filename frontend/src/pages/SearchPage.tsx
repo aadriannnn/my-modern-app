@@ -13,7 +13,17 @@ import type { Filters, SelectedFilters } from '../types';
 import { normalizeSearchResults, buildDynamicFilters, isObiectMatching, removeDiacritics } from '@/lib/dynamicFilterHelpers';
 import { useAuth } from '../context/AuthContext';
 
-const SearchPage: React.FC = () => {
+interface SearchPageProps {
+    initialSituatie?: string;
+    initialMaterie?: string;
+    pageTitle?: string;
+}
+
+const SearchPage: React.FC<SearchPageProps> = ({
+    initialSituatie = '',
+    initialMaterie = '',
+    pageTitle
+}) => {
     const { user } = useAuth();
     // const [filters, setFilters] = useState<Filters | null>(null); // Removed static filters state
     const [dynamicFilters, setDynamicFilters] = useState<Filters | null>(null);
@@ -23,9 +33,9 @@ const SearchPage: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [offset, setOffset] = useState(0);
     const [hasMore, setHasMore] = useState(true);
-    const [situatie, setSituatie] = useState('');
+    const [situatie, setSituatie] = useState(initialSituatie);
     const [searchParams, setSearchParams] = useState<SelectedFilters>({
-        materie: '',
+        materie: initialMaterie,
         obiect: [],
         tip_speta: [],
         parte: [],
@@ -120,6 +130,13 @@ const SearchPage: React.FC = () => {
     useEffect(() => {
         applyClientSideFilters();
     }, [applyClientSideFilters]);
+
+    // Auto-search if initialSituatie provided
+    useEffect(() => {
+        if (initialSituatie) {
+            handleSearch();
+        }
+    }, []); // Run once on mount if prop exists
 
     // Example fill logic
     const EXAMPLE_CASE = "Contestatorii au formulat contestație la executare silită împotriva actelor de executare pornite de un executor judecătoresc la cererea creditorului, bazate pe două contracte de împrumut. Aceștia au solicitat anularea actelor de executare, reducerea cheltuielilor de executare și anularea titlurilor executorii (contractele de împrumut), argumentând că prețurile din contracte erau neserioase, sumele împrumutate nu au fost primite integral și că actele ascundeau o operațiune de cămătărie.";
@@ -505,7 +522,7 @@ const SearchPage: React.FC = () => {
     return (
         <div className="flex flex-col min-h-screen bg-brand-light">
             <SEOHead
-                title="Analiză Juridică AI - Cercetare Jurisprudență România"
+                title={pageTitle || "Analiză Juridică AI - Cercetare Jurisprudență România"}
                 description="Căutare avansată în jurisprudență română cu inteligență artificială. Accesați hotărâri ICCJ, CEDO, legislație actualizată, analiză comparativă spețe, monitoring dosare și verificare bonitate. Versiune offline 100% confidențială pentru avocați și jurisconsulți."
                 keywords="cercetare juridică AI, jurisprudență România, hotărâri ICCJ, hotărâri CEDO, analiză comparativă spețe, monitoring dosare instanță, legislație actualizată, cod civil, cod penal, avocat online, jurisconsult, practică judiciară, decizie instanță"
                 canonicalUrl="https://chat.legeaaplicata.ro/"
