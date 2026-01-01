@@ -115,7 +115,17 @@ const ArticlesSection: React.FC = () => {
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <h1 className="text-3xl font-bold text-slate-900 mb-8 font-headings uppercase">Toate Articolele</h1>
+            <div className="flex flex-wrap items-center gap-3 mb-8">
+                <h1 className="text-3xl font-bold text-slate-900 font-headings uppercase m-0">Toate Articolele</h1>
+                <div className="bg-[#EFF4FA] rounded-[10px] px-3 py-1.5 flex items-baseline gap-1.5 select-none transition-all duration-200">
+                    <span className="text-[#1E3A5F] font-bold text-2xl font-headings leading-none">
+                        {totalArticles.toLocaleString('ro-RO')}
+                    </span>
+                    <span className="text-[#6B7280] text-base font-normal font-sans opacity-80 leading-none lowercase">
+                        articole
+                    </span>
+                </div>
+            </div>
 
             <SearchFilterBar
                 searchQuery={searchQuery}
