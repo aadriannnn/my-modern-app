@@ -1,0 +1,29 @@
+[
+  {
+    "id": "noutate-1",
+    "data": "2025-04-10",
+    "titlu": "Actualizare Majoră: Funcționalități Noi Adăugate",
+    "rezumat": "Am lansat o nouă versiune a aplicației LegeaAplicata, incluzând îmbunătățiri semnificative la modulul de căutare ECRIS și o interfață optimizată.",
+    "continut": "Platforma LegeaAplicata a primit recent o actualizare importantă, versiunea 4.1.5, care aduce numeroase îmbunătățiri. Modulul de căutare a dosarelor ECRIS a fost optimizat pentru viteză și relevanță, permițând utilizatorilor să găsească informațiile dorite mult mai rapid. De asemenea, am introdus noi secțiuni, precum 'Despre Noi' și o pagină de 'Contact' îmbunătățită, pentru a facilita interacțiunea cu utilizatorii noștri. Interfața a fost redesenată parțial pentru a oferi o experiență mai fluidă și modernă pe toate dispozitivele.",
+    "imagine": "/images/update-banner.jpg",
+    "tags": ["actualizare", "ecris", "interfață", "funcționalități"]
+  },
+  {
+    "id": "noutate-2",
+    "data": "2025-03-28",
+    "titlu": "Integrare Calculator Taxă de Timbru",
+    "rezumat": "Acum puteți calcula taxa judiciară de timbru direct în aplicație, conform OUG 80/2013.",
+    "continut": "În efortul nostru continuu de a oferi unelte juridice complete, am integrat un calculator avansat pentru taxa judiciară de timbru. Acest modul permite selectarea obiectului cererii, introducerea valorilor relevante și calcularea automată a taxei datorate, luând în considerare scutirile și particularitățile prevăzute de OUG 80/2013. Funcționalitatea este disponibilă atât pentru dosarele ECRIS identificate, cât și în modulul 'Fără dosar pe rol'.",
+    "imagine": "/images/taxa-timbru-noutate.png",
+    "tags": ["taxă timbru", "calculator", "oug 80/2013", "funcționalități"]
+  },
+  {
+    "id": "noutate-3",
+    "data": "2025-03-15",
+    "titlu": "Extindere Bază de Date Legislativă",
+    "rezumat": "Am adăugat noi acte normative relevante în secțiunea de Legislație.",
+    "continut": "Baza noastră de date legislativă a fost extinsă pentru a include cele mai recente modificări și completări ale codurilor principale (Civil, Penal, Procedură Civilă, Procedură Penală), precum și alte acte normative frecvent utilizate în practică. Secțiunea 'Legislație' oferă acum o acoperire mai bună și căutări mai precise.",
+    "imagine": "/images/legislatie-update.jpg",
+    "tags": ["legislație", "bază de date", "actualizare"]
+  }
+]

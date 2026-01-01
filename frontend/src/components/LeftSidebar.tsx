@@ -1,7 +1,7 @@
 import React, { useState, Fragment } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { Filters, SelectedFilters, FilterItem } from '../types';
-import { ChevronDown, X, ChevronLeft, ChevronRight, Check, Gavel, Mail, Edit2 } from 'lucide-react';
+import { ChevronDown, X, ChevronLeft, ChevronRight, Check, Gavel, Mail, Edit2, Crown } from 'lucide-react';
 import Advertisement from './Advertisement';
 
 interface LeftSidebarProps {
@@ -238,6 +238,27 @@ const LeftSidebar: React.FC<LeftSidebarProps> = ({
             </div>
           </div>
           <ChevronRight size={16} className="text-gray-400 group-hover:text-purple-500 transition-colors" />
+        </button>
+      </div>
+
+      {/* Abonamente Button (New) */}
+      <div className="border-t border-gray-100 pt-4 pb-2">
+        <button
+          onClick={() => {
+            navigate("/abonamente");
+          }}
+          className="w-full flex items-center justify-between p-3 rounded-lg border border-amber-100 bg-gradient-to-r from-amber-50 to-white hover:from-amber-100 hover:to-white hover:shadow-md transition-all group"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+              <Crown size={16} />
+            </div>
+            <div className="text-left">
+              <div className="text-sm font-bold text-gray-800 group-hover:text-amber-700 transition-colors">Abonamente</div>
+              <div className="text-[10px] text-gray-500">Vezi planurile disponibile</div>
+            </div>
+          </div>
+          <ChevronRight size={16} className="text-gray-400 group-hover:text-amber-500 transition-colors" />
         </button>
       </div>
 
