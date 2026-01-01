@@ -1,310 +1,335 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { Shield, Lock, Cpu, Scale, FileText, Calculator, Search, Download, CheckCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
 import SEOHead from '../components/SEOHead';
-import './LandingPage.css';
+import { Mail, Phone, MapPin, Send, MessageSquare, Linkedin, Facebook, Globe, Shield } from 'lucide-react';
+import { motion, type Variants } from 'framer-motion';
 
-const LandingPage: React.FC = () => {
-    // SEO Structured Data for Landing Page
-    const structuredData = {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "Juridic AI – Local",
-        "applicationCategory": "LegalService",
-        "operatingSystem": "Windows, macOS, Linux",
-        "description": "Inteligență artificială juridică 100% offline și confidențială. Analizează cazuri și calculează taxe juridice direct pe propriul hardware, fără cloud sau procesare externă.",
-        "offers": [
-            {
-                "@type": "Offer",
-                "name": "Demo Web",
-                "price": "0",
-                "priceCurrency": "RON",
-                "description": "Versiune demo gratuită care rulează în browser, cu sesiune efemeră fără salvare de date."
-            },
-            {
-                "@type": "Offer",
-                "name": "Versiune Desktop Offline",
-                "priceCurrency": "RON",
-                "description": "Versiune completă 100% offline cu procesare locală, stocare criptată și bază de date completă.",
-                "availability": "https://schema.org/PreOrder"
-            },
-            {
-                "@type": "Offer",
-                "name": "Ediție Enterprise",
-                "priceCurrency": "RON",
-                "description": "Versiune premium cu dataset extins, LLM avansat și personalizare pentru cabinete și instituții.",
-                "availability": "https://schema.org/PreOrder"
+const ContactPage: React.FC = () => {
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
+
+    const [formState, setFormState] = useState({
+        name: '',
+        email: '',
+        subject: '',
+        message: ''
+    });
+
+    const [isSubmitted, setIsSubmitted] = useState(false);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        // Simulate API call
+        console.log('Form submitted:', formState);
+        setTimeout(() => setIsSubmitted(true), 500);
+    };
+
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+        setFormState({
+            ...formState,
+            [e.target.name]: e.target.value
+        });
+    };
+
+    const containerVariants: Variants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1
             }
-        ],
-        "featureList": [
-            "Procesare 100% offline, fără internet",
-            "Model AI proprietar, datele nu antrenează modelul",
-            "Zero amprentă digitală - fără cookie-uri, logging sau tracking",
-            "Căutare cazuri similare în jurisprudență română",
-            "Detectare automată prevederi legale",
-            "Generare documente juridice",
-            "Calcul automat taxe judiciare"
-        ],
-        "softwareVersion": "2.0",
-        "inLanguage": "ro",
-        "releaseNotes": "Versiune offline cu confidențialitate maximă pentru profesioniști în drept",
-        "screenshot": "https://chat.legeaaplicata.ro/src/assets/icons/logo.png"
+        }
+    };
+
+    const itemVariants: Variants = {
+        hidden: { y: 20, opacity: 0 },
+        visible: {
+            y: 0,
+            opacity: 1,
+            transition: {
+                type: "spring",
+                stiffness: 100
+            }
+        }
     };
 
     return (
-        <div className="landing-page">
+        <div className="min-h-screen bg-brand-dark text-white font-sans selection:bg-brand-gold selection:text-brand-dark flex flex-col">
             <SEOHead
-                title="Juridic AI Local - Inteligență Artificială Juridică 100% Offline și Confidențială"
-                description="Inteligență artificială juridică 100% offline pentru avocați și jurisconsulți. Analizează cazuri, calculează taxe juridice, generează documente - totul pe propriul tău hardware, fără cloud. Zero tracking, confidențialitate maximă."
-                keywords="AI juridic offline, inteligență artificială juridică, cercetare juridică offline, confidențialitate juridică maximă, legal AI local, asistent juridic AI offline, jurisprudență offline, fără cloud legal, GDPR compliant legal AI"
-                ogTitle="Juridic AI Local - AI Juridic 100% Offline și Confidențial"
-                ogDescription="Prima platformă de inteligență artificială juridică 100% offline. Procesare locală, zero cloud, confidențialitate totală pentru profesioniști în drept."
-                ogImage="https://chat.legeaaplicata.ro/src/assets/icons/logo.png"
-                ogUrl="https://chat.legeaaplicata.ro/landing"
-                canonicalUrl="https://chat.legeaaplicata.ro/landing"
-                structuredData={structuredData}
+                title="Contact - Legea Aplicată | Asistență Juridică & Tehnică"
+                description="Contactează echipa Legea Aplicată pentru asistență juridică, suport tehnic sau parteneriate. Suntem aici să răspundem nevoilor tale profesionale."
+                keywords="contact legea aplicata, suport juridic, asistenta juristi, email verdict line, contact adrian nicolau, consultanta juridica, suport tehnic"
+                canonicalUrl="https://chat.legeaaplicata.ro/contact"
+                ogTitle="Contact - Legea Aplicată"
+                ogDescription="Ai o întrebare tehnică sau juridică? Echipa noastră este pregătită să îți ofere suportul necesar."
+                ogUrl="https://chat.legeaaplicata.ro/contact"
+                ogImage="https://chat.legeaaplicata.ro/og-contact.jpg" // Assuming a default OG image or one can be added later
+                structuredData={{
+                    "@context": "https://schema.org",
+                    "@type": "ContactPage",
+                    "name": "Contact Legea Aplicată",
+                    "description": "Pagină de contact pentru Legea Aplicată - Servicii juridice și tehnice.",
+                    "url": "https://chat.legeaaplicata.ro/contact",
+                    "mainEntity": {
+                        "@type": "Organization",
+                        "name": "Legea Aplicată",
+                        "url": "https://chat.legeaaplicata.ro",
+                        "logo": "https://chat.legeaaplicata.ro/logo.png",
+                        "contactPoint": [
+                            {
+                                "@type": "ContactPoint",
+                                "telephone": "+40 751 661 066",
+                                "contactType": "customer service",
+                                "email": "contact@verdictline.com",
+                                "areaServed": "RO",
+                                "availableLanguage": "Romanian"
+                            }
+                        ],
+                        "address": {
+                            "@type": "PostalAddress",
+                            "streetAddress": "Str. DRM. DÂRVARI, Nr. 34A",
+                            "addressLocality": "Sector 5, București",
+                            "addressCountry": "RO"
+                        },
+                        "sameAs": [
+                            "https://verdictline.com"
+                        ]
+                    }
+                }}
             />
 
-            {/* Header */}
-            <header className="landing-header">
-                <div className="container">
-                    <div className="flex justify-between items-center">
-                        <div className="logo">
-                            <Shield className="w-8 h-8 text-emerald-500" />
-                            <span className="logo-text">Juridic AI – Local</span>
-                        </div>
-                        <a href="#contact" className="btn btn-secondary">
-                            Contact / Versiune Offline
-                        </a>
-                    </div>
-                </div>
-            </header>
+            <Header
+                isHomeView={false}
+                onToggleMenu={() => { }}
+                onContribuieClick={() => { }}
+                onReset={() => { }}
+            />
 
-            {/* Hero Section */}
-            <section className="hero">
-                <div className="container">
-                    <div className="hero-content">
-                        <div className="hero-text">
-                            <h1 className="hero-title animate-slide-up">
-                                Inteligență Artificială Juridică.<br />
-                                100% Offline. 100% Confidențial.
+            <main className="flex-grow pt-24 pb-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+                {/* Background ambient effects */}
+                <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none z-0">
+                    <div className="absolute top-[-10%] right-[-5%] w-[500px] h-[500px] bg-brand-primary/10 rounded-full blur-[100px]"></div>
+                    <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-brand-gold/5 rounded-full blur-[80px]"></div>
+                </div>
+
+                <div className="container mx-auto max-w-7xl relative z-10">
+                    <motion.div
+                        initial="hidden"
+                        animate="visible"
+                        variants={containerVariants}
+                        className="space-y-8"
+                    >
+                        {/* Page Header */}
+                        <motion.div variants={itemVariants} className="text-center mb-12 lg:mb-16">
+                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-headings mb-4 bg-clip-text text-transparent bg-gradient-to-r from-white via-gray-200 to-gray-400">
+                                Să intrăm în legătură
                             </h1>
-                            <p className="hero-subtitle animate-slide-up" style={{ animationDelay: '0.2s' }}>
-                                Analizează cazuri și calculează taxe juridice direct pe propriul tău hardware.
-                                Fără cloud. Fără scurgeri de date. Fără procesare externă.
+                            <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto">
+                                Ai o întrebare tehnică sau juridică? Echipa noastră este pregătită să îți ofere suportul necesar.
                             </p>
-                            <div className="hero-cta animate-slide-up" style={{ animationDelay: '0.4s' }}>
-                                <Link to="/" className="btn btn-primary btn-large">
-                                    Încearcă Demo-ul Web
-                                </Link>
-                                <p className="disclaimer">
-                                    Sesiune efemeră — toate datele sunt șterse automat la refresh
-                                </p>
-                            </div>
-                        </div>
-                        <div className="hero-visual animate-fade-in" style={{ animationDelay: '0.3s' }}>
-                            <div className="security-illustration">
-                                <div className="shield-wrapper animate-float">
-                                    <Shield className="shield-icon" />
-                                    <Lock className="lock-icon" />
+                        </motion.div>
+
+                        {/* Layout Split based on logic: Desktop (Bento) vs Mobile (Stack) */}
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+                            {/* LEFT COLUMN (Desktop: Contact Info & Quick Actions) - Spans 4 columns */}
+                            <motion.div variants={itemVariants} className="lg:col-span-4 space-y-6">
+
+                                {/* Primary Contact Card */}
+                                <div className="glass-dark rounded-2xl p-6 md:p-8 border border-white/5 hover:border-brand-gold/30 transition-all duration-300 group">
+                                    <div className="flex items-center gap-4 mb-6">
+                                        <div className="w-12 h-12 rounded-full bg-brand-gold/20 flex items-center justify-center text-brand-gold group-hover:scale-110 transition-transform">
+                                            <MessageSquare className="w-6 h-6" />
+                                        </div>
+                                        <div>
+                                            <h3 className="text-xl font-bold text-white">Discută cu noi</h3>
+                                            <p className="text-sm text-gray-400">Luni - Vineri, 09:00 - 18:00</p>
+                                        </div>
+                                    </div>
+
+                                    <address className="space-y-4 not-italic">
+                                        <a href="mailto:contact@verdictline.com" className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors group/link">
+                                            <Mail className="w-5 h-5 text-brand-primary group-hover/link:text-brand-gold transition-colors" />
+                                            <span className="text-gray-300 group-hover/link:text-white transition-colors">contact@verdictline.com</span>
+                                        </a>
+                                        <a href="tel:+40751661066" className="flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 transition-colors group/link">
+                                            <Phone className="w-5 h-5 text-brand-primary group-hover/link:text-brand-gold transition-colors" />
+                                            <span className="text-gray-300 group-hover/link:text-white transition-colors">+40 751 661 066</span>
+                                        </a>
+                                        <div className="flex items-start gap-3 p-3 text-gray-400">
+                                            <MapPin className="w-5 h-5 text-brand-primary mt-1" />
+                                            <span>București, România<br />Str. DRM. DÂRVARI, Nr. 34A, Sector 5</span>
+                                        </div>
+                                    </address>
                                 </div>
-                                <div className="particles">
-                                    <span className="particle"></span>
-                                    <span className="particle"></span>
-                                    <span className="particle"></span>
-                                    <span className="particle"></span>
+
+                                {/* Social / Trust Card */}
+                                <div className="glass-dark rounded-2xl p-6 border border-white/5 hover:border-brand-primary/30 transition-all duration-300">
+                                    <h4 className="text-lg font-bold text-white mb-4">Conectează-te</h4>
+                                    <div className="flex gap-4">
+                                        <a href="#" className="w-10 h-10 rounded-full bg-blue-600/20 text-blue-500 hover:bg-blue-600 hover:text-white flex items-center justify-center transition-all hover:-translate-y-1">
+                                            <Linkedin className="w-5 h-5" />
+                                        </a>
+                                        <a href="#" className="w-10 h-10 rounded-full bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white flex items-center justify-center transition-all hover:-translate-y-1">
+                                            <Facebook className="w-5 h-5" />
+                                        </a>
+                                        <a href="https://verdictline.com" target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-brand-gold/20 text-brand-gold hover:bg-brand-gold hover:text-black flex items-center justify-center transition-all hover:-translate-y-1">
+                                            <Globe className="w-5 h-5" />
+                                        </a>
+                                    </div>
                                 </div>
-                            </div>
+
+                                {/* FAQ / Quick Help Snippet for Mobile Efficiency */}
+                                <div className="glass-dark rounded-2xl p-6 border border-white/5 md:hidden">
+                                    <h4 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
+                                        <Shield className="w-4 h-4 text-brand-gold" />
+                                        Suport Rapid
+                                    </h4>
+                                    <p className="text-sm text-gray-400 mb-3">Pentru urgențe tehnice, folosește linia directă.</p>
+                                    <a href="tel:+40751661066" className="w-full flex items-center justify-center gap-2 py-2 bg-white/10 rounded-lg text-sm font-medium text-white hover:bg-white/20 transition-colors">
+                                        Sună Acum
+                                    </a>
+                                </div>
+
+                            </motion.div>
+
+                            {/* MIDDLE/RIGHT COLUMN (Form) - Spans 8 columns on Desktop */}
+                            <motion.div variants={itemVariants} className="lg:col-span-8">
+                                <div className="glass-dark rounded-2xl p-6 md:p-10 border border-white/5 h-full relative overflow-hidden">
+                                    <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
+                                        <Send className="w-64 h-64 text-white transform rotate-[-15deg] translate-x-12 -translate-y-12" />
+                                    </div>
+
+                                    <div className="relative z-10">
+                                        {!isSubmitted ? (
+                                            <motion.div
+                                                initial={{ opacity: 0, x: -20 }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: 20 }}
+                                                transition={{ duration: 0.3 }}
+                                            >
+                                                <h2 className="text-2xl font-bold text-white mb-6">Trimite un mesaj</h2>
+                                                <form onSubmit={handleSubmit} className="space-y-6">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                                        <div className="space-y-2">
+                                                            <label htmlFor="name" className="text-sm font-medium text-gray-300">Nume Complet</label>
+                                                            <input
+                                                                type="text"
+                                                                id="name"
+                                                                name="name"
+                                                                value={formState.name}
+                                                                onChange={handleChange}
+                                                                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold/50 focus:ring-1 focus:ring-brand-gold/50 transition-all placeholder:text-gray-600"
+                                                                placeholder="Ion Popescu"
+                                                                required
+                                                            />
+                                                        </div>
+                                                        <div className="space-y-2">
+                                                            <label htmlFor="email" className="text-sm font-medium text-gray-300">Email</label>
+                                                            <input
+                                                                type="email"
+                                                                id="email"
+                                                                name="email"
+                                                                value={formState.email}
+                                                                onChange={handleChange}
+                                                                className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold/50 focus:ring-1 focus:ring-brand-gold/50 transition-all placeholder:text-gray-600"
+                                                                placeholder="ion@exemplu.ro"
+                                                                required
+                                                            />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <label htmlFor="subject" className="text-sm font-medium text-gray-300">Subiect</label>
+                                                        <select
+                                                            id="subject"
+                                                            name="subject"
+                                                            value={formState.subject}
+                                                            onChange={handleChange}
+                                                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold/50 focus:ring-1 focus:ring-brand-gold/50 transition-all appearance-none cursor-pointer"
+                                                        >
+                                                            <option value="" className="bg-brand-dark text-gray-500">Alege un subiect...</option>
+                                                            <option value="consultanta" className="bg-brand-dark">Consultanță Juridică</option>
+                                                            <option value="tehnic" className="bg-brand-dark">Suport Tehnic App</option>
+                                                            <option value="parteneriat" className="bg-brand-dark">Parteneriate B2B</option>
+                                                            <option value="altele" className="bg-brand-dark">Altele</option>
+                                                        </select>
+                                                    </div>
+
+                                                    <div className="space-y-2">
+                                                        <label htmlFor="message" className="text-sm font-medium text-gray-300">Mesaj</label>
+                                                        <textarea
+                                                            id="message"
+                                                            name="message"
+                                                            value={formState.message}
+                                                            onChange={handleChange}
+                                                            rows={5}
+                                                            className="w-full bg-black/20 border border-white/10 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-brand-gold/50 focus:ring-1 focus:ring-brand-gold/50 transition-all placeholder:text-gray-600 resize-none"
+                                                            placeholder="Detaliază solicitarea ta aici..."
+                                                            required
+                                                        ></textarea>
+                                                    </div>
+
+                                                    <div className="pt-4">
+                                                        <button
+                                                            type="submit"
+                                                            className="w-full md:w-auto px-8 py-4 bg-brand-gold hover:bg-yellow-600 text-brand-dark font-bold rounded-xl transition-all shadow-[0_0_20px_rgba(234,179,8,0.2)] hover:shadow-[0_0_30px_rgba(234,179,8,0.4)] flex items-center justify-center gap-2 transform hover:-translate-y-0.5"
+                                                        >
+                                                            <Send className="w-5 h-5" />
+                                                            Trimite Mesajul
+                                                        </button>
+                                                    </div>
+                                                </form>
+                                            </motion.div>
+                                        ) : (
+                                            <motion.div
+                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                className="flex flex-col items-center justify-center h-full text-center py-12"
+                                            >
+                                                <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mb-6">
+                                                    <Shield className="w-10 h-10 text-green-500" />
+                                                </div>
+                                                <h3 className="text-3xl font-bold text-white mb-2">Mesaj Trimis!</h3>
+                                                <p className="text-gray-400 max-w-md mb-8">
+                                                    Mulțumim pentru contact. Echipa noastră a primit mesajul tău și va reveni cu un răspuns în cel mai scurt timp posibil.
+                                                </p>
+                                                <button
+                                                    onClick={() => setIsSubmitted(false)}
+                                                    className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors font-medium"
+                                                >
+                                                    Trimite alt mesaj
+                                                </button>
+                                            </motion.div>
+                                        )}
+                                    </div>
+                                </div>
+                            </motion.div>
+
+                            {/* BOTTOM ROW (Map / Locations) - Full width on Desktop */}
+                            <motion.div variants={itemVariants} className="lg:col-span-12 hidden md:block">
+                                <div className="glass-dark rounded-2xl p-1 border border-white/5 h-64 overflow-hidden relative group">
+                                    <div className="absolute inset-0 bg-brand-primary/10 flex items-center justify-center">
+                                        {/* Placeholder for map visual - abstract tech style */}
+                                        <div className="text-center">
+                                            <MapPin className="w-12 h-12 text-brand-gold mx-auto mb-4 animate-bounce" />
+                                            <p className="text-gray-400">Str. DRM. DÂRVARI, Nr. 34A, Sector 5<br />București</p>
+                                        </div>
+                                        <div className="absolute inset-0 bg-[url('/grid-pattern.svg')] opacity-20"></div>
+                                    </div>
+                                </div>
+                            </motion.div>
+
                         </div>
-                    </div>
+                    </motion.div>
                 </div>
-            </section>
+            </main>
 
-            {/* Security Pillars */}
-            <section className="pillars">
-                <div className="container">
-                    <div className="pillars-grid">
-                        <div className="pillar animate-slide-up" style={{ animationDelay: '0.1s' }}>
-                            <div className="pillar-icon">
-                                <Cpu className="w-12 h-12" />
-                            </div>
-                            <h3 className="pillar-title">Procesare Locală</h3>
-                            <p className="pillar-text">
-                                Rulează în totalitate pe dispozitivul tău. Internet nu este necesar.
-                            </p>
-                        </div>
-                        <div className="pillar animate-slide-up" style={{ animationDelay: '0.2s' }}>
-                            <div className="pillar-icon pillar-icon-navy">
-                                <Shield className="w-12 h-12" />
-                            </div>
-                            <h3 className="pillar-title">Model AI Proprietar</h3>
-                            <p className="pillar-text">
-                                Nu se bazează pe LLM-uri publice. Datele tale nu antrenează niciodată modelul nostru.
-                            </p>
-                        </div>
-                        <div className="pillar animate-slide-up" style={{ animationDelay: '0.3s' }}>
-                            <div className="pillar-icon">
-                                <Lock className="w-12 h-12" />
-                            </div>
-                            <h3 className="pillar-title">Zero Amprentă Digitală</h3>
-                            <p className="pillar-text">
-                                Confidențialitate maximă cu procesare locală.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Comparison Section */}
-            <section className="comparison">
-                <div className="container">
-                    <h2 className="section-title">Alege Versiunea Potrivită</h2>
-                    <div className="comparison-grid">
-                        {/* Web Demo */}
-                        <div className="comparison-card">
-                            <div className="card-header">
-                                <h3 className="card-title">Demo Web</h3>
-                                <span className="badge badge-free">Gratuit</span>
-                            </div>
-                            <ul className="feature-list">
-                                <li><CheckCircle className="w-5 h-5" /> Rulează în browser</li>
-                                <li><CheckCircle className="w-5 h-5" /> Necesită internet</li>
-                                <li><CheckCircle className="w-5 h-5" /> Nicio dată salvată (totul șters la refresh)</li>
-                                <li><CheckCircle className="w-5 h-5" /> Motor AI ușor</li>
-                                <li><CheckCircle className="w-5 h-5" /> Pur pentru testare</li>
-                            </ul>
-                            <Link to="/" className="btn btn-outline">Încearcă Acum</Link>
-                        </div>
-
-                        {/* Desktop Full */}
-                        <div className="comparison-card comparison-card-featured">
-                            <div className="featured-badge">Recomandat</div>
-                            <div className="card-header">
-                                <h3 className="card-title">Versiune Desktop Completă</h3>
-                                <span className="badge badge-pro">Offline</span>
-                            </div>
-                            <ul className="feature-list">
-                                <li><CheckCircle className="w-5 h-5" /> 100% offline, air-gapped</li>
-                                <li><CheckCircle className="w-5 h-5" /> Stocare locală criptată</li>
-                                <li><CheckCircle className="w-5 h-5" /> Putere maximă de procesare</li>
-                                <li><CheckCircle className="w-5 h-5" /> Bază de date completă de cazuri juridice</li>
-                                <li><CheckCircle className="w-5 h-5" /> Flux de lucru instantaneu</li>
-                                <li><CheckCircle className="w-5 h-5" /> Livrat doar la cerere</li>
-                                <li><CheckCircle className="w-5 h-5" /> Include actualizări și mentenanță</li>
-                            </ul>
-                            <a href="#contact" className="btn btn-primary">Solicită Ofertă & Pachet Instalare</a>
-                        </div>
-
-                        {/* Enterprise */}
-                        <div className="comparison-card">
-                            <div className="card-header">
-                                <h3 className="card-title">Ediție Enterprise</h3>
-                                <span className="badge badge-enterprise">Premium</span>
-                            </div>
-                            <ul className="feature-list">
-                                <li><CheckCircle className="w-5 h-5" /> Tot din versiunea Desktop +</li>
-                                <li><CheckCircle className="w-5 h-5" /> Dataset jurisprudență mult mai amplu</li>
-                                <li><CheckCircle className="w-5 h-5" /> Bibliotecă de cazuri actualizată periodic</li>
-                                <li><CheckCircle className="w-5 h-5" /> LLM avansat de ultima generație pentru juridic</li>
-                                <li><CheckCircle className="w-5 h-5" /> Personalizare opțională pentru cabinete</li>
-                                <li><CheckCircle className="w-5 h-5" /> Scalabil pentru instituții</li>
-                            </ul>
-                            <a href="#contact" className="btn btn-outline">Contactează-ne</a>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            {/* Features Grid */}
-            <section className="features">
-                <div className="container">
-                    <h2 className="section-title">Capabilități Avansate</h2>
-                    <div className="features-grid">
-                        <div className="feature-card animate-slide-up">
-                            <Scale className="feature-icon" />
-                            <h3 className="feature-title">Căutare Cazuri Similare</h3>
-                            <p className="feature-text">
-                                Găsește rapid jurisprudență relevantă cu AI antrenat pe legislația română.
-                            </p>
-                        </div>
-                        <div className="feature-card animate-slide-up" style={{ animationDelay: '0.1s' }}>
-                            <FileText className="feature-icon" />
-                            <h3 className="feature-title">Detecție Prevederi Legale</h3>
-                            <p className="feature-text">
-                                Identifică automat articolele și normele legale aplicabile cazului tău.
-                            </p>
-                        </div>
-                        <div className="feature-card animate-slide-up" style={{ animationDelay: '0.2s' }}>
-                            <Download className="feature-icon" />
-                            <h3 className="feature-title">Documente Juridice Auto-generate</h3>
-                            <p className="feature-text">
-                                Generează cereri, memorii și alte acte juridice instant pe baza cazului.
-                            </p>
-                        </div>
-                        <div className="feature-card animate-slide-up" style={{ animationDelay: '0.3s' }}>
-                            <Calculator className="feature-icon" />
-                            <h3 className="feature-title">Calcul Automat Taxe Judiciare</h3>
-                            <p className="feature-text">
-                                Calculează precis toate taxele și cheltuielile de judecată aplicabile.
-                            </p>
-                        </div>
-                        <div className="feature-card animate-slide-up" style={{ animationDelay: '0.4s' }}>
-                            <Search className="feature-icon" />
-                            <h3 className="feature-title">Motor de Căutare Local Avansat</h3>
-                            <p className="feature-text">
-                                Caută instant în întreaga bază de date locală fără latență de rețea.
-                            </p>
-                        </div>
-                        <div className="feature-card animate-slide-up" style={{ animationDelay: '0.5s' }}>
-                            <Shield className="feature-icon" />
-                            <h3 className="feature-title">Confidențialitate Totală</h3>
-                            <p className="feature-text">
-                                Toate documentele rămân exclusiv pe sistemul tău. Zero risc de expunere.
-                            </p>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-
-
-            {/* Footer */}
-            <footer className="landing-footer" id="contact">
-                <div className="container">
-                    <div className="footer-content">
-                        <div className="footer-column">
-                            <h4 className="footer-title">Juridic AI – Local</h4>
-                            <p className="footer-text">
-                                Inteligența artificială pentru profesioniști în drept.<br />
-                                Securitate maximă. Performanță maximă.
-                            </p>
-                        </div>
-                        <div className="footer-column">
-                            <h4 className="footer-title">Contact</h4>
-                            <p className="footer-text">
-                                Pentru versiunea Desktop sau Enterprise,<br />
-                                contactează-ne la: <a href="mailto:contact@juridicai.ro" className="footer-link">contact@juridicai.ro</a>
-                            </p>
-                        </div>
-                        <div className="footer-column">
-                            <h4 className="footer-title">Link-uri Rapide</h4>
-                            <ul className="footer-links">
-                                <li><Link to="/terms">Termeni și Condiții</Link></li>
-                                <li><Link to="/privacy-policy">Politica de Confidențialitate</Link></li>
-                                <li><Link to="/">Demo Web</Link></li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div className="footer-bottom">
-                        <p className="footer-disclaimer">
-                            © 2025 Juridic AI – Local. Toate drepturile rezervate.<br />
-                            Confidențialitate și performanță pentru profesioniști.
-                        </p>
-                    </div>
-                </div>
-            </footer>
+            <Footer />
         </div>
     );
 };
 
-export default LandingPage;
+export default ContactPage;

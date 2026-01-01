@@ -141,6 +141,11 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://chat.legeaaplicata.ro/contact</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://chat.legeaaplicata.ro/stiri/simplificare-executare-silita-art-666-cpc</loc>
     <lastmod>2026-01-01</lastmod>
     <changefreq>monthly</changefreq>

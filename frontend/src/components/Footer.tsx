@@ -73,6 +73,11 @@ const Footer: React.FC = () => {
                                 <Mail className="w-5 h-5 text-brand-gold shrink-0" />
                                 <span>contact@verdictline.com</span>
                             </li>
+                            <li className="pt-2">
+                                <Link to="/contact" className="inline-flex items-center justify-center px-6 py-2 bg-brand-gold text-brand-dark font-bold rounded-lg hover:bg-white transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5">
+                                    Contactează-ne
+                                </Link>
+                            </li>
                         </ul>
                     </div>
                 </div>
