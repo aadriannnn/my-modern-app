@@ -64,6 +64,24 @@ def seed_news_data(session: Session):
             logger.error(f"Error seeding authors: {e}")
             session.rollback()
 
+    # --- Cleanup Unwanted Articles ---
+    unwanted_titles = ["denumire articol atragator", "denumire articol atragator."]
+    try:
+        # Check if they exist first
+        # We use .all() to fetch them for deletion
+        # Note: In SQLModel/SQLAlchemy, .in_ needs the column instrument
+        statement = select(LegalNewsArticle).where(LegalNewsArticle.title.in_(unwanted_titles))
+        to_delete = session.exec(statement).all()
+
+        if to_delete:
+            count_deleted = len(to_delete)
+            for art in to_delete:
+                session.delete(art)
+            session.commit()
+            logger.info(f"CLEANUP: Removed {count_deleted} unwanted articles found in database.")
+    except Exception as e:
+        logger.error(f"Error cleaning unwanted articles: {e}")
+
     # --- Seed Articles ---
     articles_file = DATA_DIR / "articles.json"
     if articles_file.exists():
