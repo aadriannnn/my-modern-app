@@ -15,6 +15,7 @@ export interface LegalNewsArticle {
   description?: string;
   content: string;
   publishDate: string;
+  lastModifiedDate?: string;
   authorId?: string;
   authorName?: string;
   imageUrl?: string;

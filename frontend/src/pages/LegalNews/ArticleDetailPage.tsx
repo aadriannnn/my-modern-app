@@ -68,6 +68,27 @@ const ArticleDetailPage: React.FC = () => {
                 <meta name="description" content={article.description || article.summary} />
             </Helmet> */}
 
+            {/* JSON-LD Structured Data for Google SEO */}
+            {/* JSON-LD Structured Data for Google SEO */}
+            <script
+                type="application/ld+json"
+                dangerouslySetInnerHTML={{
+                    __html: JSON.stringify({
+                        "@context": "https://schema.org",
+                        "@type": "NewsArticle",
+                        "headline": article.title,
+                        "image": article.imageUrl ? [article.imageUrl] : [],
+                        "datePublished": article.publishDate,
+                        "dateModified": article.lastModifiedDate || article.publishDate,
+                        "author": [{
+                            "@type": "Person",
+                            "name": "Adrian Nicolau",
+                            "url": "https://legeaaplicata.ro/stiri/autor/author-01"
+                        }]
+                    })
+                }}
+            />
+
             <Header onToggleMenu={toggleMenu} onContribuieClick={handleContribuieClick} hideMobileMenu={true} />
 
             <main className="flex-grow container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
