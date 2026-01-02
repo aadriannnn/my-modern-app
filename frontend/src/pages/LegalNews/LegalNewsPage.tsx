@@ -115,11 +115,13 @@ const LegalNewsPage: React.FC<LegalNewsPageProps> = ({ initialCategory, pageTitl
 
             <div className="bg-white border-b border-gray-200 py-12">
                 <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center">
-                    <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4 font-serif">
-                        Jurnal Juridic & Noutăți
+                    <h1 className="text-3xl sm:text-4xl font-bold text-brand-dark mb-4 font-serif">
+                        {path.startsWith('/evenimente') ? "Jurnal Juridic & Evenimente AI" : "Jurnal Juridic & Noutăți"}
                     </h1>
                     <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-                        Rămâi la curent cu ultimele modificări legislative, articole de specialitate și evenimente din lumea juridică.
+                        {path.startsWith('/evenimente')
+                            ? "Evenimente online dedicate inteligenței artificiale, dreptului și evoluției jurisprudenței"
+                            : "Rămâi la curent cu ultimele modificări legislative, articole de specialitate și evenimente din lumea juridică."}
                     </p>
                 </div>
             </div>
