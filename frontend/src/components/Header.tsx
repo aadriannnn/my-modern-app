@@ -104,6 +104,13 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
               <Crown size={18} strokeWidth={1.5} />
               <span className="text-[9px] font-medium">Premium</span>
             </Link>
+
+            {!isHomeView && (
+              <Link to="/" onClick={onReset} className="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors md:hidden">
+                <Scale size={18} strokeWidth={1.5} />
+                <span className="text-[9px] font-medium">Analiză</span>
+              </Link>
+            )}
           </div>
         </div>
 
