@@ -58,6 +58,10 @@
           "details": "Max 50 rezultate per interogare"
         },
         {
+          "name": "Raport Juridic Predictiv (beta)",
+          "details": "Rată succes, durată estimată & strategii"
+        },
+        {
           "name": "Teste Grilă",
           "details": "Generate automat din jurisprudență"
         },
@@ -99,6 +103,10 @@
           "details": "Max 50 rezultate per interogare"
         },
         {
+          "name": "Raport Juridic Predictiv (beta)",
+          "details": "Rată succes, durată estimată & strategii"
+        },
+        {
           "name": "Teste Grilă",
           "details": "Generate automat din jurisprudență"
         },
@@ -138,6 +146,10 @@
         {
           "name": "Acces nelimitat",
           "details": "Max 50 rezultate per interogare"
+        },
+        {
+          "name": "Raport Juridic Predictiv (beta)",
+          "details": "Rată succes, durată estimată & strategii"
         },
         {
           "name": "Teste Grilă",

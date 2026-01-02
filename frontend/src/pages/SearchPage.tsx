@@ -584,6 +584,7 @@ const SearchPage: React.FC<SearchPageProps> = ({
                 isOpen={isModalOpen}
                 result={selectedCase}
                 onClose={() => setIsModalOpen(false)}
+                userQuery={situatie}
             />
 
             <CompanyDetailModal

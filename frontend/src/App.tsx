@@ -36,6 +36,7 @@ import CookieConsent from './components/CookieConsent';
 import LegislatiePage from './pages/LegislatiePage';
 import LegislatieCategoryPage from './pages/LegislatieCategoryPage';
 import LegislatieDetailPage from './pages/LegislatieDetailPage';
+import PredictiveReportPage from './pages/PredictiveReportPage';
 
 const App: React.FC = () => {
   return (
@@ -101,7 +102,11 @@ const App: React.FC = () => {
           <Route path="/stiri/infractiuni-contra-persoanei" element={<LegalNewsPage initialCategory="Drept Penal: Infracțiuni contra Persoanei" pageTitle="Știri Infracțiuni contra Persoanei" />} />
           <Route path="/stiri/infractiuni-contra-patrimoniului" element={<LegalNewsPage initialCategory="Drept Penal: Infracțiuni contra Patrimoniului" pageTitle="Știri Infracțiuni contra Patrimoniului" />} />
           <Route path="/stiri/infractiuni-economice" element={<LegalNewsPage initialCategory="Drept Penal: Infracțiuni Economice și Fals" pageTitle="Știri Infracțiuni Economice" />} />
+
           <Route path="/stiri/jurisprudenta" element={<LegalNewsPage initialCategory="Jurisprudență (General)" pageTitle="Noutăți Jurisprudență" />} />
+
+          {/* New Predictive Report Service */}
+          <Route path="/raport-predictiv" element={<React.Suspense fallback={<div>Loading...</div>}><PredictiveReportPage /></React.Suspense>} />
 
           <Route path="/stiri" element={<LegalNewsPage />} />
           <Route path="/stiri/articol/:slug" element={<ArticleDetailPage />} />

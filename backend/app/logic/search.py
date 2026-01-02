@@ -1,3 +1,4 @@
+
 from sqlmodel import Session, text
 from ..logic.normalization import _overlap
 from ..config import get_settings
@@ -181,3 +182,202 @@ async def search_similar(
 
     results_processed.sort(key=lambda x: x["score"], reverse=True)
     return results_processed
+
+# --- NEW ANALYTICS FUNCTION ---
+async def analyze_predictive(
+    db: Session, user_text: str, embedding: list[float], filters: dict
+):
+    """
+    Performs a deep search (top 1000) to aggregate statistics (win rate, taxes)
+    and returns rich details for the top 5 matches.
+    """
+    emb = vector_to_literal(embedding)
+
+    # Use filters if provided, similar to search_similar
+    materii_canon = filters.get("materie") or []
+    obiecte_canon = filters.get("obiect") or []
+
+    # We define a larger limit for stats
+    STATS_LIMIT = 500
+
+    sql = f"""
+    WITH base AS (
+        SELECT v.speta_id, v.embedding, b.obj,
+        (v.embedding <=> :embedding) as dist
+        FROM vectori v JOIN blocuri b ON b.id=v.speta_id
+    )
+    SELECT
+        b.speta_id,
+        b.dist,
+        b.obj
+    FROM base b
+    ORDER BY b.dist ASC
+    LIMIT :limit_stats;
+    """
+
+    # Execute query
+    result = db.execute(text(sql), {"embedding": emb, "limit_stats": STATS_LIMIT})
+    rows = result.fetchall()
+
+    if not rows:
+        return None
+
+    # --- Aggregation Logic in Python ---
+    wins = 0
+    losses = 0
+    total_valid_sol = 0
+
+    # Duration Stats
+    total_duration_days = 0
+    valid_duration_count = 0
+
+    evidence_counts = {}
+
+    top_5_full = []
+
+    from datetime import datetime
+    import re
+
+    # Map RO months to text
+    RO_MONTHS = {
+        'ian': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'mai': 5, 'iun': 6,
+        'iul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12
+    }
+
+    def parse_ro_date(d_str):
+        if not d_str: return None
+        d_str = d_str.strip().lower()
+        # Format: 20-nov-2014 or 20.11.2014
+
+        # Try numeric formats first
+        for fmt in ("%d.%m.%Y", "%Y-%m-%d", "%d-%m-%Y"):
+            try:
+                return datetime.strptime(d_str, fmt)
+            except ValueError:
+                continue
+
+        # Try text format (dd-mon-yyyy)
+        parts = re.split(r'[-.\s]+', d_str)
+        if len(parts) == 3:
+            day, mon, year = parts
+            if mon in RO_MONTHS:
+                try:
+                    return datetime(int(year), RO_MONTHS[mon], int(day))
+                except:
+                    pass
+        return None
+
+    def get_year_from_dosar(dosar_str):
+        if not dosar_str: return None
+        # Pattern: X/Y/YYYY
+        parts = dosar_str.split('/')
+        if parts:
+            last = parts[-1].strip()
+            # Sometimes it has extra chars, extract 4 digits
+            match = re.search(r'(20\d{2})', last)
+            if match:
+                return int(match.group(1))
+        return None
+
+    for i, row in enumerate(rows):
+        (speta_id, dist, obj) = row
+
+        # Safe extraction from JSON
+        # Handle both variants of keys if possible
+        tip_solutie = obj.get('tip_solutie')
+        d_data = obj.get('data') # Date of solution
+        dosar = obj.get('număr_dosar') or obj.get('numar_dosar') # File number
+        probe_raw = obj.get('probele_retinute')
+
+        # 1. Win Rate Stats
+        if tip_solutie:
+            ts_lower = tip_solutie.lower()
+            if "admite" in ts_lower and "respinge" not in ts_lower: # simple heuristic
+                wins += 1
+                total_valid_sol += 1
+            elif "respinge" in ts_lower:
+                losses += 1
+                total_valid_sol += 1
+            elif "admite" in ts_lower: # partial admit
+                wins += 1 # count as win for now
+                total_valid_sol += 1
+
+        # 2. Duration Stats (Estimated)
+        # Logic: Start Date = Jan 1st of Dosar Year
+        #        End Date = Parsed 'data'
+        if dosar and d_data:
+             start_year = get_year_from_dosar(dosar)
+             dt_end = parse_ro_date(d_data)
+
+             if start_year and dt_end and dt_end.year >= start_year:
+                 dt_start = datetime(start_year, 1, 1)
+                 days = (dt_end - dt_start).days
+                 if 0 < days < 5000: # Sanity filter
+                     total_duration_days += days
+                     valid_duration_count += 1
+
+        if probe_raw:
+            parts = []
+            if isinstance(probe_raw, list):
+                parts = probe_raw
+            elif isinstance(probe_raw, str):
+                parts = re.split(r'[,;]\s*', probe_raw)
+
+            for p in parts:
+                if not isinstance(p, str): continue
+                p_clean = p.strip().lower()
+                if not p_clean or p_clean in ["null", "none"]: continue
+
+                if len(p_clean) > 3 and "solicit" not in p_clean:
+                    if "inscris" in p_clean: p_clean = "inscrisuri"
+                    elif "martor" in p_clean: p_clean = "martori"
+                    elif "expertiz" in p_clean: p_clean = "expertiza"
+                    elif "interogatori" in p_clean: p_clean = "interogatoriu"
+                    elif "anchet" in p_clean: p_clean = "ancheta sociala"
+
+                    if p_clean not in evidence_counts:
+                        evidence_counts[p_clean] = 0
+                    evidence_counts[p_clean] += 1
+
+        # 4. Top Cases extraction
+        if i < 5:
+            item_data = {
+                "id": speta_id,
+                "data": obj,
+                "score": 1 - dist
+            }
+            top_5_full.append(item_data)
+
+    # Final Aggregation
+    win_rate = 0
+    if total_valid_sol > 0:
+        win_rate = int((wins / total_valid_sol) * 100)
+
+    avg_duration_days = 0
+    if valid_duration_count > 0:
+        avg_duration_days = int(total_duration_days / valid_duration_count)
+
+
+    # Top Evidence
+    top_evidence = sorted(evidence_counts.items(), key=lambda x: x[1], reverse=True)[:6]
+    top_evidence_list = [{"name": k.title(), "count": v} for k, v in top_evidence]
+
+    def remove_none(obj):
+        if isinstance(obj, list):
+            return [remove_none(x) for x in obj if x is not None]
+        elif isinstance(obj, dict):
+            return {k: remove_none(v) for k, v in obj.items() if v is not None and v != "null"}
+        return obj
+
+    final_result = {
+        "stats": {
+            "win_rate": win_rate,
+            "total_analyzed": len(rows),
+            "relevant_sol_count": total_valid_sol,
+            "avg_duration_days": avg_duration_days,
+            "top_evidence": top_evidence_list
+        },
+        "top_cases": top_5_full
+    }
+
+    return remove_none(final_result)

@@ -283,6 +283,8 @@ async def search_by_ids(
 
         return results
 
+        return results
+
     except HTTPException:
         raise
     except Exception as e:
@@ -291,3 +293,63 @@ async def search_by_ids(
             status_code=500,
             detail="A apărut o eroare la căutarea după ID-uri."
         )
+
+
+@router.post("/predictive")
+async def predictive_analysis(
+    request: SearchRequest,
+    session: Session = Depends(get_session),
+    current_user: Optional[ClientDB] = Depends(get_current_user_optional)
+):
+    """
+    Specialized endpoint for Predictive Report.
+    Analyzes top 500-1000 cases to generate statistics and returns top 5 for display.
+    """
+    logger.info(f"Received PREDICTIVE request: '{request.situatie[:50]}...'")
+
+    try:
+        from ..models import ClientRole
+
+        # Check permissions logic
+        # 1. Must be logged in
+        if not current_user:
+             raise HTTPException(status_code=401, detail="Authentication required")
+
+        # 2. Must be PRO or ADMIN or have a subscription
+        is_pro = (
+            current_user.rol in [ClientRole.ADMIN, ClientRole.PRO]
+            or current_user.subscription_plan_id is not None
+        )
+
+        if not is_pro:
+             # Check if we want to allow a limited free trial? user said "restrict to pro/admin"
+             raise HTTPException(status_code=403, detail="Această funcționalitate necesită un abonament PRO.")
+
+        # flow:
+        # 1. Generate Embedding (using logic from search_logic or calling ollama directly?
+        #    search.py had 'search_cases' in logic/search_logic.py which handled everything.
+        #    We need to access the embedding logic.
+        #    Actually `search_cases` in search_logic.py calls `get_embedding`.
+
+        from ..logic.embedding import embed_text
+        from ..logic.search import analyze_predictive
+
+        # We need to generate embedding first.
+        # Since `analyze_predictive` takes an embedding list.
+        embedding = await embed_text(request.situatie)
+        if not embedding:
+             raise HTTPException(status_code=500, detail="Failed to generate embedding")
+
+        # Call analysis logic
+        result = await analyze_predictive(session, request.situatie, embedding, request.dict())
+
+        if not result:
+            return {"stats": {"win_rate": 50, "total_analyzed": 0}, "top_cases": []}
+
+        return result
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in predictive analysis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Eroare la generarea raportului predictiv.")

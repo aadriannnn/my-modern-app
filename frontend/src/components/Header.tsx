@@ -141,6 +141,8 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
             <span>Premium</span>
           </Link>
 
+
+
           {isHomeView ? (
             <>
               <div className="h-6 w-px bg-gray-200 hidden md:block"></div>

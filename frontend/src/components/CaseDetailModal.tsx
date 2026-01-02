@@ -1,14 +1,14 @@
 import React, { useState } from "react";
 import { Dialog, Transition } from "@headlessui/react";
 import { Fragment } from "react";
-import { Download, X, Printer, FolderPlus, FolderCheck, ThumbsUp, ThumbsDown, Gavel } from "lucide-react";
+import { Download, X, Printer, FolderPlus, FolderCheck, ThumbsUp, ThumbsDown, Gavel, FileText, Sparkles, Scale } from "lucide-react";
 import ShareButton from "./ShareButton";
 import { useDosar } from "../context/DosarContext";
 import { submitFeedback } from "../lib/api";
 
 import { generatePdf } from "../lib/pdf";
 import type { PdfSablonData } from "../lib/pdf";
-import LongTextField from "./LongTextField";
+
 import DocumentModelsSection from "./DocumentModelsSection";
 import DocumentModelModal from "./DocumentModelModal";
 import LegalCodesSection from "./LegalCodesSection";
@@ -16,6 +16,8 @@ import CompetenceSection from "./CompetenceSection";
 import TaxSection from "./TaxSection";
 
 // Refined type definitions for clarity
+import { PredictiveReportSection } from './PredictiveReportSection';
+
 interface CaseDetailModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -24,11 +26,12 @@ interface CaseDetailModalProps {
     situatia_de_fapt_full?: string;  // Added field that exists at result level
     data: Record<string, any>;
   } | null;
+  userQuery?: string; // Add this prop
 }
 
 type FeedbackType = 'good' | 'bad' | null;
 
-const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, result }) => {
+const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, result, userQuery = "" }) => {
   const [activeTab, setActiveTab] = useState("Date de identificare");
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<string | null>(null);
@@ -68,16 +71,17 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
     materie: caseData.materie || "",
     obiect: caseData.obiect || "",
     instanta: caseData.instanta || "",
+    numarDosar: caseData.număr_dosar || "",
     parte_introductiva: caseData.parte_introductiva || "",
     considerente_speta: caseData.considerente_speta || "",
-    dispozitiv_speta: caseData.dispozitiv_speta || "",
+    dispozitiv_speta: caseData.dispozitiv_speta || ""
   });
 
   const handleDownload = () => generatePdf(createPdfData());
   const handlePrint = () => generatePdf(createPdfData(), { autoPrint: true });
 
-  // Navigation tabs definition
-  const navTabs = [
+  /* TABS DEFINITION */
+  const tabs = [
     "Date de identificare",
     "Situația de fapt",
     "Argumente",
@@ -87,8 +91,10 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
     "Coduri",
     "Competență",
     "Taxe",
+    "Raport Predictiv"
   ];
 
+  /* RENDER CONTENT BASED ON TAB */
   const renderContent = () => {
     switch (activeTab) {
       case "Date de identificare":
@@ -107,44 +113,103 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
           </>
         );
       case "Situația de fapt":
-        // Access situatia_de_fapt_full from result level first, fallback to data level
-        const situatiaText = result.situatia_de_fapt_full || caseData.situatia_de_fapt_full || caseData.text_situatia_de_fapt || caseData.situatia_de_fapt || '';
-        return <LongTextField label="Descriere completă" text={situatiaText} />;
+        return (
+          <div className="space-y-6">
+            <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100">
+              <h4 className="font-semibold text-blue-900 mb-2 flex items-center">
+                <FileText className="w-4 h-4 mr-2" />
+                Situația de Fapt (Extras)
+              </h4>
+              <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                {caseData.situatia_de_fapt_full || result.situatia_de_fapt_full || caseData.situatia_de_fapt || "Nu există descriere disponibilă."}
+              </div>
+            </div>
+            {caseData.Rezumat_generat_de_AI_Cod && (
+              <div className="bg-purple-50/50 p-4 rounded-lg border border-purple-100">
+                <h4 className="font-semibold text-purple-900 mb-2 flex items-center">
+                  <Sparkles className="w-4 h-4 mr-2" />
+                  Rezumat AI
+                </h4>
+                <p className="text-gray-700 italic">{caseData.Rezumat_generat_de_AI_Cod}</p>
+              </div>
+            )}
+          </div>
+        );
       case "Argumente":
         return (
-          <>
-            <LongTextField label="Argumente Instanță" text={caseData.argumente_instanta} />
-            <LongTextField label="Analiza Judecător" text={caseData.analiza_judecator} />
-          </>
+          <div className="space-y-6">
+            <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm">
+              <h4 className="font-bold text-gray-900 mb-3 border-b pb-2">Argumentele Instanței</h4>
+              <div className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                {caseData.argumente_instanta || "Nu sunt disponibile argumente detaliate."}
+              </div>
+            </div>
+            {caseData.analiza_judecator && (
+              <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100">
+                <h4 className="font-bold text-indigo-900 mb-2">Analiza Judecătorului</h4>
+                <p className="text-gray-700">{caseData.analiza_judecator}</p>
+              </div>
+            )}
+          </div>
         );
       case "Hotărâre":
         return (
-          <>
-            <LongTextField label="Parte Introductivă" text={caseData.parte_introductiva} />
-            <LongTextField
-              label="Considerente"
-              text={caseData.considerente_speta}
-              highlightTerms={caseData.highlight_terms}
-            />
-            <LongTextField label="Dispozitiv Speță" text={caseData.dispozitiv_speta} />
-          </>
+          <div className="space-y-4">
+            {renderField("Considerente", caseData.considerente_speta)}
+            {renderField("Dispozitiv", caseData.dispozitiv_speta)}
+            <div className={`p-4 rounded-lg border ${(caseData.tip_solutie || "").toLowerCase().includes("admite")
+              ? "bg-green-50 border-green-200"
+              : "bg-gray-50 border-gray-200"
+              }`}>
+              <h4 className="font-bold mb-2">Soluție Finală</h4>
+              <p className="font-medium text-lg">{caseData.tip_solutie || "Necunoscută"}</p>
+            </div>
+          </div>
         );
       case "Elemente utile":
         return (
-          <>
-            <LongTextField label="Rezumat AI" text={caseData.Rezumat_generat_de_AI_Cod} />
-            <LongTextField label="Ce învățăm" text={caseData.text_ce_invatam} />
-            <LongTextField label="Individualizare" text={caseData.text_individualizare} />
-          </>
+          <div className="space-y-4">
+            {caseData.text_ce_invatam && (
+              <div className="bg-amber-50 p-4 rounded-lg border border-amber-200">
+                <h4 className="font-bold text-amber-900 mb-2 flex items-center">
+                  <Scale className="w-4 h-4 mr-2" />
+                  Ce învățăm din această speță?
+                </h4>
+                <p className="text-gray-800 italic">"{caseData.text_ce_invatam}"</p>
+              </div>
+            )}
+            {caseData.text_individualizare && (
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h4 className="font-bold text-blue-900 mb-2">Individualizare</h4>
+                <p className="text-gray-800">{caseData.text_individualizare}</p>
+              </div>
+            )}
+          </div>
         );
       case "Modele":
-        return <DocumentModelsSection caseData={caseData} onViewModel={handleViewModel} spetaId={validSpetaId} />;
+        return (
+          <DocumentModelsSection
+            spetaId={validSpetaId}
+            onViewModel={handleViewModel}
+            caseData={caseData}
+          />
+        );
       case "Coduri":
-        return <LegalCodesSection caseData={caseData} spetaId={validSpetaId} />;
+        return <LegalCodesSection spetaId={validSpetaId} caseData={caseData} />;
       case "Competență":
         return <CompetenceSection caseData={caseData} />;
       case "Taxe":
-        return <TaxSection caseData={caseData} spetaId={validSpetaId} />;
+        return <TaxSection caseData={caseData} />;
+      case "Raport Predictiv":
+        return (
+          <PredictiveReportSection
+            userQuery={userQuery}
+            caseContext={{
+              materie: caseData.materie,
+              obiect: caseData.obiect
+            }}
+          />
+        );
       default:
         return null;
     }
@@ -309,7 +374,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                   <div className="md:hidden border-b border-gray-200 bg-white px-4 py-3">
                     <div className="mb-3 overflow-x-auto custom-scrollbar -mx-4 px-4 pb-1">
                       <div className="flex gap-2 min-w-max">
-                        {navTabs.map((tab) => (
+                        {tabs.map((tab) => (
                           <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}
@@ -354,7 +419,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
                     {/* Vertical Navigation Sidebar - Only visible on desktop */}
                     <aside className="hidden md:flex w-1/4 xl:w-1/5 p-5 border-r border-gray-200 bg-white overflow-y-auto">
                       <nav className="flex flex-col space-y-2 w-full">
-                        {navTabs.map((tab) => (
+                        {tabs.map((tab) => (
                           <button
                             key={tab}
                             onClick={() => setActiveTab(tab)}

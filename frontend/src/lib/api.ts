@@ -189,6 +189,24 @@ export const refreshFilters = async () => {
   return response.json();
 };
 
+export const predictiveSearch = async (params: SearchParams) => {
+  const response = await fetchWithTimeout(`${API_URL}/search/predictive`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(params),
+    credentials: 'include'
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw new Error(errorData.detail || 'Predictive Analysis failed');
+  }
+
+  return response.json();
+};
+
 export const contribute = async (data: { denumire: string; sursa: string }) => {
   const response = await fetchWithTimeout(`${API_URL}/contribuie/`, {
     method: 'POST',

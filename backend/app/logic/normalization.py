@@ -82,3 +82,18 @@ def normalize_materie(materie: str) -> str:
         return "proprietate intelectuala"
     else:
         return materie_lower
+
+def _overlap(params, field_vals):
+    if not field_vals:
+        return 0
+    if isinstance(field_vals, str):
+        field_vals = [field_vals]
+
+    match_count = 0
+    for wanted in params:
+        normalized_wanted = normalize_text(wanted)
+        for actual in field_vals:
+            if normalized_wanted in normalize_text(actual):
+                match_count += 1
+                break # Count each wanted term at most once
+    return match_count
