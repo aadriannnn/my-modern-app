@@ -12,7 +12,7 @@ interface ValidationModalProps {
 const ValidationModal: React.FC<ValidationModalProps> = ({ isOpen, onClose, currentInputLength }) => {
     return createPortal(
         <Transition show={isOpen} as={Fragment}>
-            <Dialog as="div" className="fixed inset-0 z-[100000]" onClose={onClose}>
+            <Dialog as="div" className="fixed inset-0 z-[1000000]" onClose={onClose}>
                 <Transition.Child
                     as={Fragment}
                     enter="ease-out duration-300"
@@ -22,10 +22,10 @@ const ValidationModal: React.FC<ValidationModalProps> = ({ isOpen, onClose, curr
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100000]" />
+                    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000000]" />
                 </Transition.Child>
 
-                <div className="fixed inset-0 overflow-y-auto z-[100001]">
+                <div className="fixed inset-0 overflow-y-auto z-[1000001]">
                     <div className="flex min-h-full items-center justify-center p-4 text-center">
                         <Transition.Child
                             as={Fragment}
