@@ -33,6 +33,9 @@ import Sitemap from './pages/Sitemap';
 import LegalNewsPage from './pages/LegalNews/LegalNewsPage';
 import ArticleDetailPage from './pages/LegalNews/ArticleDetailPage';
 import CookieConsent from './components/CookieConsent';
+import LegislatiePage from './pages/LegislatiePage';
+import LegislatieCategoryPage from './pages/LegislatieCategoryPage';
+import LegislatieDetailPage from './pages/LegislatieDetailPage';
 
 const App: React.FC = () => {
   return (
@@ -55,7 +58,12 @@ const App: React.FC = () => {
           <Route path="/setari" element={<SettingsPage />} />
 
 
-          {/* Legislation SEO Routes */}
+          {/* Legislation SEO Routes (New Implementation) */}
+          <Route path="/legislatie" element={<LegislatiePage />} />
+          <Route path="/legislatie/:categorySlug" element={<LegislatieCategoryPage />} />
+          <Route path="/legislatie/:categorySlug/:itemSlug" element={<LegislatieDetailPage />} />
+
+          {/* Legacy/Search Routes */}
           <Route path="/codul-civil" element={<SearchPage initialSituatie="Codul Civil" pageTitle="Codul Civil Actualizat - Legea Aplicata" />} />
           <Route path="/codul-de-procedura-civila" element={<SearchPage initialSituatie="Codul de Procedură Civilă" pageTitle="Codul de Procedură Civilă - Legea Aplicata" />} />
           <Route path="/codul-penal" element={<SearchPage initialSituatie="Codul Penal" pageTitle="Codul Penal Actualizat - Legea Aplicata" />} />

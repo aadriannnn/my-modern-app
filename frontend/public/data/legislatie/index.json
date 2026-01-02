@@ -1,0 +1,78 @@
+{
+  "codes": [
+    {
+      "title": "Cod Administrativ",
+      "slug": "cod-administrativ",
+      "count": 1348,
+      "type": "code"
+    },
+    {
+      "title": "Codul Civil",
+      "slug": "codul-civil",
+      "count": 5348,
+      "type": "code"
+    },
+    {
+      "title": "Codul Muncii",
+      "slug": "codul-muncii",
+      "count": 594,
+      "type": "code"
+    },
+    {
+      "title": "Codul Penal",
+      "slug": "codul-penal",
+      "count": 1006,
+      "type": "code"
+    },
+    {
+      "title": "CoduldeProceduraCivila",
+      "slug": "coduldeproceduracivila",
+      "count": 2286,
+      "type": "code"
+    },
+    {
+      "title": "CoduldeProceduraPenala",
+      "slug": "coduldeprocedurapenala",
+      "count": 1310,
+      "type": "code"
+    },
+    {
+      "title": "legea societatilor-republicare",
+      "slug": "legea-societatilor-republicare",
+      "count": 896,
+      "type": "code"
+    }
+  ],
+  "forms": [
+    {
+      "title": "dreptului civil",
+      "slug": "dreptului-civil",
+      "count": 54,
+      "type": "form"
+    },
+    {
+      "title": "dreptului familiei",
+      "slug": "dreptului-familiei",
+      "count": 62,
+      "type": "form"
+    },
+    {
+      "title": "dreptului muncii",
+      "slug": "dreptului-muncii",
+      "count": 21,
+      "type": "form"
+    },
+    {
+      "title": "insolventei",
+      "slug": "insolventei",
+      "count": 43,
+      "type": "form"
+    },
+    {
+      "title": "societati",
+      "slug": "societati",
+      "count": 13,
+      "type": "form"
+    }
+  ]
+}
