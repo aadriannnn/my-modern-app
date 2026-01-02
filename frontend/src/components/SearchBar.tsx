@@ -138,9 +138,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
         // 3. Speta (Natural Language) Check
         // Must be >= 200 chars
         if (trimmedValue.length < 200) {
-            if (isMobileFocused && mobileInputRef.current) {
-                mobileInputRef.current.blur();
-            }
             setShowValidationModal(true);
             return;
         }
