@@ -8,6 +8,7 @@ Logic for matching legal code articles to cases based on multiple criteria:
 """
 import logging
 import re
+import math
 from sqlmodel import Session, text
 from typing import List, Dict, Any, Optional
 
@@ -365,6 +366,17 @@ def get_relevant_articles(
                     else:
                         art_conex_str = str(row['art_conex'])
 
+                # Sanitize score to prevent NaN/Inf JSON errors
+                raw_score = row['relevance_score']
+                score = 0.0
+                if raw_score is not None:
+                     try:
+                         val = float(raw_score)
+                         if not (math.isnan(val) or math.isinf(val)):
+                             score = val
+                     except (ValueError, TypeError):
+                         score = 0.0
+
                 all_results.append({
                     "id": row['id'],
                     "numar": row['numar'],
@@ -375,7 +387,7 @@ def get_relevant_articles(
                     "keywords": keywords_str,
                     "art_conex": art_conex_str,
                     "doctrina": row['doctrina'],
-                    "relevance_score": float(row['relevance_score']) if row['relevance_score'] else 0.0,
+                    "relevance_score": score,
                     "cod_sursa": table_name
                 })
 

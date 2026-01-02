@@ -35,11 +35,11 @@ const Footer: React.FC = () => {
                     <div>
                         <h4 className="text-lg font-bold mb-6 font-headings">Legislație</h4>
                         <ul className="space-y-3 text-sm text-gray-400">
-                            <li><Link to="/codul-civil" className="hover:text-brand-gold transition-colors">Codul Civil</Link></li>
-                            <li><Link to="/codul-penal" className="hover:text-brand-gold transition-colors">Codul Penal</Link></li>
-                            <li><Link to="/codul-de-procedura-civila" className="hover:text-brand-gold transition-colors">Procedură Civilă</Link></li>
-                            <li><Link to="/codul-de-procedura-penala" className="hover:text-brand-gold transition-colors">Procedură Penală</Link></li>
-                            <li><Link to="/codul-muncii" className="hover:text-brand-gold transition-colors">Codul Muncii</Link></li>
+                            <li><Link to="/legislatie?table=cod_civil" className="hover:text-brand-gold transition-colors">Codul Civil</Link></li>
+                            <li><Link to="/legislatie?table=cod_penal" className="hover:text-brand-gold transition-colors">Codul Penal</Link></li>
+                            <li><Link to="/legislatie?table=cod_procedura_civila" className="hover:text-brand-gold transition-colors">Procedură Civilă</Link></li>
+                            <li><Link to="/legislatie?table=cod_procedura_penala" className="hover:text-brand-gold transition-colors">Procedură Penală</Link></li>
+                            <li><Link to="/legislatie?table=cod_muncii" className="hover:text-brand-gold transition-colors">Codul Muncii</Link></li>
                             <li><Link to="/stiri/drept-penal" className="hover:text-brand-gold transition-colors">Știri Drept Penal</Link></li>
                         </ul>
                     </div>

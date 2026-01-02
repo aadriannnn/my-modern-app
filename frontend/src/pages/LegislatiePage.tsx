@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Helmet } from 'react-helmet-async';
+import { useSearchParams } from 'react-router-dom';
 import Header from '../components/Header';
 import Footer from '../components/Footer';
 import LegislatieSearch from '../components/LegislatieSearch';
@@ -14,8 +15,102 @@ const LegislatiePage: React.FC = () => {
   const [results, setResults] = useState<SearchResultItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
+  const [searchParams] = useSearchParams();
+  const currentTable = searchParams.get('table');
+
+  const SEO_METADATA: Record<string, { title: string; description: string; keywords: string; schemaName: string }> = {
+    'cod_civil': {
+      title: 'Codul Civil Actualizat 2026 - Text Integral și Explicații | LegeaAplicata.ro',
+      description: 'Consultă Codul Civil actualizat 2026. Căutare inteligentă în articole, jurisprudență conexă și explicații juridice. Cel mai complet instrument pentru profesioniști.',
+      keywords: 'codul civil, codul civil actualizat, articole cod civil, legislatie civila, cod civil 2026',
+      schemaName: 'Codul Civil al României'
+    },
+    'cod_penal': {
+      title: 'Codul Penal Actualizat 2026 - Infracțiuni și Pedepse | LegeaAplicata.ro',
+      description: 'Textul integral al Codului Penal, actualizat la zi. Caută rapid infracțiuni, pedepse și jurisprudență relevantă în materie penală.',
+      keywords: 'codul penal, cod penal actualizat, infractiuni, pedepse, legislatie penala',
+      schemaName: 'Codul Penal al României'
+    },
+    'cod_procedura_civila': {
+      title: 'Codul de Procedură Civilă 2026 - Jurisprudență și Modele | LegeaAplicata.ro',
+      description: 'Ghid complet de Procedură Civilă. Articole actualizate, termene procedurale, competențe și modele de acte juridice conforme NCPC.',
+      keywords: 'cod procedura civila, ncpc, procedura civila, termene judecata, legislatie procedurala',
+      schemaName: 'Codul de Procedură Civilă'
+    },
+    'cod_procedura_penala': {
+      title: 'Codul de Procedură Penală 2026 - Urmărire și Judecată | LegeaAplicata.ro',
+      description: 'Codul de Procedură Penală actualizat. Totul despre urmărirea penală, măsuri preventive și fazele procesului penal.',
+      keywords: 'cod procedura penala, ncpp, urmarire penala, arest preventiv, judecata penala',
+      schemaName: 'Codul de Procedură Penală'
+    },
+    'cod_muncii': {
+      title: 'Codul Muncii 2026 Actualizat - Drepturile Angajaților | LegeaAplicata.ro',
+      description: 'Totul despre relațiile de muncă. Codul Muncii actualizat: contracte, concedii, salarizare și litigii de muncă.',
+      keywords: 'codul muncii, legislatia muncii, drepturile angajatilor, concediu, demisie',
+      schemaName: 'Codul Muncii'
+    },
+    'cod_administrativ': {
+      title: 'Codul Administrativ - Administrație Publică | LegeaAplicata.ro',
+      description: 'Reglementările administrației publice centrale și locale. Codul Administrativ actualizat și explicat.',
+      keywords: 'cod administrativ, administratie publica, functionari publici, primarii, consilii locale',
+      schemaName: 'Codul Administrativ'
+    },
+    'codul_fiscal_2015': {
+      title: 'Codul Fiscal 2026 - Taxe și Impozite | LegeaAplicata.ro',
+      description: 'Legislația fiscală completă. Codul Fiscal actualizat: impozit pe venit, TVA, contribuții sociale și taxe locale.',
+      keywords: 'codul fiscal, taxe si impozite, tva, impozit venit, legislatie fiscala',
+      schemaName: 'Codul Fiscal'
+    },
+    'codul_procedura_fiscala_2015': {
+      title: 'Codul de Procedură Fiscală - Inspecții și Contestații | LegeaAplicata.ro',
+      description: 'Ghid de Procedură Fiscală. Drepturile contribuabililor, inspecția fiscală și executarea silită.',
+      keywords: 'procedura fiscala, inspectie fiscala, anaf, contestatie fiscala, executare silita',
+      schemaName: 'Codul de Procedură Fiscală'
+    },
+    'codul_silvic_2024': {
+      title: 'Noul Cod Silvic - Regimul Pădurilor | LegeaAplicata.ro',
+      description: 'Accesează Noul Cod Silvic. Reglementări privind fondul forestier, exploatarea lemnului și protecția pădurilor.',
+      keywords: 'codul silvic, legea padurilor, ocoale silvice, regim silvic, legislatie mediu',
+      schemaName: 'Codul Silvic'
+    }
+  };
+
+  const activeSEO = (currentTable && SEO_METADATA[currentTable]) || {
+    title: 'Legislație și Formulare - LegeaAplicata.ro',
+    description: 'Caută rapid în toate Codurile României și în modele de acte procedurale. Motor de căutare juridic inteligent.',
+    keywords: 'legislatie, coduri, legi romania, modele acte, cautare juridica',
+    schemaName: 'Legislația României'
+  };
+
+  const currentUrl = currentTable
+    ? `https://chat.legeaaplicata.ro/legislatie?table=${currentTable}`
+    : 'https://chat.legeaaplicata.ro/legislatie';
+
+  // Schema.org for Legislation
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Legislation",
+    "name": activeSEO.schemaName,
+    "description": activeSEO.description,
+    "legislationType": "Code",
+    "legislationJurisdiction": "RO",
+    "url": currentUrl,
+    "provider": {
+      "@type": "Organization",
+      "name": "LegeaAplicata.ro",
+      "url": "https://chat.legeaaplicata.ro"
+    }
+  };
 
   const resultsRef = useRef<HTMLDivElement>(null);
+
+  // Auto-trigger search from URL params (e.g. footer links)
+  useEffect(() => {
+    const tableParam = searchParams.get('table');
+    if (tableParam && !hasSearched && !loading) {
+      performSearch({ text_query: '', table_name: tableParam });
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (loading && resultsRef.current) {
@@ -67,9 +162,27 @@ const LegislatiePage: React.FC = () => {
   return (
     <div className="flex flex-col min-h-screen bg-slate-50">
       <Helmet>
-        <title>Legislație și Formulare - LegeaAplicata.ro</title>
-        <meta name="description" content="Caută rapid în toate Codurile României și în modele de acte procedurale. Motor de căutare juridic inteligent." />
-        <link rel="canonical" href="https://chat.legeaaplicata.ro/legislatie" />
+        <title>{activeSEO.title}</title>
+        <meta name="description" content={activeSEO.description} />
+        <meta name="keywords" content={activeSEO.keywords} />
+        <link rel="canonical" href={currentUrl} />
+
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={currentUrl} />
+        <meta property="og:title" content={activeSEO.title} />
+        <meta property="og:description" content={activeSEO.description} />
+
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content={currentUrl} />
+        <meta property="twitter:title" content={activeSEO.title} />
+        <meta property="twitter:description" content={activeSEO.description} />
+
+        {/* Structured Data */}
+        <script type="application/ld+json">
+          {JSON.stringify(jsonLd)}
+        </script>
       </Helmet>
 
       <Header
@@ -128,30 +241,9 @@ const LegislatiePage: React.FC = () => {
             /* Initial State / Categories View */
             <div className="text-center py-12 text-slate-500">
               {activeTab === 'coduri' ? (
-                <div className="space-y-6">
-                  <h3 className="text-xl font-medium text-slate-800">
-                    Sau navighează prin cele mai accesate coduri
-                  </h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-                    {['Codul Civil', 'Codul Penal', 'Codul de Procedură Civilă', 'Codul de Procedură Penală'].map(code => (
-                      <button
-                        key={code}
-                        // Pre-fill search
-                        onClick={() => {
-                          const map: Record<string, string> = {
-                            'Codul Civil': 'cod_civil',
-                            'Codul Penal': 'cod_penal',
-                            'Codul de Procedură Civilă': 'cod_procedura_civila',
-                            'Codul de Procedură Penală': 'cod_procedura_penala'
-                          };
-                          performSearch({ text_query: '', table_name: map[code] });
-                        }}
-                        className="p-4 bg-white border border-slate-200 rounded-xl hover:border-blue-500 hover:shadow-md transition-all text-slate-700 font-medium"
-                      >
-                        {code}
-                      </button>
-                    ))}
-                  </div>
+                <div className="mt-12 text-blue-900/40 text-sm font-medium">
+                  {/* Shortcut buttons removed as per request. Use Footer links or Search. */}
+                  Introduceți termeni cheie mai sus pentru a căuta în legislație.
                 </div>
               ) : (
                 <div className="flex flex-col items-center">

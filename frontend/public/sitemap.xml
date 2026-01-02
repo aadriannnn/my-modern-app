@@ -61,6 +61,60 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://chat.legeaaplicata.ro/legislatie?table=cod_civil</loc>
+    <lastmod>2026-01-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://chat.legeaaplicata.ro/legislatie?table=cod_penal</loc>
+    <lastmod>2026-01-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://chat.legeaaplicata.ro/legislatie?table=cod_procedura_civila</loc>
+    <lastmod>2026-01-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://chat.legeaaplicata.ro/legislatie?table=cod_procedura_penala</loc>
+    <lastmod>2026-01-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://chat.legeaaplicata.ro/legislatie?table=cod_muncii</loc>
+    <lastmod>2026-01-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://chat.legeaaplicata.ro/legislatie?table=cod_administrativ</loc>
+    <lastmod>2026-01-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://chat.legeaaplicata.ro/legislatie?table=codul_fiscal_2015</loc>
+    <lastmod>2026-01-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://chat.legeaaplicata.ro/legislatie?table=codul_procedura_fiscala_2015</loc>
+    <lastmod>2026-01-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://chat.legeaaplicata.ro/legislatie?table=codul_silvic_2024</loc>
+    <lastmod>2026-01-02</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>https://chat.legeaaplicata.ro/legislatie/cod-administrativ/art-1</loc>
     <lastmod>2026-01-02</lastmod>
     <changefreq>monthly</changefreq>
