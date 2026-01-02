@@ -87,15 +87,18 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
               </button>
             )}
 
+
             <Link to="/stiri" className="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors">
               <Newspaper size={18} strokeWidth={1.5} />
               <span className="text-[9px] font-medium">Știri</span>
             </Link>
 
-            <Link to="/legislatie" className="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors">
-              <Scale size={18} strokeWidth={1.5} />
-              <span className="text-[9px] font-medium">Legislație</span>
-            </Link>
+            {user && (user.rol === 'admin' || user.rol === 'pro') && (
+              <Link to="/legislatie" className="flex flex-col items-center gap-1 text-gray-500 hover:text-brand-gold transition-colors">
+                <Scale size={18} strokeWidth={1.5} />
+                <span className="text-[9px] font-medium">Legislație</span>
+              </Link>
+            )}
 
             <Link to="/abonamente" className="flex flex-col items-center gap-1 text-brand-gold hover:text-brand-gold-light transition-colors">
               <Crown size={18} strokeWidth={1.5} />
@@ -126,13 +129,15 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
         {/* Right: Actions (Desktop Only mostly) */}
         <div className="flex items-center gap-2 md:gap-6">
 
-          <Link
-            to="/legislatie"
-            className={`hidden md:flex items-center gap-2 text-sm font-medium ${mutedColor} ${hoverColor} transition-colors`}
-          >
-            <Scale size={18} strokeWidth={1.5} />
-            <span>Legislație</span>
-          </Link>
+          {user && (user.rol === 'admin' || user.rol === 'pro') && (
+            <Link
+              to="/legislatie"
+              className={`hidden md:flex items-center gap-2 text-sm font-medium ${mutedColor} ${hoverColor} transition-colors`}
+            >
+              <Scale size={18} strokeWidth={1.5} />
+              <span>Legislație</span>
+            </Link>
+          )}
 
           <Link
             to="/stiri"
