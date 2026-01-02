@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import logo from '@/assets/icons/logo.png';
-import { PlusCircle, FolderOpen, User as UserIcon, LogOut, LogIn, Crown, Newspaper, Search, Scale, Menu } from 'lucide-react';
+import { PlusCircle, FolderOpen, User as UserIcon, LogOut, LogIn, Crown, Newspaper, Scale, Menu } from 'lucide-react';
 import { useDosar } from '../context/DosarContext';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
@@ -112,24 +112,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
           </div>
         </div>
 
-        {/* Center: Global Search (Desktop) - Only visible on News/Stiri pages */}
-        {!isHomeView && window.location.pathname.includes('/stiri') && (
-          <div className="hidden md:flex flex-1 max-w-2xl mx-12">
-            <div className="relative w-full group">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <Search size={18} className="text-gray-400 group-focus-within:text-brand-gold transition-colors" />
-              </div>
-              <input
-                type="text"
-                className="block w-full pl-10 pr-3 py-2.5 bg-gray-50 border border-gray-200 rounded-lg leading-5 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-1 focus:ring-brand-gold focus:border-brand-gold sm:text-sm transition-all shadow-sm group-hover:shadow-md"
-                placeholder="Caută știri, articole..."
-              />
-              <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
-                <span className="text-gray-400 text-xs border border-gray-200 rounded px-1.5 py-0.5">/</span>
-              </div>
-            </div>
-          </div>
-        )}
+
 
         {/* Right: Actions (Desktop Only mostly) */}
         <div className="flex items-center gap-2 md:gap-6">
