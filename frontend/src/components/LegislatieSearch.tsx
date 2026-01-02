@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Book, FileText, Filter, ChevronDown, Check } from 'lucide-react';
+import { Search, Book, FileText, Filter, ChevronDown } from 'lucide-react';
 
 interface LegislatieSearchProps {
     onSearch: (params: SearchParams) => void;
@@ -20,7 +20,7 @@ const LegislatieSearch: React.FC<LegislatieSearchProps> = ({ onSearch, activeTab
     const [selectedTable, setSelectedTable] = useState<string>('');
     const [articleNumber, setArticleNumber] = useState('');
     const [availableTables, setAvailableTables] = useState<string[]>([]);
-    const [loadingTables, setLoadingTables] = useState(false);
+    // const [loadingTables, setLoadingTables] = useState(false);
     const [showFilters, setShowFilters] = useState(false);
 
     // Common search terms as suggestions
@@ -30,7 +30,7 @@ const LegislatieSearch: React.FC<LegislatieSearchProps> = ({ onSearch, activeTab
 
     useEffect(() => {
         if (activeTab === 'coduri') {
-            setLoadingTables(true);
+            // setLoadingTables(true);
             fetch('/api/coduri/tables')
                 .then(res => res.json())
                 .then(data => {
@@ -38,8 +38,8 @@ const LegislatieSearch: React.FC<LegislatieSearchProps> = ({ onSearch, activeTab
                         setAvailableTables(data.tables);
                     }
                 })
-                .catch(console.error)
-                .finally(() => setLoadingTables(false));
+                .catch(console.error);
+            // .finally(() => setLoadingTables(false));
         }
     }, [activeTab]);
 
@@ -68,22 +68,20 @@ const LegislatieSearch: React.FC<LegislatieSearchProps> = ({ onSearch, activeTab
                 <div className="bg-slate-100 p-1 rounded-xl inline-flex shadow-inner">
                     <button
                         onClick={() => onTabChange('coduri')}
-                        className={`flex items-center px-6 py-3 rounded-lg text-sm font-medium transition-all ${
-                            activeTab === 'coduri'
-                                ? 'bg-white text-blue-700 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700'
-                        }`}
+                        className={`flex items-center px-6 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'coduri'
+                            ? 'bg-white text-blue-700 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                            }`}
                     >
                         <Book className="w-4 h-4 mr-2" />
                         Coduri și Legi
                     </button>
                     <button
                         onClick={() => onTabChange('modele')}
-                        className={`flex items-center px-6 py-3 rounded-lg text-sm font-medium transition-all ${
-                            activeTab === 'modele'
-                                ? 'bg-white text-emerald-700 shadow-sm'
-                                : 'text-slate-500 hover:text-slate-700'
-                        }`}
+                        className={`flex items-center px-6 py-3 rounded-lg text-sm font-medium transition-all ${activeTab === 'modele'
+                            ? 'bg-white text-emerald-700 shadow-sm'
+                            : 'text-slate-500 hover:text-slate-700'
+                            }`}
                     >
                         <FileText className="w-4 h-4 mr-2" />
                         Modele și Formulare
@@ -112,7 +110,7 @@ const LegislatieSearch: React.FC<LegislatieSearchProps> = ({ onSearch, activeTab
 
                     {/* Advanced Filters Toggle */}
                     <div className="flex items-center justify-between">
-                         <div className="flex flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-2">
                             {suggestions.map((sug) => (
                                 <button
                                     key={sug}
@@ -182,9 +180,9 @@ const LegislatieSearch: React.FC<LegislatieSearchProps> = ({ onSearch, activeTab
 
                             {activeTab === 'modele' && (
                                 <div className="md:col-span-2">
-                                     <p className="text-sm text-slate-500 italic">
+                                    <p className="text-sm text-slate-500 italic">
                                         Pentru modele, căutarea semantică funcționează automat. Introdu o scurtă descriere a situației sau numele documentului.
-                                     </p>
+                                    </p>
                                 </div>
                             )}
                         </div>

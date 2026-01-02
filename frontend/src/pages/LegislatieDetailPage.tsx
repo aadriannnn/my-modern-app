@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { ChevronLeft, Search, ExternalLink } from 'lucide-react';
+import { ChevronLeft, Search } from 'lucide-react';
 import DOMPurify from 'dompurify';
 
 interface ItemDetail {

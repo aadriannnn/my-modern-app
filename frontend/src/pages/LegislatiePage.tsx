@@ -137,7 +137,7 @@ const LegislatiePage: React.FC = () => {
                         key={code}
                         // Pre-fill search
                         onClick={() => {
-                          const tableName = code.toLowerCase().replace(/ /g, '_').replace(/ă/g, 'a').replace(/â/g, 'a'); // rough mapping
+                          // const tableName = code.toLowerCase().replace(/ /g, '_').replace(/ă/g, 'a').replace(/â/g, 'a'); // rough mapping
                           // Mapping needs to be precise.
                           const map: Record<string, string> = {
                             'Codul Civil': 'cod_civil',
