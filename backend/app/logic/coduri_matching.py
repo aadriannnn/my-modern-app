@@ -146,11 +146,16 @@ def get_relevant_articles(
     logger.info(f"Finding relevant legal articles for case with materie='{case_data.get('materie')}', obiect='{case_data.get('obiect')}'")
 
     # Extract case metadata
-    materie = case_data.get('materie', '').strip()
-    obiect = case_data.get('obiect', '').strip()
-    keywords = case_data.get('keywords', [])
-    situatia_de_fapt = case_data.get('situatia_de_fapt', '').strip()
-    rezumat_ai = case_data.get('rezumat_ai', '').strip()
+    materie = (case_data.get('materie') or '').strip()
+    obiect = (case_data.get('obiect') or '').strip()
+    keywords = case_data.get('keywords') or []
+    situatia_de_fapt = (case_data.get('situatia_de_fapt') or '').strip()
+    rezumat_ai = (case_data.get('rezumat_ai') or '').strip()
+
+    # Extract extra search parameters
+    table_name_filter = case_data.get('table_name')
+    article_number = case_data.get('article_number')
+    text_query = case_data.get('text_query')
 
     # Get available code tables in the database
     available_tables = get_available_code_tables(session)
@@ -158,25 +163,30 @@ def get_relevant_articles(
         logger.warning("No code tables found in database")
         return []
 
-    # Determine which tables to query based on materie
-    relevant_table_names = determine_relevant_codes(materie, available_tables)
+    # Determine which tables to query
+    if table_name_filter and table_name_filter in available_tables:
+        # Explicit table requested
+        tables_to_query = [table_name_filter]
+    else:
+        # Fallback to logic based on materie
+        relevant_table_names = determine_relevant_codes(materie, available_tables)
+        tables_to_query = [t for t in relevant_table_names if t in available_tables]
 
-    # Filter to only query tables that actually exist
-    tables_to_query = [t for t in relevant_table_names if t in available_tables]
-
-    if not tables_to_query:
-        logger.warning(f"None of the relevant tables {relevant_table_names} exist in database")
-        # Fall back to querying all available tables
-        tables_to_query = available_tables[:3]  # Limit to first 3 tables for performance
+        if not tables_to_query:
+             # Fall back to querying all available tables if none match (or top 3)
+            tables_to_query = available_tables[:3]
 
     logger.info(f"Querying tables: {tables_to_query}")
 
-    # Generate embedding for the case
+    # Generate embedding for the case (only if necessary)
+    # If we are doing a simple keyword search, embedding might be overkill or irrelevant if text is short
+    # But let's keep it for hybrid search
     text_for_embedding = ' '.join(filter(None, [
         situatia_de_fapt[:500] if situatia_de_fapt else '',
         rezumat_ai[:300] if rezumat_ai else '',
         obiect,
-        materie
+        materie,
+        text_query if text_query else '' # Include search query in embedding
     ])).strip()
 
     if not text_for_embedding:
@@ -190,19 +200,24 @@ def get_relevant_articles(
         "embedding": str(embedding),
         "materie": materie.lower() if materie else '',
         "obiect": obiect.lower() if obiect else '',
+        "article_number": article_number.strip() if article_number else '',
+        "text_query": text_query.strip() if text_query else ''
     }
 
     # Normalize query text for trigram similarity
-    q_norm = normalize_query(f"{materie} {obiect}")
+    q_norm = normalize_query(f"{materie} {obiect} {text_query or ''}")
     params["q"] = q_norm
 
     # Build keywords regex pattern
+    keywords_list = []
     if isinstance(keywords, list):
         keywords_list = keywords
     elif isinstance(keywords, str):
         keywords_list = [kw.strip() for kw in keywords.split(',') if kw.strip()]
-    else:
-        keywords_list = []
+
+    # Add text_query to keywords list for regex matching if it's short
+    if text_query and len(text_query.split()) < 5:
+        keywords_list.append(text_query)
 
     if keywords_list:
         escaped_keywords = [re.escape(normalize_query(kw)) for kw in keywords_list[:10]]
@@ -212,14 +227,14 @@ def get_relevant_articles(
         params["keywords_regex"] = '^$'  # Never matches
 
     # Scoring weights - optimized for legal relevance
-    W_EXACT_ARTICLE = settings_manager.get_value("ponderi_cautare_coduri", "w_exact_article", 10.0)
-    W_EXACT_MATERIE = settings_manager.get_value("ponderi_cautare_coduri", "w_exact_materie", 3.5)
-    W_EXACT_OBIECT = settings_manager.get_value("ponderi_cautare_coduri", "w_exact_obiect", 5.0)
-    W_KEYWORDS = settings_manager.get_value("ponderi_cautare_coduri", "w_keywords", 3.0)
+    W_EXACT_ARTICLE = settings_manager.get_value("ponderi_cautare_coduri", "w_exact_article", 20.0) # Boosted for direct search
+    W_EXACT_MATERIE = settings_manager.get_value("ponderi_cautare_coduri", "w_exact_materie", 3.0)
+    W_EXACT_OBIECT = settings_manager.get_value("ponderi_cautare_coduri", "w_exact_obiect", 4.0)
+    W_KEYWORDS = settings_manager.get_value("ponderi_cautare_coduri", "w_keywords", 5.0) # Boosted for text search
     W_EMBEDDING = settings_manager.get_value("ponderi_cautare_coduri", "w_embedding", 2.0)
-    W_TRIGRAM = settings_manager.get_value("ponderi_cautare_coduri", "w_trigram", 0.8)
+    W_TRIGRAM = settings_manager.get_value("ponderi_cautare_coduri", "w_trigram", 1.0)
 
-    MIN_EMBEDDING_SCORE = settings_manager.get_value("ponderi_cautare_coduri", "min_embedding_score", 0.25)
+    MIN_EMBEDDING_SCORE = settings_manager.get_value("ponderi_cautare_coduri", "min_embedding_score", 0.20)
     params["min_embedding_score"] = MIN_EMBEDDING_SCORE
 
     # Collect results from all relevant tables
@@ -229,6 +244,31 @@ def get_relevant_articles(
         logger.info(f"Querying table: {table_name}")
 
         # Build the query for this specific table with proper array handling
+        # Note: We filter strictly by article number if provided
+
+        where_clauses = []
+        if article_number:
+            where_clauses.append("(LOWER(COALESCE(t.numar, '')) = LOWER(:article_number) OR LOWER(COALESCE(t.numar, '')) LIKE '%' || LOWER(:article_number) || '%')")
+
+        # If explicit search is performed, relax other filters or enforce them?
+        # If text_query is provided, we use it for scoring.
+
+        # Base where clause for relevance if no strict filter
+        if not article_number:
+            where_clauses.append(f"""
+                (
+                    (:text_query != '' AND (COALESCE(t.text, '') ~* :keywords_regex OR array_to_string(t.keywords, ' ', '') ~* :keywords_regex)) OR
+                    (LOWER(COALESCE(t.materie, '')) LIKE '%' || :materie || '%' AND :materie != '') OR
+                    (LOWER(COALESCE(t.obiect, '')) LIKE '%' || :obiect || '%' AND :obiect != '') OR
+                    (COALESCE(t.text, '') ~* :keywords_regex) OR
+                    (array_to_string(t.keywords, ' ', '') ~* :keywords_regex) OR
+                    (t.text_embeddings IS NOT NULL AND
+                     (1.0 - (t.text_embeddings <=> :embedding)) > :min_embedding_score)
+                )
+            """)
+
+        where_sql = " AND ".join(where_clauses) if where_clauses else "TRUE"
+
         query_sql = text(f"""
             SELECT
                 t.id,
@@ -243,8 +283,9 @@ def get_relevant_articles(
                 (
                     -- Exact article number match (highest priority)
                     (CASE
-                        WHEN LOWER(COALESCE(t.numar, '')) = LOWER(:obiect)
-                        OR LOWER(COALESCE(t.numar, '')) LIKE '%' || LOWER(:obiect) || '%'
+                        WHEN :article_number != '' AND LOWER(COALESCE(t.numar, '')) = LOWER(:article_number)
+                        THEN {W_EXACT_ARTICLE} * 2
+                        WHEN :article_number != '' AND LOWER(COALESCE(t.numar, '')) LIKE '%' || LOWER(:article_number) || '%'
                         THEN {W_EXACT_ARTICLE}
                         ELSE 0
                     END) +
@@ -265,7 +306,7 @@ def get_relevant_articles(
                         ELSE 0
                     END) +
 
-                    -- Keywords regex match in text field
+                    -- Keywords/Text Query regex match in text field
                     (CASE
                         WHEN COALESCE(t.text, '') ~* :keywords_regex
                         THEN {W_KEYWORDS}
@@ -296,17 +337,7 @@ def get_relevant_articles(
                     ) * {W_TRIGRAM})
                 ) AS relevance_score
             FROM {table_name} t
-            WHERE
-                -- Only return results with some relevance
-                (
-                    (LOWER(COALESCE(t.materie, '')) LIKE '%' || :materie || '%' AND :materie != '') OR
-                    (LOWER(COALESCE(t.obiect, '')) LIKE '%' || :obiect || '%' AND :obiect != '') OR
-                    (LOWER(COALESCE(t.numar, '')) LIKE '%' || :obiect || '%' AND :obiect != '') OR
-                    (COALESCE(t.text, '') ~* :keywords_regex) OR
-                    (array_to_string(t.keywords, ' ', '') ~* :keywords_regex) OR
-                    (t.text_embeddings IS NOT NULL AND
-                     (1.0 - (t.text_embeddings <=> :embedding)) > :min_embedding_score)
-                )
+            WHERE {where_sql}
             ORDER BY relevance_score DESC
             LIMIT :limit_per_table;
         """)
@@ -384,23 +415,53 @@ def get_article_by_id(session: Session, article_id: str, table_name: str) -> Opt
         logger.warning(f"Table {table_name} not found in available tables")
         return None
 
-    query = text(f"""
-        SELECT
-            id,
-            numar,
-            titlu,
-            obiect,
-            materie,
-            text,
-            keywords,
-            art_conex,
-            doctrina
-        FROM {table_name}
-        WHERE id = :article_id
-    """)
+
+    # Determine if we are looking up by ID (hash) or by Article Number
+    if article_id.lower().startswith("art_"):
+        # Extract number: "art_953" -> "953"
+        target_numar = article_id[4:]
+        # Database format appears to be "Art. 953"
+        fmt_numar = f"Art. {target_numar}"
+
+        logger.info(f"Looking up article by number: {target_numar} (DB format: {fmt_numar})")
+
+        query = text(f"""
+            SELECT
+                id,
+                numar,
+                titlu,
+                obiect,
+                materie,
+                text,
+                keywords,
+                art_conex,
+                doctrina
+            FROM {table_name}
+            WHERE numar = :target_numar OR numar = :fmt_numar
+            LIMIT 1
+        """)
+        params = {"target_numar": target_numar, "fmt_numar": fmt_numar}
+    else:
+        # Standard lookup by ID
+        query = text(f"""
+            SELECT
+                id,
+                numar,
+                titlu,
+                obiect,
+                materie,
+                text,
+                keywords,
+                art_conex,
+                doctrina
+            FROM {table_name}
+            WHERE id = :article_id
+        """)
+        params = {"article_id": article_id}
+
 
     try:
-        result = session.execute(query, {"article_id": article_id}).mappings().first()
+        result = session.execute(query, params).mappings().first()
 
         if not result:
             logger.warning(f"Article with ID {article_id} not found in {table_name}")

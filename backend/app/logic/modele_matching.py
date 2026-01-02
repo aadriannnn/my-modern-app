@@ -45,11 +45,14 @@ def get_relevant_modele(
     logger.info(f"Finding relevant modele for case with materie='{case_data.get('materie')}', obiect='{case_data.get('obiect')}'")
 
     # Extract case metadata
-    materie = case_data.get('materie', '').strip()
-    obiect = case_data.get('obiect', '').strip()
-    keywords = case_data.get('keywords', [])
-    situatia_de_fapt = case_data.get('situatia_de_fapt', '').strip()
-    rezumat_ai = case_data.get('rezumat_ai', '').strip()
+    materie = (case_data.get('materie') or '').strip()
+    obiect = (case_data.get('obiect') or '').strip()
+    keywords = case_data.get('keywords') or []
+    situatia_de_fapt = (case_data.get('situatia_de_fapt') or '').strip()
+    rezumat_ai = (case_data.get('rezumat_ai') or '').strip()
+
+    # Extract extra search parameters
+    text_query = case_data.get('text_query')
 
     # Generate embedding for the case
     # Combine relevant text fields for embedding generation
@@ -57,7 +60,8 @@ def get_relevant_modele(
         situatia_de_fapt[:500] if situatia_de_fapt else '',  # Limit to 500 chars
         rezumat_ai[:300] if rezumat_ai else '',
         obiect,
-        materie
+        materie,
+        text_query if text_query else ''
     ])).strip()
 
     if not text_for_embedding:
@@ -72,10 +76,11 @@ def get_relevant_modele(
         "limit": limit,
         "materie": materie.lower() if materie else '',
         "obiect": obiect.lower() if obiect else '',
+        "text_query": text_query.strip() if text_query else ''
     }
 
     # Normalize query text for trigram similarity
-    q_norm = normalize_query(f"{materie} {obiect}")
+    q_norm = normalize_query(f"{materie} {obiect} {text_query or ''}")
     params["q"] = q_norm
 
     # Build keywords regex pattern for matching
@@ -86,6 +91,9 @@ def get_relevant_modele(
         keywords_list = [kw.strip() for kw in keywords.split(',') if kw.strip()]
     else:
         keywords_list = []
+
+    if text_query and len(text_query.split()) < 5:
+        keywords_list.append(text_query)
 
     # Create regex pattern for keywords (word boundary matching)
     if keywords_list:
@@ -100,7 +108,7 @@ def get_relevant_modele(
     # Scoring weights
     W_EXACT_MATERIE = settings_manager.get_value("ponderi_cautare_modele", "w_exact_materie", 3.0)
     W_EXACT_OBIECT = settings_manager.get_value("ponderi_cautare_modele", "w_exact_obiect", 4.0)
-    W_KEYWORDS = settings_manager.get_value("ponderi_cautare_modele", "w_keywords", 2.0)
+    W_KEYWORDS = settings_manager.get_value("ponderi_cautare_modele", "w_keywords", 4.0)
     W_EMBEDDING = settings_manager.get_value("ponderi_cautare_modele", "w_embedding", 1.0)
     W_TRIGRAM = settings_manager.get_value("ponderi_cautare_modele", "w_trigram", 0.5)
 
@@ -142,6 +150,13 @@ def get_relevant_modele(
                     ELSE 0
                 END) +
 
+                -- Text Query regex match in full text (if query provided)
+                (CASE
+                     WHEN :text_query != '' AND COALESCE(m.text_model, '') ~* :keywords_regex
+                     THEN {W_KEYWORDS}
+                     ELSE 0
+                END) +
+
                 -- Embedding cosine similarity (1 - cosine_distance)
                 (CASE
                     WHEN m.comentariiLLM_model_embedding IS NOT NULL
@@ -164,6 +179,7 @@ def get_relevant_modele(
                 (LOWER(COALESCE(m.materie_model, '')) LIKE '%' || :materie || '%' AND :materie != '') OR
                 (LOWER(COALESCE(m.obiect_model, '')) LIKE '%' || :obiect || '%' AND :obiect != '') OR
                 (COALESCE(array_to_string(m.keywords_model, ' '), '') ~* :keywords_regex) OR
+                (:text_query != '' AND COALESCE(m.text_model, '') ~* :keywords_regex) OR
                 (m.comentariiLLM_model_embedding IS NOT NULL AND
                  (1.0 - (m.comentariiLLM_model_embedding <=> :embedding)) > :min_embedding_score)
             )

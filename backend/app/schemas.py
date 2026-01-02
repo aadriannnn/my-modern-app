@@ -46,6 +46,8 @@ class ModeleRequest(BaseModel):
     rezumat_ai: Optional[str] = None
     limit: Optional[int] = 10
     speta_id: Optional[int] = None
+    # New fields for advanced search
+    text_query: Optional[str] = None
 
 class ModeleResponse(BaseModel):
     """Response schema for a document model."""
@@ -65,6 +67,10 @@ class CoduriRequest(BaseModel):
     rezumat_ai: Optional[str] = None
     limit: Optional[int] = 10
     speta_id: Optional[int] = None
+    # New fields for advanced search
+    table_name: Optional[str] = None
+    article_number: Optional[str] = None
+    text_query: Optional[str] = None
 
 class CoduriResponse(BaseModel):
     """Response schema for a legal code article."""

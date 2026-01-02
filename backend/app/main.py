@@ -103,6 +103,12 @@ def on_startup():
         ensure_user_verification_fields(session)
     logger.info("Step 2.1: User verification fields verified.")
 
+    logger.info("Step 2.2: Ensuring legislation schema fields exist...")
+    with next(get_session()) as session:
+        from .lib.upgrade_legislation_schema import ensure_legislation_fields
+        ensure_legislation_fields(session)
+    logger.info("Step 2.2: Legislation schema verified.")
+
 
     logger.info("Step 4: Starting queue manager worker...")
     from .logic.queue_manager import queue_manager
