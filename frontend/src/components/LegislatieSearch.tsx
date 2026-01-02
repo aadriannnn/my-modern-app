@@ -43,13 +43,130 @@ const LegislatieSearch: React.FC<LegislatieSearchProps> = ({ onSearch, activeTab
         }
     }, [activeTab]);
 
+
+
+    // Map keywords to table names
+    const TABLE_MATCHERS: Record<string, string[]> = {
+        'cod_civil': ['cod civil', 'codul civil', 'civil', 'noul cod civil', 'ncc'],
+        'cod_penal': ['cod penal', 'codul penal', 'penal', 'noul cod penal', 'ncp'],
+        'cod_procedura_civila': ['procedura civila', 'cod procedura civila', 'proc civ', 'cpc', 'ncpc', 'codul de procedura civila'],
+        'cod_procedura_penala': ['procedura penala', 'cod procedura penala', 'proc pen', 'cpp', 'ncpp', 'codul de procedura penala'],
+        'cod_muncii': ['codul muncii', 'cod muncii', 'muncii', 'legislatia muncii'],
+        'cod_administrativ': ['cod administrativ', 'codul administrativ', 'administrativ'],
+        'codul_fiscal_2015': ['cod fiscal', 'codul fiscal', 'fiscal'],
+        'codul_procedura_fiscala_2015': ['procedura fiscala', 'proc fiscala', 'cpf', 'codul de procedura fiscala'],
+        'codul_silvic_2024': ['cod silvic', 'codul silvic', 'silvic', 'legea padurilor']
+    };
+
+    const analyzeSearchQuery = (query: string): { newQuery: string, newTable?: string, newArticle?: string } => {
+        let text = query.toLowerCase().replace(/\s+/g, ' ').trim();
+        let detectedTable: string | undefined = undefined;
+        let detectedArticle: string | undefined = undefined;
+
+        // 1. Detect Table Name (Longest match first)
+        let bestMatchLen = 0;
+
+        for (const [tableName, keywords] of Object.entries(TABLE_MATCHERS)) {
+            for (const keyword of keywords) {
+                if (text.includes(keyword)) {
+                    // Check if better match
+                    if (keyword.length > bestMatchLen) {
+                        bestMatchLen = keyword.length;
+                        detectedTable = tableName;
+                    }
+                }
+            }
+        }
+
+        // Remove table name from text if found
+        if (detectedTable) {
+            for (const keyword of TABLE_MATCHERS[detectedTable]) {
+                if (text.includes(keyword)) {
+                    text = text.replace(keyword, '').replace(/\s+/g, ' ').trim();
+                    break; // Remove only one instance
+                }
+            }
+        }
+
+        // 2. Detect Article Number
+        // Patterns:
+        // "art. 12", "art 12", "articolul 12"
+        const artRegex = /(?:art\.?|articol(?:ul)?)\s*(\d+)/i;
+        const match = text.match(artRegex);
+
+        if (match) {
+            detectedArticle = match[1];
+            // Remove "art 12" from text
+            text = text.replace(match[0], '').replace(/\s+/g, ' ').trim();
+        } else {
+            // Check for standalone number if the text is mostly just a number
+            // or if we detected a table, and there is a number
+            // Regex to match "12" or "12 " or " 12"
+            if (/^\s*\d+\s*$/.test(text)) {
+                detectedArticle = text.trim();
+                text = ''; // consumed
+            } else if (detectedTable && /\b(\d+)\b/.test(text)) {
+                // High confidence if table is present
+                const numMatch = text.match(/\b(\d+)\b/);
+                if (numMatch) {
+                    detectedArticle = numMatch[1];
+                    // remove just the number
+                    text = text.replace(numMatch[1], '').replace(/\s+/g, ' ').trim();
+                }
+            }
+        }
+
+        return {
+            newQuery: text,
+            newTable: detectedTable,
+            newArticle: detectedArticle
+        };
+    };
+
     const handleSearch = (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        onSearch({
-            text_query: textQuery,
-            table_name: selectedTable || undefined,
-            article_number: articleNumber || undefined
-        });
+
+        if (activeTab === 'coduri') {
+            const analysis = analyzeSearchQuery(textQuery);
+
+            const finalTable = analysis.newTable || selectedTable;
+            const finalArticle = analysis.newArticle || articleNumber;
+            const finalQuery = analysis.newQuery;
+
+            // Update UI inputs to reflect "transformation"
+            // Important: We only clear/update if new values were detected.
+            if (analysis.newTable) setSelectedTable(analysis.newTable);
+
+            if (analysis.newArticle) {
+                setArticleNumber(analysis.newArticle);
+            }
+
+            // If we detected components (table or article), we should update the query box matches
+            // e.g. "art 12 cod civil" -> textQuery should become ""
+            // But if we didn't find anything, keep textQuery as is.
+            // analysis.newQuery is the "remaining text".
+            if (analysis.newArticle || analysis.newTable) {
+                setTextQuery(finalQuery);
+            }
+
+            onSearch({
+                text_query: finalQuery,
+                table_name: finalTable || undefined,
+                article_number: finalArticle || undefined
+            });
+
+            // Allow filters to be seen if we auto-detected stuff to show transparency
+            if (analysis.newTable || analysis.newArticle) {
+                setShowFilters(true);
+            }
+        } else {
+            // Modele logic remains simple
+            onSearch({
+                text_query: textQuery,
+                table_name: undefined,
+                article_number: undefined
+            });
+        }
     };
 
     // Format table name for display (e.g., "cod_civil" -> "Cod Civil")

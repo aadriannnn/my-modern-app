@@ -283,9 +283,15 @@ def get_relevant_articles(
                 t.doctrina,
                 (
                     -- Exact article number match (highest priority)
+                    -- Exact article number match (highest priority)
                     (CASE
-                        WHEN :article_number != '' AND LOWER(COALESCE(t.numar, '')) = LOWER(:article_number)
+                        -- Strict match for "12", "Art. 12", "Art 12", "Art.12" (case insensitive)
+                        -- Escaping colon for SQLAlchemy with backslash or passing as param is tricky inside string.
+                        -- Safest is to use bind param for the prefix part.
+                        WHEN :article_number != '' AND COALESCE(t.numar, '') ~* (:regex_art_prefix || :article_number || '$')
                         THEN {W_EXACT_ARTICLE} * 2
+
+                        -- Partial match (contains number)
                         WHEN :article_number != '' AND LOWER(COALESCE(t.numar, '')) LIKE '%' || LOWER(:article_number) || '%'
                         THEN {W_EXACT_ARTICLE}
                         ELSE 0
@@ -321,9 +327,9 @@ def get_relevant_articles(
                         ELSE 0
                     END) +
 
-                    -- Embedding cosine similarity
+                    -- Embedding cosine similarity (HANDLE ZERO VECTOR / NULL)
                     (CASE
-                        WHEN t.text_embeddings IS NOT NULL
+                        WHEN t.text_embeddings IS NOT NULL AND :has_embedding = true
                         THEN (1.0 - (t.text_embeddings <=> :embedding)) * {W_EMBEDDING}
                         ELSE 0
                     END) +
@@ -343,8 +349,16 @@ def get_relevant_articles(
             LIMIT :limit_per_table;
         """)
 
+        # Check if embedding is valid (not null and not zero-vector)
+        has_embedding = False
+        if embedding and any(x != 0 for x in embedding):
+            has_embedding = True
+
+        # Add the regex prefix bind parameter
+        params['regex_art_prefix'] = '^(?:art\.?\s*)?'
+        params['has_embedding'] = has_embedding
+
         try:
-            # Query each table with a per-table limit
             params_with_limit = {**params, "limit_per_table": limit}
             result = session.execute(query_sql, params_with_limit)
             rows = result.mappings().all()

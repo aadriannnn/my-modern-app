@@ -63,8 +63,9 @@ const LegislatieResults: React.FC<LegislatieResultsProps> = ({ results, type, lo
     return (
         <div className="space-y-4 max-w-4xl mx-auto">
             {results.map((item) => {
+                const numericNumar = item.numar ? String(item.numar).replace(/^(art\.?|articol(ul)?)\s*/i, '').trim() : '';
                 const title = type === 'coduri'
-                    ? `${item.numar ? `Art. ${item.numar} - ` : ''}${item.titlu}`
+                    ? `${numericNumar ? `Art. ${numericNumar} - ` : ''}${item.titlu}`
                     : item.titlu_model;
 
                 const previewText = type === 'coduri' ? item.text : item.text_model; // Note: text_model is usually not sent in list, might be empty
