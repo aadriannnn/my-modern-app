@@ -92,7 +92,7 @@ const ArticleDetailPage: React.FC = () => {
             "name": "LegeaAplicată",
             "logo": {
                 "@type": "ImageObject",
-                "url": "https://legeaaplicata.ro/logo.png"
+                "url": "https://chat.legeaaplicata.ro/src/assets/icons/logo.webp"
             }
         }
     };

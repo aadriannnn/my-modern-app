@@ -29,7 +29,7 @@ const CookiePolicyPage: React.FC = () => {
                 keywords="politica cookies, cookies leagea aplicata, gdpr cookies, verdict line cookies"
                 ogTitle="Politica Cookies - Verdict Line"
                 ogDescription="Detaliile utilizării cookie-urilor pe site-ul LegeaAplicata.ro."
-                ogImage="https://legeaaplicata.ro/assets/logo.png"
+                ogImage="https://chat.legeaaplicata.ro/src/assets/icons/logo.webp"
                 ogUrl="https://legeaaplicata.ro/cookies"
                 canonicalUrl="https://legeaaplicata.ro/cookies"
                 structuredData={structuredData}

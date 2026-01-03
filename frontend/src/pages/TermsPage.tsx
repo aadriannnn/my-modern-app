@@ -30,7 +30,7 @@ const TermsPage: React.FC = () => {
                 keywords="termeni conditii LegeaAplicata, utilizare platformă juridică, drepturi autor conținut juridic, regulament platformă"
                 ogTitle="Termeni și Condiții - LegeaAplicata"
                 ogDescription="Termeni și condiții de utilizare a platformei profesionale de cercetare juridică LegeaAplicata."
-                ogImage="https://chat.legeaaplicata.ro/src/assets/icons/logo.png"
+                ogImage="https://chat.legeaaplicata.ro/src/assets/icons/logo.webp"
                 ogUrl="https://chat.legeaaplicata.ro/terms"
                 canonicalUrl="https://chat.legeaaplicata.ro/terms"
                 structuredData={structuredData}

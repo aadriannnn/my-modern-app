@@ -196,7 +196,7 @@ const LegislatiePage: React.FC = () => {
         {/* Hero Section */}
         <div className={`bg-gradient-to-br from-slate-900 to-blue-900 px-4 relative overflow-hidden transition-all duration-500 ease-in-out ${hasSearched ? 'py-8' : 'py-16'
           }`}>
-          <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10"></div>
+          <div className="absolute inset-0 opacity-10"></div>
           <div className="max-w-7xl mx-auto relative z-10 text-center">
             <h1 className={`font-serif font-bold text-white mb-6 transition-all duration-500 ${hasSearched ? 'text-2xl md:text-3xl' : 'text-4xl md:text-5xl'
               }`}>

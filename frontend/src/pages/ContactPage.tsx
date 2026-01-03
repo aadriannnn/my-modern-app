@@ -65,7 +65,7 @@ const ContactPage: React.FC = () => {
                 ogTitle="Contact - Legea Aplicată"
                 ogDescription="Ai o întrebare tehnică sau juridică? Echipa noastră este pregătită să îți ofere suportul necesar."
                 ogUrl="https://chat.legeaaplicata.ro/contact"
-                ogImage="https://chat.legeaaplicata.ro/og-contact.jpg" // Assuming a default OG image or one can be added later
+                ogImage="https://chat.legeaaplicata.ro/src/assets/icons/logo.webp" // Assuming a default OG image or one can be added later
                 structuredData={{
                     "@context": "https://schema.org",
                     "@type": "ContactPage",

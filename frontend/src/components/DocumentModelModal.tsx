@@ -3,7 +3,7 @@ import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { X, Download } from 'lucide-react';
 
-import { generatePdf } from '../lib/pdf';
+// import { generatePdf } from '../lib/pdf';
 
 interface DocumentModelModalProps {
     isOpen: boolean;
@@ -52,6 +52,7 @@ const DocumentModelModal: React.FC<DocumentModelModalProps> = ({ isOpen, onClose
         if (!modelData || !modelId) return;
 
         try {
+            const { generatePdf } = await import("../lib/pdf");
             await generatePdf({
                 titlu: modelData.titlu_model,
                 materie: modelData.materie_model || "",

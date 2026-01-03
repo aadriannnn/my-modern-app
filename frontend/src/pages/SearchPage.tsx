@@ -502,7 +502,7 @@ const SearchPage: React.FC<SearchPageProps> = ({
             },
             "primaryImageOfPage": {
                 "@type": "ImageObject",
-                "url": "https://chat.legeaaplicata.ro/src/assets/icons/logo.png"
+                "url": "https://chat.legeaaplicata.ro/src/assets/icons/logo.webp"
             }
         },
         {

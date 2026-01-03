@@ -6,7 +6,7 @@ import ShareButton from "./ShareButton";
 import { useDosar } from "../context/DosarContext";
 import { submitFeedback } from "../lib/api";
 
-import { generatePdf } from "../lib/pdf";
+// import { generatePdf } from "../lib/pdf";
 import type { PdfSablonData } from "../lib/pdf";
 
 import DocumentModelsSection from "./DocumentModelsSection";
@@ -66,6 +66,7 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
   };
 
   // PDF Generation Logic
+  // PDF Generation Logic
   const createPdfData = (): PdfSablonData => ({
     titlu: caseData.titlu || "Fără titlu",
     materie: caseData.materie || "",
@@ -77,8 +78,15 @@ const CaseDetailModal: React.FC<CaseDetailModalProps> = ({ isOpen, onClose, resu
     dispozitiv_speta: caseData.dispozitiv_speta || ""
   });
 
-  const handleDownload = () => generatePdf(createPdfData());
-  const handlePrint = () => generatePdf(createPdfData(), { autoPrint: true });
+  const handleDownload = async () => {
+    const { generatePdf } = await import("../lib/pdf");
+    generatePdf(createPdfData());
+  };
+
+  const handlePrint = async () => {
+    const { generatePdf } = await import("../lib/pdf");
+    generatePdf(createPdfData(), { autoPrint: true });
+  };
 
   /* TABS DEFINITION */
   const tabs = [

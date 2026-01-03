@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import "@/assets/fonts/DejaVuSans.js";
 import "@/assets/fonts/DejaVuSans-Bold-normal.js";
-import logo from "@/assets/icons/logo.png";
+import logo from "@/assets/icons/logo.webp";
 
 /* ================= Helpers ================= */
 const safe = (v?: any) => (v ? String(v) : "");
@@ -59,7 +59,7 @@ const drawHeader = (doc: jsPDF, ctx: LayoutCtx) => {
   const xRight = ctx.pageW - ctx.margin - 40;
 
   // Logo în dreapta sus
-  doc.addImage(logo, "PNG", xRight, ctx.margin - 2, 40, 18);
+  doc.addImage(logo, "WEBP", xRight, ctx.margin - 2, 40, 18);
 
   // Data (sub logo)
   const today = new Date().toLocaleDateString("ro-RO");

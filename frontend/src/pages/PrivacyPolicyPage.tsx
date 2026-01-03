@@ -34,7 +34,7 @@ const PrivacyPolicyPage: React.FC = () => {
                 keywords="politică confidențialitate, GDPR, protecție date personale, Verdict Line, LegeaAplicata"
                 ogTitle="Politica de Confidențialitate - Verdict Line"
                 ogDescription="Politica de confidențialitate conform GDPR. Protecția datelor personale și transparență în prelucrare."
-                ogImage="https://legeaaplicata.ro/assets/logo.png"
+                ogImage="https://chat.legeaaplicata.ro/src/assets/icons/logo.webp"
                 ogUrl="https://legeaaplicata.ro/privacy-policy"
                 canonicalUrl="https://legeaaplicata.ro/privacy-policy"
                 structuredData={structuredData}
