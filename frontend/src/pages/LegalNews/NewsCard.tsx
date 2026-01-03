@@ -25,6 +25,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ article }) => {
                     <img
                         src={article.imageUrl}
                         alt={article.title}
+                        loading="lazy"
                         className="w-full h-full object-cover transform group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => {
                             (e.target as HTMLImageElement).src = 'https://placehold.co/600x400?text=Stiri+Juridice'; // Fallback

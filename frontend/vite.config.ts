@@ -25,6 +25,18 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-ui': ['@headlessui/react', '@radix-ui/react-slot', 'lucide-react', 'framer-motion'],
+            'vendor-stripe': ['@stripe/react-stripe-js', '@stripe/stripe-js'],
+            'vendor-charts': ['recharts'],
+          },
+        },
+      },
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

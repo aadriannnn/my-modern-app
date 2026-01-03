@@ -25,9 +25,9 @@ const Footer: React.FC = () => {
                             CUI 50104199.
                         </p>
                         <div className="flex gap-4">
-                            <a href="#" className="text-gray-400 hover:text-brand-gold transition-colors"><Facebook className="w-5 h-5" /></a>
-                            <a href="#" className="text-gray-400 hover:text-brand-gold transition-colors"><Twitter className="w-5 h-5" /></a>
-                            <a href="#" className="text-gray-400 hover:text-brand-gold transition-colors"><Linkedin className="w-5 h-5" /></a>
+                            <a href="#" aria-label="Facebook" className="text-gray-400 hover:text-brand-gold transition-colors"><Facebook className="w-5 h-5" /></a>
+                            <a href="#" aria-label="Twitter" className="text-gray-400 hover:text-brand-gold transition-colors"><Twitter className="w-5 h-5" /></a>
+                            <a href="#" aria-label="LinkedIn" className="text-gray-400 hover:text-brand-gold transition-colors"><Linkedin className="w-5 h-5" /></a>
                         </div>
                     </div>
 

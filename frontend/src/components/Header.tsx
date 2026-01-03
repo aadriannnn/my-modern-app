@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import logo from '@/assets/icons/logo.png';
+import logo from '@/assets/icons/logo.webp';
 import { PlusCircle, FolderOpen, User as UserIcon, LogOut, LogIn, Crown, Newspaper, Scale, Menu } from 'lucide-react';
 import { useDosar } from '../context/DosarContext';
 import { useAuth } from '../context/AuthContext';
@@ -61,7 +61,15 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
 
         <div className="flex items-center gap-4 md:gap-6">
           <Link to="/" onClick={onReset} className="flex items-center gap-3 group shrink-0">
-            <img src={logo} alt="LegeaAplicată" className="h-10 w-auto md:h-12 transition-transform duration-300 group-hover:scale-105" />
+            <img
+              src={logo}
+              alt="LegeaAplicată"
+              width="400"
+              height="314"
+              // @ts-ignore
+              fetchPriority="high"
+              className="h-10 w-auto md:h-12 transition-transform duration-300 group-hover:scale-105"
+            />
             {!isHomeView && (
               <div className="hidden lg:flex flex-col">
                 <span className="text-xl font-serif font-bold text-brand-dark tracking-tight leading-none">

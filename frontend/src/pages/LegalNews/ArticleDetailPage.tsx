@@ -135,6 +135,8 @@ const ArticleDetailPage: React.FC = () => {
                             <img
                                 src={article.imageUrl}
                                 alt={article.title}
+                                // @ts-ignore
+                                fetchPriority="high"
                                 className="w-full h-full object-cover"
                                 onError={(e) => { (e.target as HTMLImageElement).src = 'https://placehold.co/1200x600?text=Legal+Image'; }}
                             />

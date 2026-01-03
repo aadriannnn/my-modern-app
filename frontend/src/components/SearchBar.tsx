@@ -278,6 +278,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                             <button
                                 onClick={handleSearchAction}
                                 disabled={isLoading || !value.trim()}
+                                aria-label="Caută speța sau dosarul"
                                 className={`
                                     flex items-center justify-center transition-all duration-200
                                     disabled:opacity-50 disabled:cursor-not-allowed
@@ -330,7 +331,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
                     >
                         {/* Mobile Exit Header */}
                         <div className="flex justify-between items-center mb-2 pb-2 border-b border-gray-100 flex-none bg-white">
-                            <button onClick={handleExitFocus} className="text-brand-text font-medium flex items-center gap-1 p-2 -ml-2">
+                            <button onClick={handleExitFocus} aria-label="Înapoi" className="text-brand-text font-medium flex items-center gap-1 p-2 -ml-2">
                                 <ArrowLeft size={20} />
                             </button>
                             <span className="text-sm font-semibold text-gray-500">
