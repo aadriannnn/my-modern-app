@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import SearchPage from './pages/SearchPage';
 import SettingsPage from './pages/SettingsPage';
 import TermsPage from './pages/TermsPage';
@@ -85,6 +85,7 @@ const App: React.FC = () => {
           <Route path="/test-analysis" element={<TestAnalysisPage />} />
           <Route path="/payment-return" element={<PaymentReturnPage />} />
           <Route path="/abonamente" element={<PricingPage />} />
+          <Route path="/subscription" element={<React.Suspense fallback={null}><Navigate to="/abonamente" replace /></React.Suspense>} />
           <Route path="/taxa-timbru" element={<TaxaTimbruPage />} />
           <Route path="/asistenta-avocat" element={<LawyerAssistancePage />} />
           <Route path="/contact" element={<ContactPage />} />

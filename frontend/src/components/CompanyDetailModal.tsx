@@ -255,7 +255,7 @@ const CompanyDetailModal: React.FC<CompanyDetailModalProps> = ({ isOpen, company
                                         Vizualizați indicatori de performanță esențiali (EBITDA, ROA, ROE, Marje Profit) pentru o evaluare completă a sănătății financiare a companiei. Disponibil doar pentru membrii PRO.
                                     </p>
                                     <button
-                                        onClick={() => window.location.href = '/subscription'}
+                                        onClick={() => window.location.href = '/abonamente'}
                                         className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                                     >
                                         Activează Abonamentul PRO
