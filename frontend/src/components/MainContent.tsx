@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import ResultItem from './ResultItem';
 import SelectedFilters from './SelectedFilters';
@@ -303,24 +303,26 @@ SOLUTIE/CONSIDERENTE: ${c.data?.considerente_speta || c.argumente_instanta || c.
 
 
   // Auto-resize textarea based on content
-  useEffect(() => {
+  useLayoutEffect(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    // Reset height to auto to get accurate scrollHeight
-    textarea.style.height = 'auto';
-
-    // Determine if mobile or desktop
+    // Determine if mobile or desktop - READ
+    // Doing this first to separate reads from writes (though window props are usually safe, it's good practice)
     const isMobile = window.innerWidth < 768;
     const lineHeight = 24; // px
     const minRows = 4;
     const maxRows = isMobile ? 10 : 7;
-
     const minHeight = minRows * lineHeight;
     const maxHeight = maxRows * lineHeight;
 
-    // Calculate new height
+    // Reset height to auto to get accurate scrollHeight - WRITE
+    textarea.style.height = 'auto';
+
+    // Calculate new height - READ (layout thrashing happens here if we interleaved)
     const newHeight = Math.min(Math.max(textarea.scrollHeight, minHeight), maxHeight);
+
+    // Apply new height - WRITE
     textarea.style.height = `${newHeight}px`;
   }, [situatie]);
 

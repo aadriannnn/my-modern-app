@@ -59,6 +59,8 @@ const App: React.FC = () => {
         <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* Legislation routes */}
+            <Route path="/legislatie/modele/:itemSlug/index.html" element={<LegislatieDetailPage />} />
+            <Route path="/legislatie/:categorySlug/:itemSlug/index.html" element={<LegislatieDetailPage />} />
             <Route path="/legislatie/modele/:itemSlug" element={<LegislatieDetailPage />} />
             <Route path="/legislatie/:categorySlug/:itemSlug" element={<LegislatieDetailPage />} />
             <Route path="/legislatie/:categorySlug" element={<LegislatieCategoryPage />} />
