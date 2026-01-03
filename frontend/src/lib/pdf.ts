@@ -1,7 +1,7 @@
-import { jsPDF } from "jspdf";
-import "@/assets/fonts/DejaVuSans.js";
-import "@/assets/fonts/DejaVuSans-Bold-normal.js";
 import logo from "@/assets/icons/logo.webp";
+
+// Type definitions (avoiding importing the whole library for types if possible, or use 'import type')
+import type { jsPDF as jsPDFType } from "jspdf";
 
 /* ================= Helpers ================= */
 const safe = (v?: any) => (v ? String(v) : "");
@@ -47,7 +47,7 @@ interface LayoutCtx {
 const needBreak = (ctx: LayoutCtx, needed: number) =>
   ctx.y + needed > ctx.pageH - FOOTER_HEIGHT;
 
-const ensureSpace = (doc: jsPDF, ctx: LayoutCtx, needed: number) => {
+const ensureSpace = (doc: jsPDFType, ctx: LayoutCtx, needed: number) => {
   if (needBreak(ctx, needed)) {
     doc.addPage();
     drawHeader(doc, ctx);
@@ -55,7 +55,7 @@ const ensureSpace = (doc: jsPDF, ctx: LayoutCtx, needed: number) => {
 };
 
 /* ================= HEADER ================= */
-const drawHeader = (doc: jsPDF, ctx: LayoutCtx) => {
+const drawHeader = (doc: jsPDFType, ctx: LayoutCtx) => {
   const xRight = ctx.pageW - ctx.margin - 40;
 
   // Logo în dreapta sus
@@ -76,7 +76,7 @@ const drawHeader = (doc: jsPDF, ctx: LayoutCtx) => {
 };
 
 /* ================= META INFO ================= */
-const drawMetaInfo = (doc: jsPDF, ctx: LayoutCtx, data: PdfSablonData) => {
+const drawMetaInfo = (doc: jsPDFType, ctx: LayoutCtx, data: PdfSablonData) => {
   doc.setFont("DejaVuSans", "normal");
   doc.setFontSize(12);
   doc.setTextColor(20);
@@ -97,7 +97,7 @@ const drawMetaInfo = (doc: jsPDF, ctx: LayoutCtx, data: PdfSablonData) => {
 };
 
 /* ================= TITLU ================= */
-const drawTitle = (doc: jsPDF, ctx: LayoutCtx, data: PdfSablonData) => {
+const drawTitle = (doc: jsPDFType, ctx: LayoutCtx, data: PdfSablonData) => {
   const title = safe(data.titlu);
 
   doc.setFont("DejaVuSans", "bold");
@@ -118,7 +118,7 @@ const drawTitle = (doc: jsPDF, ctx: LayoutCtx, data: PdfSablonData) => {
 };
 
 /* ================= UTILITATE TEXT ================= */
-const drawParagraphJustified = (doc: jsPDF, ctx: LayoutCtx, text: string, bold = false) => {
+const drawParagraphJustified = (doc: jsPDFType, ctx: LayoutCtx, text: string, bold = false) => {
   const chunks = safe(text).split("\n");
 
   doc.setFont(bold ? "DejaVuSans-Bold" : "DejaVuSans", "normal");
@@ -137,7 +137,7 @@ const drawParagraphJustified = (doc: jsPDF, ctx: LayoutCtx, text: string, bold =
 };
 
 /* ================= SECȚIUNE GENERICĂ ================= */
-const drawSectionTitle = (doc: jsPDF, ctx: LayoutCtx, title: string) => {
+const drawSectionTitle = (doc: jsPDFType, ctx: LayoutCtx, title: string) => {
   ensureSpace(doc, ctx, 10);
   doc.setFont("DejaVuSans", "bold");
   doc.setFontSize(13);
@@ -146,23 +146,23 @@ const drawSectionTitle = (doc: jsPDF, ctx: LayoutCtx, title: string) => {
 };
 
 /* ================= SECȚIUNI CONCRETE ================= */
-const drawParteaIntro = (doc: jsPDF, ctx: LayoutCtx, text: string) => {
+const drawParteaIntro = (doc: jsPDFType, ctx: LayoutCtx, text: string) => {
   drawSectionTitle(doc, ctx, "I. Practicaua");
   drawParagraphJustified(doc, ctx, text);
 };
 
-const drawConsiderente = (doc: jsPDF, ctx: LayoutCtx, text: string) => {
+const drawConsiderente = (doc: jsPDFType, ctx: LayoutCtx, text: string) => {
   drawSectionTitle(doc, ctx, "II. Considerente");
   drawParagraphJustified(doc, ctx, text);
 };
 
-const drawDispozitiv = (doc: jsPDF, ctx: LayoutCtx, text: string) => {
+const drawDispozitiv = (doc: jsPDFType, ctx: LayoutCtx, text: string) => {
   drawSectionTitle(doc, ctx, "III. Dispozitiv");
   drawParagraphJustified(doc, ctx, text, true); // TOT BOLD
 };
 
 /* ================= FOOTER ================= */
-const drawFooterAllPages = (doc: jsPDF, ctx: LayoutCtx) => {
+const drawFooterAllPages = (doc: jsPDFType, ctx: LayoutCtx) => {
   const total = doc.getNumberOfPages();
 
   for (let i = 1; i <= total; i++) {
@@ -175,8 +175,25 @@ const drawFooterAllPages = (doc: jsPDF, ctx: LayoutCtx) => {
   }
 };
 
+/* ================= LOADER ================= */
+// Helper to dynamically load dependencies
+const loadDependencies = async () => {
+  const [jsPDFModule] = await Promise.all([
+    import("jspdf"),
+    // @ts-ignore
+    import("@/assets/fonts/DejaVuSans.js"),
+    // @ts-ignore
+    import("@/assets/fonts/DejaVuSans-Bold-normal.js"),
+  ]);
+
+  return { jsPDF: jsPDFModule.jsPDF };
+};
+
 /* ================= GENERATOR ================= */
 export const generatePdf = async (data: PdfSablonData, opts: PdfOptions = {}): Promise<Blob | void> => {
+  // Load dependencies only when needed
+  const { jsPDF } = await loadDependencies();
+
   const margin = opts.margin ?? DEF_MARGIN;
 
   const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
@@ -235,6 +252,9 @@ export const generateModelPdf = async (modelData: {
   obiect_model?: string;
   sursa_model?: string;
 }): Promise<void> => {
+  // Load dependencies only when needed
+  const { jsPDF } = await loadDependencies();
+
   const doc = new jsPDF({ unit: "mm", format: "a4", compress: true });
   doc.setFont("DejaVuSans", "normal");
   const pageW = doc.internal.pageSize.getWidth();
