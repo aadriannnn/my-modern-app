@@ -89,19 +89,40 @@ const LegislatieCategoryPage: React.FC = () => {
                 <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
                     {/* List content */}
                     <div className="divide-y divide-slate-100">
-                        {filteredItems.slice(0, 500).map((item) => (
-                            <Link
-                                key={item.id}
-                                to={`/legislatie/${categorySlug}/${item.slug}`}
-                                className="flex items-start p-4 hover:bg-slate-50 transition-colors group"
-                            >
-                                <FileText className="w-5 h-5 text-slate-400 mt-1 mr-3 flex-shrink-0 group-hover:text-slate-900" />
-                                <div>
-                                    <span className="font-semibold text-slate-900 block mb-1">{item.label}</span>
-                                    <span className="text-slate-600 block text-sm line-clamp-2">{item.title}</span>
-                                </div>
-                            </Link>
-                        ))}
+                        {filteredItems.slice(0, 500).map((item) => {
+                            const isStatic = data.type === 'code';
+                            const url = `/legislatie/${categorySlug}/${item.slug}`;
+
+                            if (isStatic) {
+                                return (
+                                    <a
+                                        key={item.id}
+                                        href={url}
+                                        className="flex items-start p-4 hover:bg-slate-50 transition-colors group"
+                                    >
+                                        <FileText className="w-5 h-5 text-slate-400 mt-1 mr-3 flex-shrink-0 group-hover:text-slate-900" />
+                                        <div>
+                                            <span className="font-semibold text-slate-900 block mb-1">{item.label}</span>
+                                            <span className="text-slate-600 block text-sm line-clamp-2">{item.title}</span>
+                                        </div>
+                                    </a>
+                                );
+                            }
+
+                            return (
+                                <Link
+                                    key={item.id}
+                                    to={`/legislatie/modele/${item.slug}`}
+                                    className="flex items-start p-4 hover:bg-slate-50 transition-colors group"
+                                >
+                                    <FileText className="w-5 h-5 text-slate-400 mt-1 mr-3 flex-shrink-0 group-hover:text-slate-900" />
+                                    <div>
+                                        <span className="font-semibold text-slate-900 block mb-1">{item.label}</span>
+                                        <span className="text-slate-600 block text-sm line-clamp-2">{item.title}</span>
+                                    </div>
+                                </Link>
+                            );
+                        })}
                         {filteredItems.length > 500 && (
                             <div className="p-4 text-center text-slate-500 italic">
                                 Se afișează primele 500 de rezultate. Folosește căutarea pentru a găsi mai multe.

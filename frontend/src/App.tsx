@@ -62,7 +62,7 @@ const App: React.FC = () => {
           {/* Legislation SEO Routes (New Implementation) */}
           <Route path="/legislatie" element={<LegislatiePage />} />
           <Route path="/legislatie/:categorySlug" element={<LegislatieCategoryPage />} />
-          <Route path="/legislatie/:categorySlug/:itemSlug" element={<LegislatieDetailPage />} />
+          <Route path="/legislatie/modele/:itemSlug" element={<LegislatieDetailPage />} />
 
           {/* Legacy/Search Routes */}
           <Route path="/codul-civil" element={<SearchPage initialSituatie="Codul Civil" pageTitle="Codul Civil Actualizat - Legea Aplicata" />} />

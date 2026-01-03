@@ -443,7 +443,7 @@ def get_article_by_id(session: Session, article_id: str, table_name: str) -> Opt
 
 
     # Determine if we are looking up by ID (hash) or by Article Number
-    if article_id.lower().startswith("art_"):
+    if article_id.lower().startswith("art_") or article_id.lower().startswith("art-"):
         # Extract number: "art_953" -> "953"
         target_numar = article_id[4:]
         # Database format appears to be "Art. 953"
