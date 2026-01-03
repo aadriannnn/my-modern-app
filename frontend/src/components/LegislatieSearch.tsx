@@ -89,7 +89,7 @@ const LegislatieSearch: React.FC<LegislatieSearchProps> = ({ onSearch, activeTab
         }
 
         // 2. Detect Article Number
-        // Patterns:
+        // Patterns: 
         // "art. 12", "art 12", "articolul 12"
         const artRegex = /(?:art\.?|articol(?:ul)?)\s*(\d+)/i;
         const match = text.match(artRegex);

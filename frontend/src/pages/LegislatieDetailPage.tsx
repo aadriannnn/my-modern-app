@@ -25,7 +25,11 @@ const LegislatieDetailPage: React.FC = () => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     useEffect(() => {
-        if (!categorySlug || !itemSlug) return;
+        console.log('LegislatieDetailPage mounted. Params:', { categorySlug, itemSlug });
+        if (!categorySlug || !itemSlug) {
+            console.error('Missing params in LegislatieDetailPage');
+            return;
+        }
         setLoading(true);
         setError(false);
 

@@ -67,7 +67,7 @@ const Header: React.FC<HeaderProps> = ({ onToggleMenu, onContribuieClick, isHome
               width="400"
               height="314"
               // @ts-ignore
-              fetchPriority="high"
+              fetchpriority="high"
               className="h-10 w-auto md:h-12 transition-transform duration-300 group-hover:scale-105"
             />
             {!isHomeView && (

@@ -38,14 +38,23 @@ import LegislatieCategoryPage from './pages/LegislatieCategoryPage';
 import LegislatieDetailPage from './pages/LegislatieDetailPage';
 import PredictiveReportPage from './pages/PredictiveReportPage';
 
+
 const App: React.FC = () => {
   return (
     <AuthProvider>
       <DosarProvider>
+
         <DosarDrawer />
         <DosarToast />
         <CookieConsent />
         <Routes>
+          {/* Legislation routes */}
+          <Route path="/legislatie/modele/:itemSlug" element={<LegislatieDetailPage />} />
+          <Route path="/legislatie/:categorySlug/:itemSlug" element={<LegislatieDetailPage />} />
+          <Route path="/legislatie/:categorySlug" element={<LegislatieCategoryPage />} />
+          <Route path="/legislatie" element={<LegislatiePage />} />
+
+
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/complete-profile" element={<CompleteProfilePage />} />
@@ -58,13 +67,6 @@ const App: React.FC = () => {
           <Route path="/grid-tests" element={<GridTestsPage />} />
           <Route path="/setari" element={<SettingsPage />} />
 
-
-          {/* Legislation SEO Routes (New Implementation) */}
-          <Route path="/legislatie" element={<LegislatiePage />} />
-          <Route path="/legislatie/:categorySlug" element={<LegislatieCategoryPage />} />
-          <Route path="/legislatie/modele/:itemSlug" element={<LegislatieDetailPage />} />
-
-          {/* Legacy/Search Routes */}
           <Route path="/codul-civil" element={<SearchPage initialSituatie="Codul Civil" pageTitle="Codul Civil Actualizat - Legea Aplicata" />} />
           <Route path="/codul-de-procedura-civila" element={<SearchPage initialSituatie="Codul de Procedură Civilă" pageTitle="Codul de Procedură Civilă - Legea Aplicata" />} />
           <Route path="/codul-penal" element={<SearchPage initialSituatie="Codul Penal" pageTitle="Codul Penal Actualizat - Legea Aplicata" />} />
@@ -74,7 +76,6 @@ const App: React.FC = () => {
           <Route path="/codul-fiscal" element={<SearchPage initialSituatie="Codul Fiscal" pageTitle="Codul Fiscal - Legea Aplicata" />} />
           <Route path="/codul-de-procedura-fiscala" element={<SearchPage initialSituatie="Codul de Procedură Fiscală" pageTitle="Codul de Procedură Fiscală - Legea Aplicata" />} />
 
-          {/* Legal & Support Routes */}
           <Route path="/terms" element={<TermsPage />} />
           <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
           <Route path="/cookies" element={<CookiePolicyPage />} />
@@ -90,9 +91,6 @@ const App: React.FC = () => {
           <Route path="/despre-noi" element={<AboutPage />} />
           <Route path="/harta-site" element={<Sitemap />} />
 
-          {/* Legal News Routes */}
-          {/* Legal News Routes */}
-          {/* Legal News Category Routes */}
           <Route path="/stiri/drept-civil-si-administrativ" element={<LegalNewsPage initialCategory="Drept Civil și Administrativ" pageTitle="Știri Drept Civil și Administrativ" />} />
           <Route path="/stiri/drept-penal" element={<LegalNewsPage initialCategory="Drept Penal (General)" pageTitle="Știri Drept Penal" />} />
           <Route path="/stiri/dreptul-familiei" element={<LegalNewsPage initialCategory="Dreptul Familiei și Violență Domestică" pageTitle="Știri Dreptul Familiei" />} />
@@ -105,7 +103,6 @@ const App: React.FC = () => {
 
           <Route path="/stiri/jurisprudenta" element={<LegalNewsPage initialCategory="Jurisprudență (General)" pageTitle="Noutăți Jurisprudență" />} />
 
-          {/* New Predictive Report Service */}
           <Route path="/raport-predictiv" element={<React.Suspense fallback={<div>Loading...</div>}><PredictiveReportPage /></React.Suspense>} />
 
           <Route path="/stiri" element={<LegalNewsPage />} />
@@ -114,6 +111,9 @@ const App: React.FC = () => {
           <Route path="/editura" element={<LegalNewsPage />} />
           <Route path="/cariere" element={<LegalNewsPage />} />
           <Route path="/profesionisti" element={<LegalNewsPage />} />
+
+
+          <Route path="*" element={<div className="p-12 text-center text-red-600 font-bold">404 - Debug: Route not found</div>} />
         </Routes>
       </DosarProvider>
     </AuthProvider>

@@ -39,6 +39,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(userData);
         setIsAuthenticated(true);
       } else {
+        // 401 Unauthorized is expected if user is not logged in
+        // treating this as a successful "not authenticated" state
         setUser(null);
         setIsAuthenticated(false);
       }
