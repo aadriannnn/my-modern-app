@@ -1,0 +1,132 @@
+import React from 'react';
+import ReactDOM from 'react-dom';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+import PrintableContent from './PrintableContent';
+import eyeIcon from '@/assets/icons/eye.png';
+import printIcon from '@/assets/icons/print.png';
+import justiceIcon from '@/assets/icons/justice.png';
+import calendarIcon from '@/assets/icons/calendar.png';
+import addToDossierIcon from '@/assets/icons/addToDossier.png';
+
+interface ResultItemProps {
+  result: any;
+  activeView: 'situatia_de_fapt_full' | 'argumente_instanta' | 'text_individualizare' | 'text_doctrina' | 'text_ce_invatam' | 'Rezumat_generat_de_AI_Cod';
+  onViewCase: () => void;
+}
+
+const ResultItem: React.FC<ResultItemProps> = ({ result, activeView, onViewCase }) => {
+  const content = result[activeView] || 'Acest conținut nu este disponibil.';
+
+  const generateTitle = (result: any): string => {
+    const titlu = result.data?.titlu;
+    const denumireArticol = result.data?.text_denumire_articol;
+
+    if (titlu && denumireArticol) {
+      return `${titlu} - ${denumireArticol}`;
+    }
+    if (titlu) {
+      return titlu;
+    }
+    if (denumireArticol) {
+      return denumireArticol;
+    }
+    return result.denumire || `Caz #${result.id}`;
+  };
+
+  const title = generateTitle(result);
+
+  const handlePrint = () => {
+    const printableElement = document.createElement('div');
+    document.body.appendChild(printableElement);
+
+    const onPrintFinish = () => {
+      document.body.removeChild(printableElement);
+    };
+
+    ReactDOM.render(
+      <PrintableContent result={result} title={title} />,
+      printableElement,
+      () => {
+        html2canvas(printableElement, { scale: 2 }).then(canvas => {
+          const imgData = canvas.toDataURL('image/png');
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          const canvasWidth = canvas.width;
+          const canvasHeight = canvas.height;
+          const ratio = canvasWidth / canvasHeight;
+          const width = pdfWidth;
+          const height = width / ratio;
+
+          pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+          pdf.save(`${title}.pdf`);
+          onPrintFinish();
+        }).catch(err => {
+          console.error("Error generating PDF:", err);
+          onPrintFinish();
+        });
+      }
+    );
+  };
+
+  const highlightText = (text: string, highlight: string) => {
+    if (!highlight) return text;
+    const parts = text.split(new RegExp(`(${highlight})`, 'gi'));
+    return (
+      <>
+        {parts.map((part, i) =>
+          part.toLowerCase() === highlight.toLowerCase() ? (
+            <span key={i} className="bg-yellow-200">
+              {part}
+            </span>
+          ) : (
+            part
+          )
+        )}
+      </>
+    );
+  };
+
+  return (
+    <div className="bg-white p-5 border rounded-lg shadow-sm hover:shadow-lg transition-shadow duration-300">
+      <div className="flex justify-between items-start pb-4 mb-4 border-b border-gray-200">
+        <h3 className="text-lg font-semibold text-gray-800 flex-1 cursor-pointer" onClick={onViewCase}>
+          {highlightText(title, '')}
+        </h3>
+        <div className="flex items-center space-x-3 ml-4">
+          <IconButton icon={addToDossierIcon} alt="Dosar" />
+          <IconButton icon={printIcon} alt="Print" onClick={handlePrint} />
+          <IconButton icon={eyeIcon} alt="Vezi" onClick={onViewCase} />
+        </div>
+      </div>
+
+      <div className="text-sm text-gray-700" onClick={onViewCase}>
+        {content}
+      </div>
+
+      <div className="flex items-center justify-between text-xs text-gray-500 mt-4">
+        <div className="flex items-center space-x-4">
+          <InfoItem icon={justiceIcon} text={result.data?.materie || 'N/A'} />
+          <InfoItem icon={calendarIcon} text={result.data?.sursa || 'N/A'} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Helper components for icons and info items
+const IconButton: React.FC<{ icon: string; alt: string; onClick?: () => void }> = ({ icon, alt, onClick }) => (
+  <button onClick={onClick} className="p-1 rounded-full hover:bg-gray-100 transition-colors">
+    <img src={icon} alt={alt} className="h-5 w-5" />
+  </button>
+);
+
+const InfoItem: React.FC<{ icon: string; text: string }> = ({ icon, text }) => (
+  <div className="flex items-center">
+    <img src={icon} alt="" className="h-4 w-4 mr-1.5" />
+    <span>{text}</span>
+  </div>
+);
+
+export default ResultItem;

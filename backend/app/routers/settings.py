@@ -1,0 +1,1189 @@
+from fastapi import APIRouter, HTTPException, Depends, Response
+from pydantic import BaseModel
+from typing import Dict, Any
+from sqlmodel import Session
+from datetime import timedelta
+from ..settings_manager import settings_manager
+from ..routers.auth import get_current_user, create_access_token, SETTINGS_TOKEN_COOKIE_NAME
+from ..db import get_session
+from ..config import get_settings as get_env_settings
+from ..lib.network_file_saver import NetworkFileSaver
+from ..logic.index_maintenance import get_index_stats, run_index_repair, stop_index_repair
+import asyncio
+import threading
+
+router = APIRouter(
+    prefix="/settings",
+    tags=["settings"],
+    responses={404: {"description": "Not found"}},
+)
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class GenerateDocumentRequest(BaseModel):
+    tip_act: str
+    situatia_de_fapt: str
+    relevant_cases_text: str
+
+
+@router.post("/login", response_model=Dict[str, bool])
+async def login_settings(credentials: LoginRequest, response: Response):
+    """
+    Verify settings page credentials.
+    """
+    env_settings = get_env_settings()
+
+    # Get credentials from settings (loaded from env)
+    valid_user = env_settings.USER_SETARI
+    valid_pass = env_settings.PASS_SETARI
+
+    if not valid_user or not valid_pass:
+        # Fail safe: if not configured in .env, deny access
+        raise HTTPException(status_code=500, detail="Server misconfiguration: Credentials not set")
+
+    if credentials.username == valid_user and credentials.password == valid_pass:
+        # Generate generic token for settings access
+        expires = timedelta(minutes=1440) # 24 hours
+        token = create_access_token(
+            data={"sub": "settings_admin", "rol": "admin"},
+            expires_delta=expires
+        )
+
+        samesite = "none" if env_settings.SECURE_COOKIE else "lax"
+        response.set_cookie(
+            key=SETTINGS_TOKEN_COOKIE_NAME,
+            value=f"Bearer {token}",
+            httponly=True,
+            secure=env_settings.SECURE_COOKIE,
+            samesite=samesite,
+            max_age=int(expires.total_seconds()),
+            path="/"
+        )
+        return {"success": True}
+
+    raise HTTPException(status_code=401, detail="Invalid credentials")
+
+
+@router.get("/", response_model=Dict[str, Any])
+async def get_settings():
+    """
+    Get all current settings.
+    """
+    return settings_manager.get_settings()
+
+@router.put("/", response_model=Dict[str, Any])
+async def update_settings(new_settings: Dict[str, Any]):
+    """
+    Update settings.
+    """
+    try:
+        from ..settings_manager import logger as settings_logger
+        settings_logger.info(f"Received update_settings request. Payload size: {len(str(new_settings))} chars")
+        settings_manager.save_settings(new_settings)
+        return settings_manager.get_settings()
+    except Exception as e:
+        settings_logger.error(f"Exception in update_settings endpoint: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/reset", response_model=Dict[str, Any])
+async def reset_settings():
+    """
+    Reset settings to defaults.
+    """
+    try:
+        settings_manager.reset_to_defaults()
+        return settings_manager.get_settings()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/precalculate-models-codes", response_model=Dict[str, Any])
+async def precalculate_models_codes(
+    restart: bool = False
+):
+    """
+    Triggers pre-calculation of models and codes for all cases.
+    This is a resource-intensive operation that should be run during off-peak hours.
+    Runs in a background thread to avoid blocking the API.
+
+    Query Parameters:
+        restart: If True, reset all precalculated data and start from scratch.
+                If False, only process incomplete cases (resume mode).
+    """
+    from ..db import engine as main_engine
+    from ..db_modele import modele_engine
+    from ..db_coduri import coduri_engine
+    from sqlmodel import Session
+    from ..logic.precalculation_service import precalculate_models_and_codes, precalc_status, precalc_status_lock
+    import logging
+    import threading
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"Pre-calculation endpoint called, restart={restart}")
+
+    # Check if already running
+    with precalc_status_lock:
+        if precalc_status['is_running']:
+            return {
+                'success': False,
+                'message': 'A precalculation process is already running',
+                'is_running': True
+            }
+
+    def run_precalculation():
+        """Background thread function to run precalculation"""
+        try:
+            with Session(main_engine) as main_session, \
+                 Session(modele_engine) as modele_session, \
+                 Session(coduri_engine) as coduri_session:
+
+                results = precalculate_models_and_codes(
+                    main_session=main_session,
+                    modele_session=modele_session,
+                    coduri_session=coduri_session,
+                    batch_size=100,
+                    limit_modele=5,
+                    limit_coduri=5,
+                    restart_from_zero=restart
+                )
+                logger.info(f"Precalculation completed: {results}")
+        except Exception as e:
+            logger.error(f"Error in background precalculation: {e}", exc_info=True)
+
+    # Start the background thread
+    thread = threading.Thread(target=run_precalculation, daemon=True)
+    thread.start()
+
+    return {
+        'success': True,
+        'message': 'Precalculation started in background',
+        'is_running': True,
+        'restart_mode': restart
+    }
+
+
+@router.get("/precalculate-status", response_model=Dict[str, Any])
+async def get_precalculate_status():
+    """
+    Get the current status of the precalculation process.
+    """
+    from ..db import engine as main_engine
+    from sqlmodel import Session
+    from ..logic.precalculation_service import get_precalculation_status
+
+    try:
+        with Session(main_engine) as main_session:
+            status = get_precalculation_status(main_session)
+            return status
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting precalculation status: {str(e)}"
+        )
+
+
+@router.post("/precalculate-stop", response_model=Dict[str, Any])
+async def stop_precalculate():
+    """
+    Stop the currently running precalculation process.
+    """
+    from ..logic.precalculation_service import stop_precalculation
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info("Stop precalculation requested")
+
+    try:
+        result = stop_precalculation()
+        return result
+    except Exception as e:
+        logger.error(f"Error stopping precalculation: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error stopping precalculation: {str(e)}"
+        )
+
+
+@router.post("/precalculate-tax", response_model=Dict[str, Any])
+async def precalculate_tax(
+    restart: bool = False
+):
+    """
+    Triggers pre-calculation of tax suggestions (LLM) for all cases.
+    """
+    from ..logic.tax_precalculation_service import start_tax_precalculation, tax_precalc_status, tax_precalc_status_lock
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"Tax Pre-calculation endpoint called, restart={restart}")
+
+    # Check if already running
+    with tax_precalc_status_lock:
+        if tax_precalc_status['is_running']:
+            return {
+                'success': False,
+                'message': 'Tax precalculation process is already running',
+                'is_running': True
+            }
+
+    result = start_tax_precalculation(restart_from_zero=restart)
+    return result
+
+
+@router.get("/precalculate-tax-status", response_model=Dict[str, Any])
+async def get_precalculate_tax_status():
+    """
+    Get the current status of the tax precalculation process.
+    """
+    from ..db import engine as main_engine
+    from sqlmodel import Session
+    from ..logic.tax_precalculation_service import get_tax_precalculation_status
+
+    try:
+        with Session(main_engine) as main_session:
+            status = get_tax_precalculation_status(main_session)
+            return status
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error getting tax precalculation status: {str(e)}"
+        )
+
+
+@router.post("/precalculate-tax-stop", response_model=Dict[str, Any])
+async def stop_precalculate_tax():
+    """
+    Stop the currently running tax precalculation process.
+    """
+    from ..logic.tax_precalculation_service import stop_tax_precalculation
+    import logging
+
+    logger = logging.getLogger(__name__)
+    logger.info("Stop tax precalculation requested")
+
+    try:
+        result = stop_tax_precalculation()
+        return result
+    except Exception as e:
+        logger.error(f"Error stopping tax precalculation: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error stopping tax precalculation: {str(e)}"
+        )
+
+
+@router.get("/export-llm-data", response_model=Dict[str, Any])
+async def export_llm_data(
+    session: Session = Depends(get_session)
+):
+    """
+    Export fact situations from last search query for LLM refinement.
+    Returns JSON with case IDs, names, and full fact situations.
+    """
+    from ..models import UltimaInterogare
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Get last query data
+        ultima = session.get(UltimaInterogare, 1)
+
+        if not ultima or not ultima.speta_ids:
+            return {
+                'success': False,
+                'message': 'Nu există rezultate salvate din ultima căutare.',
+                'query_text': '',
+                'total_spete': 0,
+                'spete': []
+            }
+
+        # Use helper to generate data and prompt
+        spete_export, optimized_prompt = _generate_llm_data(session, ultima)
+
+        logger.info(f"Exported {len(spete_export)} cases for LLM from last query: '{ultima.query_text[:50]}'")
+
+        return {
+            'success': True,
+            'query_text': ultima.query_text,
+            'total_spete': len(spete_export),
+            'spete': spete_export,
+            'optimized_prompt': optimized_prompt
+        }
+
+    except Exception as e:
+        logger.error(f"Error exporting LLM data: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Eroare la exportul datelor: {str(e)}"
+        )
+
+
+@router.post("/analyze-llm-data", response_model=Dict[str, Any])
+async def analyze_llm_data(
+    session: Session = Depends(get_session)
+):
+    """
+    Start LLM analysis and return job_id immediately.
+    Client should poll /analyze-llm-status/{job_id} for results.
+    """
+    from ..models import UltimaInterogare
+    from ..logic.queue_manager import queue_manager
+    import logging
+    import httpx
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Get last query data
+        ultima = session.get(UltimaInterogare, 1)
+
+        if not ultima or not ultima.speta_ids:
+            return {
+                'success': False,
+                'message': 'Nu există rezultate salvate din ultima căutare.',
+            }
+
+        # Check network settings first to determine candidate count and mode
+        # Check network settings
+        network_enabled = settings_manager.get_value('setari_retea', 'retea_enabled', False)
+
+        # UNIFIED LOGIC: ALWAYS use the strict "network-style" configuration
+        # Use more candidates for better filtering (default 50 or max available)
+        candidate_count = settings_manager.get_value('setari_generale', 'top_k_results', 50)
+
+        # Custom prompt - ULTRA-STRICT ZERO-TOLERANCE (Used for both Network and Local)
+        custom_template = (
+            "⚠️⚠️⚠️ INTERZIS TOTAL: ORICE TEXT IN AFARA JSON ⚠️⚠️⚠️\\n\\n"
+            "SARCINA: Selecteaza max 10 spete relevante din {num_candidates} candidate.\\n\\n"
+            "SITUATIA: \"{query_text}\"\\n\\n"
+            "CANDIDATE:\\n{prompt_spete}\\n\\n"
+            "═══════════════════════════════════════════════════════════════\\n"
+            "FORMATUL RASPUNSULUI - ZERO TOLERANTA LA ABATERI:\\n"
+            "═══════════════════════════════════════════════════════════════\\n\\n"
+            "PRIMUL CARACTER din raspuns: {{\\n"
+            "ULTIMUL CARACTER din raspuns: }}\\n\\n"
+            "Structura JSON (EXCLUSIV acest format):\\n"
+            "{{\\n"
+            "  \"numar_speta\": [ID_SPETA_1, ID_SPETA_2],\\n"
+            "  \"acte_juridice\": [\"Tip_Act_1\", \"Tip_Act_2\"]\\n"
+            "}}\\n\\n"
+            "❌❌❌ INTERZIS ABSOLUT (ZERO EXCEPTII): ❌❌❌\\n"
+            "• NU COPIA ID-urile 123, 456 DIN EXEMPLU! Foloseste ID-urile reale din lista de CANDIDATE.\\n"
+            "• ZERO text INAINTE de {{\\n"
+            "• ZERO text DUPA }}\\n"
+            "• ZERO note explicative (nici in paranteze)\\n"
+            "• ZERO 'Considerente Juridice'\\n"
+            "• ZERO 'Observatii'\\n"
+            "• ZERO rationament profesional\\n"
+            "• ZERO comentarii de orice fel\\n"
+            "• ZERO markdown (```json)\\n"
+            "• ZERO repetare prompt\\n\\n"
+            "NU esti platit sa explici. Esti platit sa livrezi DOAR JSON.\\n"
+            "Orice caracter in afara {{ }} = ESEC TOTAL.\\n\\n"
+            "INCEPE ACUM CU {{ (prima litera din raspuns trebuie sa fie acolada):"
+        )
+
+        # Generate the prompt using the helper
+        all_candidates, optimized_prompt = _generate_llm_data(
+            session,
+            ultima,
+            candidate_count=candidate_count,
+            custom_template=custom_template
+        )
+
+        # Define async processor function
+        async def process_llm_analysis(payload: dict):
+            """Process the LLM analysis."""
+
+            # ===== SALVARE PROMPT ÎN REȚEA ÎNAINTE DE LLM =====
+            logger.info("[AI FILTERING] Verificăm configurarea salvării în rețea...")
+            network_enabled = settings_manager.get_value('setari_retea', 'retea_enabled', False)
+
+            if network_enabled:
+                logger.info("[AI FILTERING] ✓ Salvarea în rețea este ACTIVATĂ")
+
+                # Preluăm setările de rețea
+                retea_host = settings_manager.get_value('setari_retea', 'retea_host', '')
+                retea_folder = settings_manager.get_value('setari_retea', 'retea_folder_partajat', '')
+                retea_subfolder = settings_manager.get_value('setari_retea', 'retea_subfolder', '')
+
+                logger.info(f"[AI FILTERING] Configurare rețea: \\\\{retea_host}\\{retea_folder}")
+
+                # Validăm configurarea
+                # Permitem host gol dacă folderul este o cale absolută (pentru mount-uri locale)
+                import os
+                is_local_path = os.path.isabs(retea_folder) if retea_folder else False
+
+                if (not retea_host and not is_local_path) or not retea_folder:
+                    error_msg = "Salvarea în rețea este activată, dar configurația este incompletă (lipsește host sau folder partajat)."
+                    logger.error(f"[AI FILTERING] ❌ EROARE CONFIGURARE: {error_msg}")
+                    # Nu ridicăm excepție aici pentru a nu bloca worker-ul, dar returnăm eroare
+                    return {
+                        'success': False,
+                        'error': error_msg
+                    }
+
+                # Salvăm promptul în rețea
+                logger.info("[AI FILTERING] Începem salvarea promptului în rețea...")
+                success, message, saved_path = NetworkFileSaver.save_to_network(
+                    content=payload['prompt'],
+                    host=retea_host,
+                    shared_folder=retea_folder,
+                    subfolder=retea_subfolder
+                )
+
+                if not success:
+                    logger.error(f"[AI FILTERING] ❌ EROARE SALVARE REȚEA: {message}")
+                    return {
+                        'success': False,
+                        'error': f"Eroare la salvarea în rețea: {message}"
+                    }
+
+                logger.info(f"[AI FILTERING] ✅ Prompt salvat cu succes: {saved_path}")
+
+                # ===== POLLING PENTRU RĂSPUNS =====
+                logger.info("[AI FILTERING] Începem polling pentru răspuns din rețea...")
+
+                # Polling pentru fișierul de răspuns
+                poll_success, poll_content, response_path = await NetworkFileSaver.poll_for_response(
+                    saved_path=saved_path,
+                    timeout_seconds=1200,  # 20 minute
+                    poll_interval=10  # 10 secunde
+                )
+
+                if not poll_success:
+                    # Timeout sau altă eroare
+                    logger.error(f"[AI FILTERING] ❌ POLLING FAILED: {poll_content}")
+                    return {
+                        'success': False,
+                        'error': poll_content
+                    }
+
+                logger.info(f"[AI FILTERING] ✅ Răspuns primit din rețea!")
+
+                # ===== PARSARE RĂSPUNS JSON =====
+                logger.info("[AI FILTERING] Parsăm răspunsul JSON...")
+
+                import json
+                import re
+
+                ai_selected_ids = []
+                acte_juridice = []
+
+                # Curățăm conținutul de caractere invizibile sau BOM
+                poll_content = poll_content.strip()
+
+                try:
+                    # 1. Încercăm parsare directă dacă e doar JSON
+                    try:
+                        data = json.loads(poll_content)
+                        logger.info("[AI FILTERING] Parsare directă JSON reușită")
+                    except json.JSONDecodeError:
+                        # 2. Căutăm bloc JSON delimitat de acolade
+                        # Folosim un regex non-greedy pentru a găsi cel mai mare bloc JSON posibil sau cel mai mic?
+                        # Cel mai sigur: căutăm de la prima acoladă { la ultima }
+                        start_idx = poll_content.find('{')
+                        end_idx = poll_content.rfind('}')
+
+                        if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                            json_str = poll_content[start_idx:end_idx+1]
+                            data = json.loads(json_str)
+                            logger.info("[AI FILTERING] Parsare bloc JSON extras reușită")
+                        else:
+                            raise ValueError("Nu s-a găsit un bloc JSON valid")
+
+                    # Extragem datele
+                    if "numar_speta" in data:
+                        if isinstance(data["numar_speta"], list):
+                            ai_selected_ids = [int(x) for x in data["numar_speta"] if str(x).isdigit()]
+                        elif isinstance(data["numar_speta"], (str, int)):
+                             # Handle single value case just in case
+                             ai_selected_ids = [int(data["numar_speta"])]
+
+                    if "acte_juridice" in data and isinstance(data["acte_juridice"], list):
+                        acte_juridice = [str(x) for x in data["acte_juridice"]]
+
+                    logger.info(f"[AI FILTERING] ✓ ID-uri extrase: {ai_selected_ids}")
+                    logger.info(f"[AI FILTERING] ✓ Acte juridice extrase: {acte_juridice}")
+
+                except Exception as e:
+                    logger.error(f"[AI FILTERING] ❌ Eroare la parsarea JSON: {e}")
+                    logger.info(f"[AI FILTERING] Conținut raw: {poll_content[:200]}...")
+
+                    # Fallback: Regex pentru numere, dar ATENȚIE: asta poate include numere din textul actelor juridice
+                    # Încercăm să fim mai specifici dacă putem, dar fallback-ul e fallback.
+                    logger.warning("[AI FILTERING] ⚠️ Fallback la extragerea simplă de numere...")
+                    id_matches = re.findall(r'\d+', poll_content)
+                    ai_selected_ids = [int(id_str) for id_str in id_matches]
+                    # La fallback nu avem acte juridice
+
+
+                # ===== FALLBACK PENTRU REȚEA DACA NU GASESTE NIMIC =====
+                if not ai_selected_ids:
+                    logger.warning("[AI FILTERING] ⚠️ LLM nu a returnat niciun rezultat. Fallback la toate candidatele.")
+                    ai_selected_ids = [c['id'] for c in payload.get('all_candidates', [])]
+                    # Putem dezactiva exclusive_display sau il lasam True cu toate ID-urile.
+                    # Daca il lasam True cu toate ID-urile, se comporta ca si cum LLM le-a ales pe toate.
+                    # E mai sigur sa afisam tot.
+
+                # ===== ȘTERGERE FIȘIER RĂSPUNS =====
+                logger.info("[AI FILTERING] Curățăm fișierul de răspuns...")
+
+                delete_success, delete_message = NetworkFileSaver.delete_response_file(response_path)
+
+                if delete_success:
+                    logger.info(f"[AI FILTERING] ✓ {delete_message}")
+                else:
+                    logger.warning(f"[AI FILTERING] ⚠️ Eroare la ștergere (non-critică): {delete_message}")
+
+                # ===== RETURNARE REZULTATE =====
+                logger.info("[AI FILTERING] ✅ Procesare completă - returnăm rezultatele")
+                return {
+                    'success': True,
+                    'response': poll_content,
+                    'ai_selected_ids': ai_selected_ids,
+                    'acte_juridice': acte_juridice,
+                    'all_candidates': payload.get('all_candidates', []),
+                    'network_save': True,
+                    'saved_path': saved_path,
+                    'exclusive_display': True  # Flag to tell UI to show ONLY these results
+                }
+
+            # ===== CONTINUARE CU TRIMITEREA CĂTRE LLM (DOAR DACĂ REȚEA E OFF) =====
+            # MODIFICARE: Dacă Network Saving este OFF, NU mai facem fallback automat la Local LLM.
+            # Utilizatorul dorește doar căutare simplă + afișare rezultate.
+            # Dacă se dorește Local LLM, trebuie activat explicit (dar momentan 'retea_enabled' e master switch).
+
+            logger.info("[AI FILTERING] Salvarea în rețea este DEZACTIVATĂ. Se oprește analiza AI (fără fallback Local).")
+
+            ai_selected_ids = []
+            acte_juridice = []
+            llm_response_text = "AI Analysis Skipped (Network Saving is OFF)."
+            result = {"skipped": True, "reason": "network_disabled"}
+
+            # ===== FALLBACK: afișare TOATE candidatele =====
+            # Deoarece nu avem filtru AI, afișăm tot ce a găsit căutarea semantică (top K).
+            # Frontend-ul va primi lista și o va afișa.
+            if not ai_selected_ids:
+                 ai_selected_ids = [c['id'] for c in payload.get('all_candidates', [])]
+
+            return {
+                'success': True,
+                'response': llm_response_text,
+                'ai_selected_ids': ai_selected_ids,
+                'acte_juridice': acte_juridice,
+                'all_candidates': payload.get('all_candidates', []),
+                'full_response': result,
+                'exclusive_display': False  # Important: Nu ascunde restul rezultatelor pentru ca nu e filtru "exclusiv"
+            }
+
+        # Add to queue and get job_id immediately
+        import uuid
+        job_id = str(uuid.uuid4())
+
+        payload = {
+            'prompt': optimized_prompt,
+            'all_candidates': all_candidates  # Include all candidates for response
+        }
+        await queue_manager.add_to_queue(job_id, 'llm_analysis', payload, process_llm_analysis)
+
+        logger.info(f"LLM analysis queued with job_id: {job_id}")
+
+        return {
+            'success': True,
+            'job_id': job_id,
+            'message': 'Analiză pusă în coadă. Folosește job_id pentru a verifica statusul.'
+        }
+
+    except RuntimeError as e:
+        logger.error(f"Queue error: {e}")
+        raise HTTPException(status_code=503, detail=f"Coada este plină. Vă rugăm să încercați din nou mai târziu.")
+    except Exception as e:
+        logger.error(f"Error queuing LLM analysis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Eroare internă: {str(e)}")
+
+
+@router.get("/analyze-llm-status/{job_id}", response_model=Dict[str, Any])
+async def get_analyze_llm_status(job_id: str):
+    """
+    Check the status of an LLM analysis job.
+    Returns: {status: 'queued'|'processing'|'completed'|'failed'|'not_found', ...}
+    """
+    from ..logic.queue_manager import queue_manager
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        status = queue_manager.get_job_status(job_id)
+        logger.info(f"Job {job_id} status: {status.get('status')}")
+        return status
+    except Exception as e:
+        logger.error(f"Error getting job status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Eroare la verificarea statusului: {str(e)}")
+
+
+def _generate_llm_data(session: Session, ultima: Any, candidate_count: int = None, custom_template: str = None):
+    """
+    Helper to generate the export data and optimized prompt.
+    Args:
+        candidate_count: Number of cases to include (default from settings)
+        custom_template: Optional custom prompt template to use instead of settings
+    """
+    from sqlmodel import text
+    import json
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    # Get candidate count from settings if not provided
+    if candidate_count is None:
+        candidate_count = settings_manager.get_value('setari_llm', 'ai_filtering_llm_candidate_count', 5)
+
+    # Limit to available IDs
+    speta_ids_to_process = ultima.speta_ids[:candidate_count]
+
+    # Construim query-ul doar pentru cele 5 ID-uri
+    placeholders = ', '.join([f':id_{i}' for i in range(len(speta_ids_to_process))])
+    query = text(f"SELECT id, obj, sugestie_llm_taxa FROM blocuri WHERE id IN ({placeholders})")
+
+    params = {f'id_{i}': speta_id for i, speta_id in enumerate(speta_ids_to_process)}
+
+    result = session.execute(query, params)
+    results = result.mappings().all()
+
+    # Sort results to match input order in speta_ids_to_process
+    # This ensures 'all_candidates' is sorted by relevance (as provided by the search engine)
+    results_map = {row['id']: row for row in results}
+
+    spete_export = []
+    spete_text_list = []
+
+    for speta_id in speta_ids_to_process:
+        if speta_id not in results_map:
+            continue
+
+        row = results_map[speta_id]
+        obj_data = row['obj']
+
+        if isinstance(obj_data, str):
+            try:
+                obj = json.loads(obj_data)
+            except json.JSONDecodeError:
+                continue
+        else:
+            obj = obj_data
+
+        situatia = (
+            obj.get('text_situatia_de_fapt') or
+            obj.get('situatia_de_fapt') or
+            obj.get('situatie') or
+            ""
+        )
+
+        # Siguranță: Tăiem textul dacă e prea lung pentru a nu bloca memoria
+        if len(situatia) > 4000:
+            situatia = situatia[:4000] + "... (text trunchiat)"
+
+        text_individualizare = obj.get('text_individualizare', '')
+        obiect = obj.get('obiect', '')
+        tip_act_juridic = obj.get('tip_act_juridic', 'Necunoscut')
+
+        # Extract materie (legal subject) for smart filtering
+        materie = obj.get('materie') or obj.get('materia') or obj.get('categorie_caz') or "Nedefinit"
+
+        # Create speta_item with ALL fields from obj
+        speta_item = obj.copy()
+
+        # Add/Overwrite specific fields
+        speta_item.update({
+            'id': row['id'],
+            'denumire': obj.get('denumire', f'Caz #{row["id"]}'),
+            'situatia_de_fapt': situatia,
+            'situatia_de_fapt_full': situatia,  # Map for frontend compatibility
+            'text_individualizare': text_individualizare,
+            'obiect': obiect,
+            'tip_act_juridic': tip_act_juridic,
+            'materie': materie, # Added for smart filtering
+            'data': obj,  # Include original obj as 'data' property
+            'sugestie_llm_taxa': row['sugestie_llm_taxa'] # Include explicit tax suggestion from column
+        })
+        spete_export.append(speta_item)
+
+        spete_text_list.append(f"""
+CAZ #{row['id']}:
+MATERIE: {materie}
+TIP ACT JURIDIC: {tip_act_juridic}
+OBIECT: {obiect}
+SITUATIA DE FAPT: {situatia}
+ELEMENTE DE INDIVIDUALIZARE: {text_individualizare}
+--------------------------------------------------
+""")
+
+    prompt_spete = "\n".join(spete_text_list)
+
+    # Get settings
+    result_count = settings_manager.get_value('setari_llm', 'ai_filtering_result_count', 1)
+
+    if custom_template:
+        prompt_template = custom_template
+    else:
+        prompt_template = settings_manager.get_value(
+            'setari_llm',
+            'llm_prompt_template',
+            # Default fallback value
+            'Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n\\nSARCINA TA:\\nAnalizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele {num_candidates} spete pre-filtrate furnizate.\\nIdentifica cele mai relevante {num_results} spete asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\\n\\nSITUATIA DE FAPT A JUSTITIABILULUI:\\n"{query_text}"\\n\\nLISTA DE SPETE PENTRU COMPARATIE ({num_candidates} Spete Pre-filtrate):\\n{prompt_spete}\\n\\nFORMATUL RASPUNSULUI:\\nGenereaza EXCLUSIV ID-urile spetelor selectate, separate prin virgula.\\nNu adauga niciun alt text, comentariu, explicatie sau introducere.\\nExemplu de raspuns valid pentru 1 rezultat: 123\\nExemplu de raspuns valid pentru 3 rezultate: 123, 456, 789'
+        )
+
+    # Format the template with actual data
+    optimized_prompt = prompt_template.format(
+        query_text=ultima.query_text,
+        prompt_spete=prompt_spete,
+        num_candidates=len(spete_export),
+        num_results=result_count
+    )
+
+    return spete_export, optimized_prompt
+
+
+@router.get("/index-status", response_model=Dict[str, Any])
+async def get_index_maintenance_status(
+    session: Session = Depends(get_session)
+):
+    """
+    Get statistics about the vector index integrity.
+    """
+    return get_index_stats(session)
+
+
+@router.post("/index-repair", response_model=Dict[str, Any])
+async def start_index_repair_job(
+    session: Session = Depends(get_session)
+):
+    """
+    Trigger the background job to repair missing vector embeddings.
+    """
+    # Create a new session for the background thread to avoid binding issues with the request session
+    from ..db import engine
+
+    def background_repair():
+        with Session(engine) as bg_session:
+            import asyncio
+            # We need to run the async function in a new event loop or use run()
+            # But wait, run_index_repair is async because it calls embedding_batch which uses httpx async client.
+            # Running async code from a sync thread is tricky.
+            # Better approach: Use FastAPI's BackgroundTasks?
+            # But we want long-running global job.
+
+            # Since we are in a thread, we can use asyncio.run()
+            try:
+                asyncio.run(run_index_repair(bg_session))
+            except Exception as e:
+                from ..logic.index_maintenance import logger
+                logger.error(f"Background repair failed: {e}")
+
+    # Check if already running first (the logic in run_index_repair will handle lock, but we check here too for fast response)
+    stats = get_index_stats(session)
+    if stats.get('is_running'):
+         return {
+            'success': False,
+            'message': 'Repair process is already running.'
+         }
+
+    # Start thread
+    thread = threading.Thread(target=background_repair, daemon=True)
+    thread.start()
+
+    return {
+        'success': True,
+        'message': 'Index repair started in background.'
+    }
+
+
+@router.post("/index-repair/stop", response_model=Dict[str, Any])
+async def stop_index_repair_job():
+    """
+    Stop the index repair background job.
+    """
+    return stop_index_repair()
+
+
+@router.get("/materie-statistics", response_model=Dict[str, Any])
+async def get_materie_statistics(
+    session: Session = Depends(get_session),
+    limit: int = 100
+):
+    """
+    Get materie statistics showing which legal subjects are most frequently displayed.
+    """
+    from ..models import MaterieStatistics
+    from sqlmodel import select
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Query materie statistics, ordered by display_count descending
+        statement = (
+            select(MaterieStatistics)
+            .order_by(MaterieStatistics.display_count.desc())
+            .limit(limit)
+        )
+
+        results = session.exec(statement).all()
+
+        # Format results
+        statistics = [
+            {
+                'materie': stat.materie,
+                'display_count': stat.display_count,
+                'last_updated': stat.last_updated.isoformat() if stat.last_updated else None
+            }
+            for stat in results
+        ]
+
+        logger.info(f"Retrieved {len(statistics)} materie statistics")
+
+        return {
+            'success': True,
+            'total_materii': len(statistics),
+            'statistics': statistics
+        }
+
+    except Exception as e:
+        logger.error(f"Error retrieving materie statistics: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Eroare la preluarea statisticilor: {str(e)}"
+        )
+
+
+@router.get("/materie-statistics/export")
+async def export_materie_statistics(
+    session: Session = Depends(get_session),
+    limit: int = 1000
+):
+    """
+    Export materie statistics to Excel file (.xlsx).
+    """
+    from ..models import MaterieStatistics
+    from sqlmodel import select
+    from fastapi.responses import StreamingResponse
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from io import BytesIO
+    from datetime import datetime
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        # Query materie statistics
+        statement = (
+            select(MaterieStatistics)
+            .order_by(MaterieStatistics.display_count.desc())
+            .limit(limit)
+        )
+
+        results = session.exec(statement).all()
+
+        # Create Excel workbook
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Statistici Materii"
+
+        # Header styling
+        header_fill = PatternFill(start_color="1F4788", end_color="1F4788", fill_type="solid")
+        header_font = Font(bold=True, color="FFFFFF", size=12)
+        header_alignment = Alignment(horizontal="center", vertical="center")
+
+        # Set headers
+        headers = ["Nr.", "Obiect Spetă", "Număr Afișări", "Ultima Actualizare"]
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=header)
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = header_alignment
+
+        # Add data
+        for idx, stat in enumerate(results, 1):
+            ws.cell(row=idx+1, column=1, value=idx)
+            ws.cell(row=idx+1, column=2, value=stat.materie)
+            ws.cell(row=idx+1, column=3, value=stat.display_count)
+            ws.cell(row=idx+1, column=4, value=stat.last_updated.strftime("%Y-%m-%d %H:%M:%S") if stat.last_updated else "")
+
+        # Adjust column widths
+        ws.column_dimensions['A'].width = 8
+        ws.column_dimensions['B'].width = 40
+        ws.column_dimensions['C'].width = 20
+        ws.column_dimensions['D'].width = 25
+
+        # Save to BytesIO
+        excel_file = BytesIO()
+        wb.save(excel_file)
+        excel_file.seek(0)
+
+        logger.info(f"Exported {len(results)} materie statistics to Excel")
+
+        # Return as downloadable file
+        return StreamingResponse(
+            excel_file,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename=statistici_materii_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"Error exporting materie statistics: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"Eroare la exportul statisticilor: {str(e)}"
+        )
+
+@router.post("/generate-document", response_model=Dict[str, Any])
+async def generate_document(
+    request: GenerateDocumentRequest,
+    session: Session = Depends(get_session)
+):
+    """
+    Generate a legal document based on a template and relevant cases.
+    Returns job_id immediately for async processing.
+    Client should poll /generate-document-status/{job_id} for results.
+    """
+    from ..logic.queue_manager import queue_manager
+    import logging
+    import os
+
+    logger = logging.getLogger(__name__)
+    logger.info(f"Received document generation request for '{request.tip_act}'")
+
+    try:
+        # 1. Check if network generation is enabled
+        network_enabled = settings_manager.get_value('setari_generare_acte', 'generare_retea_enabled', True)
+
+        if not network_enabled:
+            return {
+                'success': False,
+                'message': 'Generarea în rețea este dezactivată din setări.'
+            }
+
+        # 2. Get network configuration
+        retea_folder = settings_manager.get_value('setari_generare_acte', 'retea_folder_generare', '/app/mnt_juridic_18')
+        retea_host = settings_manager.get_value('setari_generare_acte', 'retea_host_generare', '')
+
+        # Validăm configurarea
+        is_local_path = os.path.isabs(retea_folder) if retea_folder else False
+
+        if (not retea_host and not is_local_path) or not retea_folder:
+            return {
+                'success': False,
+                'message': 'Configurație rețea incompletă (lipsește host sau folder).'
+            }
+
+        # 3. Construct the prompt - ULTRA-STRICT ZERO-TOLERANCE
+        prompt_content = f"""⚠️⚠️⚠️ INTERZIS TOTAL: ORICE TEXT IN AFARA JSON ⚠️⚠️⚠️
+
+SARCINA: Redactează "{request.tip_act}" în format JSON.
+
+DATE:
+1. SITUATIE: "{request.situatia_de_fapt}"
+2. PRECEDENTE: "{request.relevant_cases_text}"
+
+═══════════════════════════════════════════════════════════════
+FORMATUL RASPUNSULUI - ZERO TOLERANTA LA ABATERI:
+═══════════════════════════════════════════════════════════════
+
+PRIMUL CARACTER din raspuns: {{
+ULTIMUL CARACTER din raspuns: }}
+
+SCHEMA JSON (EXCLUSIV acest format, ZERO exceptii):
+{{
+  "titlu_document": "TITLU",
+  "sectiuni": [
+    {{
+      "titlu_sectiune": "Sectiune" sau null,
+      "continut": [
+        {{
+          "tip": "paragraf",
+          "text": "Text..."
+        }}
+      ]
+    }}
+  ]
+}}
+
+Valori "tip": "titlu_centrat", "paragraf", "lista_numerotata" (cu "items": []), "semnatura"
+Placeholders: [NUME], [ADRESA], [CNP], [INSTANTA], [DATA]
+
+❌❌❌ INTERZIS ABSOLUT (ZERO EXCEPTII): ❌❌❌
+• ZERO text INAINTE de {{
+• ZERO text DUPA }}
+• ZERO note explicative (nici in paranteze la articole)
+• ZERO 'Considerente Juridice Suplimentare'
+• ZERO 'Observatii'
+• ZERO rationament profesional
+• ZERO justificari pentru formulari
+• ZERO explicatii pentru client
+• ZERO sectiuni adiacente
+• ZERO comentarii de orice fel
+• ZERO markdown (```json)
+• ZERO campuri: "act_juridic", "instanta", "parti", "contestatori"
+
+NU esti platit sa explici de ce ai ales o formulare.
+NU esti platit sa justifici structura.
+NU esti platit sa oferi consultanta.
+Esti platit EXCLUSIV sa livrezi JSON valid conform schemei.
+
+Orice caracter in afara {{ }} = ESEC TOTAL.
+
+INCEPE ACUM CU {{ (prima litera din raspuns trebuie sa fie acolada):
+"""
+
+        # Define async processor function
+        async def process_document_generation(payload: dict):
+            """Process the document generation in background."""
+            logger.info("[DOC GEN] Starting background processing...")
+
+            # 4. Save prompt to network
+            logger.info(f"[DOC GEN] Saving generation prompt to {payload['retea_folder']}...")
+            success, message, saved_path = NetworkFileSaver.save_to_network(
+                content=payload['prompt'],
+                host=payload['retea_host'],
+                shared_folder=payload['retea_folder'],
+                subfolder=""
+            )
+
+            if not success:
+                logger.error(f"[DOC GEN] Failed to save prompt: {message}")
+                return {
+                    'success': False,
+                    'error': f"Eroare la salvarea promptului: {message}"
+                }
+
+            # 5. Poll for response
+            logger.info(f"[DOC GEN] Polling for response for {saved_path}...")
+            poll_success, poll_content, response_path = await NetworkFileSaver.poll_for_response(
+                saved_path=saved_path,
+                timeout_seconds=1200,  # 20 minutes
+                poll_interval=10
+            )
+
+            if not poll_success:
+                logger.error(f"[DOC GEN] Polling failed: {poll_content}")
+                return {
+                    'success': False,
+                    'error': f"Nu s-a primit răspuns în timp util: {poll_content}"
+                }
+
+            # 6. Parse JSON response with sanitization
+            logger.info("[DOC GEN] Parsing JSON response...")
+
+            import json
+            import re
+
+            try:
+                # Sanitize: Remove Markdown code fences if present
+                sanitized_content = poll_content.strip()
+
+                # Remove ```json and ``` markers
+                sanitized_content = re.sub(r'^```json\s*', '', sanitized_content)
+                sanitized_content = re.sub(r'\s*```$', '', sanitized_content)
+
+                # Alternative: Extract content between first { and last }
+                start_idx = sanitized_content.find('{')
+                end_idx = sanitized_content.rfind('}')
+
+                if start_idx != -1 and end_idx != -1 and end_idx > start_idx:
+                    json_str = sanitized_content[start_idx:end_idx+1]
+                    parsed_document = json.loads(json_str)
+                else:
+                    # Try direct parse if no braces found (shouldn't happen)
+                    parsed_document = json.loads(sanitized_content)
+
+                # Validate schema - REMOVED strict validation to allow flexibility
+                # if 'titlu_document' not in parsed_document or 'sectiuni' not in parsed_document:
+                #     logger.error("[DOC GEN] Invalid JSON schema: missing required fields")
+                #     return {
+                #         'success': False,
+                #         'error': 'JSON invalid: lipsesc câmpurile obligatorii (titlu_document, sectiuni)'
+                #     }
+
+                logger.info("[DOC GEN] JSON parsed successfully!")
+
+                logger.info("[DOC GEN] JSON parsed successfully!")
+
+            except json.JSONDecodeError as e:
+                logger.error(f"[DOC GEN] JSON parsing error: {e}")
+                logger.info(f"[DOC GEN] Raw content: {poll_content[:500]}...")
+                return {
+                    'success': False,
+                    'error': f"Răspunsul nu este un JSON valid: {str(e)}"
+                }
+            except Exception as e:
+                logger.error(f"[DOC GEN] Unexpected error during JSON parsing: {e}")
+                return {
+                    'success': False,
+                    'error': f"Eroare la procesarea răspunsului: {str(e)}"
+                }
+
+            # 7. Clean up response file
+            logger.info("[DOC GEN] Cleaning up response file...")
+            NetworkFileSaver.delete_response_file(response_path)
+
+            # 8. Return JSON object result
+            logger.info("[DOC GEN] Document generation completed successfully!")
+            return {
+                'success': True,
+                'generated_document': parsed_document,  # Return JSON object, not string
+                'message': 'Document generat cu succes!'
+            }
+
+        # Add to queue and get job_id immediately
+        import uuid
+        job_id = str(uuid.uuid4())
+
+        payload = {
+            'prompt': prompt_content,
+            'retea_folder': retea_folder,
+            'retea_host': retea_host,
+            'tip_act': request.tip_act
+        }
+        await queue_manager.add_to_queue(job_id, 'document_generation', payload, process_document_generation)
+
+        logger.info(f"Document generation queued with job_id: {job_id}")
+
+        return {
+            'success': True,
+            'job_id': job_id,
+            'message': 'Generare în curs. Folosește job_id pentru a verifica statusul.'
+        }
+
+    except RuntimeError as e:
+        logger.error(f"Queue error: {e}")
+        raise HTTPException(status_code=503, detail=f"Coada este plină. Vă rugăm să încercați din nou mai târziu.")
+    except Exception as e:
+        logger.error(f"Error queuing document generation: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Eroare internă: {str(e)}")
+
+
+@router.get("/generate-document-status/{job_id}", response_model=Dict[str, Any])
+async def get_generate_document_status(job_id: str):
+    """
+    Check the status of a document generation job.
+    Returns: {status: 'queued'|'processing'|'completed'|'failed'|'not_found', ...}
+    """
+    from ..logic.queue_manager import queue_manager
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    try:
+        status = queue_manager.get_job_status(job_id)
+        logger.info(f"Document generation job {job_id} status: {status.get('status')}")
+        return status
+    except Exception as e:
+        logger.error(f"Error getting document generation job status: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Eroare la verificarea statusului: {str(e)}")

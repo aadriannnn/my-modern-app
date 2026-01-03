@@ -1,0 +1,80 @@
+# ============================================
+# Environment & Secrets
+# ============================================
+.env
+.env.local
+.env.*.local
+**/.env
+!**/.env.example
+
+# ============================================
+# Node / Vite / React
+# ============================================
+frontend/node_modules/
+frontend/.vite/
+frontend/dist/
+node_modules/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ============================================
+# Python / FastAPI
+# ============================================
+.venv/
+venv/
+backend/.venv/
+backend/__pycache__/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+*.db
+backend/*.db
+.pytest_cache/
+.coverage
+htmlcov/
+*.pyc
+
+# ============================================
+# OS & Editor
+# ============================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ============================================
+# Database & Data
+# ============================================
+*.sqlite
+*.sqlite3
+postgres_data/
+
+# ============================================
+# Logs
+# ============================================
+*.log
+logs/
+backend_error.log
+
+# ============================================
+# Uploads & Temporary
+# ============================================
+uploads/
+tmp/
+temp/
+
+# ============================================
+# Docker (keep configuration files)
+# ============================================
+# Allow docker-compose*.yml files for deployment

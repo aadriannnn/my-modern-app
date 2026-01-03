@@ -1,0 +1,49 @@
+version: '3.8'
+
+# ============================================
+# Production Override Configuration
+# Use: docker-compose -f docker-compose.yml -f docker-compose.prod.yml up
+# ============================================
+
+services:
+
+  backend:
+    # Production environment variables
+    environment:
+      ENVIRONMENT: production
+      LOG_LEVEL: INFO
+
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 1G
+
+    # Production logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  frontend:
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+    # Production logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

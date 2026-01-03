@@ -1,0 +1,77 @@
+# ============================================
+# Core Framework & Server
+# ============================================
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+gunicorn==23.0.0
+
+# ============================================
+# Database & ORM
+# ============================================
+sqlmodel==0.0.22
+sqlalchemy==2.0.36
+psycopg2-binary==2.9.10
+pgvector==0.3.6
+
+# ============================================
+# Configuration & Environment
+# ============================================
+pydantic==2.10.3
+pydantic-settings==2.6.1
+python-dotenv==1.0.1
+
+# ============================================
+# Authentication & Security
+# ============================================
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+bcrypt==4.2.1
+google-auth==2.37.0
+google-auth-oauthlib==1.2.1
+
+# ============================================
+# HTTP & API Clients
+# ============================================
+httpx==0.28.1
+requests==2.32.3
+
+# ============================================
+# File Handling & Processing
+# ============================================
+python-multipart==0.0.20
+reportlab==4.2.5
+openpyxl==3.1.2
+python-docx-2023
+matplotlib==3.9.2
+
+# ============================================
+# SOAP Client & Text Similarity
+# ============================================
+zeep==4.2.1
+rapidfuzz>=3.0.0
+
+# ============================================
+# AI & Embeddings (Optional - comment if not used)
+# ============================================
+# sentence-transformers==3.3.1
+# torch==2.5.1
+# transformers==4.47.1
+
+# ============================================
+# Email (Required for notifications)
+# ============================================
+# Using latest version that fixes Python 3.12 / urllib3 compatibility
+sib-api-v3-sdk>=7.6.0
+
+# ============================================
+# Utilities
+# ============================================
+python-dateutil==2.9.0.post0
+itsdangerous
+
+# ============================================
+# Payments
+# ============================================
+stripe==14.1.0
+pydantic[email]
+

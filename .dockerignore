@@ -1,0 +1,48 @@
+# ============================================
+# ROOT .dockerignore
+# ============================================
+
+# Version Control
+.git
+.gitignore
+.github
+
+# Documentation (include in image if needed)
+*.md
+!README.md
+
+# IDE & Editor
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Environment files (use .env.example template instead)
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache
+.coverage
+htmlcov/
+coverage/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml

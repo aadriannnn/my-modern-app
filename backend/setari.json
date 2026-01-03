@@ -1,0 +1,286 @@
+{
+  "ponderi_cautare_spete": {
+    "w_vector": {
+      "value": 1,
+      "label": "Pondere Vector (Semantic)",
+      "tooltip": "Importanța căutării semantice (înțelesul textului). O valoare mai mare favorizează rezultatele similare ca sens.",
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "w_metadata": {
+      "value": 0.5,
+      "label": "Pondere Metadate (Text)",
+      "tooltip": "Importanța potrivirii exacte a cuvintelor din metadate (obiect, materie, etc.).",
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "w_exact_obiect": {
+      "value": 2,
+      "label": "Bonus Obiect Exact",
+      "tooltip": "Bonus acordat dacă obiectul dosarului conține exact termenul căutat.",
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "w_materie": {
+      "value": 1.5,
+      "label": "Bonus Materie",
+      "tooltip": "Bonus acordat dacă materia dosarului corespunde cu termenul căutat.",
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "w_exact_keyword": {
+      "value": 1.2,
+      "label": "Bonus Cuvinte Cheie",
+      "tooltip": "Bonus pentru potrivirea exactă a cuvintelor cheie.",
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "w_sim_obiect": {
+      "value": 1,
+      "label": "Similaritate Obiect",
+      "tooltip": "Pondere pentru similaritatea parțială a obiectului.",
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "w_sim_keywords": {
+      "value": 0.8,
+      "label": "Similaritate Cuvinte Cheie",
+      "tooltip": "Pondere pentru similaritatea parțială a cuvintelor cheie.",
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "w_sim_text": {
+      "value": 0.4,
+      "label": "Similaritate Text Complet",
+      "tooltip": "Pondere pentru similaritatea textului extins (situația de fapt).",
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    }
+  },
+  "ponderi_cautare_coduri": {
+    "w_exact_article": {
+      "value": 10,
+      "label": "Bonus Articol Exact",
+      "tooltip": "Bonus masiv pentru găsirea exactă a numărului articolului căutat (ex: 'art. 218').",
+      "min": 0,
+      "max": 20,
+      "step": 1
+    },
+    "w_exact_materie": {
+      "value": 3.5,
+      "label": "Bonus Materie",
+      "tooltip": "Bonus dacă materia codului corespunde cu cea căutată.",
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "w_exact_obiect": {
+      "value": 5,
+      "label": "Bonus Obiect",
+      "tooltip": "Bonus dacă obiectul reglementării corespunde cu termenul căutat.",
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "w_keywords": {
+      "value": 3,
+      "label": "Pondere Cuvinte Cheie",
+      "tooltip": "Importanța prezenței cuvintelor cheie în textul articolului.",
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "w_embedding": {
+      "value": 2,
+      "label": "Pondere Semantică",
+      "tooltip": "Importanța similarității de sens (vectorială).",
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "w_trigram": {
+      "value": 0.8,
+      "label": "Similaritate Textuală",
+      "tooltip": "Pondere pentru similaritatea la nivel de caractere (trigrame).",
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "min_embedding_score": {
+      "value": 0.25,
+      "label": "Prag Minim Semantic",
+      "tooltip": "Scorul minim de similaritate semantică pentru a lua în considerare un articol (0-1).",
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    }
+  },
+  "ponderi_cautare_modele": {
+    "w_exact_materie": {
+      "value": 3,
+      "label": "Bonus Materie",
+      "tooltip": "Bonus pentru potrivirea materiei modelului.",
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "w_exact_obiect": {
+      "value": 4,
+      "label": "Bonus Obiect",
+      "tooltip": "Bonus pentru potrivirea obiectului modelului.",
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "w_keywords": {
+      "value": 2,
+      "label": "Pondere Cuvinte Cheie",
+      "tooltip": "Importanța cuvintelor cheie în model.",
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "w_embedding": {
+      "value": 1,
+      "label": "Pondere Semantică",
+      "tooltip": "Importanța similarității de sens pentru modele.",
+      "min": 0,
+      "max": 10,
+      "step": 0.5
+    },
+    "w_trigram": {
+      "value": 0.5,
+      "label": "Similaritate Textuală",
+      "tooltip": "Pondere pentru similaritatea textuală.",
+      "min": 0,
+      "max": 5,
+      "step": 0.1
+    },
+    "min_embedding_score": {
+      "value": 0.5,
+      "label": "Prag Minim Semantic",
+      "tooltip": "Scorul minim de similaritate semantică pentru modele (0-1).",
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    }
+  },
+  "setari_generale": {
+    "min_trgm_similarity": {
+      "value": 0.05,
+      "label": "Prag Minim Similaritate Text",
+      "tooltip": "Valoarea minimă pentru ca o potrivire parțială de text să fie luată în considerare.",
+      "min": 0,
+      "max": 0.5,
+      "step": 0.01
+    },
+    "top_k_results": {
+      "value": 50,
+      "label": "Număr Rezultate Implicite",
+      "tooltip": "Numărul de rezultate returnate dacă nu se specifică altfel.",
+      "min": 10,
+      "max": 200,
+      "step": 10
+    }
+  },
+  "setari_llm": {
+    "llm_url": {
+      "value": "http://192.168.1.30:11434/api/generate",
+      "label": "URL Server LLM",
+      "tooltip": "Adresa serverului LLM local pentru analiză (ex: http://192.168.1.30:11434/api/generate)",
+      "type": "string"
+    },
+    "llm_prompt_template": {
+      "value": "Esti un judecator cu experienta, capabil sa analizeze spete juridice complexe si sa identifice precedente relevante.\\n\\nSARCINA TA:\\nAnalizeaza situatia de fapt prezentata de justitiabil mai jos si compar-o cu cele {num_candidates} spete pre-filtrate furnizate.\\nIdentifica cele mai relevante {num_results} spete asemanatoare cu situatia de fapt a utilizatorului, luand in considerare situatia de fapt, obiectul si elementele de individualizare.\\n\\nSITUATIA DE FAPT A JUSTITIABILULUI:\\n\"{query_text}\"\\n\\nLISTA DE SPETE PENTRU COMPARATIE ({num_candidates} Spete Pre-filtrate):\\n{prompt_spete}\\n\\nFORMATUL RASPUNSULUI:\\nGenereaza EXCLUSIV ID-urile spetelor selectate, separate prin virgula.\\nNu adauga niciun alt text, comentariu, explicatie sau introducere.\\nExemplu de raspuns valid pentru 1 rezultat: 123\\nExemplu de raspuns valid pentru 3 rezultate: 123, 456, 789",
+      "label": "Template Prompt LLM",
+      "tooltip": "Template-ul prompt-ului trimis către LLM. Folosește {query_text} pentru situația utilizatorului, {prompt_spete} pentru lista de spețe, {num_candidates} pentru număr candidați și {num_results} pentru număr rezultate.",
+      "type": "text"
+    },
+    "ai_filtering_llm_candidate_count": {
+      "value": 5,
+      "label": "Număr Candidați LLM",
+      "tooltip": "Câte spețe (cele mai relevante din căutarea inițială) să fie trimise la LLM pentru analiză detaliată.",
+      "min": 3,
+      "max": 20,
+      "step": 1
+    },
+    "ai_filtering_result_count": {
+      "value": 1,
+      "label": "Număr Rezultate AI",
+      "tooltip": "Câte spețe să fie selectate de LLM ca fiind cele mai relevante și afișate cu label AI.",
+      "min": 1,
+      "max": 10,
+      "step": 1
+    },
+    "advanced_llm_mode": {
+      "value": "network",
+      "label": "Mod LLM pentru Advanced Analysis",
+      "tooltip": "Selectează tipul de LLM pentru analiză avansată: 'local' (verdict-ro pe GPU - rapid, 3-5s) sau 'network' (LLM extern prin file sharing - calitate superioară, 55s+)",
+      "type": "select",
+      "options": [
+        {
+          "value": "local",
+          "label": "Local GPU (verdict-line) - Rapid"
+        },
+        {
+          "value": "network",
+          "label": "Network File Sharing (LLM Extern) - Calitate Superioară"
+        }
+      ]
+    }
+  },
+  "setari_retea": {
+    "retea_enabled": {
+      "value": false,
+      "label": "Activează Salvare Prompturi în Rețea",
+      "tooltip": "Dacă este activat, toate prompturile LLM vor fi salvate pe calculatorul din rețea înainte de trimitere.",
+      "type": "boolean"
+    },
+    "retea_host": {
+      "value": "",
+      "label": "IP/Hostname Calculator Rețea",
+      "tooltip": "Pentru Docker/Linux: Lăsați GOL. Pentru Windows: Adresa calculatorului (ex: 192.168.1.32).",
+      "type": "string"
+    },
+    "retea_folder_partajat": {
+      "value": "/app/mnt_juridic",
+      "label": "Folder Partajat / Cale Mount",
+      "tooltip": "Pentru Docker: Calea de mount (ex: /app/mnt_juridic). Pentru Windows: Numele folderului partajat.",
+      "type": "string"
+    },
+    "retea_subfolder": {
+      "value": "",
+      "label": "Subfolder (opțional)",
+      "tooltip": "Subfolder în care să se salveze fișierele (ex: prompturi_llm). Lasă gol pentru rădăcina folderului partajat.",
+      "type": "string"
+    }
+  },
+  "setari_generare_acte": {
+    "generare_retea_enabled": {
+      "value": true,
+      "label": "Activează Generare Acte în Rețea",
+      "tooltip": "Dacă este activat, generarea actelor juridice se va face prin salvarea promptului pe serverul dedicat.",
+      "type": "boolean"
+    },
+    "retea_folder_generare": {
+      "value": "/app/mnt_juridic_18",
+      "label": "Folder Partajat Generare",
+      "tooltip": "Calea de mount pentru serverul de generare documente (ex: /app/mnt_juridic_18).",
+      "type": "string"
+    },
+    "retea_host_generare": {
+      "value": "",
+      "label": "Host Generare (Opțional)",
+      "tooltip": "Host-ul pentru serverul de generare (lăsați gol pentru mount local).",
+      "type": "string"
+    }
+  }
+}

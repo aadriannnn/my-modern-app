@@ -1,0 +1,102 @@
+version: '3.8'
+
+# ============================================
+# NETWORKS
+# ============================================
+networks:
+  app-network:
+    driver: bridge
+
+# ============================================
+# VOLUMES
+# ============================================
+volumes:
+  backend_logs:
+    driver: local
+  backend_uploads:
+    driver: local
+
+# ============================================
+# SERVICES
+# ============================================
+services:
+
+  # ------------------------------------------
+  # FastAPI Backend
+  # ------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lege-aplicata-backend
+    restart: unless-stopped
+    environment:
+      # Application
+      APP_NAME: ${APP_NAME:-Lege Aplicata}
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+
+      # External Database Connection (PostgreSQL)
+      DATABASE_URL: postgresql://${PG_USER}:${PG_PASS}@${PG_HOST}:${PG_PORT}/${PG_DB}
+      DATABASE_CODURI_URL: postgresql://${PG_USER}:${PG_PASS}@${PG_HOST}:${PG_PORT}/coduri_juridice
+      DATABASE_MODELE_URL: postgresql://${PG_USER}:${PG_PASS}@${PG_HOST}:${PG_PORT}/modele_acte
+
+      # Ollama AI Service (External)
+      OLLAMA_URL: ${OLLAMA_URL:-http://92.180.25.98:11434}
+
+      # CORS
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:8080}
+
+      # Authentication
+      USER_SETARI: ${USER_SETARI}
+      PASS_SETARI: ${PASS_SETARI}
+      SECRET_KEY: ${SECRET_KEY:-change-this-secret-key-in-production}
+
+      # Performance
+      WORKERS: ${WORKERS:-4}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    volumes:
+      - backend_logs:/app/logs
+      - backend_uploads:/app/uploads
+      - ./backend/setari_default.json:/app/setari_default.json:ro
+      # Network Mounts (Host -> Container)
+      - /mnt/juridic_windows:/app/mnt_juridic
+      - /mnt/juridic_windows_18:/app/mnt_juridic_18
+    networks:
+      - app-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    expose:
+      - "8000"
+
+  # ------------------------------------------
+  # React Frontend with Nginx
+  # ------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-}
+    container_name: lege-aplicata-frontend
+    restart: unless-stopped
+    networks:
+      - app-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    labels:
+      # Coolify labels for automatic configuration
+      - "coolify.managed=true"
+      - "coolify.name=lege-aplicata"
+      - "coolify.type=application"
