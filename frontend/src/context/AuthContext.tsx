@@ -36,11 +36,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const response = await fetch('/api/auth/me');
       if (response.ok) {
         const userData = await response.json();
-        setUser(userData);
-        setIsAuthenticated(true);
+        if (userData) {
+          setUser(userData);
+          setIsAuthenticated(true);
+        } else {
+          setUser(null);
+          setIsAuthenticated(false);
+        }
       } else {
-        // 401 Unauthorized is expected if user is not logged in
-        // treating this as a successful "not authenticated" state
+        // 401 Unauthorized or other error
         setUser(null);
         setIsAuthenticated(false);
       }

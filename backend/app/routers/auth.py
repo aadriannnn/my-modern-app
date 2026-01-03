@@ -348,8 +348,8 @@ async def logout(response: Response):
     response.delete_cookie(ACCESS_TOKEN_COOKIE_NAME, path="/")
     return {"success": True}
 
-@router.get("/me", response_model=ClientDataResponse)
-async def read_users_me(current_user: ClientDB = Depends(get_current_user)):
+@router.get("/me", response_model=Optional[ClientDataResponse])
+async def read_users_me(current_user: Optional[ClientDB] = Depends(get_current_user_optional)):
     return current_user
 
 # =======================
